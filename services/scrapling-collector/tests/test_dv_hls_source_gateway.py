@@ -226,6 +226,49 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
             self.assertTrue(stored.is_file())
         self.assertFalse(any(self.staging_root.iterdir()))
 
+    def test_downloads_nested_hls_variant_initialization_and_media_segment(self):
+        master = b"#EXTM3U\\n#EXT-X-STREAM-INF:BANDWIDTH=100000\\nvariant/index.m3u8\\n"
+        variant = b'#EXTM3U\\n#EXT-X-MAP:URI="init.mp4"\\n#EXTINF:4.0,\\nsegment.m4s\\n#EXT-X-ENDLIST\\n'
+        init = b"fake-mp4-initialization"
+        segment = b"fake-fmp4-media-segment"
+        responses = {
+            ("media.example", "/master.m3u8"): (200, {
+                "Content-Type": "application/vnd.apple.mpegurl",
+                "Content-Length": str(len(master)),
+            }, master),
+            ("media.example", "/variant/index.m3u8"): (200, {
+                "Content-Type": "application/vnd.apple.mpegurl",
+                "Content-Length": str(len(variant)),
+            }, variant),
+            ("media.example", "/variant/init.mp4"): (200, {
+                "Content-Type": "video/mp4",
+                "Content-Length": str(len(init)),
+            }, init),
+            ("media.example", "/variant/segment.m4s"): (200, {
+                "Content-Type": "video/iso.segment",
+                "Content-Length": str(len(segment)),
+            }, segment),
+        }
+        result, connection = self.run_gateway(responses)
+        self.assertEqual(result["status"], "registered", msg=repr(result))
+        self.assertEqual(result["member_count"], 4)
+        self.assertEqual(result["edge_count"], 3)
+        self.assertEqual(
+            {target for _, _, target in connection.requests},
+            {"/master.m3u8", "/variant/index.m3u8", "/variant/init.mp4", "/variant/segment.m4s"},
+        )
+        with registry_queue.connect() as db:
+            roles = {
+                row["role"] for row in db.execute(
+                    """SELECT e.role FROM registry_hls_asset_edges e
+                       JOIN registry_media_assets p ON p.asset_id=e.parent_asset_id
+                       WHERE p.resource_id=?""",
+                    (self.resource_id,),
+                ).fetchall()
+            }
+        self.assertEqual(roles, {"playlist", "initialization", "segment"})
+        self.assertFalse(any(self.staging_root.iterdir()))
+
     def test_rejects_non_allowlisted_hls_child_before_connecting_to_it(self):
         manifest = b"#EXTM3U\n#EXTINF:4.0,\nhttps://cdn.other.example/segment.ts\n"
         responses = {
