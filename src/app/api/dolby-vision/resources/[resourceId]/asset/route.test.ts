@@ -35,6 +35,7 @@ const registryPayload = {
     media_format: 'mp4',
   },
   media_assets: [asset],
+  hls_graphs: [],
 };
 
 function makeRequest(headers?: HeadersInit) {
