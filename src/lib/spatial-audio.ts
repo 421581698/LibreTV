@@ -347,7 +347,9 @@ export class SpatialAudioEngine {
   }
 
   /**
-   * Disable spatial processing but keep the one-shot media source reusable.
+   * Disable spatial processing by routing decoded media through an unprocessed
+   * Web Audio gain node. This is NOT restoration of the browser-native media
+   * path: the element remains attached to Web Audio and depends on its context.
    * Do not delete this engine from the WeakMap: createMediaElementSource() must
    * not be called a second time for the same media element.
    */
