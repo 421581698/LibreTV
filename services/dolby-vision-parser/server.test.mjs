@@ -1,10 +1,14 @@
-import { generateKeyPairSync, verify } from 'node:crypto';
+import { createHash, generateKeyPairSync, verify } from 'node:crypto';
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   authorizeBearer,
   canonicalize,
   createSignedEnvelope,
+  createDolbyVisionParserServer,
   isValidAssetId,
 } from './server.mjs';
 
@@ -53,4 +57,93 @@ describe('Dolby Vision parser service security primitives', () => {
     assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: null, frameLimit: 50 } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem));
     assert.throws(() => createSignedEnvelope({ ...report, inputKind: 'rpu' }, 'catalog:episode-123', 'dv-key-1', privateKeyPem));
   });
+
+  it('runs the full upload-to-parser-to-signed-envelope HTTP path', async () => {
+    const directory = await mkdtemp(resolve(tmpdir(), 'libretv-dv-service-test-'));
+    const fakeParser = resolve(directory, 'fake-dovi-tool.mjs');
+    const { privateKey: servicePrivateKey, publicKey: servicePublicKey } = generateKeyPairSync('ed25519');
+    const servicePrivatePem = servicePrivateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+    const servicePublicPem = servicePublicKey.export({ type: 'spki', format: 'pem' }).toString();
+    const parserSource = `#!/usr/bin/env node
+import { writeFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+if (args[0] === '--version') { process.stdout.write('dovi_tool 2.3.4\\n'); process.exit(0); }
+if (args[0] === 'extract-rpu') {
+  writeFileSync(args[args.indexOf('-o') + 1], Buffer.from('test-rpu'));
+  process.exit(0);
+}
+if (args[0] === 'info') { process.stdout.write('Frames: 3\\nProfiles: 8\\n'); process.exit(0); }
+if (args[0] === 'export') {
+  const levels = args[args.indexOf('--levels') + 1].split(',');
+  for (const item of levels) {
+    const [level, path] = item.split('=');
+    writeFileSync(path, level === 'level1'
+      ? JSON.stringify([{ frame: 0 }, { frame: 1 }, { frame: 2 }])
+      : '[]');
+  }
+  process.exit(0);
+}
+process.exit(2);
+`;
+    await writeFile(fakeParser, parserSource, { mode: 0o700 });
+    await chmod(fakeParser, 0o700);
+
+    const server = createDolbyVisionParserServer({
+      DV_SERVICE_TOKEN: 'integration-secret',
+      DV_SIGNING_KEY_ID: 'integration-key-1',
+      DV_SIGNING_PRIVATE_KEY_PEM: servicePrivatePem,
+      DOVI_TOOL_BIN: fakeParser,
+    });
+    await new Promise((resolveListen, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolveListen);
+    });
+    const address = server.address();
+    assert.ok(address && typeof address === 'object');
+    const endpoint = `http://127.0.0.1:${address.port}/v1/analyze`;
+    const media = Buffer.from('known test HEVC bytes');
+    const digest = createHash('sha256').update(media).digest('hex');
+    const headers = {
+      Authorization: 'Bearer integration-secret',
+      'Content-Type': 'application/octet-stream',
+      'X-DV-Asset-Id': 'r_0123456789abcdef0123456789ab',
+      'X-DV-Asset-SHA256': digest,
+    };
+
+    try {
+      const unauthorized = await fetch(endpoint, {
+        method: 'POST',
+        headers: { ...headers, Authorization: 'Bearer wrong' },
+        body: media,
+      });
+      assert.equal(unauthorized.status, 401);
+
+      const mismatch = await fetch(endpoint, {
+        method: 'POST',
+        headers: { ...headers, 'X-DV-Asset-SHA256': '0'.repeat(64) },
+        body: media,
+      });
+      assert.equal(mismatch.status, 409);
+      assert.deepEqual(await mismatch.json(), { error: 'ASSET_DIGEST_MISMATCH' });
+
+      const response = await fetch(endpoint, { method: 'POST', headers, body: media });
+      assert.equal(response.status, 200);
+      const envelope = await response.json();
+      assert.equal(envelope.assetId, headers['X-DV-Asset-Id']);
+      assert.equal(envelope.keyId, 'integration-key-1');
+      assert.equal(envelope.report.inputSha256, digest);
+      assert.equal(envelope.report.parserVersion, '2.3.4');
+      assert.equal(envelope.report.frameCount, 3);
+      assert.equal(envelope.report.metadataLevelFrameCounts['1'], 3);
+      const { signature, ...payload } = envelope;
+      assert.equal(
+        verify(null, Buffer.from(canonicalize(payload)), servicePublicPem, Buffer.from(signature, 'base64url')),
+        true,
+      );
+    } finally {
+      await new Promise((resolveClose) => server.close(resolveClose));
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
 });
