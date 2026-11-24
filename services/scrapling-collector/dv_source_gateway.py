@@ -177,6 +177,7 @@ def ingest_authorized_candidate(
 
         maximum = _positive_limit("DV_SOURCE_GATEWAY_MAX_BYTES", DEFAULT_MAX_BYTES, 1024, MAX_ALLOWED_BYTES)
         timeout = _positive_limit("DV_SOURCE_GATEWAY_TIMEOUT_SECONDS", 15, 5, 60)
+        total_timeout = _positive_limit("DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS", 3600, 60, 21600)
         pinned_ip = resolve_public_addresses(host)[0]
         target = parsed.path or "/"
         if parsed.query:
@@ -227,7 +228,7 @@ def ingest_authorized_candidate(
             temporary_path = Path(name)
             digest = hashlib.sha256()
             received = 0
-            deadline = time.monotonic() + max(60, timeout * 20)
+            deadline = time.monotonic() + total_timeout
             with os.fdopen(descriptor, "wb", closefd=True) as target_file:
                 last_checkpoint = 0
                 while received < expected_length:
