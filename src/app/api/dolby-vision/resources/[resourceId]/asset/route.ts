@@ -80,9 +80,10 @@ export async function GET(
     );
   }
 
+  const expectedContentType = record.media_format === 'webm' ? 'video/webm' : 'video/mp4';
   const asset = assets
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
-    .filter((item) => item.resource_id === resourceId)
+    .filter((item) => item.resource_id === resourceId && item.content_type === expectedContentType)
     .sort((a, b) => Number(b.created_at) - Number(a.created_at))[0];
 
   if (!asset) {
