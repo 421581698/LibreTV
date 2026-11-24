@@ -129,6 +129,66 @@ describe('SpatialMediaSession activation and fallback', () => {
     expect(session.snapshot.state).toBe('disposed');
   });
 
+  it('mirrors native pause, resume, seek, rate and volume without replacing the native element', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
+      sourceKind: 'mp4', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial, createEngine: () => makeEngine(),
+    });
+    await session.activateFromUserGesture();
+    native.paused = true;
+    native.dispatch('pause');
+    expect(spatial.pause).toHaveBeenCalled();
+    native.paused = false;
+    native.dispatch('play');
+    expect(spatial.play).toHaveBeenCalled();
+    native.currentTime = 41;
+    native.dispatch('seeked');
+    expect(spatial.currentTime).toBe(41);
+    native.playbackRate = 1.5;
+    native.dispatch('ratechange');
+    expect(spatial.playbackRate).toBe(1.5);
+    native.volume = 0.35;
+    native.dispatch('volumechange');
+    expect(spatial.volume).toBe(0.35);
+    await session.dispose();
+  });
+
+  it('returns to native playback when the native mute control is used', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
+      sourceKind: 'mp4', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial, createEngine: () => makeEngine(),
+    });
+    await session.activateFromUserGesture();
+    native.muted = false;
+    native.dispatch('volumechange');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(native.muted).toBe(false);
+    expect(session.snapshot.state).toBe('fallback');
+  });
+
+  it('makes dispose idempotent', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const engine = makeEngine();
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
+      sourceKind: 'mp4', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial, createEngine: () => engine,
+    });
+    await session.activateFromUserGesture();
+    await session.dispose();
+    await session.dispose();
+    expect(spatial.remove).toHaveBeenCalledTimes(1);
+    expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back natively on spatial media errors', async () => {
     const native = makeVideo();
     const spatial = makeVideo();
