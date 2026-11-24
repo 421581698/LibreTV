@@ -34,16 +34,30 @@ def handle(payload: dict, checkpoint, cancelled):
         if not isinstance(candidate_id, str) or not isinstance(resource_id, str):
             raise ValueError("Authorized media ingestion job is missing its registry identifiers")
         checkpoint({"stage": "authorized_media_ingest_started", "candidate_id": candidate_id})
-        from dv_source_gateway import ingest_authorized_candidate
-        result = ingest_authorized_candidate(
-            candidate_id,
-            resource_id,
-            public_https_url=public_https_url,
-            resolve_public_addresses=resolve_public_addresses,
-            pinned_connection_cls=PinnedHTTPSConnection,
-            cancelled=cancelled,
-            checkpoint=checkpoint,
-        )
+        from dv_source_gateway import _json_object, _read_candidate, ingest_authorized_candidate
+        candidate = _read_candidate(candidate_id)
+        validation = _json_object(candidate.get("validation"))
+        if validation.get("media_format") == "hls":
+            from dv_hls_source_gateway import ingest_authorized_hls_candidate
+            result = ingest_authorized_hls_candidate(
+                candidate_id,
+                resource_id,
+                public_https_url=public_https_url,
+                resolve_public_addresses=resolve_public_addresses,
+                pinned_connection_cls=PinnedHTTPSConnection,
+                cancelled=cancelled,
+                checkpoint=checkpoint,
+            )
+        else:
+            result = ingest_authorized_candidate(
+                candidate_id,
+                resource_id,
+                public_https_url=public_https_url,
+                resolve_public_addresses=resolve_public_addresses,
+                pinned_connection_cls=PinnedHTTPSConnection,
+                cancelled=cancelled,
+                checkpoint=checkpoint,
+            )
         if result.get("status") == "failed":
             raise RuntimeError("authorized_media_ingest_failed:" + str(result.get("error_type") or "unknown"))
         checkpoint({"stage": "authorized_media_ingest_finished", "status": result.get("status")})
