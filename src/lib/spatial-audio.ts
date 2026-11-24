@@ -228,7 +228,7 @@ export class SpatialAudioEngine {
     if (!pageOrigin || !isMediaElementAudioOriginSafe(media, pageOrigin)) {
       throw new Error('当前视频源未通过 CORS 安全检查，空间音频已保持关闭以避免静音');
     }
-    if (options.inputChannels !== 2 && options.inputChannels !== 6) {
+    if (options.inputChannels !== 0 && options.inputChannels !== 2 && options.inputChannels !== 6) {
       throw new Error('当前音轨声道布局尚未得到支持，空间音频保持关闭');
     }
     const context = contextFactory();
