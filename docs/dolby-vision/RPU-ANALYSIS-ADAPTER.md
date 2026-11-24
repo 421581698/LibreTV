@@ -54,6 +54,17 @@ The browser-side contract is defined in `src/lib/dolby-vision/rpu-evidence-contr
 
 This contract is currently a validation boundary and testable integration primitive. The player does **not** load arbitrary report JSON, compute a whole-media digest, or display imported RPU evidence yet. A future transport must authenticate who produced the report and bind it to the exact selected media bytes; a self-reported `verified: true` field alone is not authentication.
 
+## HEVC/Matroska integration fixtures
+
+The CI also exercises the adapter against the upstream `dovi_tool 2.3.4` integration fixtures:
+
+- `assets/hevc_tests/regular.hevc`: a complete HEVC elementary-stream test asset containing Dolby Vision RPU data.
+- `assets/hevc_tests/regular.mkv`: a Matroska test asset whose HEVC video track contains the same RPU sequence.
+- Both files are fetched from the pinned upstream release tag and checked against their Git blob object IDs before analysis.
+- The upstream extractor test asserts that the extracted RPU matches `regular_rpu.bin` and contains 259 RPU frames. LibreTV additionally runs its own adapter and validates each emitted JSON report through the runtime contract.
+
+These are complete upstream integration-test assets, not feature-length movie samples. Passing this CI proves the HEVC elementary-stream and Matroska extraction/report paths against those fixtures; it does not establish compatibility with every real-world HEVC encode, container, profile, or an entire commercial movie.
+
 ## Important boundaries
 
 - `dovi_tool` upstream currently documents HEVC RPU extraction support for Profiles 4, 5, 7 and 8. Matroska input is supported by its extractor. This adapter does not claim arbitrary MP4/HLS/AV1 extraction support.
