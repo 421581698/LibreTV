@@ -20,6 +20,7 @@ import { SwitchSourceModal } from '@/components/switch-source';
 import { SkipMarkPanel } from '@/components/skip-mark-panel';
 import { skipMarkKey, validateSegment, type SkipSegment } from '@/lib/skip-marks';
 import type { PlayerSkipApi } from '@/components/player-shell';
+import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import { useToast } from '@/components/toast';
 import { enqueueDownload } from '@/components/download-manager';
 import { suggestDownloadFilename } from '@/lib/download-saver';
@@ -76,18 +77,36 @@ function WatchContent() {
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [watchInfoTab, setWatchInfoTab] = useState<'overview' | 'insights' | 'more'>('overview');
   const [watchClock, setWatchClock] = useState({ position: 0, duration: 0 });
+  const [seekDraft, setSeekDraft] = useState<number | null>(null);
   const [watchRate, setWatchRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
+  const closeSwitchModal = useCallback(() => setSwitchOpen(false), []);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
   const playerApiRef = useRef<PlayerSkipApi | null>(null);
+  const commitSeek = (value: number) => {
+    if (!Number.isFinite(value)) {
+      setSeekDraft(null);
+      return;
+    }
+    const next = Math.max(0, Math.min(value, watchClock.duration || value));
+    playerApiRef.current?.seek(next);
+    setWatchClock((current) => ({ ...current, position: next }));
+    setSeekDraft(null);
+  };
+  const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [sheetMaxHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => () => {
+    nativeFullscreenCleanupRef.current?.();
+    nativeFullscreenCleanupRef.current = null;
+  }, []);
 
   // 优先使用本次播放 URL 传入的数据源地址，普通源仍以本机配置为准。
   const suppliedSourceUrl = (searchParams.get('sourceUrl') || '').trim();
@@ -247,7 +266,7 @@ function WatchContent() {
       shell.removeEventListener('click', revealControls, true);
       shell.removeEventListener('keydown', revealControls, true);
     };
-  }, [sourceKey, vodId, indexParam, directUrl, source, verified, detailQuery.data]);
+  }, [sourceKey, vodId, indexParam, directUrl]);
 
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
@@ -320,7 +339,8 @@ function WatchContent() {
   // 换集清空中段两步态：起点属于上一集，不能和新集的位置拼成区间
   useEffect(() => {
     setPendingStart(null);
-  }, [sourceKey, vodId, currentIndex]);
+    setSeekDraft(null);
+  }, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentIndex]);
   const goEpisode = useCallback(
     (index: number) => {
       const sp = new URLSearchParams(searchParams.toString());
@@ -407,6 +427,10 @@ function WatchContent() {
     autoNextTimer.current = null;
     setShowAutoNext(false);
   }, []);
+
+  useEffect(() => {
+    if (switchOpen) cancelAutoNext();
+  }, [switchOpen, cancelAutoNext]);
   const handleEnded = useCallback(() => {
     const progressId = vodId || currentUrl;
     if (progressId) clearProgress(sourceKey, progressId, currentIndex).catch(() => {});
@@ -431,7 +455,7 @@ function WatchContent() {
   }, [store.autoplayNext, cancelAutoNext]);
   useEffect(() => {
     cancelAutoNext();
-  }, [currentIndex, cancelAutoNext]);
+  }, [sourceKey, vodId, directUrl, suppliedSourceUrl, currentUrl, currentIndex, cancelAutoNext]);
   // 快捷键（Shift+I/O/S/E）记录片段：校验后写入
   const handleRecordSegment = useCallback(
     (segment: SkipSegment) => {
@@ -467,7 +491,12 @@ function WatchContent() {
   // Alt+←/→ 集数切换快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!e.altKey) return;
+      if (!e.altKey || switchOpen || skipPanelOpen || showPlayerPanel) return;
+      const target = e.target;
+      if (target instanceof HTMLElement && (
+        target.isContentEditable ||
+        target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')
+      )) return;
       if (e.key === 'ArrowLeft' && currentIndex > 0) {
         e.preventDefault();
         goEpisode(currentIndex - 1);
@@ -483,7 +512,7 @@ function WatchContent() {
     return () => {
       document.removeEventListener('keydown', handler);
     };
-  }, [currentIndex, episodes.length, goEpisode]);
+  }, [currentIndex, episodes.length, goEpisode, switchOpen, skipPanelOpen]);
   const orderedEpisodes = reversed
     ? [...episodes].map((_, i) => episodes.length - 1 - i)
     : episodes.map((_, i) => i);
@@ -540,11 +569,12 @@ function WatchContent() {
           <div className="watch-topbar-right">
             <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={() => {
               const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & {
-                webkitEnterFullscreen?: () => void;
                 webkitExitFullscreen?: () => void;
                 webkitDisplayingFullscreen?: boolean;
               }) | null;
               if (video?.webkitDisplayingFullscreen && video.webkitExitFullscreen) {
+                nativeFullscreenCleanupRef.current?.();
+                nativeFullscreenCleanupRef.current = null;
                 video.webkitExitFullscreen();
                 return;
               }
@@ -552,20 +582,32 @@ function WatchContent() {
                 void document.exitFullscreen().catch(() => toast('退出全屏失败，请重试', 'info'));
                 return;
               }
-              if (typeof video?.webkitEnterFullscreen === 'function') {
-                try {
-                  video.webkitEnterFullscreen();
-                  return;
-                } catch {
-                  // Fall through to the standard element fullscreen API.
-                }
+              if (playerApiRef.current?.isFullscreen()) {
+                playerApiRef.current.exitFullscreen();
+                return;
               }
               const frame = playerFrameRef.current;
-              if (frame?.requestFullscreen) {
-                void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
-              } else {
-                toast('当前浏览器不支持全屏播放', 'info');
+              if (!video) {
+                if (playerApiRef.current?.enterFullscreen) {
+                  playerApiRef.current.enterFullscreen();
+                } else {
+                  toast('视频尚未准备好，暂时无法进入全屏', 'info');
+                }
+                return;
               }
+              nativeFullscreenCleanupRef.current?.();
+              nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
+                video as NativeFullscreenVideo,
+                () => {
+                  if (playerApiRef.current?.enterFullscreen) {
+                    playerApiRef.current.enterFullscreen();
+                  } else if (frame?.requestFullscreen) {
+                    void frame.requestFullscreen().catch(() => toast('当前浏览器无法进入全屏', 'info'));
+                  } else {
+                    toast('当前浏览器不支持全屏播放', 'info');
+                  }
+                },
+              );
             }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
             </button>
@@ -620,15 +662,18 @@ function WatchContent() {
                   nextUrl={currentIndex + 1 < episodes.length ? episodes[currentIndex + 1] : undefined}
                   nextEpisodeKey={currentIndex + 1 < episodes.length ? `${sourceKey}:${vodId}:${currentIndex + 1}` : undefined}
                   getRestorePosition={getRestorePosition}
-                  onTimeUpdate={(position, duration) => {
-                    setWatchClock({ position, duration });
-                    handleProgress(position, duration);
-                  }}
+                  onClockUpdate={(position, duration) => setWatchClock({ position, duration })}
+                  onPlaybackRateChange={setWatchRate}
+                  onTimeUpdate={handleProgress}
                   onPause={(position, duration) => {
                     setWatchClock({ position, duration });
                     handleProgress(position, duration);
                   }}
                   onEnded={handleEnded}
+                  onRequestSwitchSource={(reason) => {
+                    toast(reason, 'warning');
+                    setSwitchOpen(true);
+                  }}
                   onPlaybackConfirmed={(evidence) => {
                     let host = '';
                     try { host = new URL(currentUrl).hostname.toLowerCase(); } catch { return; }
@@ -724,9 +769,12 @@ function WatchContent() {
                   min={0}
                   max={Math.max(1, watchClock.duration)}
                   step={1}
-                  value={Math.min(watchClock.position, watchClock.duration || watchClock.position)}
+                  value={watchClock.duration > 0 ? Math.min(seekDraft ?? watchClock.position, watchClock.duration) : 0}
                   aria-label="播放进度"
-                  onChange={(event) => playerApiRef.current?.seek(Number(event.target.value))}
+                  onChange={(event) => setSeekDraft(Number(event.target.value))}
+                  onPointerUp={(event) => commitSeek(Number(event.currentTarget.value))}
+                  onPointerCancel={() => setSeekDraft(null)}
+                  onKeyUp={(event) => commitSeek(Number(event.currentTarget.value))}
                   disabled={!watchClock.duration}
                 />
                 <button
@@ -900,7 +948,7 @@ function WatchContent() {
           currentSourceKey={sourceKey}
           currentVodId={vodId}
           currentIndex={currentIndex}
-          onClose={() => setSwitchOpen(false)}
+          onClose={closeSwitchModal}
         />
       )}
     </div>
