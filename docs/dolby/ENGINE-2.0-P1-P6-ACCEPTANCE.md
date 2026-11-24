@@ -64,6 +64,9 @@ Source references:
 - Additional browser coverage is still required for real multichannel CORS-safe HLS/MSE media, Safari AudioContext behavior, suspend/resume and failure recovery.
 - Separate decoder feasibility and licensing review before any decoder or renderer is considered for shipping.
 
+
+- Playback stability diagnostics measure a buffering window from the first unpaused `waiting` event until `playing`, `pause`, or `ended`; duplicate `waiting` events do not reset the start time. The reported peak is the longest completed observed waiting interval, not the time since the last `timeupdate` sample. This is read-only and does not trigger source changes, quality changes, or restarts.
+
 ## P3 — PlayerShell integration and lifecycle
 
 **Status: isolated direct-media and HLS session paths implemented; full phase not accepted**
