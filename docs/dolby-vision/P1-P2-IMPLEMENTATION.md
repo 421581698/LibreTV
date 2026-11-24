@@ -10,7 +10,7 @@ Implemented in `src/lib/dolby-vision/format-inspector.ts`:
 
 - Strict full-token parsing for `dvhe`, `dvh1`, `dav1`, and `dva1` RFC 6381-style declarations.
 - Extracts declared Profile and Level as numeric values.
-- Distinguishes HEVC, AV1 and AVC codec families from the codec identifier.
+- Distinguishes HEVC, AV1 and AVC codec families from the codec identifier, including Dolby's AVC identifiers `dva1` and `dvav`.
 - Reads HLS `CODECS`, `SUPPLEMENTAL-CODECS`, and `VIDEO-RANGE` attributes.
 - Handles quoted HLS attribute values and ignores URL query strings when identifying containers.
 - Rejects malformed prefixes, trailing junk, missing digits and zero Profile/Level values.
