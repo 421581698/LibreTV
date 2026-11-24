@@ -61,6 +61,8 @@ Safari native HLS and the existing ArtPlayer/hls.js route remain the default pro
 
 ## P4 — Physical output-chain verification
 
+Execution matrix: [P4 physical device and output-chain acceptance matrix](./ENGINE-2.0-P4-DEVICE-OUTPUT-MATRIX.md). The matrix is a recording template only; no physical-device result is implied by its creation.
+
 **Not run; hardware evidence required**
 - iPhone/iPad built-in speakers.
 - AirPods and other Bluetooth outputs.
