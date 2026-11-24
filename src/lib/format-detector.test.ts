@@ -64,6 +64,13 @@ describe('detectMediaFormat', () => {
     }
   });
 
+  it('prefers the selected audio-track codec over a conflicting variant codec list', () => {
+    expect(detectMediaFormat({
+      codecs: 'avc1.640028,ac-3',
+      audioCodec: 'ec-3',
+    })).toMatchObject({ audioCodec: 'eac3', dolbyFamily: 'dolby-digital-plus', codecString: 'ec-3' });
+  });
+
   it('recognizes explicit container codec aliases without prefix matching', () => {
     const cases: Array<[string, string]> = [
       ['A_EAC3', 'eac3'],
