@@ -1,6 +1,7 @@
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { canonicalizeDolbyVisionRpuPayload } from '@/lib/dolby-vision/signed-rpu-envelope';
+import { parseVerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
 
 vi.mock('@/lib/api-guard', () => ({
   guardPrivateFeatureRequest: vi.fn(() => null),
@@ -110,6 +111,8 @@ describe('POST /api/dolby-vision/assets/[assetId]/analyze', () => {
       sourceHashBinding: 'matched',
       evidence: { source: 'dovi_tool', rpuPresent: true, profile: 8 },
     });
+    expect(parseVerifiedDolbyVisionEvidenceResponse(body, assetId)).not.toBeNull();
+    expect(body).not.toHaveProperty('report');
     expect(parserFetch).toHaveBeenCalledTimes(1);
     const [url, init] = parserFetch.mock.calls[0];
     expect(url).toBe('http://dolby-vision-parser:8788/v1/analyze');
