@@ -22,6 +22,7 @@ CHUNK_SIZE = 1024 * 1024
 ALLOWED_CONTENT_TYPES = {
     "application/octet-stream",
     "video/mp4",
+    "video/webm",
     "video/x-matroska",
     "video/mp2t",
     "video/hevc",
