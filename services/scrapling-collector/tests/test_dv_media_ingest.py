@@ -25,7 +25,7 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def add_resource(self, resource_key):
-        return registry.upsert_resource({
+        resource = registry.upsert_resource({
             "resource_key": resource_key,
             "source_key": "trusted-ingest-test",
             "resource_type": "DIRECT_MEDIA",
@@ -33,7 +33,7 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
             "title": "Ingestion fixture",
             "access_state": "PUBLIC",
             "media_format": "mp4",
-        }) | {}
+        })
         registry.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
         registry.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 5})
         return resource
