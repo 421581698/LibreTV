@@ -42,7 +42,7 @@ describe('parseHlsAudioRenditions', () => {
         '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="g",NAME="Unknown",URI="audio.m3u8"',
         `#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,${audioCodec}",AUDIO="g"`,
         'video.m3u8',
-      ].join('\\n');
+      ].join('\n');
       expect(parseHlsAudioRenditions(manifest)[0].codec).toBeNull();
     }
   });
