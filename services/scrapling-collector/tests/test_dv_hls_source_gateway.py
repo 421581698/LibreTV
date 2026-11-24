@@ -283,6 +283,42 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertEqual(connection.requests, [("media.example", "GET", "/master.m3u8")])
         self.assertFalse(any(self.staging_root.iterdir()))
 
+    def test_rejects_staged_hls_member_that_does_not_match_transfer_digest(self):
+        import hashlib
+        import dv_hls_source_gateway as gateway
+
+        manifest = b"#EXTM3U\\n#EXTINF:4.0,\\nsegment.ts\\n#EXT-X-ENDLIST\\n"
+        segment = b"authorized-segment-bytes"
+        def fake_fetch(url, destination, **kwargs):
+            payload = manifest if url.endswith("master.m3u8") else segment
+            destination.write_bytes(payload)
+            kwargs["progress"]["total_bytes"] += len(payload)
+            digest = hashlib.sha256(payload).hexdigest()
+            if url.endswith("segment.ts"):
+                digest = "0" * 64
+            return digest, len(payload)
+
+        with (
+            patch.dict(os.environ, {
+                "DV_SOURCE_GATEWAY_ENABLED": "1",
+                "DV_AUTHORIZED_SOURCE_HOSTS": "media.example",
+                "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+            }),
+            patch.object(gateway, "_fetch_member", side_effect=fake_fetch),
+            patch.object(gateway, "ingest_hls_directory") as ingest_graph,
+        ):
+            result = gateway.ingest_authorized_hls_candidate(
+                self.candidate_id,
+                self.resource_id,
+                public_https_url=self.public_url,
+                resolve_public_addresses=self.public_addresses,
+                pinned_connection_cls=object,
+            )
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("transfer digest", result["reason"])
+        ingest_graph.assert_not_called()
+        self.assertFalse(any(self.staging_root.iterdir()))
+
     def test_rejects_encrypted_hls_before_fetching_key_or_segment(self):
         manifest = b'#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="secret.key"\n#EXTINF:4.0,\nsegment.ts\n'
         responses = {
