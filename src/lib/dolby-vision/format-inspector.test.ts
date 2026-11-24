@@ -18,7 +18,9 @@ describe('inspectDolbyVisionFormat', () => {
 
   it('recognizes AV1 and AVC Dolby Vision codec identifiers without conflating families', () => {
     expect(inspectDolbyVisionFormat({ codecs: 'dav1.10.08' }).codecFamilies).toEqual(['av1']);
-    expect(inspectDolbyVisionFormat({ codecs: 'dva1.09.06' }).codecFamilies).toEqual(['avc']);\n    expect(inspectDolbyVisionFormat({ codecs: 'dvav.09.04' })).toMatchObject({ profiles: [9], codecFamilies: ['avc'] });\n    expect(inspectDolbyVisionFormat({ codecs: 'dvhe.00.04' })).toMatchObject({ profiles: [0], detected: true });
+    expect(inspectDolbyVisionFormat({ codecs: 'dva1.09.06' }).codecFamilies).toEqual(['avc']);
+    expect(inspectDolbyVisionFormat({ codecs: 'dvav.09.04' })).toMatchObject({ profiles: [9], codecFamilies: ['avc'] });
+    expect(inspectDolbyVisionFormat({ codecs: 'dvhe.00.04' })).toMatchObject({ profiles: [0], detected: true });
   });
 
   it('parses quoted HLS CODECS and SUPPLEMENTAL-CODECS declarations', () => {
