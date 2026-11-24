@@ -1,4 +1,5 @@
-export { CINEMA_COMPACT_MIN, CINEMA_STAGE_MIN, resolveCinemaActivation } from './container';
+export { CINEMA_COMPACT_MIN, CINEMA_STAGE_MIN, resolveCinemaActivation, resolveIpadNavigationLayout } from './container';
+export type { IpadNavigationLayout } from './container';
 export type { CinemaActivation } from './container';
 export { isIpadEditionDevice } from './device';
 export type { DeviceSignals } from './device';
