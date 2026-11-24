@@ -164,17 +164,18 @@ The resource ID must already exist. The content type is a trusted-ingestion asse
 
 ### Authorized progressive-media source gateway
 
-The collector also includes `dv_source_gateway.py`. When an operator explicitly enables it, a successful browser playback-confirmation request enqueues an idempotent `dv_media_ingest` job for the durable worker; the browser request does not wait for the media transfer. It reads the candidate URL from the collector database (the request cannot supply or override a URL), and requires all of the following:
+The collector includes two authorized-source gateways: `dv_source_gateway.py` for progressive MP4/WebM and `dv_hls_source_gateway.py` for clear-HLS graphs. When an operator explicitly enables the feature, successful browser playback confirmation enqueues one idempotent `dv_media_ingest` job; the browser request does not wait for network transfers. The worker reads candidate URLs and playback evidence from the collector database. No client-supplied URL is accepted.
+
+Both gateways require:
 
 - `DV_SOURCE_GATEWAY_ENABLED=1` and `SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1`
-- Exact hostname membership in `DV_AUTHORIZED_SOURCE_HOSTS` (comma-separated; no wildcards or suffix matching)
+- Exact hostname membership in `DV_AUTHORIZED_SOURCE_HOSTS` (comma-separated; no wildcards or suffix matching); every HLS playlist, segment, audio, subtitle, and initialization member must independently pass the same allowlist
 - Candidate preflight still marked validated and PUBLIC, plus persisted browser playback progression evidence
 - Registry resource still marked DIRECT_MEDIA, PUBLIC, validated, and PLAYER_CONFIRMED
-- Progressive MP4/WebM only, with the validated MIME type matching the playback-confirmed format
-- HTTPS on port 443, public-IP DNS validation and a TCP connection pinned to that validated IP
-- HTTP 200, exact matching Content-Type, identity content encoding, and a bounded exact Content-Length
+- HTTPS on port 443, public-IP DNS validation and a TCP connection pinned to the validated IP
+- HTTP 200, matching member Content-Type, identity content encoding, and a bounded exact Content-Length
 
-The gateway does not follow redirects, forward cookies or authorization headers, accept arbitrary client URLs, or fetch HLS/DASH, encryption keys, or DRM-protected content. Redirected sources must be explicitly re-registered at their final same-host URL. The default transfer limit is 512 MiB (`DV_SOURCE_GATEWAY_MAX_BYTES`, 1 KiB–2 GiB); the origin read timeout defaults to 15 seconds (`DV_SOURCE_GATEWAY_TIMEOUT_SECONDS`, 5–60 seconds). Only one gateway transfer runs concurrently per worker process. The worker checkpoints byte progress, observes cancellation between reads, and removes the staging file in its cleanup path. Received bytes are streamed to a private staging file, fsynced, hashed, and passed through the same immutable content-addressed ingestion worker; the transfer digest is checked against the stored-object digest. Temporary staging files are removed on success or failure.
+The gateways never follow redirects, forward cookies or authorization headers, or retrieve encryption keys or DRM-protected content. Redirected roots must be explicitly re-registered at their final URL. Progressive MP4/WebM is stored as one immutable asset. HLS recursively fetches a clear playlist graph and then invokes `dv_hls_ingest.py` to create content-addressed assets, rewritten immutable playlist URIs, and parent/child graph edges. The default per-transfer limit is 512 MiB (`DV_SOURCE_GATEWAY_MAX_BYTES`, 1 KiB–2 GiB); the origin read timeout defaults to 15 seconds (`DV_SOURCE_GATEWAY_TIMEOUT_SECONDS`, 5–60 seconds). HLS additionally enforces a 4 GiB graph-wide byte limit, 10,000 members, 50,000 edges, 16 playlist levels, and a 30-minute total fetch deadline. The durable worker checkpoints byte progress, observes cancellation between reads, and removes private staging files on success or failure. Each member is fsynced and hashed before immutable registration; the MP4/WebM transfer digest is cross-checked against the stored-object digest.
 
 Example opt-in configuration (only add domains for which the operator has explicit rights to retrieve and store the media):
 
@@ -186,6 +187,6 @@ DV_SOURCE_GATEWAY_MAX_BYTES=536870912
 DV_SOURCE_GATEWAY_TIMEOUT_SECONDS=15
 ```
 
-In Compose, these variables are passed only to the collector API container. The gateway remains disabled by default and will not download from the discovery allowlist automatically. A host being public, or a candidate being playable, is not proof of redistribution rights; the explicit source-host list is the operator's authorization boundary and must be maintained accordingly. This gateway automates progressive MP4/WebM ingestion. Confirmed clear-HLS sources are routed through the separate graph-aware `dv_hls_source_gateway.py` worker, which applies the same exact-host allowlist, pinned-public-IP, no-redirect, byte-limit and cancellation rules to every graph member before immutable graph registration. The HLS per-member limit uses `DV_SOURCE_GATEWAY_MAX_BYTES`; the graph-wide hard limit is 4 GiB and the member/depth/edge limits are enforced by the HLS graph ingester.
+In Compose, these variables are passed to both the collector API and durable worker containers, with identical database and media-storage paths. The gateway remains disabled by default and will not download from the discovery allowlist automatically. A host being public, or a candidate being playable, is not proof of redistribution rights; the explicit source-host list is the operator's authorization boundary and must be maintained accordingly. Confirmed progressive MP4/WebM and clear-HLS sources are both routed through the durable worker. HLS graph members are fetched only from exact allowlisted hosts; a child CDN hostname must be added explicitly before it can be used.
 
 **Remaining boundary:** the gateway code and opt-in wiring are implemented, but it has not yet been run against a real operator-authorized origin or a live Compose deployment. The local Docker volume is not an external WORM/object-lock store.
