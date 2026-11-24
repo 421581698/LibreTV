@@ -97,7 +97,7 @@ describe('parseHlsAudioRenditions', () => {
       '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="languages",NAME="Spanish",CHANNELS="6",URI="audio/es.m3u8"',
       '#EXT-X-STREAM-INF:BANDWIDTH=4000000,CODECS="avc1.640028,ec-3,mp4a.40.2",AUDIO="languages"',
       'video/1080p.m3u8',
-    ].join('\\n');
+    ].join('\n');
 
     expect(parseHlsAudioRenditions(manifest)).toMatchObject([
       { name: 'English', channelCount: 2, codec: null },
