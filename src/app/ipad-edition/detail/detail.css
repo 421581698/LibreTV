@@ -621,3 +621,8 @@
     margin-top: 26px;
   }
 }
+
+/* Playback lookup hint and live status should remain legible but secondary. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-status {
+  color: #888;
+}
