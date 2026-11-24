@@ -45,6 +45,15 @@ on:
       - "src/app/pr84-watch-mobile-fix.css"
       - "src/lib/movie-title-match.ts"
       - "src/lib/movie-title-match.test.ts"
+      - "docs/dolby/**"
+      - "src/lib/format-detector.ts"
+      - "src/lib/format-detector.test.ts"
+      - "src/lib/audio-inspector.ts"
+      - "src/lib/audio-inspector.test.ts"
+      - "src/lib/capability-manager.ts"
+      - "src/lib/capability-manager.test.ts"
+      - "src/lib/playback-stability.ts"
+      - "src/lib/playback-stability.test.ts"
       - "wrangler.ipad-edition-preview.toml"
   workflow_dispatch:
     inputs:
