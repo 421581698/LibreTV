@@ -204,10 +204,13 @@ describe('SpatialMediaSession activation and fallback', () => {
       createMediaElement: () => spatial, createEngine: () => engine,
     });
     await session.activateFromUserGesture();
+    native.currentTime = 55;
+    spatial.currentTime = 0;
     spatial.dispatch('error');
     await Promise.resolve();
     await Promise.resolve();
     expect(native.muted).toBe(false);
+    expect(native.currentTime).toBe(55);
     expect(session.snapshot.state).toBe('fallback');
   });
 
