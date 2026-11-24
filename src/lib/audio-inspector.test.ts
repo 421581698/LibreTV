@@ -22,7 +22,7 @@ describe('parseHlsAudioRenditions', () => {
   });
 
   it('recognizes registered HLS audio sample-entry tokens', () => {
-    const cases = ['mlpa', 'dtsc', 'dtsh', 'dtse', 'lpcm', 'iamf.001'];
+    const cases = ['mlpa', 'dtsc', 'dtsh', 'dtse', 'dtsx', 'lpcm', 'iamf.001'];
     for (const audioCodec of cases) {
       const manifest = [
         '#EXTM3U',
