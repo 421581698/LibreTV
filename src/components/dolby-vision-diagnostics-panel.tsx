@@ -107,7 +107,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
               <span>{report?.videoRange ?? 'unknown'}</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-white/55">RPU / 动态元数据</span>
+              <span className="text-white/55">RPU 存在性</span>
               <span>{verifiedEvidence ? '已验证存在' : '未验证'}</span>
             </div>
             {verifiedEvidence && (
