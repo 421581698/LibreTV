@@ -1,7 +1,7 @@
 /**
  * HLS audio rendition inspection.
- * Reads declared CHANNELS metadata only. A JOC marker is metadata, not proof
- * that the browser decodes Dolby Atmos objects.
+ * Reads declared CHANNELS/CODECS metadata only. A JOC marker is metadata,
+ * not proof that the browser decodes Dolby Atmos objects.
  */
 export type AudioChannelLayout = 'mono' | 'stereo' | '5.1' | 'unknown';
 export interface HlsAudioRenditionInfo {
@@ -25,7 +25,7 @@ function parseAttributeList(line: string): Record<string, string> {
 function audioCodecFromCodecs(codecs?: string): string | null {
   if (!codecs) return null;
   return codecs.split(',').map((value) => value.trim())
-    .find((value) => /^(mp4a|ac-4|ac-3|ec-3|opus|flac|alac|dts|mlpa)/i.test(value)) ?? null;
+    .find((value) => /^(mp4a|ac-4|ac-3|ec-3|opus|flac|alac|dts|mlpa|iamf|lpcm)/i.test(value)) ?? null;
 }
 function channelLayout(count: number | null): AudioChannelLayout {
   if (count === 1) return 'mono';
@@ -47,10 +47,11 @@ export interface HlsAudioTrackLike {
 export function inspectHlsAudioTrack(track: HlsAudioTrackLike): HlsAudioRenditionInfo {
   const channelsRaw = track.channels ?? null;
   const parsed = parseChannelDeclaration(channelsRaw);
+  const codec = track.audioCodec ?? null;
   return {
     groupId: track.groupId ?? '', name: track.name ?? '', uri: track.url ?? null,
     channelsRaw, channelCount: parsed.channelCount, layout: channelLayout(parsed.channelCount),
-    codec: track.audioCodec ?? null, hasJocMarker: parsed.hasJocMarker,
+    codec, hasJocMarker: parsed.hasJocMarker || Boolean(codec && /(?:^|[-.,\s])joc(?:$|[-.,\s])/i.test(codec)),
     default: Boolean(track.default), autoselect: Boolean(track.autoselect),
   };
 }
@@ -76,5 +77,12 @@ export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo
       autoselect: attrs.AUTOSELECT === 'YES',
     });
   }
-  return renditions.map((rendition) => ({ ...rendition, codec: audioGroups.get(rendition.groupId) ?? null }));
+  return renditions.map((rendition) => {
+    const codec = audioGroups.get(rendition.groupId) ?? null;
+    return {
+      ...rendition,
+      codec,
+      hasJocMarker: rendition.hasJocMarker || Boolean(codec && /(?:^|[-.,\s])joc(?:$|[-.,\s])/i.test(codec)),
+    };
+  });
 }
