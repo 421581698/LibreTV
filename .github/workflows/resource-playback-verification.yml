@@ -103,6 +103,20 @@ jobs:
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-profile8.rpu --kind rpu > /tmp/dolby-vision-report.json
           node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('/tmp/dolby-vision-report.json','utf8')); if(r.source!=='dovi_tool'||r.parserVersion!=='2.3.4'||r.rpuPresent!==true||r.profile!==8||!Number.isInteger(r.frameCount)||r.frameCount<1) throw new Error('RPU adapter acceptance failed: '+JSON.stringify(r)); console.log(JSON.stringify({parser:r.source,version:r.parserVersion,profile:r.profile,frames:r.frameCount,levels:r.metadataLevels,rpuSha256:r.rpuSha256},null,2));"
           DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
+      - name: Fetch pinned upstream HEVC and Matroska integration fixtures
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/hevc_tests/regular.hevc -o /tmp/dolby-vision-regular.hevc
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/hevc_tests/regular.mkv -o /tmp/dolby-vision-regular.mkv
+          test "$(git hash-object /tmp/dolby-vision-regular.hevc)" = "0435ca7d75348ed3fe5362b7188fd59849413721"
+          test "$(git hash-object /tmp/dolby-vision-regular.mkv)" = "4e7c735e42dcfddb5232d5b44acb1f2fff56ab5b"
+      - name: Verify complete HEVC elementary-stream extraction and report contract
+        run: |
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-regular.hevc > /tmp/dolby-vision-hevc-report.json
+          DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-hevc-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
+      - name: Verify complete Matroska HEVC-track extraction and report contract
+        run: |
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-regular.mkv > /tmp/dolby-vision-mkv-report.json
+          DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-mkv-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
 
   collector-verification:
     runs-on: ubuntu-latest
