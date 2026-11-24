@@ -243,6 +243,7 @@ def ingest_authorized_hls_candidate(
 
         max_member = _positive_limit("DV_SOURCE_GATEWAY_MAX_BYTES", 512 * 1024 * 1024, 1024, MAX_MEMBER_BYTES)
         timeout = _positive_limit("DV_SOURCE_GATEWAY_TIMEOUT_SECONDS", 15, 5, 60)
+        total_timeout = _positive_limit("DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS", 3600, 60, 21600)
         staging_root = registry.DV_MEDIA_STAGING_ROOT
         staging_root.mkdir(parents=True, exist_ok=True)
         staging = Path(tempfile.mkdtemp(prefix="dv-authorized-hls-", dir=staging_root))
@@ -252,7 +253,7 @@ def ingest_authorized_hls_candidate(
             "allocated_members": 0,
             "edges": 0,
             "total_bytes": 0,
-            "deadline": time.monotonic() + 1800,
+            "deadline": time.monotonic() + total_timeout,
         }
         fetched: dict[str, Path] = {}
         visiting: set[str] = set()
