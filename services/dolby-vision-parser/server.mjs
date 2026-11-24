@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { createHash, createPrivateKey, sign, timingSafeEqual } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 import { createWriteStream } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -115,7 +118,7 @@ async function analyzeUpload(request, response, env) {
       return;
     }
 
-    const output = execFileSync(process.execPath, [
+    const { stdout } = await execFileAsync(process.execPath, [
       ANALYZER, '--input', inputPath, '--kind', 'hevc',
       '--dovi-tool', env.DOVI_TOOL_BIN || '/usr/local/bin/dovi_tool',
     ], {
@@ -123,9 +126,8 @@ async function analyzeUpload(request, response, env) {
       timeout: ANALYSIS_TIMEOUT_MS,
       maxBuffer: 4 * 1024 * 1024,
       windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    const report = JSON.parse(output);
+    const report = JSON.parse(stdout);
     if (report.inputSha256 !== actualSha256 || report.inputKind !== 'hevc' ||
         report.extractionScope?.frameLimit !== null || !/^2\.3\.\d+$/.test(report.parserVersion || '')) {
       sendJson(response, 422, { error: 'PARSER_REPORT_REJECTED' });
