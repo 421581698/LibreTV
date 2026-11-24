@@ -16,6 +16,13 @@ import {
   resolveRecoveryAction,
   resolveStallAction,
 } from '@/lib/playback-auto-policy';
+import {
+  buildPlaybackDiagnostics,
+  readStabilityMetrics,
+  toHlsAudioTrackLike,
+  type DiagnosticsInput,
+  type StabilityPeaks,
+} from '@/lib/playback-diagnostics';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -42,6 +49,25 @@ import {
 
 /** 片段时间统一保留 1 位小数：与面板展示保持一致，避免浮点尾巴 */
 const round1 = (v: number) => Math.round(v * 10) / 10;
+
+/** Read-only browser capability probe (no decode/passthrough claim). */
+function readCapabilityEnvironment(video: HTMLVideoElement) {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      audioContextAvailable: false,
+      mediaSourceAvailable: false,
+      mediaCapabilitiesAvailable: false,
+    };
+  }
+  return {
+    userAgent: navigator.userAgent,
+    audioContextAvailable: typeof AudioContext !== 'undefined'
+      || typeof (window as { webkitAudioContext?: unknown }).webkitAudioContext !== 'undefined',
+    mediaSourceAvailable: typeof MediaSource !== 'undefined',
+    mediaCapabilitiesAvailable: 'mediaCapabilities' in navigator,
+    canPlayType: (mimeType: string) => video.canPlayType(mimeType),
+  };
+}
 
 const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
 function readQualityPreference(): QualityPreference {
@@ -302,6 +328,43 @@ export function PlayerShell({
   };
 
   const playbackIdentityRef = useRef({ sourceKey, resourceKey, onPlaybackSample });
+  // Read-only diagnostics accumulator: raw observations from real HLS/video
+  // events, aggregated through buildPlaybackDiagnostics() at flush time.
+  // Never influences playback decisions.
+  const diagnosticsRef = useRef<{
+    input: DiagnosticsInput;
+    peaks: StabilityPeaks;
+    lastProgressAtMs: number | null;
+  }>({ input: {}, peaks: { peakStallMs: 0, peakDroppedFrameRatio: null }, lastProgressAtMs: null });
+  const resetDiagnostics = () => {
+    diagnosticsRef.current = {
+      input: {},
+      peaks: { peakStallMs: 0, peakDroppedFrameRatio: null },
+      lastProgressAtMs: null,
+    };
+  };
+  /** Sample real video state into the stability diagnostic (read-only). */
+  const observeStability = (video: HTMLVideoElement) => {
+    const diag = diagnosticsRef.current;
+    const now = Date.now();
+    const metrics = readStabilityMetrics({
+      video,
+      nowMs: now,
+      lastProgressAtMs: diag.lastProgressAtMs,
+      online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+    });
+    diag.input.stabilityMetrics = metrics;
+    if (metrics.lastProgressAtMs !== null) {
+      const stallMs = Math.max(0, metrics.nowMs - metrics.lastProgressAtMs);
+      diag.peaks.peakStallMs = Math.max(diag.peaks.peakStallMs, stallMs);
+    }
+    const quality = typeof video.getVideoPlaybackQuality === 'function' ? video.getVideoPlaybackQuality() : null;
+    const dropped = quality?.droppedVideoFrames;
+    const total = quality?.totalVideoFrames;
+    if (typeof dropped === 'number' && typeof total === 'number' && total > 0) {
+      diag.peaks.peakDroppedFrameRatio = Math.max(diag.peaks.peakDroppedFrameRatio ?? 0, dropped / total);
+    }
+  };
   const playbackMetricsRef = useRef({
     startedAt: Date.now(), firstFragmentMs: undefined as number | undefined,
     totalBytes: 0, totalDownloadMs: 0, totalMediaSeconds: 0,
@@ -314,6 +377,7 @@ export function PlayerShell({
     stalledObserved: false, degradedObserved: false, suppressedRecoveries: 0,
   });
   const resetPlaybackMetrics = () => {
+    resetDiagnostics();
     setSelectedHlsRendition(null);
     setObservedMediaBitrateKbps(0);
     setObservedThroughputKbps(0);
@@ -333,6 +397,9 @@ export function PlayerShell({
     const metrics = playbackMetricsRef.current;
     if (metrics.flushed || (!metrics.playedSeconds && !metrics.totalBytes && !metrics.fatalErrors)) return;
     metrics.flushed = true;
+    // 上报前补一次真实视频状态采样，保证稳定性诊断反映最终状态（只读）。
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (video) observeStability(video);
     const identity = playbackIdentityRef.current;
     if (!identity.sourceKey || !identity.resourceKey) return;
     identity.onPlaybackSample?.({
@@ -354,6 +421,7 @@ export function PlayerShell({
       stalledObserved: metrics.stalledObserved,
       degradedObserved: metrics.degradedObserved,
       suppressedRecoveries: metrics.suppressedRecoveries,
+      diagnostics: buildPlaybackDiagnostics(diagnosticsRef.current.input, diagnosticsRef.current.peaks),
     });
   };
 
@@ -805,6 +873,37 @@ export function PlayerShell({
     }
     hls.loadSource(mediaUrl);
     hls.attachMedia(video);
+
+    // 只读诊断：把真实媒体地址交给格式检测器（仅识别容器/编码，不上报 URL 本身），
+    // 并记录设备能力。能力探测只读，不声称任何 Atmos 解码或位流直通。
+    diagnosticsRef.current.input.format = { url: mediaUrl, mimeType: undefined };
+    diagnosticsRef.current.input.capabilityEnvironment = readCapabilityEnvironment(video);
+
+    // 真实音轨：hls.js 的 audioTracks 是 MediaPlaylist[]，字段与音频检查器入参一致。
+    // 映射为精简结构（丢弃 name/url），只保留声道/编码/JOC 用于只读分析。
+    const observeAudioTracks = () => {
+      // Same instance/generation identity guard as isCurrentHls(), inlined so
+      // the audio-track listener can never mutate stale diagnostics after换集.
+      if (hlsRef.current !== hls || loadGeneration !== mediaLoadGenerationRef.current) return;
+      const tracks = hls.audioTracks.map(toHlsAudioTrackLike);
+      diagnosticsRef.current.input.audioTracks = tracks;
+      // 把默认音轨的声道声明补进格式检测（JOC 只是元数据提示）。
+      const declared = tracks.find((track) => track.default) ?? tracks[0];
+      if (declared?.channels) {
+        diagnosticsRef.current.input.format = {
+          ...diagnosticsRef.current.input.format,
+          hlsChannels: declared.channels,
+        };
+      }
+      // 用声明的音频编码推导 canPlayType 提示的 MIME（仅提示，非解码证明）。
+      const trackCodec = declared?.audioCodec;
+      if (trackCodec) {
+        const codec = trackCodec.split('.')[0];
+        diagnosticsRef.current.input.assessmentMimeType = `audio/mp4; codecs="${codec}"`;
+      }
+    };
+    hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, observeAudioTracks);
+    if (hls.audioTracks.length > 0) observeAudioTracks();
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       if (!isCurrentHls()) return;
@@ -1279,6 +1378,9 @@ export function PlayerShell({
       stallRecoveryRequestedRef.current = false;
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       playbackStartedRef.current = true;
+      // 只读诊断：起播即建立进度基准，并采样一次真实稳定性状态。
+      diagnosticsRef.current.lastProgressAtMs = Date.now();
+      if (art.video) observeStability(art.video);
       setShowPoster(false);
       setShowPlayFallback(false);
       // 仅在媒体真正恢复（有分片进入 buffer）后清错误遮罩：
@@ -1355,10 +1457,15 @@ export function PlayerShell({
     art.on('video:timeupdate', () => {
       const metrics = playbackMetricsRef.current;
       const position = art.currentTime;
-      if (metrics.lastTickAt > 0 && position > metrics.lastPosition && position - metrics.lastPosition <= 2.5) metrics.playedSeconds += position - metrics.lastPosition;
+      if (metrics.lastTickAt > 0 && position > metrics.lastPosition && position - metrics.lastPosition <= 2.5) {
+        metrics.playedSeconds += position - metrics.lastPosition;
+        // 真实时间前进：刷新只读稳定性诊断的最后进度时刻。
+        diagnosticsRef.current.lastProgressAtMs = Date.now();
+      }
       metrics.lastPosition = position;
       metrics.lastTickAt = Date.now();
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
+      if (art.video) observeStability(art.video);
       const now = Date.now();
       // Keep the on-screen timeline in sync with the browser's media clock.
       // Persistence remains separately throttled to avoid excessive IndexedDB writes.
@@ -1437,6 +1544,8 @@ export function PlayerShell({
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
       if (!art.video?.paused && !metrics.waiting) { metrics.stalls += 1; metrics.waiting = true; }
+      // 只读诊断：缓冲等待时采样真实视频状态，更新 stalled/offline 健康度与峰值。
+      if (art.video) observeStability(art.video);
       // 已经正常播放后持续缓冲 12 秒：第一阶段只记录 stalled/degraded 并上报，
       // 不自动切源（策略由 resolveStallAction 决定，默认 observe-only）。
       if (

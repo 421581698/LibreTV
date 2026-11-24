@@ -7,6 +7,7 @@
 
 import type { QualityEntry } from './types';
 import { isQualityEntryFresh } from './quality';
+import { sanitizePlaybackDiagnostics, type PlaybackDiagnostics } from './playback-diagnostics';
 
 export interface PlaybackSample {
   sourceKey: string;
@@ -33,6 +34,8 @@ export interface PlaybackSample {
   degradedObserved?: boolean;
   /** Automatic recoveries suppressed by the read-only policy. */
   suppressedRecoveries?: number;
+  /** Read-only diagnostics from the four playback diagnostic libraries. Sanitized before storage. */
+  diagnostics?: PlaybackDiagnostics;
 }
 
 export interface PlaybackHealthEntry {
@@ -124,6 +127,7 @@ export function mergePlaybackHealth(
       stalledObserved: sample.stalledObserved === true ? true : undefined,
       degradedObserved: sample.degradedObserved === true ? true : undefined,
       suppressedRecoveries: boundedCount(sample.suppressedRecoveries),
+      diagnostics: sanitizePlaybackDiagnostics(sample.diagnostics),
     };
     const samples = [...previous.samples, clean].slice(-MAX_SAMPLES_PER_SOURCE);
     const average = (field: 'startupMs' | 'throughputKbps' | 'mediaBitrateKbps') => {
