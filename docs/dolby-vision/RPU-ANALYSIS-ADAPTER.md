@@ -36,7 +36,7 @@ Set `DOVI_TOOL_BIN` or pass `--dovi-tool` when the executable is not on PATH.
 - RPU presence after a successful extraction or successful parsing of a supplied RPU file.
 - Parsed Profile(s); a single Profile is returned only when the inspected RPU range is uniform.
 - Parsed frame count.
-- Extension metadata levels with actual exported frame records (L1-L6, L8-L11).
+- Extension metadata levels with actual exported frame coverage (L1-L6, L8-L11); counts represent distinct frame indices, not raw export-record totals.
 - SHA-256 of the source input and parsed RPU bytes.
 - Track/frame-limit scope, so partial analysis is not mistaken for whole-file coverage.
 
