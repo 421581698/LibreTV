@@ -227,8 +227,8 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertFalse(any(self.staging_root.iterdir()))
 
     def test_downloads_nested_hls_variant_initialization_and_media_segment(self):
-        master = b"#EXTM3U\\n#EXT-X-STREAM-INF:BANDWIDTH=100000\\nvariant/index.m3u8\\n"
-        variant = b'#EXTM3U\\n#EXT-X-MAP:URI="init.mp4"\\n#EXTINF:4.0,\\nsegment.m4s\\n#EXT-X-ENDLIST\\n'
+        master = b"#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100000\nvariant/index.m3u8\n"
+        variant = b'#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:4.0,\nsegment.m4s\n#EXT-X-ENDLIST\n'
         init = b"fake-mp4-initialization"
         segment = b"fake-fmp4-media-segment"
         responses = {
