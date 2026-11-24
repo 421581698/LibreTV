@@ -25,14 +25,14 @@ export function RegistryInlinePlayer({
     resourceId: string;
     assetId: string;
     url: string;
-    mediaType: 'mp4' | 'webm';
+    mediaType: 'hls' | 'mp4' | 'webm';
   } | null>(null);
 
   const resourceId = resource?.id;
   const resourceMediaFormat = resource?.media_format;
 
   useEffect(() => {
-    if (!resourceId || !['mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
+    if (!resourceId || !['hls', 'mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
 
     const controller = new AbortController();
     void fetch(`/api/dolby-vision/resources/${encodeURIComponent(resourceId)}/asset`, {
@@ -49,8 +49,8 @@ export function RegistryInlinePlayer({
           typeof asset.assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(asset.assetId) ||
           typeof asset.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(asset.sha256) ||
           typeof asset.byteLength !== 'number' || !Number.isSafeInteger(asset.byteLength) || asset.byteLength <= 0 ||
-          !['video/mp4', 'video/webm'].includes(String(asset.contentType))) return null;
-      const assetMediaType = asset.contentType === 'video/webm' ? 'webm' : 'mp4';
+          !['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl'].includes(String(asset.contentType))) return null;
+      const assetMediaType = asset.contentType === 'video/webm' ? 'webm'\n        : asset.contentType === 'application/vnd.apple.mpegurl' ? 'hls' : 'mp4';
       if (assetMediaType !== resourceMediaFormat) return null;
       return {
         resourceId,
@@ -110,7 +110,7 @@ export function RegistryInlinePlayer({
             key={activeImmutableAsset ? `${resource.id}:${activeImmutableAsset.assetId}` : resource.id}
             url={activeImmutableAsset?.url ?? resource.url}
             title={resource.title}
-            mediaType={mediaType}
+            mediaType={mediaType as 'hls' | 'mp4' | 'webm'}
             onPlaybackConfirmed={confirmPlayback}
             adFilter={adFilter}
             autoplayNext={autoplayNext}
