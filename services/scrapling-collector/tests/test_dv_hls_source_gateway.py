@@ -269,6 +269,18 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertEqual(roles, {"playlist", "initialization", "segment"})
         self.assertFalse(any(self.staging_root.iterdir()))
 
+    def test_rejects_hls_origin_redirect_without_following_location(self):
+        responses = {
+            ("media.example", "/master.m3u8"): (302, {
+                "Location": "https://other.example/master.m3u8",
+            }, b""),
+        }
+        result, connection = self.run_gateway(responses, hosts="media.example,other.example")
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("redirects", result["reason"])
+        self.assertEqual(connection.requests, [("media.example", "GET", "/master.m3u8")])
+        self.assertFalse(any(self.staging_root.iterdir()))
+
     def test_rejects_non_allowlisted_hls_child_before_connecting_to_it(self):
         manifest = b"#EXTM3U\n#EXTINF:4.0,\nhttps://cdn.other.example/segment.ts\n"
         responses = {
