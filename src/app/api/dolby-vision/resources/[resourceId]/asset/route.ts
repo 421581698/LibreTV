@@ -73,14 +73,14 @@ export async function GET(
   if (record.id !== resourceId || record.resource_type !== 'DIRECT_MEDIA' ||
       record.access_state !== 'PUBLIC' || record.validation_state !== 'validated' ||
       record.playback_state !== 'PLAYER_CONFIRMED' ||
-      !['mp4', 'webm'].includes(String(record.media_format).toLowerCase())) {
+      !['mp4', 'webm', 'hls'].includes(String(record.media_format).toLowerCase())) {
     return NextResponse.json(
       { code: 'DV_RESOURCE_NOT_ELIGIBLE' },
       { status: 409, headers: { 'Cache-Control': 'no-store' } },
     );
   }
 
-  const expectedContentType = String(record.media_format).toLowerCase() === 'webm' ? 'video/webm' : 'video/mp4';
+  const expectedContentType = String(record.media_format).toLowerCase() === 'webm'\n    ? 'video/webm'\n    : String(record.media_format).toLowerCase() === 'hls'\n      ? 'application/vnd.apple.mpegurl'\n      : 'video/mp4';
   const asset = assets
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
     .filter((item) => item.resource_id === resourceId && item.content_type === expectedContentType)
