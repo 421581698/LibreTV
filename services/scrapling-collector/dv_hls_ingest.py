@@ -20,6 +20,9 @@ import registry_queue as registry
 
 MAX_MEMBER_BYTES = 2 * 1024 * 1024 * 1024
 MAX_PLAYLIST_BYTES = 2 * 1024 * 1024
+MAX_GRAPH_MEMBERS = 10_000
+MAX_GRAPH_EDGES = 50_000
+MAX_PLAYLIST_DEPTH = 16
 CHUNK_SIZE = 1024 * 1024
 CONTENT_TYPES = {
     ".m3u8": "application/vnd.apple.mpegurl",
@@ -173,7 +176,9 @@ def ingest_hls_directory(
     visiting: set[str] = set()
     edges: list[tuple[str, str, str, str, int]] = []
 
-    def ingest_member(relative_path: str) -> dict:
+    def ingest_member(relative_path: str, depth: int = 0) -> dict:
+        if depth > MAX_PLAYLIST_DEPTH or len(completed) >= MAX_GRAPH_MEMBERS:
+            raise HlsIngestionError("HLS graph exceeds its member or nesting limit.")
         relative_path = _safe_relative_uri(relative_path)
         if relative_path in completed:
             return completed[relative_path]
@@ -230,7 +235,7 @@ def ingest_hls_directory(
                         nonlocal member_ordinal
                         uri = _safe_relative_uri(match.group(1))
                         child_path = (PurePosixPath(relative_path).parent / uri).as_posix()
-                        child = ingest_member(child_path)
+                        child = ingest_member(child_path, depth + 1)
                         child_role = "playlist" if uri.lower().endswith(".m3u8") else (
                             "initialization" if "EXT-X-MAP" in line else (
                                 "subtitle" if "TYPE=SUBTITLES" in line else "segment"
@@ -243,12 +248,14 @@ def ingest_hls_directory(
                 rewritten.append(line)
                 continue
             uri = _safe_relative_uri(stripped)
-            child = ingest_member((PurePosixPath(relative_path).parent / uri).as_posix())
+            child = ingest_member((PurePosixPath(relative_path).parent / uri).as_posix(), depth + 1)
             edges.append((relative_path, child["asset_id"], uri, "playlist" if uri.lower().endswith(".m3u8") else "segment", member_ordinal))
             member_ordinal += 1
             rewritten.append(f'/api/dolby-vision/assets/{child["asset_id"]}/content')
 
         visiting.remove(relative_path)
+        if len(edges) > MAX_GRAPH_EDGES:
+            raise HlsIngestionError("HLS graph exceeds its edge limit.")
         manifest_bytes = ("\n".join(rewritten) + "\n").encode("utf-8")
         asset = _store_bytes(resource_id, manifest_bytes, "application/vnd.apple.mpegurl", object_dir)
         completed[relative_path] = asset
