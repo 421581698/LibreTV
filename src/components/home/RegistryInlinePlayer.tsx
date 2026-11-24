@@ -50,7 +50,8 @@ export function RegistryInlinePlayer({
           typeof asset.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(asset.sha256) ||
           typeof asset.byteLength !== 'number' || !Number.isSafeInteger(asset.byteLength) || asset.byteLength <= 0 ||
           !['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl'].includes(String(asset.contentType))) return null;
-      const assetMediaType = asset.contentType === 'video/webm' ? 'webm'\n        : asset.contentType === 'application/vnd.apple.mpegurl' ? 'hls' : 'mp4';
+      const assetMediaType = asset.contentType === 'video/webm' ? 'webm'
+        : asset.contentType === 'application/vnd.apple.mpegurl' ? 'hls' : 'mp4';
       if (assetMediaType !== resourceMediaFormat) return null;
       return {
         resourceId,
