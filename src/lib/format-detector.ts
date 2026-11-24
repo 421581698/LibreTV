@@ -58,7 +58,7 @@ function detectCodec(codecs: string[]): { codec: AudioCodec; source: string | nu
     [/^(?:ac-4(?:\.[0-9a-f]{2}){3}|ac-4|ac4)$/i, 'ac4', 'dolby-ac4'],
     [/^(?:truehd|mlp|mlpa|a_truehd|a_mlp)$/i, 'truehd', 'dolby-truehd'],
     [/^(?:dolby[- ]?mat(?:\s?2(?:\.0|\.1)?)?|mat(?:\s?2(?:\.0|\.1)?)?)$/i, 'dolby-mat', 'dolby-mat'],
-    [/^(?:ec-3|ec\\+3|e-ac-?3|eac3|a_eac3)$/i, 'eac3', 'dolby-digital-plus'],
+    [/^(?:ec-3|ec\+3|e-ac-?3|eac3|a_eac3)$/i, 'eac3', 'dolby-digital-plus'],
     [/^(?:ac-3|ac3|a_ac3)$/i, 'ac3', 'dolby-digital'],
     [/^(?:dts[: -]?x|dtsx)$/i, 'dts-x', 'none'],
     [/^(?:dtsh|dts-hd(?:\s?(?:ma|hra))?|dtshd(?:\s?(?:ma|hra))?)$/i, 'dts-hd', 'none'],
