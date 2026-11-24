@@ -1716,3 +1716,21 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   pointer-events: none !important;
   transition: opacity 240ms ease, visibility 240ms step-end !important;
 }
+
+
+/* PR #99 iPad player hit-testing and hidden seek target correction. */
+/* ArtPlayer's video surface is above the legacy z-index:55 topbar rule.
+   The iPad header needs its own higher layer so fullscreen/AirPlay buttons
+   receive real pointer and touch input instead of the video element. */
+.ipad-edition-watch > .watch-topbar.netflix-watch-overlay-topbar {
+  z-index: 90 !important;
+}
+
+/* The shared desktop rule intentionally keeps its slim seek rail reachable.
+   iPad Edition auto-hide means fully hidden chrome: remove the invisible range
+   from hit testing and keyboard focus until the next reveal gesture. */
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-progress {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
