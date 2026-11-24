@@ -746,7 +746,7 @@ jobs:
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const layoutMode = root?.getAttribute('data-ipad-layout') ?? 'compact';
                   const main = document.querySelector('.ipad-edition__main');
-                  const topbar = document.querySelector('.ipad-nav__topbar') || document.querySelector('.ipad-nav__sidebar');
+                  const topbar = layoutMode === 'expanded' ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
                   const hero = document.querySelector('.ipad-edition__cinema-hero');
                   const heroCopy = document.querySelector('.ipad-edition__cinema-hero-copy');
                   const rect = element => {
@@ -1193,7 +1193,8 @@ jobs:
                 await page.locator("#ipad-popular-series").scrollIntoViewIfNeeded();
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 const scrollAudit = await page.evaluate(() => {
-                  const navElement = document.querySelector('.ipad-nav__topbar') || document.querySelector('.ipad-nav__sidebar');
+                  const layoutMode = document.querySelector('.ipad-edition')?.getAttribute('data-ipad-layout') ?? 'compact';
+                  const navElement = layoutMode === 'expanded' ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
                   const nav = navElement?.getBoundingClientRect();
                   const labels = Array.from(document.querySelectorAll("#ipad-popular-series .ipad-edition__poster-card strong, #ipad-popular-series .ipad-edition__poster-card small"));
                   const visibleLabels = labels.map((element) => {
@@ -1455,7 +1456,8 @@ jobs:
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
-                  const nav = document.querySelector('.ipad-nav__topbar') || document.querySelector('.ipad-nav__sidebar');
+                  const layoutMode = root?.dataset.ipadLayout ?? 'compact';
+                  const nav = layoutMode === 'expanded' ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
                   const skeletonCount = document.querySelectorAll(".ipad-edition__poster-skeleton").length;
                   const collection = document.querySelector(".ipad-edition__collection-grid");
                   const emptyMessage = document.querySelector(".ipad-edition__rail-message");
