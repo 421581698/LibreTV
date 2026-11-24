@@ -57,12 +57,19 @@ export function inspectHlsAudioTrack(track: HlsAudioTrackLike): HlsAudioRenditio
 }
 export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo[] {
   const lines = manifest.split(/\r?\n/).map((line) => line.trim());
-  const audioGroups = new Map<string, string | null>();
+  const audioGroups = new Map<string, Set<string>>();
   const renditions: HlsAudioRenditionInfo[] = [];
   for (const line of lines) {
     if (line.startsWith('#EXT-X-STREAM-INF:')) {
       const attrs = parseAttributeList(line);
-      if (attrs.AUDIO) audioGroups.set(attrs.AUDIO, audioCodecFromCodecs(attrs.CODECS));
+      if (attrs.AUDIO) {
+        const codec = audioCodecFromCodecs(attrs.CODECS);
+        if (codec) {
+          const declared = audioGroups.get(attrs.AUDIO) ?? new Set<string>();
+          declared.add(codec);
+          audioGroups.set(attrs.AUDIO, declared);
+        }
+      }
       continue;
     }
     if (!line.startsWith('#EXT-X-MEDIA:')) continue;
@@ -78,7 +85,10 @@ export function parseHlsAudioRenditions(manifest: string): HlsAudioRenditionInfo
     });
   }
   return renditions.map((rendition) => {
-    const codec = audioGroups.get(rendition.groupId) ?? null;
+    const declaredCodecs = audioGroups.get(rendition.groupId);
+    // A GROUP-ID can be referenced by multiple variants. Only expose a codec
+    // when every observed declaration for that group agrees; otherwise fail closed.
+    const codec = declaredCodecs?.size === 1 ? [...declaredCodecs][0] : null;
     return {
       ...rendition,
       codec,
