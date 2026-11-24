@@ -1,6 +1,6 @@
 # P3 Architecture Decision Record: Independent Spatial Media Session
 
-- Status: Accepted architecture / initial direct-media milestone implemented; full P3 pending
+- Status: Accepted architecture / isolated MP4-WebM and HLS paths implemented; full P3 pending
 - Date: 2026-11-24
 - Scope: Dolby Immersive Audio Engine 2.0, P3
 - Branch: `feature/libretv-ipad-edition-product` (PR #99 remains Draft)
@@ -19,7 +19,7 @@ A spatial playback session must own a distinct media element and an isolated pla
 
 The initial implementation must be opt-in. Native playback remains the default and must continue to work when spatial prerequisites are absent or fail.
 
-Implementation note (2026-11-24): the first code milestone now supports direct MP4/WebM only via `SpatialMediaSession`, a distinct media element and a two-step prepare/gesture activation UI. It CORS-probes the source, preserves the native ArtPlayer element, and falls back on failure or source changes. The engine currently receives an unknown channel layout for this path and therefore remains unprocessed/bypass. No independent hls.js/MSE session or spatial HLS track switching is implemented. This is a partial P3 implementation, not P3 acceptance.
+Implementation note (2026-11-24): `SpatialMediaSession` now supports direct MP4/WebM and an independently owned HLS path via a distinct media element and a two-step prepare/gesture activation UI. When hls.js is supported, the session owns a separate hls.js/MSE instance; otherwise Safari can use a separate native-HLS media element. The original ArtPlayer element and original HLS instance remain untouched and are the fallback. The spatial HLS audio-track selector is isolated; declared stereo metadata can enable stereo HRTF, while six-channel/unknown layouts remain bypassed. On teardown, the selected track is restored to the original native route when the platform exposes it. This is core P3 code, not P3 acceptance: real manifest/segment/key CORS, full browser lifecycle, Preview and Safari/iOS device checks remain pending.
 
 ## Session model
 
@@ -39,7 +39,7 @@ Only one spatial session may be active for a given PlayerShell instance. A gener
 - A failed or opaque CORS response is a hard fallback condition. Do not attempt to capture the native `art.video` as a workaround.
 - For hls.js/MSE, validate the media element's CORS mode and every relevant manifest, playlist, segment, key, and audio rendition request under the actual browser path.
 - For direct MP4/WebM, validate the final response and redirects.
-- Safari native HLS remains on the native element unless a separately implemented and device-verified spatial path proves safe. The first P3 milestone must not intercept or replace Safari native HLS.
+- The existing Safari native-HLS playback path remains the default and is never repurposed. An opt-in experimental session may use a separate native-HLS media element, but it is not device-verified and must not be described as Safari-accepted.
 - Unknown audio layout or track metadata must bypass channel-specific routing. Never infer 5.1 ordering from a channel count alone.
 
 ## Source and track transitions
