@@ -76,6 +76,7 @@ describe('SpatialMediaSession preparation', () => {
     const native = makeVideo();
     const spatial = makeVideo();
     const engine = makeEngine();
+    const restoreAudioTrack = vi.fn();
     const controller = {
       start: vi.fn(async () => undefined),
       destroy: vi.fn(),
@@ -91,6 +92,7 @@ describe('SpatialMediaSession preparation', () => {
         return engine;
       }),
       createHlsController: vi.fn(() => controller),
+      onRestoreAudioTrack: restoreAudioTrack,
     });
     expect(controller.start).toHaveBeenCalledTimes(1);
     expect(spatial).not.toBe(native);
@@ -105,6 +107,7 @@ describe('SpatialMediaSession preparation', () => {
     expect(engine.updateInputChannels).toHaveBeenCalledWith(6, 'unknown');
     await session.dispose();
     expect(controller.destroy).toHaveBeenCalledTimes(1);
+    expect(restoreAudioTrack).toHaveBeenCalledWith(0);
     expect(spatial.remove).toHaveBeenCalledTimes(1);
     expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
   });
