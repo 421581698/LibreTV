@@ -24,7 +24,7 @@ Status: initial read-only UI integration; acceptance is still in progress.
 
 1. Add component/integration tests for hls.js levels containing regular and supplemental Dolby Vision declarations.
 2. Run TypeScript, ESLint, unit tests, production build and browser playback smoke tests on the latest branch head.
-3. Test native HLS on actual iOS/iPadOS hardware and document what the platform exposes; desktop WebKit automation is not a substitute.
+3. Execute the physical-device acceptance matrix in [IPADOS-DEVICE-ACCEPTANCE.md](./IPADOS-DEVICE-ACCEPTANCE.md); desktop WebKit automation is not a substitute.
 4. Add controlled, licensed HEVC samples for full-stream RPU analysis and compare the analyzer output with the corresponding manifest declarations.
 5. The evidence transport trust boundary is now documented in [RPU-EVIDENCE-TRANSPORT.md](./RPU-EVIDENCE-TRANSPORT.md). Runtime integration remains blocked until a controlled parser worker, authenticated report signing, and exact media-byte binding exist. Do not embed parser claims or synthetic fixtures as runtime evidence.
 
