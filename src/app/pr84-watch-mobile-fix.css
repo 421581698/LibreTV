@@ -464,7 +464,7 @@ html:has(.netflix-watch) .netflix-player-frame {
   margin: 0 !important;
   border-radius: 0 !important;
 }
-html:has(.netflix-watch) .netflix-title-row,
+html:has(.netflix-watch) .netflix-watch-shell:not(.ipad-edition-watch) .netflix-title-row,
 html:has(.netflix-watch) .netflix-watch-tools,
 html:has(.netflix-watch) .netflix-watch-sidebar,
 html:has(.netflix-watch) .netflix-related-section,
@@ -617,7 +617,7 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
   object-fit: contain !important;
   background: #000 !important;
 }
-.netflix-watch-shell .netflix-title-row,
+.netflix-watch-shell:not(.ipad-edition-watch) .netflix-title-row,
 .netflix-watch-shell .netflix-related-section,
 .netflix-watch-shell .netflix-below-player,
 .netflix-watch-shell .netflix-next-preview,
@@ -884,7 +884,7 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
 .netflix-watch-shell .watch-cinema-tabs button { min-height:44px !important; padding:0 17px !important; border:1px solid rgba(255,255,255,.12) !important; border-radius:999px !important; color:rgba(255,255,255,.72) !important; background:rgba(43,43,45,.68) !important; font-size:14px !important; white-space:nowrap !important; }
 .netflix-watch-shell .watch-cinema-tabs button.active { color:#fff !important; background:rgba(80,80,84,.78) !important; }
 .netflix-watch-shell .watch-cinema-copy { order:4 !important; display:none !important; }
-.netflix-watch-shell .netflix-title-row,
+.netflix-watch-shell:not(.ipad-edition-watch) .netflix-title-row,
 .netflix-watch-shell .netflix-watch-tools { display:none !important; }
 .netflix-watch-shell .netflix-watch-utility-panel.is-open { z-index:70 !important; }
 @media (max-width:700px) {
