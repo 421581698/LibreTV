@@ -11,7 +11,7 @@ Branch: `feature/libretv-ipad-edition-product` (PR #99, Draft)
 - AC-4 `mdcompat` is retained as bounded numeric source metadata and shown as a declared compatibility tier. It is **not** a browser/device decode result and must not enable an Atmos badge.
 - HLS audio rendition inspection recognizes `ac-4` alongside the existing codecs.
 - Read-only diagnostics continue to report native Dolby decode and bitstream passthrough as unknown, and Atmos object decode as not-established.
-- A CORS-guarded Web Audio spatial presentation module is now present. It supports opt-in stereo headphone virtualization and a gated 5.1-to-binaural route only when an explicit 5.1 speaker layout is supplied.
+- A CORS-guarded Web Audio spatial presentation module is now present. It supports opt-in stereo headphone virtualization and a gated 5.1-to-binaural route only when an explicit 5.1 speaker layout is supplied. Its off/bypass mode is unprocessed Web Audio passthrough, not restoration of the browser-native media path.
 
 ## Deliberately not implemented yet
 
