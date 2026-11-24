@@ -108,9 +108,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-white/55">RPU / 动态元数据</span>
-              <span>{verifiedEvidence
-                ? verifiedEvidence.evidence.rpuPresent ? '已验证存在' : '已验证未检测到'
-                : '未验证'}</span>
+              <span>{verifiedEvidence ? '已验证存在' : '未验证'}</span>
             </div>
             {verifiedEvidence && (
               <>
