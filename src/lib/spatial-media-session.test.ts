@@ -62,13 +62,45 @@ function makeEngine() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('SpatialMediaSession preparation', () => {
-  it('rejects HLS without touching the native media element', async () => {
+  it('rejects HLS without an isolated adapter and leaves native playback untouched', async () => {
     const native = makeVideo();
     await expect(SpatialMediaSession.prepare({
       nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/list.m3u8',
       sourceKind: 'hls', verifyCors: vi.fn(async () => true),
-    })).rejects.toThrow(/Safari 原生 HLS/);
+    })).rejects.toThrow(/独立 HLS 会话适配器/);
     expect(native.muted).toBe(false);
+  });
+
+  it('owns an independent HLS controller and exposes isolated audio-track switching', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const engine = makeEngine();
+    const controller = {
+      start: vi.fn(async () => undefined),
+      destroy: vi.fn(),
+      audioTracks: [{ id: 0, name: 'Main' }, { id: 1, name: 'Commentary' }],
+      audioTrack: 0,
+    };
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/master.m3u8',
+      sourceKind: 'hls', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial,
+      createEngine: () => engine,
+      createHlsController: vi.fn(() => controller),
+    });
+    expect(controller.start).toHaveBeenCalledTimes(1);
+    expect(spatial).not.toBe(native);
+    expect(spatial.crossOrigin).toBe('anonymous');
+    expect(native.muted).toBe(false);
+    expect(session.audioTracks).toHaveLength(2);
+    expect(session.selectAudioTrack(1)).toBe(true);
+    expect(controller.audioTrack).toBe(1);
+    expect(session.selectAudioTrack(4)).toBe(false);
+    await session.activateFromUserGesture();
+    await session.dispose();
+    expect(controller.destroy).toHaveBeenCalledTimes(1);
+    expect(spatial.remove).toHaveBeenCalledTimes(1);
+    expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
   });
 
   it('rejects CORS failures before allocating a spatial media element', async () => {
