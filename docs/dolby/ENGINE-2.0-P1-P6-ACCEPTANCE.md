@@ -23,6 +23,10 @@ This ledger distinguishes implemented code from evidence that requires real medi
 
 ### P1 fixture-source review (research only; no media copied into this repository)
 
+The detailed candidate-by-candidate provenance, scope limits, licensing dispositions, and evidence rules are maintained in [P1 real-stream fixture register](./P1-REAL-STREAM-FIXTURE-REGISTER.md). It distinguishes declaration, elementary-stream, decode, and device/output evidence. No binary fixture has been approved or copied into this repository by this review.
+
+
+
 The following public sources are candidates for controlled parser/stream tests. A source being publicly reachable is not, by itself, permission to redistribute its media. Do not vendor any binary until the exact file's license and attribution are checked.
 
 - Chromium `media/test/data` documents `bear.ac3` and `bear.eac3` as files converted from `bear.ogv`; it also documents three AC-4 elementary streams (A-JOC, channel-based, IMS) as encoded by Dolby. The AC-4 provenance is explicit, but a per-file redistribution grant was not established in this review; keep those files out of the repository pending permission review.
