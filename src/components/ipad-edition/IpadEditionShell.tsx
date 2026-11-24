@@ -127,9 +127,11 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
+    // Route changes must never carry an expanded navigation panel into the next page.
     setSidebarOpen(false);
     setSidebarDragOffset(0);
-  }, [pathname]);
+    if (wideLayout) setNavigationCollapsed(true);
+  }, [pathname, wideLayout]);
   useEffect(() => {
     if (!sidebarOpen && !(wideLayout && !navigationCollapsed)) return;
     const previousOverflow = document.body.style.overflow;
@@ -343,7 +345,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
                 className={`ipad-nav__capsule-action ipad-nav__menu-button${sidebarOpen ? ' is-active' : ''}`}
                 type="button"
                 aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
-                aria-expanded={sidebarOpen}
+                aria-expanded={sidebarOpen || isExpandedSidebar}
                 aria-controls="ipad-edition-sidebar"
                 onClick={() => {
                   if (wideLayout) {
