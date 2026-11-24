@@ -49,6 +49,17 @@ describe('Dolby Vision RPU evidence report contract', () => {
     });
   });
 
+  it('binds a demuxed HEVC analysis input to the original MP4 digest, not the extracted-track digest', () => {
+    const demuxedReport = {
+      ...validHevcReport,
+      input: 'video-track.hevc',
+      inputSha256: 'd'.repeat(64),
+      sourceMediaSha256: hash,
+    };
+    const result = validateDolbyVisionRpuReport(demuxedReport, hash);
+    expect(result?.sourceHashBinding).toBe('matched');
+  });
+
   it('rejects a report bound to a different media file', () => {
     expect(validateDolbyVisionRpuReport(validHevcReport, 'c'.repeat(64))).toBeNull();
   });
