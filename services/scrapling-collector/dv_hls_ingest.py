@@ -178,7 +178,16 @@ def ingest_hls_directory(
             return completed[relative_path]
         if relative_path in visiting:
             raise HlsIngestionError("Cyclic HLS playlist references are not supported.")
-        source_path = (root / relative_path).resolve(strict=True)
+        candidate_path = root.joinpath(*PurePosixPath(relative_path).parts)
+        current = root
+        for part in PurePosixPath(relative_path).parts:
+            current = current / part
+            try:
+                if stat.S_ISLNK(current.lstat().st_mode):
+                    raise HlsIngestionError("Symlinked HLS members are not accepted.")
+            except FileNotFoundError as exc:
+                raise HlsIngestionError("HLS member is missing from the staging directory.") from exc
+        source_path = candidate_path.resolve(strict=True)
         if not source_path.is_relative_to(root):
             raise HlsIngestionError("HLS member escaped the staging directory.")
         suffix = source_path.suffix.lower()
