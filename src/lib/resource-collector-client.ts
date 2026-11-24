@@ -48,14 +48,22 @@ function trustedServerRegistryBase(): string | null {
 }
 
 /** Server-only byte fetch. It never reads browser-supplied collector credentials. */
-export async function fetchDolbyVisionRegistryAsset(assetId: string, timeoutMs = 20_000): Promise<Response | null> {
+export async function fetchDolbyVisionRegistryAsset(
+  assetId: string,
+  timeoutMs = 20_000,
+  rangeHeader?: string,
+): Promise<Response | null> {
   if (!/^[A-Za-z0-9:_-]{1,200}$/.test(assetId)) return null;
+  if (rangeHeader !== undefined && (rangeHeader.length > 128 || !/^bytes=\\d*-\\d*$/.test(rangeHeader) || rangeHeader.includes(','))) return null;
   const base = trustedServerRegistryBase();
   const token = process.env.SCRAPLING_API_TOKEN?.trim();
   if (!base || !token) return null;
   return fetch(`${base}/v1/registry/media-assets/${encodeURIComponent(assetId)}/content`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(rangeHeader ? { Range: rangeHeader } : {}),
+    },
     cache: 'no-store',
     redirect: 'manual',
     signal: AbortSignal.timeout(timeoutMs),
