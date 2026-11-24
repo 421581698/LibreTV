@@ -91,6 +91,17 @@ def initialize() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_registry_media_assets_resource
           ON registry_media_assets(resource_id,created_at DESC);
+        CREATE TABLE IF NOT EXISTS registry_hls_asset_edges (
+          parent_asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
+          child_asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
+          relative_uri TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('playlist','segment','initialization','subtitle')),
+          ordinal INTEGER NOT NULL CHECK(ordinal >= 0),
+          PRIMARY KEY(parent_asset_id,relative_uri),
+          UNIQUE(parent_asset_id,ordinal)
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_hls_edges_child
+          ON registry_hls_asset_edges(child_asset_id);
         CREATE TABLE IF NOT EXISTS registry_verifications (
           id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
           verification_type TEXT NOT NULL, outcome TEXT NOT NULL, evidence TEXT NOT NULL,
@@ -160,7 +171,11 @@ def register_dolby_vision_media_asset(resource_id: str, sha256: str, byte_length
         raise ValueError("Invalid media SHA-256.")
     if isinstance(byte_length, bool) or not isinstance(byte_length, int) or not 1 <= byte_length <= 2 * 1024 * 1024 * 1024:
         raise ValueError("Invalid media byte length.")
-    allowed_types = {"video/mp4", "video/webm"}
+    allowed_types = {
+        "video/mp4", "video/webm", "application/vnd.apple.mpegurl",
+        "video/mp2t", "video/iso.segment", "audio/aac", "audio/mp4",
+        "audio/mpeg", "text/vtt",
+    }
     if content_type not in allowed_types:
         raise ValueError("Unsupported media content type.")
     asset_id = "dv_" + hashlib.sha256(f"{resource_id}:{digest}".encode()).hexdigest()[:32]
@@ -821,7 +836,11 @@ def api_get_dolby_vision_media_asset_content(
     expected_key = f"sha256/{digest[:2]}/{digest}"
     if (not re.fullmatch(r"[a-f0-9]{64}", digest or "") or
             row["object_key"] != expected_key or
-            row["content_type"] not in {"video/mp4", "video/webm"}):
+            row["content_type"] not in {
+                "video/mp4", "video/webm", "application/vnd.apple.mpegurl",
+                "video/mp2t", "video/iso.segment", "audio/aac", "audio/mp4",
+                "audio/mpeg", "text/vtt",
+            }):
         raise HTTPException(status_code=409, detail="Media asset registry metadata is invalid")
 
     total_size = row["byte_length"]
