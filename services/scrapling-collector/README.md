@@ -112,3 +112,15 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 4. Restart/redeploy the service and confirm task records remain available from the persistent `/data` disk.
 5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
 6. Keep this service isolated from production. Do not reuse production secrets.
+
+## Dolby Vision immutable media identity
+
+The registry has a separate `registry_media_assets` table and an internal registration endpoint:
+
+`POST /v1/registry/resources/{resource_id}/media-assets`
+
+The endpoint requires the dedicated `X-DV-Ingestion-Token` credential (`DV_INGESTION_TOKEN_FILE` in Compose), not the ordinary collector API token. The secret is mounted read-only from `secrets/dv-ingestion-token`; generate it with `openssl rand -hex 32` and keep it outside source control.
+
+Request JSON contains `sha256`, `byte_length`, and `content_type`. The registry derives a stable asset ID and content-addressed object key, permits idempotent re-registration of identical metadata, and rejects metadata changes for an existing resource/digest pair. New media bytes produce a new asset ID; records are not overwritten.
+
+**Trust boundary:** this endpoint records an assertion from a trusted ingestion worker. It does not download URLs, hash media bytes, or prove that an object exists. The future ingestion worker must stream the exact authorized media object into controlled immutable object storage, compute SHA-256 over those exact bytes, verify the durable object at its content-addressed key, and only then call this endpoint. Never let a browser or an ordinary candidate-validation request call it. Until that worker and object storage are deployed, registry rows are not proof of real media bytes and must not be used as expected digests for player evidence.
