@@ -58,12 +58,12 @@ function detectCodec(codecs: string[]): { codec: AudioCodec; source: string | nu
     [/(?:^|[.,\s])ac-4(?:$|[.,\s])|^ac4$/i, 'ac4', 'dolby-ac4'],
     [/(?:^|[.,\s])mlp(?:$|[.,\s])|truehd|mlpa/i, 'truehd', 'dolby-truehd'],
     [/\b(?:dolby[- ]?)?mat(?:\s?2(?:\.0|\.1)?)?\b/i, 'dolby-mat', 'dolby-mat'],
-    [/(?:^|[.,\\s])ec-3(?:$|[.,\\s-])|e-ac-?3|eac3/i, 'eac3', 'dolby-digital-plus'],
+    [/(?:^|[.,\s])ec-3(?:$|[.,\s-])|e-ac-?3|eac3/i, 'eac3', 'dolby-digital-plus'],
     [/(?:^|[.,\s])ac-3(?:$|[.,\s])|ac3/i, 'ac3', 'dolby-digital'],
     [/dts[: -]?x/i, 'dts-x', 'none'],
     [/dts-hd|dtshd|dts-hd ma/i, 'dts-hd', 'none'],
     [/(?:^|[.,\s])dts(?:$|[.,\s])|dca/i, 'dts', 'none'],
-    [/\\b(?:iamf(?:[.,\\s]|$)|eclipsa\\b)/i, 'iamf', 'none'],
+    [/\b(?:iamf(?:[.,\s]|$)|eclipsa\b)/i, 'iamf', 'none'],
     [/\b(?:l?pcm|sowt|twos|in24|in32|fl32)\b/i, 'pcm', 'none'],
     [/mp4a|aac/i, 'aac', 'none'],
     [/opus/i, 'opus', 'none'],
@@ -104,7 +104,7 @@ export function detectMediaFormat(input: MediaFormatInput): MediaFormatReport {
     : '检测到 Dolby AC-4 FourCC；未提供完整 codec profile，不能判断内容兼容级别或设备解码能力。');
   if (detected.codec === 'truehd') notes.push('TrueHD 仅被识别为码流/元数据提示；本模块不提供 TrueHD 解码或直通。');
   if (detected.codec === 'dolby-mat') notes.push('检测到 Dolby MAT 传输格式标记；MAT 是传输/封装线索，不证明浏览器解码或 HDMI 位流直通。');
-  if (detected.codec === 'iamf') notes.push('检测到 IAMF 音频格式标记；不代表当前浏览器或设备支持其解码或空间渲染。');
+  if (detected.codec === 'iamf') notes.push('检测到 IAMF / Eclipsa 音频格式标记；不代表当前浏览器或设备支持其解码或空间渲染。');
   if (detected.codec === 'pcm') notes.push('检测到 PCM/LPCM 标记；不推断声道布局、采样格式或输出设备能力。');
   if (detected.codec === 'dts' || detected.codec === 'dts-hd' || detected.codec === 'dts-x') notes.push('DTS 格式识别不代表当前浏览器或设备支持解码。');
   if (detected.codec === 'eac3' || detected.codec === 'ac3') notes.push('Dolby 编码标识不等于 Atmos 对象解码能力。');
