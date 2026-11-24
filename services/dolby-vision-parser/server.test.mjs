@@ -131,6 +131,10 @@ process.exit(2);
     };
 
     try {
+      const health = await fetch(`http://127.0.0.1:${address.port}/health`);
+      assert.equal(health.status, 200);
+      assert.deepEqual(await health.json(), { status: 'ok', service: 'dolby-vision-parser' });
+
       const unauthorized = await fetch(endpoint, {
         method: 'POST',
         headers: { ...headers, Authorization: 'Bearer wrong' },
