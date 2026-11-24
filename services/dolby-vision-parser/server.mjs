@@ -17,7 +17,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ANALYZER = resolve(HERE, '../../scripts/dolby-vision/analyze-rpu.mjs');
 export function readBoundedInteger(name, rawValue, fallback, minimum, maximum) {
   const raw = rawValue === undefined || rawValue === '' ? String(fallback) : String(rawValue);
-  if (!/^\\d+$/.test(raw)) throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
+  if (!/^\d+$/.test(raw)) throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
   const value = Number(raw);
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
     throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
