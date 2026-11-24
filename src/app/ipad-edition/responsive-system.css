@@ -36,8 +36,10 @@
 }
 .ipad-edition[data-ipad-layout="expanded"] { --ipad-sidebar-width: 264px; }
 .ipad-edition[data-ipad-layout="expanded"] > .ipad-edition__main {
-  width: calc(100% - var(--ipad-sidebar-width));
-  margin-left: var(--ipad-sidebar-width);
+  /* The legacy homepage and shell rules use !important full-width sizing.
+     Expanded navigation must reserve its fixed sidebar column above those rules. */
+  width: calc(100% - var(--ipad-sidebar-width)) !important;
+  margin: 0 0 0 var(--ipad-sidebar-width) !important;
 }
 .ipad-edition[data-ipad-layout="expanded"] .ipad-nav__sidebar {
   width: var(--ipad-sidebar-width) !important;
