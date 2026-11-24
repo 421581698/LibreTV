@@ -672,13 +672,40 @@ def api_register_dv_media_asset(resource_id: str, payload: DolbyVisionMediaAsset
         raise HTTPException(status_code=422, detail=str(exc))
 
 
-def _stream_dv_object(file_descriptor: int):
+def _stream_dv_object(file_descriptor: int, start: int = 0, length: int | None = None):
+    """Stream a bounded byte range and always close the already-validated descriptor."""
     with os.fdopen(file_descriptor, "rb", closefd=True) as media_file:
-        while True:
-            chunk = media_file.read(1024 * 1024)
+        media_file.seek(start)
+        remaining = length
+        while remaining is None or remaining > 0:
+            chunk_size = 1024 * 1024 if remaining is None else min(1024 * 1024, remaining)
+            chunk = media_file.read(chunk_size)
             if not chunk:
                 break
+            if remaining is not None:
+                remaining -= len(chunk)
             yield chunk
+
+
+def _parse_single_byte_range(value: str, total_size: int) -> tuple[int, int]:
+    """Return inclusive start/end for one RFC 7233 byte range; reject invalid ranges."""
+    import re
+    if not isinstance(value, str) or not value.startswith("bytes=") or "," in value:
+        raise ValueError("Only one bytes range is supported")
+    match = re.fullmatch(r"bytes=(\\d*)-(\\d*)", value.strip())
+    if not match or (not match.group(1) and not match.group(2)):
+        raise ValueError("Malformed byte range")
+    first, last = match.groups()
+    if not first:
+        suffix_length = int(last)
+        if suffix_length <= 0:
+            raise ValueError("Invalid suffix byte range")
+        return max(0, total_size - suffix_length), total_size - 1
+    start = int(first)
+    end = int(last) if last else total_size - 1
+    if start >= total_size or end < start:
+        raise ValueError("Unsatisfiable byte range")
+    return start, min(end, total_size - 1)
 
 
 @router.post("/v1/registry/resources/{resource_id}/media-assets/ingest")
@@ -757,8 +784,12 @@ async def api_ingest_dolby_vision_media_asset(
 
 
 @router.get("/v1/registry/media-assets/{asset_id}/content")
-def api_get_dolby_vision_media_asset_content(asset_id: str, authorization: str | None = Header(default=None)):
-    """Stream one registered immutable object; never accepts a caller-supplied path or URL."""
+def api_get_dolby_vision_media_asset_content(
+    asset_id: str,
+    authorization: str | None = Header(default=None),
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Stream one registered immutable object with single-range support."""
     import re
     require_auth(authorization)
     with connect() as c:
@@ -772,8 +803,22 @@ def api_get_dolby_vision_media_asset_content(asset_id: str, authorization: str |
     expected_key = f"sha256/{digest[:2]}/{digest}"
     if (not re.fullmatch(r"[a-f0-9]{64}", digest or "") or
             row["object_key"] != expected_key or
-            row["content_type"] not in {"application/octet-stream", "video/mp4", "video/x-matroska", "video/mp2t", "video/hevc"}):
+            row["content_type"] not in {"video/mp4", "video/webm"}):
         raise HTTPException(status_code=409, detail="Media asset registry metadata is invalid")
+
+    total_size = row["byte_length"]
+    start, end = 0, total_size - 1
+    status_code = 200
+    if range_header is not None:
+        try:
+            start, end = _parse_single_byte_range(range_header, total_size)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=416,
+                detail="Requested byte range is not satisfiable",
+                headers={"Content-Range": f"bytes */{total_size}", "Accept-Ranges": "bytes"},
+            )
+        status_code = 206
 
     object_path = DV_MEDIA_OBJECT_ROOT / expected_key
     flags = os.O_RDONLY
@@ -786,23 +831,27 @@ def api_get_dolby_vision_media_asset_content(asset_id: str, authorization: str |
     except OSError:
         raise HTTPException(status_code=409, detail="Registered media object cannot be safely opened")
     info = os.fstat(descriptor)
-    if not stat.S_ISREG(info.st_mode) or info.st_size != row["byte_length"]:
+    if not stat.S_ISREG(info.st_mode) or info.st_size != total_size:
         os.close(descriptor)
         raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
 
+    response_headers = {
+        "Content-Length": str(end - start + 1),
+        "Accept-Ranges": "bytes",
+        "ETag": f'"{digest}"',
+        "X-DV-Asset-SHA256": digest,
+        "X-DV-Asset-ID": row["asset_id"],
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if status_code == 206:
+        response_headers["Content-Range"] = f"bytes {start}-{end}/{total_size}"
     return StreamingResponse(
-        _stream_dv_object(descriptor),
+        _stream_dv_object(descriptor, start, end - start + 1),
+        status_code=status_code,
         media_type=row["content_type"],
-        headers={
-            "Content-Length": str(row["byte_length"]),
-            "ETag": f'"{digest}"',
-            "X-DV-Asset-SHA256": digest,
-            "X-DV-Asset-ID": row["asset_id"],
-            "Cache-Control": "private, no-store",
-            "X-Content-Type-Options": "nosniff",
-        },
+        headers=response_headers,
     )
-
 
 @router.post("/v1/registry/resources/{resource_id}/verifications")
 def api_verify_resource(resource_id: str, payload: dict, authorization: str | None = Header(default=None)):
