@@ -104,13 +104,23 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain('setNavigationCollapsed(true);');
   });
 
+  it('starts the sidebar closed at every width and keeps a visible close path when opened', () => {
+    expect(shell).toContain('const [navigationCollapsed, setNavigationCollapsed] = useState(true);');
+    expect(shell).toContain('data-ipad-layout={wideLayout ? \'expanded\' : \'compact\'}');
+    expect(shell).toContain('aria-label="关闭侧边栏"');
+    expect(shell).toContain('title="关闭侧边栏"');
+    expect(shell).toContain('if (wideLayout) setNavigationCollapsed(true);');
+    expect(responsiveStyles).toContain('[data-ipad-sidebar-open="false"] .ipad-nav__sidebar');
+    expect(responsiveStyles).toContain('[data-ipad-sidebar-open="true"] > .ipad-edition__main');
+  });
+
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
     expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
     expect(shell).toContain('setSidebarOpen((open) => !open)');
     expect(shell).toContain('setNavigationCollapsed((collapsed) => !collapsed)');
     expect(shell).toContain('new ResizeObserver(updateLayout)');
-    expect(shell).toContain('data-ipad-layout={isExpandedSidebar ? \'expanded\' : \'compact\'}');
+    expect(shell).toContain('data-ipad-layout={wideLayout ? \'expanded\' : \'compact\'}');
     expect(shell).toContain('onClick={() => setSidebarOpen(false)}');
     expect(shell).toContain("if (event.key === 'Escape')");
     expect(shell).toContain("if (event.key !== 'Tab') return;");
