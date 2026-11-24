@@ -33,6 +33,7 @@ export interface SpatialMediaSessionOptions {
   createMediaElement?: () => HTMLVideoElement;
   createEngine?: (media: HTMLVideoElement, declaredInputChannels: number) => SpatialEngineHandle;
   createHlsController?: (media: HTMLVideoElement, sourceUrl: string, onFatalError: (reason: string) => void) => SpatialHlsController;
+  onRestoreAudioTrack?: (trackIndex: number) => void;
   onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void;
 }
 
@@ -100,6 +101,7 @@ export class SpatialMediaSession {
     readonly media: HTMLVideoElement,
     private readonly createEngine: (media: HTMLVideoElement, declaredInputChannels: number) => SpatialEngineHandle,
     private readonly onStateChange?: (snapshot: SpatialMediaSessionSnapshot) => void,
+    private readonly onRestoreAudioTrack?: (trackIndex: number) => void,
     hlsController: SpatialHlsController | null = null,
   ) {
     this.restoreMuted = nativeVideo.muted;
@@ -156,7 +158,7 @@ export class SpatialMediaSession {
         media.src = sourceUrl;
         media.load();
       }
-      session = new SpatialMediaSession(nativeVideo, media, createEngine, options.onStateChange, hlsController);
+      session = new SpatialMediaSession(nativeVideo, media, createEngine, options.onStateChange, options.onRestoreAudioTrack, hlsController);
       return session;
     } catch (error) {
       hlsController?.destroy();
@@ -326,6 +328,8 @@ export class SpatialMediaSession {
     // synchronized from the spatial element while active. Never copy a failed
     // or not-yet-ready spatial element's zero/stale time over the native clock.
     this.nativeVideo.muted = this.restoreMuted;
+    const selectedAudioTrack = this.hlsController?.audioTrack ?? -1;
+    if (selectedAudioTrack >= 0) this.onRestoreAudioTrack?.(selectedAudioTrack);
     this.removeEngineStateListener?.();
     this.removeEngineStateListener = null;
     this.media.pause();
