@@ -388,13 +388,17 @@ jobs:
                 await menuButton.click();
                 await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
                 sidebarInteraction.capsuleExpandedSidebar = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
+                await page.waitForFunction(() => document.querySelector('.ipad-edition')?.getAttribute('data-ipad-layout') === 'expanded', undefined, { timeout: 5000 });
                 sidebarInteraction.restoredExpanded = await page.locator('.ipad-edition[data-ipad-layout="expanded"] .ipad-nav__sidebar.is-open').isVisible();
                 sidebarInteraction.scrimNotApplicable = true;
                 sidebarInteraction.edgeSwipeNotApplicable = true;
-                sidebarInteraction.diagnostics = {
-                  finalState: { computedStyle: { position: 'fixed' } },
-                  mode: 'expanded-sidebar',
-                };
+                sidebarInteraction.diagnostics = await page.evaluate(() => {
+                  const sidebar = document.querySelector('.ipad-nav__sidebar');
+                  return {
+                    finalState: { computedStyle: { position: sidebar ? getComputedStyle(sidebar).position : null } },
+                    mode: 'expanded-sidebar',
+                  };
+                });
                 sidebarInteractionPassed = sidebarInteraction.opened &&
                   sidebarInteraction.keyboardReachable &&
                   sidebarInteraction.capsuleExpandedSidebar &&
