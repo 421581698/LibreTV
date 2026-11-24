@@ -1,0 +1,17 @@
+{
+  "name": "LibreTV 外部点播 API（接口响应已观察，播放/版权仍待验收）",
+  "sources": [
+    {
+      "name": "U酷资源（待播放与版权验收）",
+      "url": "https://api.ukuapi88.com/api.php/provide/vod"
+    },
+    {
+      "name": "如意资源（待播放与版权验收）",
+      "url": "https://cj.rycjapi.com/api.php/provide/vod"
+    },
+    {
+      "name": "非凡资源（待播放、4K 与版权验收）",
+      "url": "https://api.ffzyapi.com/api.php/provide/vod"
+    }
+  ]
+}

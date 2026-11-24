@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "name": "LibreTV 外部点播 API 候选目录（需人工启用）",
+  "updatedAt": "2026-11-21",
+  "policy": {
+    "autoEnable": false,
+    "rightsReviewRequired": true,
+    "playbackVerificationRequired": true,
+    "fourKRequiresDecoded2160p": true
+  },
+  "providers": [
+    {
+      "id": "uku",
+      "name": "U酷资源",
+      "protocol": "maccms-v10",
+      "apiBase": "https://api.ukuapi88.com/api.php/provide/vod",
+      "apiListProbe": "https://api.ukuapi88.com/api.php/provide/vod/?ac=list",
+      "status": "api-response-observed",
+      "apiEvidence": "当前列表接口返回 code=1、list 和 class；部分列表项的 vod_play_url 为空，需详情接口取播放地址。",
+      "playbackVerified": false,
+      "fourKVerified": false,
+      "rightsStatus": "not-reviewed"
+    },
+    {
+      "id": "maoyan",
+      "name": "猫眼资源",
+      "protocol": "maccms-v10",
+      "apiBase": "https://api.maoyanapi.top/api.php/provide/vod",
+      "apiListProbe": "https://api.maoyanapi.top/api.php/provide/vod?ac=list",
+      "status": "not-verified",
+      "apiEvidence": "本轮检查工具无法访问该接口，不能据此判断接口失效。",
+      "playbackVerified": false,
+      "fourKVerified": false,
+      "rightsStatus": "not-reviewed"
+    },
+    {
+      "id": "tianya",
+      "name": "天涯资源",
+      "protocol": "maccms-v10",
+      "apiBase": "https://tyyszyapi.com/api.php/provide/vod",
+      "apiListProbe": "https://tyyszyapi.com/api.php/provide/vod/?ac=list",
+      "status": "not-verified",
+      "apiEvidence": "本轮检查工具无法访问该接口，不能据此判断接口失效。",
+      "playbackVerified": false,
+      "fourKVerified": false,
+      "rightsStatus": "not-reviewed"
+    },
+    {
+      "id": "ruyi",
+      "name": "如意资源",
+      "protocol": "maccms-v10",
+      "apiBase": "https://cj.rycjapi.com/api.php/provide/vod",
+      "apiListProbe": "https://cj.rycjapi.com/api.php/provide/vod/?ac=list",
+      "status": "api-response-observed",
+      "apiEvidence": "当前列表接口返回 code=1、list 和 class。",
+      "playbackVerified": false,
+      "fourKVerified": false,
+      "rightsStatus": "not-reviewed"
+    },
+    {
+      "id": "jisu",
+      "name": "极速资源",
+      "protocol": "maccms-v10",
+      "apiBase": "https://jszyapi.com/api.php/provide/vod",
+      "apiListProbe": "https://jszyapi.com/api.php/provide/vod/?ac=list",
+      "status": "not-verified",
+      "apiEvidence": "本轮检查工具无法访问该接口，不能据此判断接口失效。",
+      "playbackVerified": false,
+      "fourKVerified": false,
+      "rightsStatus": "not-reviewed"
+    },
+    {
+      "id": "ffzy",
+      "name": "非凡资源",
+      "protocol": "maccms-v10",
+      "apiBase": "https://api.ffzyapi.com/api.php/provide/vod",
+      "apiListProbe": "https://api.ffzyapi.com/api.php/provide/vod/?ac=list",
+      "status": "api-response-observed",
+      "apiEvidence": "当前列表接口返回 code=1、list 和 class；播放源标识包含 feifan、ffm3u8。",
+      "playbackVerified": false,
+      "fourKVerified": false,
+      "rightsStatus": "not-reviewed"
+    }
+  ]
+}
