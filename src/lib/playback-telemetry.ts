@@ -25,6 +25,14 @@ export interface PlaybackSample {
   fatalErrors?: number;
   recoveries?: number;
   playedSeconds?: number;
+  /** Phase 1 read-only diagnostics. Never include media URLs or tokens. */
+  autoRecoveryMode?: 'read-only' | 'enabled';
+  /** A >=12s post-playback stall was observed (reporting only, no action). */
+  stalledObserved?: boolean;
+  /** A >=30s post-playback stall was reported as degraded. */
+  degradedObserved?: boolean;
+  /** Automatic recoveries suppressed by the read-only policy. */
+  suppressedRecoveries?: number;
 }
 
 export interface PlaybackHealthEntry {
@@ -110,6 +118,12 @@ export function mergePlaybackHealth(
       fatalErrors: boundedCount(sample.fatalErrors),
       recoveries: boundedCount(sample.recoveries),
       playedSeconds: boundedCount(sample.playedSeconds),
+      autoRecoveryMode: sample.autoRecoveryMode === 'read-only' || sample.autoRecoveryMode === 'enabled'
+        ? sample.autoRecoveryMode
+        : undefined,
+      stalledObserved: sample.stalledObserved === true ? true : undefined,
+      degradedObserved: sample.degradedObserved === true ? true : undefined,
+      suppressedRecoveries: boundedCount(sample.suppressedRecoveries),
     };
     const samples = [...previous.samples, clean].slice(-MAX_SAMPLES_PER_SOURCE);
     const average = (field: 'startupMs' | 'throughputKbps' | 'mediaBitrateKbps') => {
