@@ -141,8 +141,8 @@ export class SpatialMediaSession {
       top: '0',
     });
     host.appendChild(media);
-    const createEngine = options.createEngine ?? ((element: HTMLVideoElement) =>
-      SpatialAudioEngine.attach(element, { inputChannels: 0 }));
+    const createEngine = options.createEngine ?? ((element: HTMLVideoElement, declaredInputChannels: number) =>
+      SpatialAudioEngine.attach(element, { inputChannels: declaredInputChannels }));
     let hlsController: SpatialHlsController | null = null;
     let session: SpatialMediaSession | null = null;
     try {
@@ -179,7 +179,7 @@ export class SpatialMediaSession {
     const selected = this.hlsController?.audioTrack ?? -1;
     if (!tracks || selected < 0 || selected >= tracks.length) return 0;
     const channels = (tracks[selected] as { channels?: string } | undefined)?.channels;
-    const match = channels ? /^(\\d+)/.exec(channels.trim()) : null;
+    const match = channels ? /^(\d+)/.exec(channels.trim()) : null;
     const count = match ? Number(match[1]) : 0;
     // Only declared stereo is eligible for stereo HRTF virtualization.
     // Six channels remain bypassed unless a verified 5.1 speaker layout exists.
