@@ -45,10 +45,10 @@ export default function AudioDiagnosticsPanel({ diagnostics }: AudioDiagnosticsP
         type="button"
         className={`player-quality-badge ${atmosSignal ? 'border-amber-400/60 text-amber-200' : ''}`}
         aria-expanded={open}
-        aria-label="音频与播放诊断（只读）"
+        aria-label="Dolby 音频与播放诊断（只读）"
         onClick={() => setOpen((value) => !value)}
       >
-        音频诊断{atmosSignal ? ' · JOC 线索' : ''}
+        Dolby 诊断{atmosSignal ? ' · JOC 线索' : ''}
       </button>
       {open && (
         <div
@@ -57,7 +57,7 @@ export default function AudioDiagnosticsPanel({ diagnostics }: AudioDiagnosticsP
           className="mt-2 w-[min(22rem,calc(100vw-2rem))] max-h-[min(70vh,34rem)] overflow-y-auto rounded-xl border border-white/15 bg-black/92 p-3.5 text-white shadow-2xl backdrop-blur-xl"
         >
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-semibold">音频 / 播放诊断</span>
+            <span className="text-sm font-semibold">Dolby 音频 / 播放诊断</span>
             <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70">只读 · 不自动处理</span>
           </div>
 
