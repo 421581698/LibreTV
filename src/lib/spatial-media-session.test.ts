@@ -44,12 +44,19 @@ function makeHost() {
 }
 
 function makeEngine() {
+  let stateListener: ((state: string) => void) | null = null;
   const engine: SpatialEngineHandle = {
     resumeFromUserGesture: vi.fn(async () => undefined),
     setMode: vi.fn(() => ({ route: 'bypass', label: '原始音轨', reason: '声道布局未知，保持旁路' })),
     destroyAfterMediaElementRemoval: vi.fn(async () => undefined),
+    subscribeStateChange: vi.fn((listener) => {
+      stateListener = listener;
+      return () => { stateListener = null; };
+    }),
   };
-  return engine;
+  return Object.assign(engine, {
+    emitContextState: (state: string) => { if (stateListener) stateListener(state); },
+  });
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -205,6 +212,26 @@ describe('SpatialMediaSession activation and fallback', () => {
     resolveResume();
     await expect(activation).rejects.toThrow(/回退/);
     expect(session.snapshot.state).toBe('disposed');
+    expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to native playback when AudioContext is interrupted after activation', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const engine = makeEngine();
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
+      sourceKind: 'mp4', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial, createEngine: () => engine,
+    });
+    await session.activateFromUserGesture();
+    expect(native.muted).toBe(true);
+    engine.emitContextState('suspended');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(native.muted).toBe(false);
+    expect(session.snapshot.state).toBe('fallback');
+    expect(spatial.remove).toHaveBeenCalledTimes(1);
     expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
   });
 
