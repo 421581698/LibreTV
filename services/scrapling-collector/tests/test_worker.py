@@ -5,6 +5,33 @@ import worker
 
 
 class WorkerPipelineTests(unittest.TestCase):
+    def test_durable_media_job_routes_hls_to_graph_aware_gateway(self):
+        import json
+        from unittest.mock import patch
+
+        checkpoints = []
+        with (
+            patch.object(worker, "require_egress_firewall"),
+            patch("dv_source_gateway._read_candidate", return_value={
+                "validation": json.dumps({"media_format": "hls"}),
+            }),
+            patch("dv_hls_source_gateway.ingest_authorized_hls_candidate", return_value={
+                "status": "registered", "member_count": 3, "edge_count": 2,
+            }) as ingest_hls,
+        ):
+            result = worker.handle(
+                {
+                    "_job_type": "dv_media_ingest",
+                    "candidate_id": "a" * 32,
+                    "resource_id": "r_" + "b" * 28,
+                },
+                checkpoints.append,
+                lambda: False,
+            )
+        self.assertEqual(result["status"], "registered")
+        ingest_hls.assert_called_once()
+        self.assertIn("authorized_media_ingest_finished", [item["stage"] for item in checkpoints])
+
     def test_crawl_job_preflights_pending_direct_media_into_registry(self):
         task_id = "a" * 32
         candidates = [
