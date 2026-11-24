@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { validateDolbyVisionRpuReport } from './rpu-evidence-contract';
+import { DolbyVisionRpuReportSchema, validateDolbyVisionRpuReport } from './rpu-evidence-contract';
 
 const hash = 'a'.repeat(64);
 const validHevcReport = {
@@ -27,7 +27,7 @@ describe('Dolby Vision RPU evidence report contract', () => {
   it.skipIf(!actualReportPath)('accepts the real dovi_tool report emitted by CI', () => {
     const actualReport = JSON.parse(readFileSync(actualReportPath!, 'utf8')) as unknown;
     const result = validateDolbyVisionRpuReport(actualReport);
-    expect(result).not.toBeNull();
+    expect(result, JSON.stringify(DolbyVisionRpuReportSchema.safeParse(actualReport), null, 2)).not.toBeNull();
     expect(result?.sourceHashBinding).toBe('detached');
     expect(result?.evidence.source).toBe('dovi_tool');
     expect(result?.evidence.rpuPresent).toBe(true);
