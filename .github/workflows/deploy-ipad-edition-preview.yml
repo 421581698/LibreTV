@@ -740,6 +740,7 @@ jobs:
                 }
                 const metrics = await page.evaluate(({ scheme, layoutDiagnostics }) => {
                   const root = document.querySelector('[data-ipad-edition="true"]');
+                  const layoutMode = root?.getAttribute('data-ipad-layout') ?? 'compact';
                   const main = document.querySelector('.ipad-edition__main');
                   const topbar = document.querySelector('.ipad-nav__topbar') || document.querySelector('.ipad-nav__sidebar');
                   const hero = document.querySelector('.ipad-edition__cinema-hero');
@@ -861,7 +862,11 @@ jobs:
                   // clipping boundary. Do not use elementFromPoint here: decorative
                   // gradients/overlays may sit above the backdrop, and pointer-events:none
                   // layers are intentionally omitted from hit testing while still painting.
-                  const heroArtworkEdgeCoverage = [1, Math.max(1, window.innerWidth - 2)].map(x => {
+                  const sidebarRight = document.querySelector('.ipad-nav__sidebar')?.getBoundingClientRect().right ?? 0;
+                  const heroArtworkSampleXs = layoutMode === 'expanded'
+                    ? [Math.ceil(sidebarRight + 1), Math.max(Math.ceil(sidebarRight + 1), window.innerWidth - 2)]
+                    : [1, Math.max(1, window.innerWidth - 2)];
+                  const heroArtworkEdgeCoverage = heroArtworkSampleXs.map(x => {
                     if (!heroMedia || !heroRect) return false;
                     const mediaRect = heroMedia.getBoundingClientRect();
                     if (mediaRect.width <= 0 || mediaRect.height <= 0 ||
@@ -1260,7 +1265,12 @@ jobs:
               const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
               await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
               await page.locator(".ipad-edition__cinema-hero").waitFor({ state: "visible", timeout: 30000 });
-              await page.locator(".ipad-nav__topbar").waitFor({ state: "visible", timeout: 30000 });
+              const layoutMode = await page.locator('.ipad-edition').getAttribute('data-ipad-layout');
+              if (layoutMode === 'expanded') {
+                await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 30000 });
+              } else {
+                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
+              }
               // The environment engine attaches its data attributes in a client effect.
               // Wait for the requested scheme before asserting clean-URL theme readiness.
               await page.waitForFunction(
@@ -1441,7 +1451,7 @@ jobs:
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
-                  const nav = document.querySelector(".ipad-nav__topbar");
+                  const nav = document.querySelector('.ipad-nav__topbar') || document.querySelector('.ipad-nav__sidebar');
                   const skeletonCount = document.querySelectorAll(".ipad-edition__poster-skeleton").length;
                   const collection = document.querySelector(".ipad-edition__collection-grid");
                   const emptyMessage = document.querySelector(".ipad-edition__rail-message");
@@ -1451,7 +1461,8 @@ jobs:
                     documentWidth: document.documentElement.scrollWidth,
                     viewportWidth: document.documentElement.clientWidth,
                     contentTextLength: (root?.textContent ?? "").trim().length,
-                    hasTopbar: Boolean(nav),
+                    hasNavigationChrome: Boolean(nav),
+                    navigationMode: root?.dataset.ipadLayout ?? 'compact',
                     loadingSkeletonCount: skeletonCount,
                     collectionItemCount: collection?.children.length ?? 0,
                     hasTerminalCollectionState: Boolean(collection || emptyMessage),
@@ -1545,7 +1556,7 @@ jobs:
                   metrics.rootEnvironment !== colorScheme ||
                   metrics.documentWidth > metrics.viewportWidth + 1 ||
                   metrics.contentTextLength < 8 ||
-                  metrics.hasTopbar !== route.chrome ||
+                  metrics.hasNavigationChrome !== route.chrome ||
                   (["movies", "series", "anime"].includes(route.name) &&
                     (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
                   (route.name.startsWith("detail") && (!metrics.hasDetailTitle ||
