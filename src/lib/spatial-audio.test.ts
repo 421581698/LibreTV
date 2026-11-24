@@ -5,6 +5,7 @@ import { inspectSpatialAudioCapabilities, isAudioSourceUrlOriginSafe, isMediaEle
 function createMockAudioContext() {
   const contextRef: { current?: Record<string, unknown> } = {};
   const state = { value: 'suspended' as AudioContextState };
+  const stateListeners = new Set<EventListener>();
   const makeNode = () => ({ connect: vi.fn(), disconnect: vi.fn() });
   const createPanner = () => {
     const panner = Object.assign(makeNode(), {
@@ -33,6 +34,16 @@ function createMockAudioContext() {
       gain: { value: 1, setTargetAtTime: vi.fn() },
     })),
     createChannelSplitter: vi.fn(() => Object.assign(makeNode(), { channelInterpretation: 'speakers' })),
+    addEventListener: vi.fn((type: string, listener: EventListener) => {
+      if (type === 'statechange') stateListeners.add(listener);
+    }),
+    removeEventListener: vi.fn((type: string, listener: EventListener) => {
+      if (type === 'statechange') stateListeners.delete(listener);
+    }),
+    setState: (next: AudioContextState) => {
+      state.value = next;
+      stateListeners.forEach((listener) => listener(new Event('statechange')));
+    },
     resume: vi.fn(async () => { state.value = 'running'; }),
     close: vi.fn(async () => { state.value = 'closed'; }),
   };
@@ -139,6 +150,35 @@ describe('SpatialAudioEngine lifecycle', () => {
     expect(engine.setMode('headphone-stereo').route).toBe('stereo-virtualization');
     engine.disable();
     expect(engine.status.route).toBe('bypass');
+    vi.unstubAllGlobals();
+  });
+
+  it('propagates a rejected user-gesture resume instead of claiming spatial audio is active', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://libretv.example' } });
+    const context = createMockAudioContext();
+    (context.resume as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('gesture denied'));
+    const engine = SpatialAudioEngine.attach(media(), { inputChannels: 2 }, () => context);
+
+    await expect(engine.resumeFromUserGesture()).rejects.toThrow('gesture denied');
+    expect(engine.status.contextState).toBe('suspended');
+    await engine.destroyAfterMediaElementRemoval();
+    vi.unstubAllGlobals();
+  });
+
+  it('subscribes and unsubscribes from AudioContext state changes', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://libretv.example' } });
+    const context = createMockAudioContext();
+    const engine = SpatialAudioEngine.attach(media(), { inputChannels: 2 }, () => context);
+    const listener = vi.fn();
+    const unsubscribe = engine.subscribeStateChange(listener);
+
+    (context.setState as (state: AudioContextState) => void)('interrupted');
+    expect(listener).toHaveBeenCalledWith('interrupted');
+    unsubscribe();
+    (context.setState as (state: AudioContextState) => void)('running');
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    await engine.destroyAfterMediaElementRemoval();
     vi.unstubAllGlobals();
   });
 
