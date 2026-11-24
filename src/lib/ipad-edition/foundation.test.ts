@@ -8,6 +8,7 @@ import {
   moveIndex,
   preserveIndex,
   resolveCinemaActivation,
+  resolveIpadNavigationLayout,
   resolvedFocusAxis,
   tokensWithinLimits,
   resolveEnvironmentProfile,
@@ -29,6 +30,15 @@ describe('LibreTV iPad Edition foundation', () => {
     expect(resolveCinemaActivation(true, 1024)).toBe('stage');
     expect(resolveCinemaActivation(true, 1600)).toBe('stage');
     expect(resolveCinemaActivation(false, 1600)).toBe('inactive');
+  });
+
+  it('switches navigation by actual app-window width rather than orientation or device class', () => {
+    expect(resolveIpadNavigationLayout(520)).toBe('compact');
+    expect(resolveIpadNavigationLayout(834)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1023)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1024)).toBe('expanded');
+    expect(resolveIpadNavigationLayout(1366)).toBe('expanded');
+    expect(resolveIpadNavigationLayout(Number.NaN)).toBe('compact');
   });
 
   it('keeps the V4.2 sidebar and floating capsule behavior', () => {

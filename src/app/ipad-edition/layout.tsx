@@ -3,6 +3,7 @@ import type { Viewport } from 'next';
 import { IpadEditionShell } from '@/components/ipad-edition/IpadEditionShell';
 import './ipad-edition.css';
 import './poster-engine.css';
+import './responsive-system.css';
 
 export const viewport: Viewport = {
   width: 'device-width',

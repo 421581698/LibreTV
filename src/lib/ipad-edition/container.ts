@@ -8,3 +8,10 @@ export function resolveCinemaActivation(isIpad: boolean, width: number): CinemaA
   if (width < CINEMA_STAGE_MIN) return 'compact';
   return 'stage';
 }
+
+export type IpadNavigationLayout = 'compact' | 'expanded';
+
+/** Navigation follows the actual application window width, not device or orientation. */
+export function resolveIpadNavigationLayout(width: number): IpadNavigationLayout {
+  return Number.isFinite(width) && width >= 1024 ? 'expanded' : 'compact';
+}

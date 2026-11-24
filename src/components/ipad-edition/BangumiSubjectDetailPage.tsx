@@ -6,6 +6,7 @@ import { api } from '@/lib/client-api';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch } from '@/lib/movie-title-match';
 import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
+import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
@@ -46,7 +47,12 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState('点击「开始播放」后才会查询已启用的点播源。');
-  const [tmdbArtwork, setTmdbArtwork] = useState<{ id: number; poster: string; backdrop: string } | null>(null);
+  const [tmdbArtwork, setTmdbArtwork] = useState<{
+    id: number;
+    poster: string;
+    backdrop: string;
+    cast: { id: number; name: string; character?: string; profile_path?: string | null }[];
+  } | null>(null);
 
   const sources = useMemo(() => selectedKeys
     .map((key) => resolveSource({ customAPIs, envSources }, key))
@@ -91,12 +97,17 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
         if (!match || !Number.isInteger(match.id) || match.id <= 0) return;
         const response = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: mediaType }), { signal: controller.signal });
         if (!response.ok) throw new Error('TMDB artwork details unavailable');
-        const metadata = await response.json() as { poster_path?: string | null; backdrop_path?: string | null };
+        const metadata = await response.json() as {
+          poster_path?: string | null;
+          backdrop_path?: string | null;
+          credits?: { cast?: { id: number; name: string; character?: string; profile_path?: string | null }[] };
+        };
         if (controller.signal.aborted) return;
         setTmdbArtwork({
           id: match.id,
           poster: metadata.poster_path ? 'https://image.tmdb.org/t/p/original' + metadata.poster_path : match.posterUrl || '',
           backdrop: metadata.backdrop_path ? 'https://image.tmdb.org/t/p/original' + metadata.backdrop_path : match.backdropUrl || '',
+          cast: (metadata.credits?.cast || []).slice(0, 18),
         });
       })
       .catch(() => { /* Bangumi artwork remains the safe fallback. */ });
@@ -209,7 +220,17 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
           <div><dt>评分</dt><dd>{(subject.rating?.score || 0).toFixed(1)}</dd></div>
         </dl>
       </section>
-      <section className="ipad-cinema-cast ipad-cinema-section">
+      <IpadCinemaCastRow
+        actors={(tmdbArtwork?.cast || []).map((actor) => ({
+          id: actor.id,
+          name: actor.name,
+          role: actor.character,
+          imageUrl: actor.profile_path ? 'https://image.tmdb.org/t/p/w342' + actor.profile_path : '',
+        }))}
+        imageMode={imageProxyMode}
+        customImageProxy={customImageProxy}
+      />
+      <section className="ipad-cinema-tags ipad-cinema-section">
         <h2>作品标签</h2>
         <div className="flex flex-wrap gap-2">{tags.length ? tags.map((tag) => <span key={tag} className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/75">{tag}</span>) : <span className="text-sm text-white/55">暂无标签</span>}</div>
       </section>

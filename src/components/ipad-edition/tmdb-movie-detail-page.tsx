@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { SmartImage } from '@/components/smart-image';
 import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
+import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
 import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
@@ -215,15 +216,12 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
           <div><dt>国家/地区</dt><dd>{movie.production_countries?.map((country) => country.name).join('、') || '暂无数据'}</dd></div>
         </dl>
       </section>
-      <section className="ipad-cinema-cast ipad-cinema-section">
-        <h2>演员阵容</h2>
-        {cast.length ? <div className="ipad-cinema-cast__rail">
-          {cast.map((actor) => <button key={actor.id} type="button" onClick={() => void openPerson(actor.id)}>
-            <SmartImage url={imageUrl(actor.profile_path, 'w342') || '/placeholder.svg'} mode={imageProxyMode} customProxy={customImageProxy} alt={actor.name} loading="lazy" />
-            <strong>{actor.name}</strong><span>{actor.character}</span>
-          </button>)}
-        </div> : <p>暂无演员资料</p>}
-      </section>
+      <IpadCinemaCastRow
+        actors={cast.map((actor) => ({ id: actor.id, name: actor.name, role: actor.character, imageUrl: imageUrl(actor.profile_path, 'w342') }))}
+        imageMode={imageProxyMode}
+        customImageProxy={customImageProxy}
+        onSelect={openPerson}
+      />
       {(person || personLoading) && <div className="ipad-cinema-person-backdrop" onClick={() => setPerson(null)}>
         <section className="ipad-cinema-person" onClick={(event) => event.stopPropagation()}>
           {personLoading ? <p>正在加载人物资料…</p> : person && <>

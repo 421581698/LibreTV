@@ -175,10 +175,11 @@
 }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-detail {
   position: relative;
-  width: 100vw;
+  width: 100%;
   max-width: none;
+  min-width: 0;
   min-height: 100svh;
-  margin-inline: calc(50% - 50vw);
+  margin-inline: 0;
   padding: 0;
   overflow: clip;
   background: #08090c;
@@ -625,4 +626,91 @@
 /* Playback lookup hint and live status should remain legible but secondary. */
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-status {
   color: #888;
+}
+
+/* Shared detail presentation: stable text rhythm and compact responsive content. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+  width: min(760px, 64%);
+  max-width: calc(100% - 48px);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1 {
+  overflow-wrap: anywhere;
+  line-height: 1.06;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-meta {
+  row-gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview {
+  max-width: min(600px, 100%);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__rail {
+  gap: clamp(14px, 2vw, 22px);
+  padding-inline: 2px;
+  scrollbar-width: none;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__rail::-webkit-scrollbar { display: none; }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item {
+  display: grid;
+  flex: 0 0 112px;
+  width: 112px;
+  min-width: 0;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  text-align: center;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item img {
+  display: block;
+  width: 76px;
+  height: 76px;
+  aspect-ratio: 1;
+  justify-self: center;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 24%;
+  background: #1b1c20;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item strong,
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item span {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: rgba(255,255,255,.88);
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item span {
+  margin-top: 0;
+  color: rgba(255,255,255,.48);
+  font-size: 11px;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item:focus-visible {
+  outline: 2px solid #0a84ff;
+  outline-offset: 5px;
+  border-radius: 12px;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item:active img { transform: scale(.97); }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-tags { margin-top: 42px; }
+@media (max-width: 900px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content { width: min(760px, 82%); }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-info { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: calc(100% - 44px);
+    max-width: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-cast__item:active img { transform: none; }
 }

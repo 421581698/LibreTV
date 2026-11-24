@@ -1,0 +1,122 @@
+/* PR #99 — adaptive cinema shell. Layout follows the actual app window. */
+.ipad-edition {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0 !important;
+  overflow-x: clip;
+}
+.ipad-edition > .ipad-edition__main {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.ipad-edition[data-ipad-layout="expanded"] { --ipad-sidebar-width: 264px; }
+.ipad-edition[data-ipad-layout="expanded"] > .ipad-edition__main {
+  width: calc(100% - var(--ipad-sidebar-width));
+  margin-left: var(--ipad-sidebar-width);
+}
+.ipad-edition[data-ipad-layout="expanded"] .ipad-nav__sidebar {
+  width: var(--ipad-sidebar-width) !important;
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  transition: none;
+}
+.ipad-edition[data-ipad-layout="expanded"] .ipad-nav__topbar,
+.ipad-edition[data-ipad-layout="expanded"] .ipad-nav__edge-swipe-zone { display: none !important; }
+.ipad-nav__collapse-button {
+  position: absolute;
+  top: max(22px, env(safe-area-inset-top, 0px) + 16px);
+  right: 16px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--ipad-nav-line);
+  border-radius: 12px;
+  color: var(--ipad-nav-ink);
+  background: rgba(128, 140, 160, .1);
+  cursor: pointer;
+}
+.ipad-nav__collapse-button .ipad-nav__icon { width: 19px; height: 19px; }
+.ipad-edition__home,
+.ipad-edition__page {
+  min-width: 0;
+  container-type: inline-size;
+  container-name: ipad-content;
+}
+.ipad-edition__home { width: 100%; padding-inline: 0; }
+.ipad-edition__page {
+  width: 100%;
+  padding-inline: clamp(16px, 2.4cqi, 36px);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  margin-inline: 0 !important;
+  border-radius: 0;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__rail-section,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-section { width: 100%; min-width: 0; }
+.ipad-edition[data-ipad-home="true"] .ipad-edition__rail-section .ipad-edition__section-heading,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-section .ipad-edition__section-heading {
+  padding-inline: clamp(16px, 2cqi, 32px) !important;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-grid,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-grid,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-grid {
+  gap: clamp(12px, 1.4cqi, 20px) !important;
+  padding-inline: clamp(16px, 2cqi, 32px) !important;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-card,
+.ipad-edition[data-ipad-home="true"] .ipad-edition__poster-skeleton {
+  flex: 0 0 clamp(148px, 15cqi, 216px) !important;
+  width: clamp(148px, 15cqi, 216px) !important;
+  min-width: 0;
+  max-width: none;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__anime-card {
+  flex: 0 0 clamp(180px, 20cqi, 280px) !important;
+  width: clamp(180px, 20cqi, 280px) !important;
+  min-width: 0;
+  max-width: none;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__continue-card {
+  flex: 0 0 clamp(210px, 24cqi, 320px) !important;
+  width: clamp(210px, 24cqi, 320px) !important;
+  min-width: 0;
+  max-width: none;
+}
+@container ipad-content (min-width: 1100px) {
+  .ipad-edition__result-grid, .ipad-edition__collection-grid { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+}
+@container ipad-content (min-width: 1500px) {
+  .ipad-edition__result-grid, .ipad-edition__collection-grid { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+}
+@container ipad-content (min-width: 760px) and (max-width: 1099px) {
+  .ipad-edition__result-grid, .ipad-edition__collection-grid { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+}
+@container ipad-content (max-width: 759px) {
+  .ipad-edition__result-grid, .ipad-edition__collection-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 16px 12px !important; }
+  .ipad-edition__category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@container ipad-content (max-width: 520px) {
+  .ipad-edition__result-grid, .ipad-edition__collection-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@supports not (container-type: inline-size) {
+  @media (min-width: 1200px) {
+    .ipad-edition__result-grid, .ipad-edition__collection-grid { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ipad-edition[data-ipad-layout="expanded"] .ipad-nav__sidebar {
+    background: var(--ipad-nav-panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
