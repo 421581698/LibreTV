@@ -2041,7 +2041,7 @@ jobs:
 
                     await page.locator(".cinema-utility-control").click();
                     await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
-                    await page.locator(".netflix-watch-panel-scrim").click({ position: { x: 4, y: 200 } });
+                    await page.locator(".netflix-watch-panel-scrim").click({ position: { x: 48, y: 200 } });
                     await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
                     const scrimDismissed = await page.locator(".netflix-watch-utility-panel").evaluate(node => !node.classList.contains("is-open"));
                     if (!scrimDismissed) failures += 1;
