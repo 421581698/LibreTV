@@ -78,15 +78,17 @@ Until these prerequisites are met, the player correctly displays RPU/dynamic met
 - [x] Implement and document a private parser service and backend-only bearer boundary.
 - [ ] Deploy the parser service behind private ingress and provision signing/service secrets with a key rotation process.
 - [x] Add a separate DV ingestion secret and authenticated raw-byte ingress endpoint.
-- [ ] Provision the secret in the deployment environment and connect only the trusted source gateway to the registry endpoint.
+- [ ] Provision the dedicated ingress secret only for deployments that use the separate authenticated raw-byte ingress client; the in-process authorized source gateways use the collector's local registry worker path.
 - [x] Define canonical signed envelope and signature verification tests (valid, tampered, wrong-key, expired/stale, unsupported version).
 - [x] Add a content-addressed media-asset registry primitive with a separate ingestion credential and immutable metadata semantics.
 - [x] Add an immutable HLS asset graph with explicit root identity, parent/child edges, local playlist/segment ingestion, URI rewriting, and shared byte-range proxy delivery.
+- [x] Add opt-in, allowlisted MP4/WebM and clear-HLS source gateways with durable job queueing, public-IP pinning, strict byte/time bounds, redirect rejection, transfer-digest checks, and cancellation cleanup.
 - [ ] Validate an ingested immutable HLS graph end-to-end in live HLS.js and native Safari playback against real media sources.
 - [x] Implement a local-file ingestion worker that hashes staged bytes and writes a no-overwrite content-addressed object before registry insertion.
 - [x] Add an authenticated raw-byte ingestion endpoint using a dedicated token, exact content length, and no URL fetching.
 - [x] Add an authenticated read-only object streaming endpoint bound to the registry asset ID.
-- [ ] Deploy a trusted gateway to stage authorized source bytes and provision durable object storage with production immutability/retention controls.
+- [x] Implement an opt-in trusted source gateway for authorized progressive media and clear-HLS graphs; require operator-managed exact-host allowlists and verified egress firewall.
+- [ ] Configure real authorized source hosts, validate against those origins, and provision durable object storage with production immutability/retention controls.
 - [x] Implement the server-side backend forwarder that streams the registered object into the parser and verifies the signed response against the registry-bound asset ID and digest.
 - [ ] Deploy and end-to-end validate the forwarder against the live private Compose services.
 - [x] Bind the selected registry asset ID through immutable MP4 playback and signed RPU evidence; distinguish original MP4 SHA-256 from extracted HEVC input SHA-256.
@@ -103,4 +105,4 @@ Until these prerequisites are met, the player correctly displays RPU/dynamic met
 
 ## Release boundary
 
-Registry playback now prefers the immutable MP4/WebM asset when available and retains the original source as a fallback. RPU analysis is enabled only for MP4 assets with an HEVC video track; HLS behavior is unchanged. PR #99 remains Draft and is not merged.
+Registry playback now prefers immutable MP4/WebM assets and explicit immutable HLS graph roots when available, retaining the original source as a fallback. RPU analysis remains enabled only for MP4 assets with an HEVC video track; HLS RPU analysis is not claimed. PR #99 remains Draft and is not merged.
