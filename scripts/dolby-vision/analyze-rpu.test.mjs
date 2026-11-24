@@ -32,6 +32,16 @@ describe('dovi_tool RPU report parsing', () => {
     });
   });
 
+  it('counts distinct frames when an export contains multiple records for one frame', () => {
+    const report = parseLevelExportFiles({
+      1: '[{"frame":0,"min_pq":1},{"frame":0,"max_pq":2},{"frame":1,"min_pq":3}]',
+    });
+    expect(report).toEqual({
+      metadataLevels: [1],
+      metadataLevelFrameCounts: { 1: 2 },
+    });
+  });
+
   it('rejects malformed or structurally invalid level exports', () => {
     expect(() => parseLevelExportFiles({ 1: '{bad json' })).toThrow(/不是有效 JSON/);
     expect(() => parseLevelExportFiles({ 2: '{}' })).toThrow(/必须是数组/);
