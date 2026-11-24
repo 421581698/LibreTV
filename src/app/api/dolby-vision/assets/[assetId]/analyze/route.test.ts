@@ -132,6 +132,27 @@ describe('POST /api/dolby-vision/assets/[assetId]/analyze', () => {
     await expect(response.json()).resolves.toMatchObject({ code: 'DV_SIGNED_EVIDENCE_REJECTED' });
   });
 
+  it('rejects media larger than the configured parser upload limit', async () => {
+    const bytes = Buffer.alloc(1_048_577, 1);
+    vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response(bytes, {
+      status: 200,
+      headers: {
+        'Content-Type': 'video/mp4',
+        'Content-Length': String(bytes.length),
+        'X-DV-Asset-ID': assetId,
+        'X-DV-Asset-SHA256': digest,
+        ETag: `"${digest}"`,
+      },
+    }));
+    const parserFetch = vi.fn();
+    vi.stubGlobal('fetch', parserFetch);
+
+    const response = await POST(makeRequest(), { params: Promise.resolve({ assetId }) });
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toMatchObject({ code: 'DV_MEDIA_TOO_LARGE' });
+    expect(parserFetch).not.toHaveBeenCalled();
+  });
+
   it('rejects an unbound registry response before contacting the parser', async () => {
     vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(makeRegistryResponse({ assetId: 'another-asset' }));
     const parserFetch = vi.fn();
