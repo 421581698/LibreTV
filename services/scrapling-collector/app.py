@@ -2212,6 +2212,8 @@ def record_playback_evidence(
     if gateway_enabled():
         if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED", "").strip() != "1":
             media_ingestion = {"status": "skipped", "reason": "egress_firewall_not_confirmed"}
+        elif validation.get("media_format") == "hls":
+            media_ingestion = {"status": "skipped", "reason": "hls_requires_immutable_graph_ingestion"}
         elif not is_source_host_authorized(row["host"]):
             media_ingestion = {"status": "skipped", "reason": "source_host_not_explicitly_authorized"}
         else:
