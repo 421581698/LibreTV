@@ -1106,8 +1106,31 @@ export function PlayerShell({
       }
     };
 
+    // 只读诊断初始化必须位于原生 HLS / hls.js 分支之前：
+    // Safari/iOS 通常走原生 HLS，不能因下面的提前 return 而跳过容器与能力采样。
+    // 只传入 URL 给本地格式识别器，不把 URL 写入诊断快照或遥测。
+    diagnosticsRef.current.input.format = { url: mediaUrl, mimeType: undefined };
+    diagnosticsRef.current.input.capabilityEnvironment = readCapabilityEnvironment(video);
+
+    const observeNativeAudioTracks = () => {
+      if (loadGeneration !== mediaLoadGenerationRef.current) return;
+      // Safari 的原生 AudioTrackList 通常只公开轨道标签/语言/启用状态，
+      // 不公开 codec、CHANNELS 或 JOC。只记录可见轨道数量，绝不推断编码。
+      const nativeVideo = video as HTMLVideoElement & {
+        audioTracks?: { length: number };
+      };
+      if (!nativeVideo.audioTracks || !Number.isFinite(nativeVideo.audioTracks.length)) return;
+      diagnosticsRef.current.input.audioTracks = Array.from(
+        { length: nativeVideo.audioTracks.length },
+        (_value, index) => ({ id: index }),
+      );
+    };
+
     const restoreEvents = ['loadedmetadata', 'durationchange', 'canplay'] as const;
-    const onRestoreEvent = () => { void restoreAndStart(); };
+    const onRestoreEvent = () => {
+      observeNativeAudioTracks();
+      void restoreAndStart();
+    };
     restoreEvents.forEach((event) => video.addEventListener(event, onRestoreEvent));
     restoreCleanupRef.current = () => {
       restoreEvents.forEach((event) => video.removeEventListener(event, onRestoreEvent));
@@ -1115,7 +1138,7 @@ export function PlayerShell({
 
     if (!hls) {
       // Safari/iOS native HLS path: hls.js is not MSE-supported on these devices.
-      // Let the browser's native media pipeline decide CORS for playback.
+      // Native AudioTrackList may expose track count, but not codec/layout/JOC.
       video.removeAttribute('crossorigin');
       video.src = mediaUrl;
       video.load();
@@ -1123,11 +1146,6 @@ export function PlayerShell({
     }
     hls.loadSource(mediaUrl);
     hls.attachMedia(video);
-
-    // 只读诊断：把真实媒体地址交给格式检测器（仅识别容器/编码，不上报 URL 本身），
-    // 并记录设备能力。能力探测只读，不声称任何 Atmos 解码或位流直通。
-    diagnosticsRef.current.input.format = { url: mediaUrl, mimeType: undefined };
-    diagnosticsRef.current.input.capabilityEnvironment = readCapabilityEnvironment(video);
 
     // 真实音轨：hls.js 的 audioTracks 是 MediaPlaylist[]，字段与音频检查器入参一致。
     // 映射为精简结构（丢弃 name/url），只保留声道/编码/JOC 用于只读分析。
