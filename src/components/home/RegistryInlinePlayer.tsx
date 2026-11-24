@@ -146,7 +146,7 @@ export function RegistryInlinePlayer({
             pendingStart={pendingStart}
             onPendingStart={setPendingStart}
             episodeKey={`registry:${resource.id}`}
-            dolbyVisionAssetId={activeImmutableAsset?.mediaType === 'mp4' ? activeImmutableAsset.assetId : undefined}
+            dolbyVisionAssetId={activeImmutableAsset?.assetId}
           />
         </div>
       </section>
