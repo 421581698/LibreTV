@@ -142,6 +142,40 @@ describe('SpatialAudioEngine lifecycle', () => {
     vi.unstubAllGlobals();
   });
 
+  it('routes a verified 5.1 layout through five HRTF speakers and a separate LFE path', () => {
+    vi.stubGlobal('window', { location: { origin: 'https://libretv.example' } });
+    const context = createMockAudioContext();
+    const engine = SpatialAudioEngine.attach(
+      media(),
+      { inputChannels: 6, inputLayout: '5.1' },
+      () => context,
+    );
+
+    expect(engine.setMode('headphone-surround').route).toBe('surround-5.1-binaural');
+    expect(context.createChannelSplitter).toHaveBeenCalledWith(6);
+
+    const splitter = (context.createChannelSplitter as ReturnType<typeof vi.fn>).mock.results[0].value;
+    expect(splitter.connect.mock.calls.map((call: unknown[]) => call[1])).toEqual([0, 1, 2, 3, 4, 5]);
+    // One capability-probe panner plus five rendered full-range speaker panners.
+    expect(context.createPanner).toHaveBeenCalledTimes(6);
+    engine.disable();
+    vi.unstubAllGlobals();
+  });
+
+  it('replans safely when the selected HLS track changes its declared layout', () => {
+    vi.stubGlobal('window', { location: { origin: 'https://libretv.example' } });
+    const context = createMockAudioContext();
+    const engine = SpatialAudioEngine.attach(media(), { inputChannels: 2 }, () => context);
+
+    expect(engine.setMode('headphone-surround').route).toBe('stereo-virtualization');
+    expect(engine.updateInputChannels(6, 'unknown').route).toBe('bypass');
+    expect(engine.updateInputChannels(6, '5.1').route).toBe('surround-5.1-binaural');
+    expect(engine.updateInputChannels(8, 'unknown').route).toBe('bypass');
+
+    engine.disable();
+    vi.unstubAllGlobals();
+  });
+
   it('rejects reattachment after final element teardown', async () => {
     vi.stubGlobal('window', { location: { origin: 'https://libretv.example' } });
     const element = media();
