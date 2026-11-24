@@ -34,6 +34,22 @@ describe('parseHlsAudioRenditions', () => {
     }
   });
 
+  it('does not guess a rendition codec when variants sharing a group disagree', () => {
+    const manifest = [
+      '#EXTM3U',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="shared",NAME="English",URI="audio/en.m3u8"',
+      '#EXT-X-STREAM-INF:BANDWIDTH=3000000,CODECS="avc1.640028,ec-3",AUDIO="shared"',
+      'video/720p.m3u8',
+      '#EXT-X-STREAM-INF:BANDWIDTH=6000000,CODECS="avc1.640028,ac-4.02.01.04",AUDIO="shared"',
+      'video/1080p.m3u8',
+    ].join('\\n');
+
+    expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({
+      codec: null,
+      hasJocMarker: false,
+    });
+  });
+
   it('recognizes JOC in CHANNELS as metadata only', () => {
     expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3 JOC",CHANNELS="6/JOC",URI="a.m3u8"')[0])
       .toMatchObject({ channelCount: 6, layout: 'unknown', hasJocMarker: true });
