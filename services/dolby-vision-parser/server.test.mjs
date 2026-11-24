@@ -129,6 +129,7 @@ process.exit(2);
       'Content-Type': 'application/octet-stream',
       'X-DV-Asset-Id': 'r_0123456789abcdef0123456789ab',
       'X-DV-Asset-SHA256': digest,
+      'X-DV-Source-Content-Type': 'video/hevc',
     };
 
     try {
