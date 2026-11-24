@@ -1734,3 +1734,22 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+
+/* iOS/iPadOS seek targets must receive the horizontal drag instead of
+   handing it to the browser's pan recognizer. The old pan-x setting made
+   both ArtPlayer's timeline and the page-owned range behave like scroll
+   gestures, so neither seek path consistently received move/release events. */
+.netflix-player-frame .artplayer .art-progress,
+.netflix-player-frame .art-video-player .art-progress,
+.netflix-player-frame .artplayer .art-progress-bar,
+.netflix-player-frame .art-video-player .art-progress-bar,
+.netflix-watch-shell .watch-cinema-progress,
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame .art-progress,
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame .art-progress-bar,
+.ipad-edition[data-ipad-player="true"] .watch-cinema-progress {
+  pointer-events: auto !important;
+  touch-action: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
