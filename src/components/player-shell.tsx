@@ -642,6 +642,9 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    setAudioTrackOptions([]);
+    setSelectedAudioTrack(-1);
+    setAudioTrackPanelOpen(false);
     // Direct MP4/WebM customType callbacks can bypass setupHls; advance the
     // generation here so pending HLS restore promises cannot mutate this source.
     const loadGeneration = ++mediaLoadGenerationRef.current;
