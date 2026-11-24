@@ -1,3 +1,5 @@
+> **Superseded for current product scope (2026-11-24):** The independent generic spatial-session lifecycle described here has been removed. Keep this file as historical test specification only; Dolby-only acceptance is defined in [DOLBY-ONLY-ARCHITECTURE-RESET.md](./DOLBY-ONLY-ARCHITECTURE-RESET.md).
+
 # P3 Lifecycle Test Matrix
 
 - Status: Isolated MP4/WebM and HLS controller paths implemented; HLS track-selection/teardown and active fatal-error fallback unit coverage added; browser resource-CORS matrix added; full 20-case matrix and real-device acceptance pending
