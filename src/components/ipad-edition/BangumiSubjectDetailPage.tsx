@@ -46,7 +46,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
-  const [status, setStatus] = useState('点击「开始播放」后才会查询已启用的点播源。');
+  const [status, setStatus] = useState('');
   const [tmdbArtwork, setTmdbArtwork] = useState<{
     id: number;
     poster: string;
@@ -203,7 +203,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
           <button type="button" onClick={() => void startPlayback()} disabled={starting} className="ipad-cinema-play">
             {starting ? '正在查找资源…' : '▶ 开始播放'}
           </button>
-          <span className="ipad-cinema-status" role="status" aria-live="polite">{status}</span>
+          {status ? <span className="ipad-cinema-status" role="status" aria-live="polite">{status}</span> : null}
         </>
       }
       onBack={() => router.back()}

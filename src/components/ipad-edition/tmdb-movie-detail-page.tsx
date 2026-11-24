@@ -47,7 +47,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const [loading, setLoading] = useState(true);
   const [metadataError, setMetadataError] = useState('');
   const [startingPlayback, setStartingPlayback] = useState(false);
-  const [playbackStatus, setPlaybackStatus] = useState('点击「开始播放」后才会查询已启用的点播源。');
+  const [playbackStatus, setPlaybackStatus] = useState('');
   const [person, setPerson] = useState<TmdbPersonDetails | null>(null);
   const [personLoading, setPersonLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -198,7 +198,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
           <button type="button" onClick={toggleSaved} className="ipad-cinema-add" aria-label={saved ? '从片单移除' : '加入片单'} aria-pressed={saved}>
             {saved ? '✓' : '+'}
           </button>
-          <span className="ipad-cinema-status" role="status" aria-live="polite">{playbackStatus}</span>
+          {playbackStatus ? <span className="ipad-cinema-status" role="status" aria-live="polite">{playbackStatus}</span> : null}
         </>
       }
       onBack={() => router.back()}
