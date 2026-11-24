@@ -88,7 +88,10 @@ describe('iPad Edition navigation contract', () => {
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
     expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
-    expect(shell).toContain('onClick={() => setSidebarOpen((open) => !open)}');
+    expect(shell).toContain('setSidebarOpen((open) => !open)');
+    expect(shell).toContain('setNavigationCollapsed((collapsed) => !collapsed)');
+    expect(shell).toContain('new ResizeObserver(updateLayout)');
+    expect(shell).toContain('data-ipad-layout={isExpandedSidebar ? \'expanded\' : \'compact\'}');
     expect(shell).toContain('onClick={() => setSidebarOpen(false)}');
     expect(shell).toContain("if (event.key === 'Escape')");
     expect(shell).toContain("if (event.key !== 'Tab') return;");
