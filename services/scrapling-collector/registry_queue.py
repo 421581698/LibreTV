@@ -10,11 +10,13 @@ from pathlib import Path
 from typing import Any, Callable, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DV_INGESTION_TOKEN = (os.environ.get("DV_INGESTION_TOKEN", "").strip() or (Path(os.environ["DV_INGESTION_TOKEN_FILE"]).read_text(encoding="utf-8").strip() if os.environ.get("DV_INGESTION_TOKEN_FILE") else ""))
+DV_MEDIA_OBJECT_ROOT = Path(os.environ.get("DV_MEDIA_OBJECT_ROOT", "/data/dv-media-objects"))
 router = APIRouter()
 TERMINAL = {"succeeded", "partial", "failed", "cancelled"}
 ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PROTECTED", "ENCRYPTED_STREAM"}
@@ -646,6 +648,63 @@ def api_register_dv_media_asset(resource_id: str, payload: DolbyVisionMediaAsset
         raise HTTPException(status_code=404, detail="Resource not found")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+
+
+def _stream_dv_object(file_descriptor: int):
+    with os.fdopen(file_descriptor, "rb", closefd=True) as media_file:
+        while True:
+            chunk = media_file.read(1024 * 1024)
+            if not chunk:
+                break
+            yield chunk
+
+
+@router.get("/v1/registry/media-assets/{asset_id}/content")
+def api_get_dolby_vision_media_asset_content(asset_id: str, authorization: str | None = Header(default=None)):
+    """Stream one registered immutable object; never accepts a caller-supplied path or URL."""
+    import re
+    require_auth(authorization)
+    with connect() as c:
+        row = c.execute(
+            "SELECT asset_id,sha256,byte_length,content_type,object_key FROM registry_media_assets WHERE asset_id=?",
+            (asset_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+    digest = row["sha256"]
+    expected_key = f"sha256/{digest[:2]}/{digest}"
+    if (not re.fullmatch(r"[a-f0-9]{64}", digest or "") or
+            row["object_key"] != expected_key or
+            row["content_type"] not in {"application/octet-stream", "video/mp4", "video/x-matroska", "video/mp2t", "video/hevc"}):
+        raise HTTPException(status_code=409, detail="Media asset registry metadata is invalid")
+
+    object_path = DV_MEDIA_OBJECT_ROOT / expected_key
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(object_path, flags)
+    except FileNotFoundError:
+        raise HTTPException(status_code=410, detail="Registered media object is missing")
+    except OSError:
+        raise HTTPException(status_code=409, detail="Registered media object cannot be safely opened")
+    info = os.fstat(descriptor)
+    if not __import__("stat").S_ISREG(info.st_mode) or info.st_size != row["byte_length"]:
+        os.close(descriptor)
+        raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
+
+    return StreamingResponse(
+        _stream_dv_object(descriptor),
+        media_type=row["content_type"],
+        headers={
+            "Content-Length": str(row["byte_length"]),
+            "ETag": f'"{digest}"',
+            "X-DV-Asset-SHA256": digest,
+            "X-DV-Asset-ID": row["asset_id"],
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post("/v1/registry/resources/{resource_id}/verifications")
