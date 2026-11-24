@@ -141,6 +141,19 @@ try {
       media.load();
     });
   });
+  const decodedSurroundChannels = await page.evaluate(async () => {
+    const context = new AudioContext();
+    try {
+      const response = await fetch('/tone-51.wav');
+      const decoded = await context.decodeAudioData(await response.arrayBuffer());
+      return decoded.numberOfChannels;
+    } finally {
+      await context.close();
+    }
+  });
+  if (decodedSurroundChannels !== 6) {
+    throw new Error('Chromium did not decode the declared six-channel PCM fixture: ' + decodedSurroundChannels);
+  }
   await page.locator('#enable-surround').evaluate(button => {
     button.addEventListener('click', async () => {
       const media = document.querySelector('#surround');
@@ -179,7 +192,7 @@ try {
   if (!surroundTeardown.bypass || !surroundTeardown.destroyed || surroundTeardown.contextState !== 'closed') {
     throw new Error('5.1 spatial graph teardown did not close cleanly: ' + JSON.stringify(surroundTeardown));
   }
-  console.log('PASS real Chromium 5.1 PCM spatial graph:', JSON.stringify({ surroundActive, surroundTeardown }));
+  console.log('PASS real Chromium 5.1 PCM spatial graph:', JSON.stringify({ decodedSurroundChannels, surroundActive, surroundTeardown }));
 
   const corsGuard = await page.evaluate(() => {
     const unsafe = document.createElement('audio');
