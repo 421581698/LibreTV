@@ -69,7 +69,24 @@ function WatchContent() {
   const { toast } = useToast();
   const sourceKey = searchParams.get('source') || '';
   const vodId = searchParams.get('id') || '';
-  const directUrl = searchParams.get('url') || '';
+  const [directUrl, setDirectUrl] = useState(() => searchParams.get('url') || '');
+
+  useEffect(() => {
+    if (sourceKey !== 'manual-input' || directUrl) return;
+    try {
+      const stored = window.sessionStorage.getItem('libretv:manual-playback');
+      if (!stored) return;
+      const payload = JSON.parse(stored) as { url?: unknown; createdAt?: unknown };
+      const age = Date.now() - Number(payload.createdAt);
+      if (typeof payload.url === 'string' && age >= 0 && age <= 15 * 60_000) {
+        setDirectUrl(payload.url);
+      } else {
+        window.sessionStorage.removeItem('libretv:manual-playback');
+      }
+    } catch {
+      window.sessionStorage.removeItem('libretv:manual-playback');
+    }
+  }, [sourceKey, directUrl]);
   const titleParam = searchParams.get('title') || '';
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
   const [reversed, setReversed] = useState(false);
@@ -93,6 +110,13 @@ function WatchContent() {
   const suppliedSourceUrl = (searchParams.get('sourceUrl') || '').trim();
   const localSource = resolveSource(store, sourceKey);
   const source = useMemo(() => {
+    if (sourceKey === 'manual-input' && directUrl) {
+      return {
+        key: 'manual-input',
+        name: '自定义播放链接',
+        url: directUrl,
+      };
+    }
     if (sourceKey === 'friday-cms' && suppliedSourceUrl) {
       return {
         ...(localSource ?? {}),
@@ -107,7 +131,7 @@ function WatchContent() {
       url: suppliedSourceUrl || undefined,
       detail: searchParams.get('detail') || undefined,
     });
-  }, [store, sourceKey, suppliedSourceUrl, searchParams]);
+  }, [store, sourceKey, suppliedSourceUrl, searchParams, directUrl]);
   const sourceUrlInvalid = Boolean(source?.url && !validateSourceUrl(source.url));
   const detailQuery = useQuery({
     queryKey: ['detail', sourceKey, vodId, source?.url],
@@ -120,6 +144,7 @@ function WatchContent() {
     [detailQuery.data]
   );
   const mediaType = detailQuery.data?.videoInfo?.typeName ?? '';
+  const directMediaType = searchParams.get('mediaType') as 'hls' | 'dash' | 'mp4' | 'webm' | null;
   const isMovie = /电影|movie|film/i.test(mediaType);
   const hasEpisodeNavigation = episodes.length > 1;
   const isReadableTitle = (value: string) => Boolean(value.trim()) && !/^[a-z0-9_-]+$/i.test(value.trim());
@@ -605,6 +630,7 @@ function WatchContent() {
                 <PlayerShell
                   url={currentUrl}
                   title={videoTitle}
+                  mediaType={directMediaType ?? undefined}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
                   skipMark={skipMark}

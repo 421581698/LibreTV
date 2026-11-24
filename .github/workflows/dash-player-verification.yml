@@ -1,0 +1,71 @@
+name: DASH Player Verification
+
+on:
+  push:
+    branches:
+      - feature/player-dash-mpd-support
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "src/components/player-shell.tsx"
+      - "src/app/connect/**"
+      - "src/app/watch/page.tsx"
+      - "src/components/home/V4HomepageHeader.tsx"
+      - "src/lib/media-playback.ts"
+      - "src/lib/media-playback.test.ts"
+      - "src/lib/dash-request-auth.ts"
+      - "src/lib/dash-request-auth.test.ts"
+      - "src/lib/pds-video-preview.ts"
+      - "src/lib/pds-video-preview.test.ts"
+      - "src/app/api/pds/preview/**"
+      - "docs/pds-video-preview.md"
+      - "src/lib/types.ts"
+      - "scripts/dash-browser-playback-smoke.mjs"
+      - "scripts/connect-page-browser-smoke.mjs"
+      - ".github/workflows/dash-player-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Production build (no deployment)
+        env:
+          PASSWORD: ci-test-password
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+      - name: Install isolated Playwright runner
+        run: npm install --no-save --package-lock=false playwright@1.55.0
+      - name: Install Google Chrome with media codecs
+        run: npx playwright install --with-deps chrome
+      - name: Verify real DASH browser playback
+        run: node scripts/dash-browser-playback-smoke.mjs
+      - name: Start production server for connection-page smoke
+        env:
+          PASSWORD: ci-test-password
+          PORT: 3000
+        run: |
+          npm run start -- --hostname 127.0.0.1 > /tmp/libretv-next.log 2>&1 &
+          echo $! > /tmp/libretv-next.pid
+          node -e "const wait=async()=>{for(let i=0;i<60;i++){try{const r=await fetch('http://127.0.0.1:3000/connect');if(r.ok)process.exit(0)}catch{}await new Promise(resolve=>setTimeout(resolve,1000))}console.error(require('fs').readFileSync('/tmp/libretv-next.log','utf8'));process.exit(1)};wait()"
+      - name: Verify DASH connection form and secure URL handoff
+        env:
+          BASE_URL: http://127.0.0.1:3000
+        run: node scripts/connect-page-browser-smoke.mjs
