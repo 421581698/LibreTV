@@ -70,7 +70,7 @@ describe('parseHlsAudioRenditions', () => {
 
   it('recognizes JOC in the declared CODECS token without CHANNELS suffix', () => {
     const manifest = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3",CHANNELS="6",URI="a.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=1000000,CODECS="avc1.640028,ec-3-joc",AUDIO="a"\nvideo.m3u8';
-    expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({ codec: 'ec-3-joc', hasJocMarker: true });
+    expect(parseHlsAudioRenditions(manifest)[0]).toMatchObject({ codec: null, hasJocMarker: true });
   });
 
   it('preserves 12/JOC and 16/JOC as declared Atmos metadata without guessing speaker layout', () => {
@@ -121,7 +121,8 @@ describe('inspectHlsAudioTrack', () => {
   });
 
   it('accepts registered HLS sample-entry tokens but not deprecated or invented suffixes', () => {
-    expect(inspectHlsAudioTrack({ audioCodec: 'ec-3-joc' }).codec).toBeNull();
+    expect(inspectHlsAudioTrack({ audioCodec: 'ec-3-joc' }))
+      .toMatchObject({ codec: null, hasJocMarker: true });
     expect(inspectHlsAudioTrack({ audioCodec: 'ec+3' }).codec).toBeNull();
     expect(inspectHlsAudioTrack({ audioCodec: 'dtsc' }).codec).toBe('dtsc');
     expect(inspectHlsAudioTrack({ audioCodec: 'dtsh' }).codec).toBe('dtsh');
