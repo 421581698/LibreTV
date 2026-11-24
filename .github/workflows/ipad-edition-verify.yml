@@ -24,6 +24,7 @@ on:
       - "src/lib/touch-pointer.ts"
       - "src/lib/playback-*.ts"
       - "src/app/watch/page.tsx"
+      - "src/app/globals.css"
       - "src/app/pr84-watch-mobile-fix.css"
       - "src/lib/client-api.ts"
       - "src/lib/tmdb.ts"
