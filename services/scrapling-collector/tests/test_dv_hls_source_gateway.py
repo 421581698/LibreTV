@@ -185,7 +185,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         ingest.assert_called_once()
 
     def test_downloads_authorized_hls_graph_and_registers_immutable_assets(self):
-        manifest = b"#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n#EXT-X-ENDLIST\n"
+        manifest = b"#EXTM3U\n#EXT-X-KEY:METHOD=NONE\n#EXTINF:4.0,\nsegment.ts\n#EXT-X-ENDLIST\n"
         segment = b"fake-transport-stream-segment"
         responses = {
             ("media.example", "/master.m3u8"): (200, {
