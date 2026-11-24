@@ -22,6 +22,7 @@ This ledger distinguishes implemented code from evidence that requires real medi
 
 **Implemented foundation**
 - Standalone Web Audio presentation engine with opt-in stereo HRTF virtualization and a gated 5.1-to-binaural route.
+- The isolated HLS spatial session passes the selected rendition's declared channel count into the engine: declared stereo can use stereo HRTF virtualization; six-channel input remains bypassed unless an explicit 5.1 layout is verified. Live HLS track changes update the engine route.
 - 5.1 routing requires an explicitly verified speaker layout; unknown layouts bypass processing.
 - CORS checks reject cross-origin direct media without a CORS mode and now reject Blob URLs belonging to a different origin.
 - The engine provides an unprocessed Web Audio passthrough when spatial processing is disabled; this is not a return to the browser-native media path. Once attached, playback remains dependent on that AudioContext and the media element's one-shot binding.
