@@ -15,7 +15,7 @@ This ledger distinguishes implemented code from evidence that requires real medi
 - The telemetry sanitizer and diagnostics HUD retain the expanded enum set without retaining URLs, tokens or rendition names.
 
 **Automated parser evidence (latest code head)**
-- Exact HLS `CODECS` token matching rejects malformed prefixes, handles DTS:X `dtsx`, and keeps conflicting variant declarations unknown. The focused tests run in iPad Edition Verify `45385604698`.
+- Exact HLS `CODECS` token matching rejects malformed prefixes, validates MPEG-4 audio object identifiers, handles DTS:X `dtsx`, and keeps conflicting variant declarations unknown. The focused tests run in iPad Edition Verify `45385604698`.
 
 **Acceptance still required**
 - Cross-check the declared metadata against actual audio elementary-stream samples and real HLS manifests from controlled fixtures.
