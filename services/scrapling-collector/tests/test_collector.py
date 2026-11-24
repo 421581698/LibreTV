@@ -174,7 +174,7 @@ class CollectorTests(unittest.TestCase):
             )
 
         ingestion = result["media_ingestion"]
-        self.assertEqual(ingestion["status"], "registered")
+        self.assertEqual(ingestion["status"], "registered", msg=repr(ingestion))
         self.assertEqual(ingestion["sha256"], hashlib.sha256(payload).hexdigest())
         self.assertEqual(ingestion["byte_length"], len(payload))
         stored = object_root / "sha256" / ingestion["sha256"][:2] / ingestion["sha256"]
