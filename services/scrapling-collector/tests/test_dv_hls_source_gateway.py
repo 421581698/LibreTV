@@ -136,7 +136,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
             ), selected_connection
 
     def test_downloads_authorized_hls_graph_and_registers_immutable_assets(self):
-        manifest = b"#EXTM3U\\n#EXTINF:4.0,\\nsegment.ts\\n#EXT-X-ENDLIST\\n"
+        manifest = b"#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n#EXT-X-ENDLIST\n"
         segment = b"fake-transport-stream-segment"
         responses = {
             ("media.example", "/master.m3u8"): (200, {
@@ -178,7 +178,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertFalse(any(self.staging_root.iterdir()))
 
     def test_rejects_non_allowlisted_hls_child_before_connecting_to_it(self):
-        manifest = b"#EXTM3U\\n#EXTINF:4.0,\\nhttps://cdn.other.example/segment.ts\\n"
+        manifest = b"#EXTM3U\n#EXTINF:4.0,\nhttps://cdn.other.example/segment.ts\n"
         responses = {
             ("media.example", "/master.m3u8"): (200, {
                 "Content-Type": "application/vnd.apple.mpegurl",
@@ -192,7 +192,7 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertFalse(any(self.staging_root.iterdir()))
 
     def test_rejects_encrypted_hls_before_fetching_key_or_segment(self):
-        manifest = b'#EXTM3U\\n#EXT-X-KEY:METHOD=AES-128,URI="secret.key"\\n#EXTINF:4.0,\\nsegment.ts\\n'
+        manifest = b'#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="secret.key"\n#EXTINF:4.0,\nsegment.ts\n'
         responses = {
             ("media.example", "/master.m3u8"): (200, {
                 "Content-Type": "application/vnd.apple.mpegurl",
