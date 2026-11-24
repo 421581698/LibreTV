@@ -28,7 +28,7 @@ export DV_INGESTION_TOKEN_FILE="$PWD/secrets/dv-ingestion-token"
 export DV_SERVICE_TOKEN="$(openssl rand -hex 32)"
 export DV_SIGNING_KEY_ID="dv-key-1"
 export DV_SIGNING_PRIVATE_KEY_FILE="$PWD/secrets/dv-signing-private-key.pem"
-export DV_SIGNING_PUBLIC_KEY_PEM_B64="$(base64 < secrets/dv-signing-public-key.pem | tr -d '\\n')"
+export DV_SIGNING_PUBLIC_KEY_PEM_B64="$(base64 < secrets/dv-signing-public-key.pem | tr -d '\n')"
 export DV_REGISTRY_API_BASE="http://scrapling-collector:8000"
 export DV_PARSER_API_BASE="http://dolby-vision-parser:8788"
 docker compose --profile collector --profile dolby-vision up -d --build
