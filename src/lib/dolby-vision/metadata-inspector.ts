@@ -36,8 +36,7 @@ function isValidEvidence(evidence: DolbyVisionRpuEvidence): boolean {
   return evidence.verified === true
     && typeof evidence.parserVersion === 'string'
     && evidence.parserVersion.trim().length > 0
-    && Number.isInteger(evidence.frameCount)
-    && evidence.frameCount! >= 0
+    && (evidence.frameCount === null || (Number.isInteger(evidence.frameCount) && evidence.frameCount >= 0))
     && (evidence.profile === null || (Number.isInteger(evidence.profile) && evidence.profile > 0))
     && Array.isArray(evidence.metadataLevels)
     && evidence.metadataLevels.every((level) => Number.isInteger(level) && level >= 0 && level <= 255);
