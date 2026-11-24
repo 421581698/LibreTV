@@ -173,6 +173,9 @@ export async function analyzeRpu(options) {
       metadataLevelFrameCounts: levels.metadataLevelFrameCounts,
       input: basename(inputPath),
       inputSha256,
+      // For a raw HEVC source, the source media bytes and parser input are identical.
+      // Container demux services replace this with the original container digest before signing.
+      sourceMediaSha256: options.kind === 'hevc' ? inputSha256 : null,
       rpuSha256,
       inputKind: options.kind,
       extractionScope: options.kind === 'hevc'
