@@ -1,3 +1,5 @@
+> **Superseded for current product scope (2026-11-24):** This ADR documents the retired generic spatial-session/HRTF implementation. The player no longer exposes or uses that path. See [Dolby-only architecture reset](./DOLBY-ONLY-ARCHITECTURE-RESET.md) for the active direction. The HLS/native playback safety constraints below remain relevant.
+
 # P3 Architecture Decision Record: Independent Spatial Media Session
 
 - Status: Accepted architecture / isolated MP4-WebM and HLS paths implemented; full P3 pending
