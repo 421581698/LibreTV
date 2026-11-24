@@ -723,7 +723,6 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
-    disposeSpatialSession('source-change');
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
     // remains browser-managed and intentionally exposes no hls.js selector.
     setAudioTrackOptions([]);
