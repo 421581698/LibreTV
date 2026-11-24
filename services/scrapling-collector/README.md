@@ -164,7 +164,7 @@ The resource ID must already exist. The content type is a trusted-ingestion asse
 
 ### Authorized progressive-media source gateway
 
-The collector also includes `dv_source_gateway.py`. When an operator explicitly enables it, a successful browser playback-confirmation request automatically invokes the gateway for that persisted candidate. It reads the candidate URL from the collector database (the request cannot supply or override a URL), and requires all of the following:
+The collector also includes `dv_source_gateway.py`. When an operator explicitly enables it, a successful browser playback-confirmation request enqueues an idempotent `dv_media_ingest` job for the durable worker; the browser request does not wait for the media transfer. It reads the candidate URL from the collector database (the request cannot supply or override a URL), and requires all of the following:
 
 - `DV_SOURCE_GATEWAY_ENABLED=1` and `SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1`
 - Exact hostname membership in `DV_AUTHORIZED_SOURCE_HOSTS` (comma-separated; no wildcards or suffix matching)
@@ -174,7 +174,7 @@ The collector also includes `dv_source_gateway.py`. When an operator explicitly 
 - HTTPS on port 443, public-IP DNS validation and a TCP connection pinned to that validated IP
 - HTTP 200, exact matching Content-Type, identity content encoding, and a bounded exact Content-Length
 
-The gateway does not follow redirects, forward cookies or authorization headers, accept arbitrary client URLs, or fetch HLS/DASH, encryption keys, or DRM-protected content. Redirected sources must be explicitly re-registered at their final same-host URL. The default transfer limit is 512 MiB (`DV_SOURCE_GATEWAY_MAX_BYTES`, 1 KiB–2 GiB); the origin read timeout defaults to 15 seconds (`DV_SOURCE_GATEWAY_TIMEOUT_SECONDS`, 5–60 seconds). Only one gateway transfer runs concurrently per collector process. Received bytes are streamed to a private staging file, fsynced, hashed, and passed through the same immutable content-addressed ingestion worker; the transfer digest is checked against the stored-object digest. Temporary staging files are removed on success or failure.
+The gateway does not follow redirects, forward cookies or authorization headers, accept arbitrary client URLs, or fetch HLS/DASH, encryption keys, or DRM-protected content. Redirected sources must be explicitly re-registered at their final same-host URL. The default transfer limit is 512 MiB (`DV_SOURCE_GATEWAY_MAX_BYTES`, 1 KiB–2 GiB); the origin read timeout defaults to 15 seconds (`DV_SOURCE_GATEWAY_TIMEOUT_SECONDS`, 5–60 seconds). Only one gateway transfer runs concurrently per worker process. The worker checkpoints byte progress, observes cancellation between reads, and removes the staging file in its cleanup path. Received bytes are streamed to a private staging file, fsynced, hashed, and passed through the same immutable content-addressed ingestion worker; the transfer digest is checked against the stored-object digest. Temporary staging files are removed on success or failure.
 
 Example opt-in configuration (only add domains for which the operator has explicit rights to retrieve and store the media):
 
