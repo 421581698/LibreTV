@@ -179,6 +179,35 @@ describe('SpatialMediaSession activation and fallback', () => {
     expect(session.snapshot.state).toBe('fallback');
   });
 
+  it('disposes safely while user-gesture activation is still pending', async () => {
+    const native = makeVideo();
+    const spatial = makeVideo();
+    const engine = makeEngine();
+    let resolveResume!: () => void;
+    vi.mocked(engine.resumeFromUserGesture).mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveResume = resolve;
+    }));
+    const session = await SpatialMediaSession.prepare({
+      nativeVideo: native, host: makeHost(), sourceUrl: 'https://media.example/movie.mp4',
+      sourceKind: 'mp4', verifyCors: vi.fn(async () => true),
+      createMediaElement: () => spatial, createEngine: () => engine,
+    });
+
+    const activation = session.activateFromUserGesture();
+    await Promise.resolve();
+    expect(native.muted).toBe(true);
+    await session.dispose();
+    expect(session.snapshot.state).toBe('disposed');
+    expect(native.muted).toBe(false);
+    expect(spatial.remove).toHaveBeenCalledTimes(1);
+    expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
+
+    resolveResume();
+    await expect(activation).rejects.toThrow(/回退/);
+    expect(session.snapshot.state).toBe('disposed');
+    expect(engine.destroyAfterMediaElementRemoval).toHaveBeenCalledTimes(1);
+  });
+
   it('makes dispose idempotent', async () => {
     const native = makeVideo();
     const spatial = makeVideo();
@@ -240,13 +269,16 @@ describe('verifySpatialMediaCors', () => {
 
   it('aborts a stalled CORS probe after its bounded timeout', async () => {
     vi.useFakeTimers();
-    vi.stubGlobal('window', { location: { href: 'https://app.example', origin: 'https://app.example' } });
-    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
-      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
-    })));
-    const result = verifySpatialMediaCors('https://cdn.example/movie.mp4', 25);
-    await vi.advanceTimersByTimeAsync(25);
-    await expect(result).resolves.toBe(false);
-    vi.useRealTimers();
+    try {
+      vi.stubGlobal('window', { location: { href: 'https://app.example', origin: 'https://app.example' } });
+      vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+      })));
+      const result = verifySpatialMediaCors('https://cdn.example/movie.mp4', 25);
+      await vi.advanceTimersByTimeAsync(25);
+      await expect(result).resolves.toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
