@@ -67,7 +67,7 @@ describe('GET /api/dolby-vision/assets/[assetId]/content', () => {
   });
 
   it('streams immutable HLS playlists and fMP4 segments through the same asset proxy', async () => {
-    const playlist = '#EXTM3U\\n#EXT-X-ENDLIST\\n';
+    const playlist = '#EXTM3U\n#EXT-X-ENDLIST\n';
     const playlistDigest = 'c'.repeat(64);
     vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response(playlist, {
       status: 200,
