@@ -32,5 +32,5 @@ export function inspectHlsDolbyVisionFormat(
     }
   }
 
-  return inspectDolbyVisionFormat({ url, codecs, supplementalCodecs });
+  return inspectDolbyVisionFormat({ url, mimeType: 'application/vnd.apple.mpegurl', codecs, supplementalCodecs });
 }
