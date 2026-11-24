@@ -1513,7 +1513,8 @@ jobs:
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
                   const layoutMode = root?.dataset.ipadLayout ?? 'compact';
-                  const nav = layoutMode === 'expanded' ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
+                  const sidebarOpen = root?.dataset.ipadSidebarOpen === 'true';
+                  const nav = sidebarOpen ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
                   const skeletonCount = document.querySelectorAll(".ipad-edition__poster-skeleton").length;
                   const collection = document.querySelector(".ipad-edition__collection-grid");
                   const emptyMessage = document.querySelector(".ipad-edition__rail-message");
