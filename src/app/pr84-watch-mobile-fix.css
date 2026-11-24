@@ -1753,3 +1753,11 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   -webkit-user-select: none !important;
   user-select: none !important;
 }
+
+/* Hidden iPad seek rails must not remain in hit testing after the shared
+   gesture rule above restores pointer input for visible playback controls. */
+.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-progress {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
