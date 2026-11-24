@@ -23,7 +23,7 @@ This ledger distinguishes implemented code from evidence that requires real medi
 
 ### P1 fixture-source review (research only; no media copied into this repository)
 
-The detailed candidate-by-candidate provenance, scope limits, licensing dispositions, and evidence rules are maintained in [P1 real-stream fixture register](./P1-REAL-STREAM-FIXTURE-REGISTER.md). It distinguishes declaration, elementary-stream, decode, and device/output evidence. No binary fixture has been approved or copied into this repository by this review.
+The detailed candidate-by-candidate provenance, scope limits, licensing dispositions, and evidence rules are maintained in [P1 real-stream fixture register](./P1-REAL-STREAM-FIXTURE-REGISTER.md). It distinguishes declaration, elementary-stream, decode, and device/output evidence. No binary fixture has been approved or copied into this repository by this review. The IAMF follow-up audit now distinguishes the pinned `iamf-tools` probe, its separate example `decoder_main`, and the separately maintained normative `libiamf` reference decoder (pinned to v2.0.1). The five pinned small IAMF vectors remain external-only: the upstream software license was inspected, but no explicit per-file media-asset redistribution grant was found. Neither probe nor decoder was built or executed in this review; no IAMF decode result is claimed.
 
 
 
