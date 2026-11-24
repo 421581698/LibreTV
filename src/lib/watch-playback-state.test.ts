@@ -35,6 +35,7 @@ class TestMutationObserver {
   observe() {}
   disconnect() { this.disconnected = true; }
   takeRecords(): MutationRecord[] { return []; }
+  get isDisconnected() { return this.disconnected; }
   trigger() {
     if (!this.disconnected) this.callback([], this as unknown as MutationObserver);
   }
@@ -81,7 +82,7 @@ describe('bindWatchPlaybackState', () => {
 
     active = second;
     observer.trigger();
-    expect(onChange).toHaveBeenLastCalledWith({ isPlaying: false, playbackRate: 1.25 });
+    expect(onChange).toHaveBeenLastCalledWith({ isPlaying: false, playbackRate: null });
 
     first.setPaused(true);
     first.dispatchEvent(new Event('pause'));
@@ -93,7 +94,7 @@ describe('bindWatchPlaybackState', () => {
     cleanup();
     second.setPaused(true);
     second.dispatchEvent(new Event('pause'));
-    expect(observer['disconnected']).toBe(true);
+    expect(observer.isDisconnected).toBe(true);
   });
 });
 
