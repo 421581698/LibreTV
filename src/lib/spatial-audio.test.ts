@@ -59,6 +59,7 @@ describe('planSpatialAudio', () => {
   });
 
   it('bypasses unknown and unsupported channel layouts', () => {
+    expect(planSpatialAudio('headphone-stereo', 0, true).route).toBe('bypass');
     expect(planSpatialAudio('headphone-surround', 6, true, 'unknown').reason).toContain('未验证扬声器顺序');
     expect(planSpatialAudio('headphone-surround', 0, true).route).toBe('bypass');
     expect(planSpatialAudio('headphone-surround', 8, true).route).toBe('bypass');
