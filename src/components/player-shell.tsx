@@ -576,6 +576,7 @@ export function PlayerShell({
         sourceUrl: mediaUrl,
         sourceKind,
         onStateChange: (snapshot) => {
+          if (prepareGeneration !== spatialPrepareGenerationRef.current) return;
           setSpatialSessionState(snapshot.state);
           if (snapshot.state === 'fallback') {
             setSpatialSessionMessage(snapshot.reason ?? '空间会话不可用，已恢复原生播放');
@@ -2013,7 +2014,7 @@ export function PlayerShell({
           disabled={spatialSessionState === 'preparing' || spatialSessionState === 'activating'}
           onClick={() => { void toggleSpatialSession(); }}
         >
-          {spatialSessionState === 'preparing' ? '空间音频 · 验证中' : spatialSessionState === 'activating' ? '空间音频 · 启动中' : spatialSessionState === 'prepared' ? '轻点启用空间会话' : spatialSessionState === 'active' ? '关闭空间会话' : '空间音频会话'}
+          {spatialSessionState === 'preparing' ? '独立会话 · 验证中' : spatialSessionState === 'activating' ? '独立会话 · 启动中' : spatialSessionState === 'prepared' ? '轻点启用独立会话' : spatialSessionState === 'active' ? '关闭独立会话' : '独立空间会话'}
         </button>
         {spatialSessionMessage && <p role="status" className="max-w-full rounded-lg bg-black/75 px-2 py-1 text-[10px] leading-snug text-white/80">{spatialSessionMessage}</p>}
       </div>
