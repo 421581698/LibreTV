@@ -54,7 +54,7 @@ export async function fetchDolbyVisionRegistryAsset(
   rangeHeader?: string,
 ): Promise<Response | null> {
   if (!/^[A-Za-z0-9:_-]{1,200}$/.test(assetId)) return null;
-  if (rangeHeader !== undefined && (rangeHeader.length > 128 || !/^bytes=\\d*-\\d*$/.test(rangeHeader) || rangeHeader.includes(','))) return null;
+  if (rangeHeader !== undefined && (rangeHeader.length > 128 || !/^bytes=\d*-\d*$/.test(rangeHeader) || rangeHeader.includes(','))) return null;
   const base = trustedServerRegistryBase();
   const token = process.env.SCRAPLING_API_TOKEN?.trim();
   if (!base || !token) return null;
