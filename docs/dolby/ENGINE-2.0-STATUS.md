@@ -1,3 +1,5 @@
+<!-- SUPERSEDED: The generic HRTF/spatial-session P2/P3 implementation described below was retired by DOLBY-ONLY-ARCHITECTURE-RESET.md on 2026-11-24. Treat this file as historical implementation evidence only; the Dolby-only reset document is authoritative for current product scope. -->
+
 # LibreTV Immersive Audio Engine 2.0 — implementation status
 
 Updated: 2026-11-24  
