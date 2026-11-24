@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { RegistrySearchResource } from '@/lib/types';
 
@@ -21,6 +21,47 @@ export function RegistryInlinePlayer({
   const autoSkipSegments = useAppStore((state) => state.autoSkipSegments);
   const autoplayNext = useAppStore((state) => state.autoplayNext);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const [immutableAsset, setImmutableAsset] = useState<{
+    assetId: string;
+    url: string;
+    mediaType: 'mp4' | 'webm';
+  } | null>(null);
+
+  useEffect(() => {
+    setImmutableAsset(null);
+    if (!resource || !['mp4', 'webm'].includes(resource.media_format ?? '')) return;
+
+    const controller = new AbortController();
+    void fetch(\`/api/dolby-vision/resources/\${encodeURIComponent(resource.id)}/asset\`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) return null;
+      const payload: unknown = await response.json().catch(() => null);
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+      const asset = payload as Record<string, unknown>;
+      if (asset.resourceId !== resource.id ||
+          typeof asset.assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(asset.assetId) ||
+          typeof asset.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(asset.sha256) ||
+          typeof asset.byteLength !== 'number' || !Number.isSafeInteger(asset.byteLength) || asset.byteLength <= 0 ||
+          !['video/mp4', 'video/webm'].includes(String(asset.contentType))) return null;
+      const assetMediaType = asset.contentType === 'video/webm' ? 'webm' : 'mp4';
+      if (assetMediaType !== resource.media_format) return null;
+      return {
+        assetId: asset.assetId,
+        url: \`/api/dolby-vision/assets/\${encodeURIComponent(asset.assetId)}/content\`,
+        mediaType: assetMediaType as 'mp4' | 'webm',
+      };
+    }).then((asset) => {
+      if (!controller.signal.aborted && asset) setImmutableAsset(asset);
+    }).catch(() => {
+      // Keep the validated original source available if immutable registry playback is unavailable.
+    });
+
+    return () => controller.abort();
+  }, [resource?.id, resource?.media_format]);
 
   const confirmPlayback = useCallback((evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number; decodedWidth: number; decodedHeight: number; selectedRenditionHeight: number; selectedRenditionBitrateKbps: number }) => {
     if (!resource?.candidate_id) return;
@@ -42,7 +83,7 @@ export function RegistryInlinePlayer({
   }, [resource?.candidate_id]);
 
   if (!resource) return null;
-  const mediaType = resource.media_format;
+  const mediaType = immutableAsset?.mediaType ?? resource.media_format;
   if (!resource.candidate_id || !mediaType || !['hls', 'mp4', 'webm'].includes(mediaType)) return null;
 
   return (
@@ -61,8 +102,8 @@ export function RegistryInlinePlayer({
         </header>
         <div className="aspect-video w-full bg-black">
           <PlayerShell
-            key={resource.id}
-            url={resource.url}
+            key={immutableAsset ? `${resource.id}:${immutableAsset.assetId}` : resource.id}
+            url={immutableAsset?.url ?? resource.url}
             title={resource.title}
             mediaType={mediaType}
             onPlaybackConfirmed={confirmPlayback}
@@ -72,6 +113,7 @@ export function RegistryInlinePlayer({
             pendingStart={pendingStart}
             onPendingStart={setPendingStart}
             episodeKey={`registry:${resource.id}`}
+            dolbyVisionAssetId={immutableAsset?.assetId}
           />
         </div>
       </section>
