@@ -7,13 +7,7 @@ import { verifySignedDolbyVisionRpuEnvelope } from '@/lib/dolby-vision/signed-rp
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_MEDIA_TYPES = new Set([
-  'application/octet-stream',
-  'video/mp4',
-  'video/x-matroska',
-  'video/mp2t',
-  'video/hevc',
-]);
+const ALLOWED_MEDIA_TYPES = new Set(['video/mp4']);
 
 function boundedEnvInteger(name: string, fallback: number, minimum: number, maximum: number): number | null {
   const raw = process.env[name];
@@ -155,6 +149,7 @@ export async function POST(request: Request, context: { params: Promise<{ assetI
         'Content-Length': String(contentLength),
         'X-DV-Asset-ID': assetId,
         'X-DV-Asset-SHA256': digest,
+        'X-DV-Source-Content-Type': contentType,
       },
       body: mediaResponse.body,
       // Node's fetch requires half-duplex mode when forwarding a live stream.
