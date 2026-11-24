@@ -66,6 +66,23 @@ export async function GET(
         { status: 502, headers: { 'Cache-Control': 'no-store' } },
       );
     }
+    if (upstream.status === 200 || upstream.status === 206) {
+      const digest = upstream.headers.get('x-dv-asset-sha256') ?? '';
+      const contentType = upstream.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
+      const expectedEtag = `"${digest}"`;
+      if (upstream.headers.get('x-dv-asset-id') !== assetId ||
+          !/^[a-f0-9]{64}$/.test(digest) ||
+          upstream.headers.get('etag') !== expectedEtag ||
+          !['video/mp4', 'video/webm'].includes(contentType ?? '') ||
+          upstream.headers.get('accept-ranges') !== 'bytes' ||
+          !/^\\d+$/.test(upstream.headers.get('content-length') ?? '') ||
+          (upstream.status === 206 && !/^bytes \\d+-\\d+\\/\\d+$/.test(upstream.headers.get('content-range') ?? ''))) {
+        return NextResponse.json(
+          { code: 'DV_ASSET_UPSTREAM_BINDING_INVALID' },
+          { status: 502, headers: { 'Cache-Control': 'no-store' } },
+        );
+      }
+    }
 
     const headers = new Headers({ 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' });
     for (const name of FORWARDED_HEADERS) {
