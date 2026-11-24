@@ -61,6 +61,7 @@ describe('Dolby Vision RPU evidence report contract', () => {
     const report = {
       ...validHevcReport,
       input: 'RPU.bin',
+      sourceMediaSha256: null,
       inputKind: 'rpu',
       extractionScope: 'pre-extracted-rpu-file',
     };
