@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 import unittest
@@ -166,6 +167,62 @@ class RegistryQueueTests(unittest.TestCase):
             queue.register_dolby_vision_media_asset(
                 resource["id"], "b" * 64, 123456, "text/html"
             )
+
+    def test_dolby_vision_immutable_asset_supports_single_http_byte_ranges(self):
+        from fastapi import HTTPException
+        from pathlib import Path
+
+        resource = queue.upsert_resource({
+            "resource_key": "resource:range", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/range.mp4",
+            "title": "Range fixture", "access_state": "PUBLIC",
+        })
+        body = b"0123456789"
+        digest = __import__("hashlib").sha256(body).hexdigest()
+        asset = queue.register_dolby_vision_media_asset(
+            resource["id"], digest, len(body), "video/mp4"
+        )
+        object_root = Path(self.tmp.name) / "objects"
+        object_path = object_root / asset["object_key"]
+        object_path.parent.mkdir(parents=True)
+        object_path.write_bytes(body)
+
+        async def consume(response):
+            return b"".join([chunk async for chunk in response.body_iterator])
+
+        with patch.object(queue, "DV_MEDIA_OBJECT_ROOT", object_root), patch.object(queue, "require_auth"):
+            partial = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=2-5"
+            )
+            self.assertEqual(partial.status_code, 206)
+            self.assertEqual(partial.headers["content-range"], "bytes 2-5/10")
+            self.assertEqual(partial.headers["content-length"], "4")
+            self.assertEqual(partial.headers["accept-ranges"], "bytes")
+            self.assertEqual(asyncio.run(consume(partial)), b"2345")
+
+            open_ended = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=7-"
+            )
+            self.assertEqual(asyncio.run(consume(open_ended)), b"789")
+
+            suffix = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=-3"
+            )
+            self.assertEqual(asyncio.run(consume(suffix)), b"789")
+
+            full = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test"
+            )
+            self.assertEqual(full.status_code, 200)
+            self.assertEqual(asyncio.run(consume(full)), body)
+
+            for invalid in ("bytes=10-", "bytes=8-2", "bytes=-0", "bytes=0-1,4-5", "items=0-1"):
+                with self.subTest(invalid=invalid), self.assertRaises(HTTPException) as raised:
+                    queue.api_get_dolby_vision_media_asset_content(
+                        asset["asset_id"], authorization="Bearer test", range_header=invalid
+                    )
+                self.assertEqual(raised.exception.status_code, 416)
+                self.assertEqual(raised.exception.headers["Content-Range"], "bytes */10")
 
     def test_dolby_vision_asset_registration_requires_separate_ingestion_secret(self):
         from fastapi import HTTPException
