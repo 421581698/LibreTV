@@ -260,6 +260,8 @@ def ingest_hls_directory(
                 continue
             if stripped.startswith("#"):
                 if "URI=" in line:
+                    if not URI_ATTRIBUTE.search(line):
+                        raise HlsIngestionError("HLS URI attributes must use the quoted RFC format.")
                     def replace_uri(match):
                         nonlocal member_ordinal
                         uri = _safe_relative_uri(match.group(1))
