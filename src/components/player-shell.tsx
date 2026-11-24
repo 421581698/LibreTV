@@ -7,6 +7,7 @@ import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
 import { selectHlsAudioTrack } from '@/lib/hls-audio-track-control';
+import { SpatialMediaSession, type SpatialMediaSessionState } from '@/lib/spatial-media-session';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
@@ -260,6 +261,9 @@ export function PlayerShell({
   const [audioTrackOptions, setAudioTrackOptions] = useState<Array<{ id: number; label: string; isDefault: boolean }>>([]);
   const [selectedAudioTrack, setSelectedAudioTrack] = useState(-1);
   const [audioTrackPanelOpen, setAudioTrackPanelOpen] = useState(false);
+  const [spatialSessionState, setSpatialSessionState] = useState<SpatialMediaSessionState | 'idle' | 'preparing'>('idle');
+  const [spatialSessionMessage, setSpatialSessionMessage] = useState('');
+  const spatialSessionRef = useRef<SpatialMediaSession | null>(null);
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -520,6 +524,71 @@ export function PlayerShell({
     hintTimerRef.current = setTimeout(() => setHint(''), 2500);
   };
 
+  const disposeSpatialSession = (reason: string) => {
+    const session = spatialSessionRef.current;
+    spatialSessionRef.current = null;
+    if (session) void session.dispose();
+    setSpatialSessionState('idle');
+    if (reason === 'source-change') setSpatialSessionMessage('媒体源已切换，空间会话已关闭并恢复原生播放');
+  };
+
+  const toggleSpatialSession = async () => {
+    const current = spatialSessionRef.current;
+    if (current?.snapshot.state === 'active') {
+      await current.dispose();
+      spatialSessionRef.current = null;
+      setSpatialSessionState('idle');
+      setSpatialSessionMessage('空间会话已关闭，已恢复原生播放');
+      return;
+    }
+    if (current?.snapshot.state === 'prepared') {
+      setSpatialSessionState('activating');
+      try {
+        const snapshot = await current.activateFromUserGesture();
+        setSpatialSessionState(snapshot.state);
+        setSpatialSessionMessage(snapshot.route === 'bypass'
+          ? '独立会话已启动；音轨声道布局尚未验证，当前保持未处理旁路（不是 Atmos 解码）'
+          : snapshot.reason ?? '空间音频会话已启动');
+      } catch (error) {
+        spatialSessionRef.current = null;
+        setSpatialSessionState('fallback');
+        setSpatialSessionMessage(error instanceof Error ? error.message : '空间会话启动失败，已恢复原生播放');
+      }
+      return;
+    }
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    const host = containerRef.current;
+    if (!video || !host) {
+      setSpatialSessionMessage('播放器尚未就绪');
+      return;
+    }
+    const mediaUrl = currentMediaUrlRef.current || video.currentSrc || video.src;
+    const sourceKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    setSpatialSessionState('preparing');
+    setSpatialSessionMessage('正在验证媒体源 CORS；原生播放保持不变');
+    try {
+      const session = await SpatialMediaSession.prepare({
+        nativeVideo: video,
+        host,
+        sourceUrl: mediaUrl,
+        sourceKind,
+        onStateChange: (snapshot) => {
+          setSpatialSessionState(snapshot.state);
+          if (snapshot.state === 'fallback') {
+            setSpatialSessionMessage(snapshot.reason ?? '空间会话不可用，已恢复原生播放');
+            if (spatialSessionRef.current?.snapshot.state === 'fallback') spatialSessionRef.current = null;
+          }
+        },
+      });
+      spatialSessionRef.current = session;
+      setSpatialSessionState('prepared');
+      setSpatialSessionMessage('媒体源已通过 CORS 检查。再次轻点以启用独立会话（需要用户手势）');
+    } catch (error) {
+      setSpatialSessionState('idle');
+      setSpatialSessionMessage(error instanceof Error ? error.message : '当前媒体源不支持空间会话；原生播放未改变');
+    }
+  };
+
   // 流式播放：hls.js 按播放头顺序请求分片，不因缓存开关扩大到整集级内存缓冲。
   // 30s 常规缓冲、60s 上限；网络抖动由 HLS 自身重试与 ABR 处理。
   const buildHlsConfig = (): Partial<HlsConfig> => {
@@ -642,6 +711,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    disposeSpatialSession('source-change');
     setAudioTrackOptions([]);
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
@@ -717,6 +787,7 @@ export function PlayerShell({
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
   const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+    disposeSpatialSession('source-change');
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
     // remains browser-managed and intentionally exposes no hls.js selector.
     setAudioTrackOptions([]);
@@ -1839,6 +1910,7 @@ export function PlayerShell({
       }
       hlsRef.current?.destroy();
       hlsRef.current = null;
+      disposeSpatialSession('unmount');
       recoveryRef.current?.dispose();
       getVideoPrefetcher().stop();
       // 播放页可能仍持有读取接口：销毁前显式置空，避免「记录当前」读到已销毁实例
@@ -1924,6 +1996,19 @@ export function PlayerShell({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
+      <div className="absolute left-3 top-14 z-20 flex max-w-[min(72%,360px)] flex-col items-start gap-1" data-testid="spatial-session-controls">
+        <button
+          type="button"
+          className="player-quality-badge"
+          aria-label="独立空间音频会话"
+          aria-pressed={spatialSessionState === 'active'}
+          disabled={spatialSessionState === 'preparing' || spatialSessionState === 'activating'}
+          onClick={() => { void toggleSpatialSession(); }}
+        >
+          {spatialSessionState === 'preparing' ? '空间音频 · 验证中' : spatialSessionState === 'activating' ? '空间音频 · 启动中' : spatialSessionState === 'prepared' ? '轻点启用空间会话' : spatialSessionState === 'active' ? '关闭空间会话' : '空间音频会话'}
+        </button>
+        {spatialSessionMessage && <p role="status" className="max-w-full rounded-lg bg-black/75 px-2 py-1 text-[10px] leading-snug text-white/80">{spatialSessionMessage}</p>}
+      </div>
       {audioTrackOptions.length > 1 && (
         <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
           <button
