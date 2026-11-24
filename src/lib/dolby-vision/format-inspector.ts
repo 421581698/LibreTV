@@ -37,7 +37,7 @@ export interface DolbyVisionFormatReport {
   notes: string[];
 }
 
-const CODEC_PATTERN = /^(dvhe|dvh1|dav1|dva1)\.(\d{2})\.(\d{2})$/i;
+const CODEC_PATTERN = /^(dvhe|dvh1|dav1|dva1|dvav)\.(\d{2})\.(\d{2})$/i;
 
 function splitCodecList(value: string | string[] | null | undefined): string[] {
   const values = Array.isArray(value) ? value : value ? [value] : [];
@@ -55,11 +55,11 @@ function parseCodecToken(
   const codec = match[1].toLowerCase() as DolbyVisionCodecDeclaration['codec'];
   const profile = Number(match[2]);
   const level = Number(match[3]);
-  if (!Number.isInteger(profile) || profile <= 0 || !Number.isInteger(level) || level <= 0) return null;
+  if (!Number.isInteger(profile) || profile < 0 || profile > 20 || !Number.isInteger(level) || level <= 0) return null;
   const family: DolbyVisionCodecFamily =
     codec === 'dvhe' || codec === 'dvh1' ? 'hevc'
       : codec === 'dav1' ? 'av1'
-        : codec === 'dva1' ? 'avc' : 'unknown';
+        : codec === 'dva1' || codec === 'dvav' ? 'avc' : 'unknown';
   return { raw, codec, profile, level, family, source };
 }
 
