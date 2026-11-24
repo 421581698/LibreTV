@@ -110,9 +110,9 @@ process.exit(2);
 `;
     await writeFile(fakeParser, parserSource, { mode: 0o700 });
     await chmod(fakeParser, 0o700);
-    await writeFile(fakeFfprobe, "#!/usr/bin/env node\\nprocess.stdout.write('hevc\\\\n');\\n", { mode: 0o700 });
+    await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write('hevc\\n');\n", { mode: 0o700 });
     await chmod(fakeFfprobe, 0o700);
-    await writeFile(fakeFfmpeg, "#!/usr/bin/env node\\nimport { writeFileSync } from 'node:fs';\\nwriteFileSync(process.argv.at(-1), Buffer.from('extracted-hevc-track'));\\n", { mode: 0o700 });
+    await writeFile(fakeFfmpeg, "#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(process.argv.at(-1), Buffer.from('extracted-hevc-track'));\n", { mode: 0o700 });
     await chmod(fakeFfmpeg, 0o700);
 
     const server = createDolbyVisionParserServer({
