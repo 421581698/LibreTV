@@ -678,8 +678,10 @@ async def api_ingest_dolby_vision_media_asset(
     if content_type not in allowed_types:
         raise HTTPException(status_code=415, detail="Unsupported media content type")
     raw_length = request.headers.get("content-length", "")
-    if not re.fullmatch(r"\d+", raw_length):
+    if not raw_length:
         raise HTTPException(status_code=411, detail="Content-Length is required")
+    if len(raw_length) > 10 or not re.fullmatch(r"\d+", raw_length):
+        raise HTTPException(status_code=413, detail="Media upload size rejected")
     content_length = int(raw_length)
     maximum_bytes = 2 * 1024 * 1024 * 1024
     if content_length <= 0 or content_length > maximum_bytes:
