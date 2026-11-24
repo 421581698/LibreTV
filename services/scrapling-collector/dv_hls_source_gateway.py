@@ -67,7 +67,7 @@ def _resolve_member_url(base_url: str, raw_reference: str) -> str:
     if not isinstance(raw_reference, str) or not raw_reference or len(raw_reference) > 4096:
         raise HlsSourceGatewayError("Invalid HLS member reference")
     parsed = urlsplit(raw_reference)
-    decoded_path = unquote(parsed.path)
+    decoded_path = unquote(unquote(parsed.path))
     if ("\\" in decoded_path or "\x00" in decoded_path
             or any(part in {".", ".."} for part in PurePosixPath(decoded_path).parts)):
         raise HlsSourceGatewayError("HLS member path traversal is not allowed")
