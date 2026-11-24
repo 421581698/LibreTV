@@ -76,7 +76,7 @@ describe('SpatialMediaSession preparation', () => {
     const native = makeVideo();
     const spatial = makeVideo();
     const engine = makeEngine();
-    const restoreAudioTrack = vi.fn();
+    const restoreAudioTrack = vi.fn(() => expect(native.muted).toBe(true));
     const controller = {
       start: vi.fn(async () => undefined),
       destroy: vi.fn(),
