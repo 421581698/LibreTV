@@ -24,7 +24,7 @@ This ledger distinguishes implemented code from evidence that requires real medi
 - Standalone Web Audio presentation engine with opt-in stereo HRTF virtualization and a gated 5.1-to-binaural route.
 - 5.1 routing requires an explicitly verified speaker layout; unknown layouts bypass processing.
 - CORS checks reject cross-origin direct media without a CORS mode and now reject Blob URLs belonging to a different origin.
-- The engine preserves a native bypass path when spatial processing is disabled.
+- The engine provides an unprocessed Web Audio passthrough when spatial processing is disabled; this is not a return to the browser-native media path. Once attached, playback remains dependent on that AudioContext and the media element's one-shot binding.
 - The engine enforces the one-shot `MediaElementAudioSourceNode` binding per video element, refuses reattachment after final teardown, and closes a newly created context if graph construction fails.
 - Node-based tests exercise the mocked graph lifecycle, explicit resume, bypass, teardown and reattachment rejection; this is not a substitute for real-browser media tests.
 
