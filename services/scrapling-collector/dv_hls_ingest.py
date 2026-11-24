@@ -23,6 +23,7 @@ MAX_MEMBER_BYTES = 2 * 1024 * 1024 * 1024
 MAX_PLAYLIST_BYTES = 2 * 1024 * 1024
 MAX_GRAPH_MEMBERS = 10_000
 MAX_GRAPH_EDGES = 50_000
+MAX_GRAPH_TOTAL_BYTES = 4 * 1024 * 1024 * 1024
 MAX_PLAYLIST_DEPTH = 16
 CHUNK_SIZE = 1024 * 1024
 CONTENT_TYPES = {
@@ -196,8 +197,10 @@ def ingest_hls_directory(
     completed: dict[str, dict] = {}
     visiting: set[str] = set()
     edges: list[tuple[str, str, str, str, int]] = []
+    total_graph_bytes = 0
 
     def ingest_member(relative_path: str, depth: int = 0) -> dict:
+        nonlocal total_graph_bytes
         if depth > MAX_PLAYLIST_DEPTH or len(completed) >= MAX_GRAPH_MEMBERS:
             raise HlsIngestionError("HLS graph exceeds its member or nesting limit.")
         relative_path = _safe_relative_uri(relative_path)
@@ -223,6 +226,11 @@ def ingest_hls_directory(
             raise HlsIngestionError("Unsupported HLS member extension.")
         if suffix != ".m3u8":
             fd = _open_regular(source_path)
+            info = os.fstat(fd)
+            if info.st_size <= 0 or info.st_size > MAX_MEMBER_BYTES or total_graph_bytes + info.st_size > MAX_GRAPH_TOTAL_BYTES:
+                os.close(fd)
+                raise HlsIngestionError("HLS graph exceeds its aggregate media size limit.")
+            total_graph_bytes += info.st_size
             with os.fdopen(fd, "rb") as source:
                 asset = _store_stream(resource_id, source, content_type, object_dir, MAX_MEMBER_BYTES)
             completed[relative_path] = asset
@@ -278,6 +286,9 @@ def ingest_hls_directory(
         if len(edges) > MAX_GRAPH_EDGES:
             raise HlsIngestionError("HLS graph exceeds its edge limit.")
         manifest_bytes = ("\n".join(rewritten) + "\n").encode("utf-8")
+        if total_graph_bytes + len(manifest_bytes) > MAX_GRAPH_TOTAL_BYTES:
+            raise HlsIngestionError("HLS graph exceeds its aggregate media size limit.")
+        total_graph_bytes += len(manifest_bytes)
         asset = _store_bytes(resource_id, manifest_bytes, "application/vnd.apple.mpegurl", object_dir)
         completed[relative_path] = asset
         return asset
