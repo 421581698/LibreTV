@@ -96,6 +96,14 @@ describe('iPad Edition navigation contract', () => {
     expect(responsiveStyles).toContain('container-type: inline-size');
   });
 
+  it('starts with the wide sidebar collapsed and always exposes a clear close control', () => {
+    expect(shell).toContain('const [navigationCollapsed, setNavigationCollapsed] = useState(true);');
+    expect(shell).toContain('aria-label="关闭侧边栏"');
+    expect(shell).toContain('title="关闭侧边栏"');
+    expect(shell).toContain('setSidebarOpen(false);');
+    expect(shell).toContain('setNavigationCollapsed(true);');
+  });
+
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
     expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
