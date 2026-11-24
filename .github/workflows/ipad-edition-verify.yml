@@ -67,6 +67,7 @@ on:
       - "src/lib/watch-playback-state.test.ts"
       - "src/app/layout.tsx"
       - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/deploy-ipad-edition-preview.yml"
   pull_request:
     branches:
