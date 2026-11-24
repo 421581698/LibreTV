@@ -55,6 +55,7 @@ const CONTAINER_LABELS: Record<string, string> = {
 };
 
 const CODEC_LABELS: Record<string, string> = {
+  ac4: 'Dolby AC-4',
   eac3: 'E-AC-3 / Dolby Digital Plus',
   ac3: 'AC-3 / Dolby Digital',
   truehd: 'Dolby TrueHD',
@@ -68,6 +69,7 @@ const CODEC_LABELS: Record<string, string> = {
 };
 
 const DOLBY_LABELS: Record<string, string> = {
+  'dolby-ac4': 'Dolby AC-4',
   'dolby-digital': 'Dolby Digital（有损 5.1）',
   'dolby-digital-plus': 'Dolby Digital Plus',
   'dolby-truehd': 'Dolby TrueHD（无损）',
@@ -124,6 +126,11 @@ function formatGroup(diag: PlaybackDiagnostics): DiagnosticsViewGroup | null {
       row('判断依据', CONFIDENCE_LABELS[format.confidence] ?? '未知', 'neutral'),
       row('JOC 标记', format.hasJocMarker ? '检测到（仅为元数据线索）' : '未检测到',
         jocTone),
+      ...(format.ac4Profile ? [row(
+        'AC-4 源声明级别',
+        `mdcompat ${format.ac4Profile.mdcompat.toString(16).padStart(2, '0')} · ${format.ac4Profile.mdcompat >= 2 ? '沉浸式兼容级别' : format.ac4Profile.mdcompat === 1 ? '多声道兼容级别' : format.ac4Profile.mdcompat === 0 ? '立体声兼容级别' : '未知兼容级别'}（非设备解码证明）`,
+        'caution' as const,
+      )] : []),
     ],
   };
 }
