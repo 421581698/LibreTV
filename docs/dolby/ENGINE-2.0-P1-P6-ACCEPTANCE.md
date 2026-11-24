@@ -1,3 +1,5 @@
+> **SUPERSEDED for current product architecture (2026-11-24):** This document records the earlier generic spatial-audio / multi-format implementation plan and must be treated as historical evidence only. The generic HRTF and independent spatial-session path has been retired. Current product scope and acceptance rules are defined in [DOLBY-ONLY-ARCHITECTURE-RESET.md](./DOLBY-ONLY-ARCHITECTURE-RESET.md). Do not use this document to claim that the retired spatial renderer remains implemented or that Dolby Atmos decoding/rendering is complete.
+
 # Dolby Immersive Audio Engine 2.0 — P1–P6 acceptance ledger
 
 Updated: 2026-11-24  
