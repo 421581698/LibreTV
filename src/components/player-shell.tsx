@@ -9,6 +9,7 @@ import { getMediaPlaybackKind } from '@/lib/media-playback';
 import { selectHlsAudioTrack } from '@/lib/hls-audio-track-control';
 import { SpatialMediaSession, type SpatialMediaSessionState } from '@/lib/spatial-media-session';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
+import { beginStallWindow, endStallWindow } from '@/lib/playback-stability';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import {
@@ -348,12 +349,14 @@ export function PlayerShell({
     input: DiagnosticsInput;
     peaks: StabilityPeaks;
     lastProgressAtMs: number | null;
-  }>({ input: {}, peaks: { peakStallMs: 0, peakDroppedFrameRatio: null }, lastProgressAtMs: null });
+    stallStartedAtMs: number | null;
+  }>({ input: {}, peaks: { peakStallMs: 0, peakDroppedFrameRatio: null }, lastProgressAtMs: null, stallStartedAtMs: null });
   const resetDiagnostics = () => {
     diagnosticsRef.current = {
       input: {},
       peaks: { peakStallMs: 0, peakDroppedFrameRatio: null },
       lastProgressAtMs: null,
+      stallStartedAtMs: null,
     };
   };
   /** Sample real video state into the stability diagnostic (read-only). */
@@ -371,6 +374,12 @@ export function PlayerShell({
     return () => window.clearInterval(timer);
   }, []);
 
+  const recordStallWindowEnd = () => {
+    const diag = diagnosticsRef.current;
+    const durationMs = endStallWindow(diag.stallStartedAtMs, Date.now());
+    diag.peaks.peakStallMs = Math.max(diag.peaks.peakStallMs, durationMs);
+    diag.stallStartedAtMs = null;
+  };
   const observeStability = (video: HTMLVideoElement) => {
     const diag = diagnosticsRef.current;
     const now = Date.now();
@@ -381,10 +390,6 @@ export function PlayerShell({
       online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
     });
     diag.input.stabilityMetrics = metrics;
-    if (metrics.lastProgressAtMs !== null) {
-      const stallMs = Math.max(0, metrics.nowMs - metrics.lastProgressAtMs);
-      diag.peaks.peakStallMs = Math.max(diag.peaks.peakStallMs, stallMs);
-    }
     const quality = typeof video.getVideoPlaybackQuality === 'function' ? video.getVideoPlaybackQuality() : null;
     const dropped = quality?.droppedVideoFrames;
     const total = quality?.totalVideoFrames;
@@ -1631,6 +1636,7 @@ export function PlayerShell({
       if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
       if (metrics.waiting) metrics.recoveries += 1;
       metrics.waiting = false;
+      recordStallWindowEnd();
       if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
       stallRecoveryTimerRef.current = null;
       stallRecoveryRequestedRef.current = false;
@@ -1792,6 +1798,7 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:pause', () => {
+      recordStallWindowEnd();
       if (playbackConfirmationTimerRef.current) {
         clearTimeout(playbackConfirmationTimerRef.current);
         playbackConfirmationTimerRef.current = null;
@@ -1801,8 +1808,15 @@ export function PlayerShell({
     });
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
-      if (!art.video?.paused && !metrics.waiting) { metrics.stalls += 1; metrics.waiting = true; }
-      // 只读诊断：缓冲等待时采样真实视频状态，更新 stalled/offline 健康度与峰值。
+      if (!art.video?.paused && !metrics.waiting) {
+        metrics.stalls += 1;
+        metrics.waiting = true;
+        // 只读记录本次 waiting 起点；重复 waiting 事件不重置计时。
+        diagnosticsRef.current.stallStartedAtMs = beginStallWindow(
+          diagnosticsRef.current.stallStartedAtMs, Date.now(),
+        );
+      }
+      // 只读诊断：缓冲等待时采样真实视频状态，更新健康度。
       if (art.video) observeStability(art.video);
       // 已经正常播放后持续缓冲 12 秒：第一阶段只记录 stalled/degraded 并上报，
       // 不自动切源（策略由 resolveStallAction 决定，默认 observe-only）。
@@ -1841,6 +1855,7 @@ export function PlayerShell({
       getVideoPrefetcher().stop();
     });
     art.on('video:ended', () => {
+      recordStallWindowEnd();
       flushPlaybackMetrics();
       // finishBySkip 已经手动走过结束链路：这里不能重复触发 onEnded
       if (endedRef.current) return;
