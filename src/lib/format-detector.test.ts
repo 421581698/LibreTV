@@ -37,6 +37,12 @@ describe('detectMediaFormat', () => {
     expect(report.notes.join(' ')).toContain('不证明浏览器解码或 HDMI 位流直通');
   });
 
+  it('recognizes registered DTS CMAF sample-entry identifiers', () => {
+    expect(detectMediaFormat({ codecs: 'dtsc' }).audioCodec).toBe('dts');
+    expect(detectMediaFormat({ codecs: 'dtsh' }).audioCodec).toBe('dts-hd');
+    expect(detectMediaFormat({ codecs: 'dtse' }).audioCodec).toBe('dts');
+  });
+
   it('recognizes DTS:X as a DTS-family hint without claiming decoding', () => {
     expect(detectMediaFormat({ audioCodec: 'DTS:X' })).toMatchObject({ audioCodec: 'dts-x', dolbyFamily: 'none' });
   });
