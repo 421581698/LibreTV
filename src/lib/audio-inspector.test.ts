@@ -1,0 +1,43 @@
+import { describe, expect, it } from 'vitest';
+import { inspectHlsAudioTrack, parseHlsAudioRenditions } from './audio-inspector';
+
+describe('parseHlsAudioRenditions', () => {
+  it('parses declared stereo and multichannel tracks without guessing speaker layout', () => {
+    const manifest = [
+      '#EXTM3U',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="stereo",NAME="English",DEFAULT=YES,AUTOSELECT=YES,CHANNELS="2",URI="audio/en.m3u8"',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="surround",NAME="English 5.1",CHANNELS="6",URI="audio/en-51.m3u8"',
+      '#EXT-X-STREAM-INF:BANDWIDTH=5000000,CODECS="avc1.640028,ec-3",AUDIO="surround"',
+      'video/1080p.m3u8',
+    ].join('\n');
+    const result = parseHlsAudioRenditions(manifest);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ name: 'English', channelCount: 2, layout: 'stereo', default: true, autoselect: true });
+    expect(result[1]).toMatchObject({ name: 'English 5.1', channelCount: 6, layout: 'unknown', codec: 'ec-3' });
+  });
+  it('recognizes JOC as metadata only', () => {
+    expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="E-AC3 JOC",CHANNELS="6/JOC",URI="a.m3u8"')[0])
+      .toMatchObject({ channelCount: 6, layout: 'unknown', hasJocMarker: true });
+  });
+  it('keeps absent and unsupported channel declarations unknown', () => {
+    const result = parseHlsAudioRenditions([
+      '#EXTM3U',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="Unknown",URI="a.m3u8"',
+      '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="b",NAME="7.1",CHANNELS="8",URI="b.m3u8"',
+    ].join('\n'));
+    expect(result.map((item) => [item.channelCount, item.layout])).toEqual([[null, 'unknown'], [8, 'unknown']]);
+  });
+  it('ignores non-audio renditions and preserves quoted commas', () => {
+    expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="s",NAME="English",URI="s.m3u8"')).toEqual([]);
+    expect(parseHlsAudioRenditions('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="English, Commentary",CHANNELS="2"')[0].name).toBe('English, Commentary');
+  });
+});
+describe('inspectHlsAudioTrack', () => {
+  it('normalizes hls.js metadata', () => {
+    expect(inspectHlsAudioTrack({ name: 'English E-AC3', groupId: 'main', url: 'https://cdn.example/a.m3u8', channels: '6/JOC', audioCodec: 'ec-3', default: true }))
+      .toMatchObject({ groupId: 'main', channelCount: 6, layout: 'unknown', hasJocMarker: true, codec: 'ec-3', default: true });
+  });
+  it('keeps missing metadata unknown', () => {
+    expect(inspectHlsAudioTrack({ name: 'Unknown' })).toMatchObject({ channelCount: null, layout: 'unknown', hasJocMarker: false });
+  });
+});
