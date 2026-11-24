@@ -23,6 +23,12 @@ describe('detectMediaFormat', () => {
     expect(report.notes.join(' ')).toContain('不证明浏览器已解码 Atmos');
   });
 
+  it('parses the four-part Dolby AC-4 codec string without claiming device support', () => {
+    const report = detectMediaFormat({ url: 'immersive.m3u8', codecs: 'avc1.640028,ac-4.02.01.04' });
+    expect(report).toMatchObject({ audioCodec: 'ac4', dolbyFamily: 'dolby-ac4', ac4Profile: { bitstreamVersion: 2, presentationVersion: 1, mdcompat: 4 } });
+    expect(report.notes.join(' ')).toContain('不证明当前设备支持 AC-4 解码或 Atmos 渲染');
+  });
+
   it('recognizes TrueHD without claiming decode or passthrough', () => {
     const report = detectMediaFormat({ url: 'movie.mkv', audioCodec: 'truehd' });
     expect(report).toMatchObject({ container: 'mkv', audioCodec: 'truehd', dolbyFamily: 'dolby-truehd' });
