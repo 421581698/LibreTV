@@ -2208,18 +2208,22 @@ def record_playback_evidence(
     media_ingestion = {"status": "skipped", "reason": "source_gateway_disabled"}
     # The source gateway is deliberately opt-in and runs only after this endpoint
     # has persisted independent PUBLIC preflight and browser playback evidence.
-    from dv_source_gateway import gateway_enabled, ingest_authorized_candidate
+    from dv_source_gateway import gateway_enabled, is_source_host_authorized
     if gateway_enabled():
         if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED", "").strip() != "1":
             media_ingestion = {"status": "skipped", "reason": "egress_firewall_not_confirmed"}
+        elif not is_source_host_authorized(row["host"]):
+            media_ingestion = {"status": "skipped", "reason": "source_host_not_explicitly_authorized"}
         else:
-            media_ingestion = ingest_authorized_candidate(
-                candidate_id,
-                registry_result["resource"]["id"],
-                public_https_url=public_https_url,
-                resolve_public_addresses=resolve_public_addresses,
-                pinned_connection_cls=PinnedHTTPSConnection,
+            # Long media transfers run in the durable worker, not in the
+            # browser's playback-confirmation request.
+            job = registry_store.submit_job(
+                "dv_media_ingest",
+                {"candidate_id": candidate_id, "resource_id": registry_result["resource"]["id"]},
+                "dv-source-ingest:" + candidate_id,
+                max_attempts=3,
             )
+            media_ingestion = {"status": "queued", "job_id": job["id"]}
     return {
         "candidate_id": candidate_id,
         "playback_verification": evidence,
