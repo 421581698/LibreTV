@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { canonicalizeDolbyVisionRpuPayload, verifySignedDolbyVisionRpuEnvelope } from './signed-rpu-envelope';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+const { publicKey: wrongPublicKey } = generateKeyPairSync('ed25519');
+const wrongPublicKeyPem = wrongPublicKey.export({ type: 'spki', format: 'pem' }).toString();
 const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 const hash = 'a'.repeat(64);
 const report = {
@@ -63,9 +65,11 @@ describe('signed Dolby Vision RPU envelope', () => {
     expect(verifySignedDolbyVisionRpuEnvelope({ ...envelope, signature: 'A'.repeat(100) }, options)).toBeNull();
   });
 
-  it('rejects the wrong trusted key ID or media asset identity', () => {
+  it('rejects the wrong signing key, key ID, unsupported version or media asset identity', () => {
     const envelope = makeEnvelope();
+    expect(verifySignedDolbyVisionRpuEnvelope(envelope, { ...options, publicKeyPem: wrongPublicKeyPem })).toBeNull();
     expect(verifySignedDolbyVisionRpuEnvelope(envelope, { ...options, expectedKeyId: 'rotated-key' })).toBeNull();
+    expect(verifySignedDolbyVisionRpuEnvelope({ ...envelope, version: 2 }, options)).toBeNull();
     expect(verifySignedDolbyVisionRpuEnvelope(envelope, { ...options, expectedAssetId: 'another-asset' })).toBeNull();
   });
 
