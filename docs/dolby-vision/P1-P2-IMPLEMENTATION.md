@@ -24,6 +24,8 @@ Implemented in `src/lib/dolby-vision/metadata-inspector.ts`:
 
 - Separates manifest/codec declaration from actual RPU parser evidence.
 - Requires a validated summary from an external parser such as dovi_tool/libdovi before reporting RPU presence.
+- Adds an offline dovi_tool 2.3.4 CLI adapter at `scripts/dolby-vision/analyze-rpu.mjs`; it extracts HEVC/MKV RPU or inspects a supplied RPU file and emits hashes, parser version, Profile(s), frame count and exported metadata-level frame counts.
+- Confirms frame-level dynamic metadata only when L1 or L2 records are actually exported; L5/L6-only records do not create a dynamic-metadata false positive.
 - Reports RPU presence, parsed metadata levels, frame count and Profile consistency.
 - Treats a parser-reported RPU with no parsed levels as dynamic-metadata unknown.
 - Fails closed on malformed or incomplete parser summaries.
@@ -34,7 +36,7 @@ P2 boundary: a parser summary is accepted as evidence only when produced by an a
 ## Open acceptance gates
 
 - Cross-check codec declarations against controlled, licensed Dolby Vision samples and matching HLS manifests.
-- Run dovi_tool/libdovi against approved samples and record exact tool version, input hash, Profile, frame count and metadata levels.
+- Run the pinned dovi_tool 2.3.4 adapter CI fixture and then cross-check against controlled, licensed full-length samples; record exact tool version, input/RPU hashes, Profile, frame count and metadata-level frame counts.
 - Add a server-side or offline analysis adapter only after runtime, licensing and deployment constraints are reviewed.
 - Browser/device decoder support and actual Dolby Vision display output remain separate later phases.
 
