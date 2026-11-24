@@ -51,7 +51,7 @@ export interface HlsAudioTrackLike {
 export function inspectHlsAudioTrack(track: HlsAudioTrackLike): HlsAudioRenditionInfo {
   const channelsRaw = track.channels ?? null;
   const parsed = parseChannelDeclaration(channelsRaw);
-  const codec = track.audioCodec ?? null;
+  const codec = audioCodecFromCodecs(track.audioCodec ?? undefined);
   return {
     groupId: track.groupId ?? '', name: track.name ?? '', uri: track.url ?? null,
     channelsRaw, channelCount: parsed.channelCount, layout: channelLayout(parsed.channelCount),
