@@ -671,7 +671,10 @@ export function PlayerShell({
     hlsRef.current?.destroy();
     hlsRef.current = null;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    setDolbyVisionFormatReport(inspectDolbyVisionFormat({\n      url: mediaUrl,\n      mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',\n    }));
+    setDolbyVisionFormatReport(inspectDolbyVisionFormat({
+      url: mediaUrl,
+      mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',
+    }));
     if (mediaKind !== 'mp4' && mediaKind !== 'webm') {
       setError('当前直链格式无效，请选择 HLS、MP4 或 WebM 资源');
       return;
