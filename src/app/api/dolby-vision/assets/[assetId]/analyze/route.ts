@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardPrivateFeatureRequest } from '@/lib/api-guard';
+import { isAuthDisabled } from '@/lib/auth';
 import { fetchDolbyVisionRegistryAsset } from '@/lib/resource-collector-client';
 import { verifySignedDolbyVisionRpuEnvelope } from '@/lib/dolby-vision/signed-rpu-envelope';
 
@@ -85,6 +86,11 @@ async function readLimitedText(response: Response, maximumBytes: number): Promis
 export async function POST(request: Request, context: { params: Promise<{ assetId: string }> }) {
   const guarded = guardPrivateFeatureRequest(request);
   if (guarded) return guarded;
+  // This route uses server-side collector credentials, so the generic public-preview
+  // bypass (which is intended for browser-supplied collector credentials) is unsafe.
+  if (isAuthDisabled()) {
+    return NextResponse.json({ code: 'DV_ANALYSIS_AUTH_REQUIRED' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  }
 
   const { assetId } = await context.params;
   if (!/^[A-Za-z0-9:_-]{1,200}$/.test(assetId)) {
