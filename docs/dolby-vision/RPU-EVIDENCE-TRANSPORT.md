@@ -2,18 +2,18 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: offline parser, private parser-service implementation, Ed25519 verifier, immutable asset registry, local-file ingestion worker, authenticated raw-byte ingress and object streaming endpoints, and server-side parser forwarding/signature verification route implemented; trusted source-staging gateway, production deployment, and runtime player binding remain blocked.
+Status: offline parser, private parser service with MP4-to-HEVC demux, Ed25519 verifier, immutable asset registry, local-file ingestion worker, authenticated byte ingress and Range streaming, and registry-backed MP4/WebM player binding implemented; trusted source-staging gateway, production deployment, and live-service validation remain blocked.
 
 ## Current verified capabilities
 
 - The offline `scripts/dolby-vision/analyze-rpu.mjs` adapter invokes pinned `dovi_tool 2.3.x` against local HEVC/MKV or pre-extracted RPU bytes.
 - The strict Zod report contract validates parser version, report shape, profile/level consistency, distinct-frame counts, extraction scope and SHA-256 syntax.
-- HEVC reports can be compared with a separately computed SHA-256 of the exact media bytes. A mismatch is rejected; a missing hash is marked `detached`.
+- Reports distinguish `inputSha256` (the HEVC bitstream actually parsed) from `sourceMediaSha256` (the original MP4 asset played by the browser). The signed `sourceMediaSha256` must match the registry digest; a mismatch is rejected and an absent binding remains `detached`.
 - CI exercises a parser RPU fixture plus pinned HEVC elementary-stream and Matroska fixtures. This verifies the offline adapter, not a production media-analysis service.
 - `services/scrapling-collector/dv_media_ingest.py` hashes trusted staged local files, stores them under content-addressed keys using no-overwrite atomic creation, verifies existing objects before reuse, and registers only after durable storage. It does not fetch URLs.
 - `POST /v1/registry/resources/{resource_id}/media-assets/ingest` accepts bounded MP4/WebM bytes behind a dedicated ingestion token, stages them privately, then invokes the same hashing/storage worker. It accepts no URLs and never fetches remote resources.
 - `GET /v1/registry/media-assets/{asset_id}/content` streams only registry-bound MP4/WebM objects behind the collector bearer credential and supports a single byte range for native playback and seeking. Consumers must hash the received bytes and compare them with the returned digest.
-- `POST /api/dolby-vision/assets/{assetId}/analyze` uses server-only collector/parser credentials, streams the exact registered object into the parser, and verifies the Ed25519 envelope against the registry-provided asset ID and digest before returning positive evidence.
+- `POST /api/dolby-vision/assets/{assetId}/analyze` uses server-only collector/parser credentials, streams the exact registered MP4 object into the parser, and verifies the Ed25519 envelope against the registry-provided asset ID and original media digest before returning positive evidence.
 
 ## Security decision: do not import arbitrary report JSON into the player
 
@@ -28,7 +28,7 @@ Therefore:
 ## Implemented parser service and verification primitive
 
 - `services/dolby-vision-parser/` contains a private Node service and Docker image pinned to `dovi_tool 2.3.4`.
-- The service accepts raw media bytes only; it does not fetch caller-provided URLs. It requires a backend bearer token, stable asset ID and catalogue SHA-256, verifies the uploaded bytes against that digest, bounds upload size/concurrency/runtime, runs the offline analyzer, and signs the result with an injected Ed25519 private key.
+- The service accepts raw media bytes only; it does not fetch caller-provided URLs. For MP4 it probes the first video stream, requires HEVC, uses FFmpeg stream-copy plus `hevc_mp4toannexb` to extract the bitstream without re-encoding, hashes that parser input separately, and signs both the HEVC input hash and original MP4 source hash. It requires a backend bearer token, stable asset ID and catalogue SHA-256, and bounds upload size/concurrency/runtime.
 - Service secrets are runtime-only and must be stored in a deployment secret manager. The service must sit behind private ingress, not be exposed directly to browsers.
 - The trusted media gateway must resolve the immutable asset ID to the digest and stream those exact bytes. The service cannot independently infer the catalogue relationship from a client-supplied ID.
 
@@ -59,8 +59,8 @@ The remaining blockers are operational and end-to-end:
 - A trusted source gateway must obtain only authorized media bytes from the selected source and submit them to the private byte-ingress endpoint. No generic URL-fetching proxy is permitted.
 - The current local Docker volume is not an external WORM/object-lock store with production retention and durability guarantees.
 - The parser service, signing key lifecycle, collector secret, and backend public-key configuration must be provisioned and deployed behind private network boundaries.
-- The server-side forwarder has unit tests but has not yet been validated against the live Compose services.
-- Stable asset identity must flow from the selected player source to the registry; the authenticated evidence result is not yet connected to the player diagnostics panel.
+- The server-side forwarder and MP4 demux transport have automated tests but have not yet been validated against the live Compose services.
+- A trusted source-staging gateway must populate the registry with authorized MP4 bytes. The player now resolves and plays the matching immutable asset, and passes its asset ID to RPU diagnostics only for MP4; live Compose integration is still pending.
 - Actual Dolby Vision decoding and display output still require validation on supported physical iPad hardware.
 
 Until these prerequisites are met, the player correctly displays RPU/dynamic metadata as **unverified**. This is an intentional trust boundary, not an unfinished UI toggle.
@@ -79,7 +79,7 @@ Until these prerequisites are met, the player correctly displays RPU/dynamic met
 - [ ] Deploy a trusted gateway to stage authorized source bytes and provision durable object storage with production immutability/retention controls.
 - [x] Implement the server-side backend forwarder that streams the registered object into the parser and verifies the signed response against the registry-bound asset ID and digest.
 - [ ] Deploy and end-to-end validate the forwarder against the live private Compose services.
-- [ ] Establish exact media asset identity and digest binding across source selection and playback.
+- [x] Bind the selected registry asset ID through immutable MP4 playback and signed RPU evidence; distinguish original MP4 SHA-256 from extracted HEVC input SHA-256.
 - [x] Add upload size, concurrent job, parser timeout and backend bearer controls to the parser service.
 - [x] Run parser subprocess asynchronously so the HTTP server can enforce concurrency limits and remain responsive during long analysis jobs.
 - [ ] Configure production ingress rate limits, monitoring, key rotation and operational alerting.
@@ -87,10 +87,10 @@ Until these prerequisites are met, the player correctly displays RPU/dynamic met
 - [x] Add route tests proving digest/asset mismatches and unbound registry responses fail closed before returning positive evidence.
 - [ ] Add full live-service integration tests proving rejected reports never become positive player evidence.
 - [x] Add an explicit, opt-in diagnostics-panel action that requests server-verified evidence only when a stable server-issued asset ID is supplied.
-- [ ] Propagate the selected source's trusted registry asset ID through the watch page into `PlayerShell`; current episode keys and playback URLs are not valid substitutes.
-- [ ] Only then connect authenticated evidence to the read-only diagnostics panel for registry-backed sources.
+- [x] Propagate the selected source's trusted registry asset ID through `RegistryInlinePlayer` into `PlayerShell`; only the immutable MP4 URL receives the RPU analysis asset ID.
+- [x] Connect authenticated, signed RPU evidence to the read-only diagnostics panel for immutable MP4-backed registry sources.
 - [ ] Separately test native HLS behavior and actual Dolby Vision output on supported physical iPad hardware.
 
 ## Release boundary
 
-No player behavior or playback pipeline is changed by this design document. PR #99 remains Draft and is not merged.
+Registry playback now prefers the immutable MP4/WebM asset when available and retains the original source as a fallback. RPU analysis is enabled only for MP4 assets with an HEVC video track; HLS behavior is unchanged. PR #99 remains Draft and is not merged.
