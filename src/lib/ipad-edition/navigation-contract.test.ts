@@ -100,6 +100,8 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain('const [navigationCollapsed, setNavigationCollapsed] = useState(true);');
     expect(shell).toContain('aria-label="关闭侧边栏"');
     expect(shell).toContain('title="关闭侧边栏"');
+    expect(shell).toContain('<span>关闭</span>');
+    expect(responsiveStyles).toContain('min-width: 68px;');
     expect(shell).toContain('setSidebarOpen(false);');
     expect(shell).toContain('setNavigationCollapsed(true);');
   });
