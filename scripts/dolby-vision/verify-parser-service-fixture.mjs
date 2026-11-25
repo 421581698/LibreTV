@@ -118,7 +118,7 @@ try {
     signatureVerified: true,
     unauthorizedRequestRejected: true,
     extractionScope: report.extractionScope,
-  }, null, 2)}\\n`);
+  }, null, 2)}\n`);
 } finally {
   if (server) await new Promise((resolve) => server.close(resolve));
 }
