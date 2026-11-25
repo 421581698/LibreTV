@@ -330,7 +330,11 @@ def ingest_authorized_hls_candidate(
             if not playlist.lstrip().startswith("#EXTM3U"):
                 raise HlsSourceGatewayError("Invalid HLS playlist header")
             upper_playlist = playlist.upper()
-            if "#EXTINF:" in upper_playlist and "#EXT-X-ENDLIST" not in upper_playlist:
+            live_media_markers = (
+                "#EXTINF:", "#EXT-X-PART:", "#EXT-X-PRELOAD-HINT:",
+                "#EXT-X-SKIP:", "#EXT-X-RENDITION-REPORT:", "#EXT-X-SERVER-CONTROL:",
+            )
+            if any(marker in upper_playlist for marker in live_media_markers) and "#EXT-X-ENDLIST" not in upper_playlist:
                 raise HlsSourceGatewayError("Only finalized HLS VOD/event playlists can be frozen into an immutable graph")
             if re.search(r"(?im)^#EXT-X-SESSION-KEY:", playlist):
                 raise HlsSourceGatewayError("Encrypted or DRM HLS playlists are not fetched")
