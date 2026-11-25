@@ -9,11 +9,11 @@ describe('canAnalyzeDolbyVisionRpuAsset', () => {
     })).toBe(true);
   });
 
-  it('rejects AV1 because the HEVC parser cannot process AV1 OBU/EMDF', () => {
+  it('allows a registered MP4 with a single AV1 video codec family', () => {
     expect(canAnalyzeDolbyVisionRpuAsset('asset-123', {
       container: 'mp4',
       codecFamilies: ['av1'],
-    })).toBe(false);
+    })).toBe(true);
   });
 
   it('rejects ambiguous mixed codec-family declarations', () => {
