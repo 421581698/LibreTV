@@ -40,7 +40,7 @@ function makeDec3Box(dependent = 0, chanLoc = 0, bsid = 16): Uint8Array {
   bits.forEach((bit, index) => { payload[index >> 3] |= bit << (7 - (index & 7)); });
   return box('dec3', payload);
 }
-function makeInitSegment(handler = 'soun', sampleEntry = 'ec-3', dec3 = makeDec3Box()): Uint8Array {
+function makeInitSegment(handler = 'soun', sampleEntry = 'ec-3', dec3 = makeDec3Box(), secondEc3 = false): Uint8Array {
   const tkhd = box('tkhd', join(u32(0), u32(0), u32(0), u32(7), u32(0)));
   const mdhd = box('mdhd', join(u32(0), u32(0), u32(0), u32(48_000), u32(0)));
   const hdlr = box('hdlr', join(u32(0), u32(0), new Uint8Array([...handler].map(char => char.charCodeAt(0))), new Uint8Array(12)));
@@ -49,7 +49,10 @@ function makeInitSegment(handler = 'soun', sampleEntry = 'ec-3', dec3 = makeDec3
   const sampleEntryBox = sampleEntry === 'ec-3'
     ? box(sampleEntry, join(audioEntry, dec3))
     : box(sampleEntry, new Uint8Array(4));
-  const stsd = box('stsd', join(u32(0), u32(1), sampleEntryBox));
+  const entries = secondEc3
+    ? join(sampleEntryBox, box('ec-3', join(audioEntry, makeDec3Box())))
+    : sampleEntryBox;
+  const stsd = box('stsd', join(u32(0), u32(secondEc3 ? 2 : 1), entries));
   const stbl = box('stbl', stsd);
   const minf = box('minf', stbl);
   const mdia = box('mdia', join(mdhd, hdlr, minf));
@@ -85,13 +88,21 @@ function eac3Frame(streamType = 0, substreamId = 0, blocksCode = 3, bsid = 16): 
   bits.forEach((bit, index) => { bytes[index >> 3] |= bit << (7 - (index & 7)); });
   return [...bytes];
 }
-function makeMediaSegment(samples: number[][] = [eac3Frame(), eac3Frame()]): Uint8Array {
+function makeMediaSegment(
+  samples: number[][] = [eac3Frame(), eac3Frame()],
+  sampleDescriptionIndex?: number,
+): Uint8Array {
   const sampleBytes = samples[0]?.length ?? 0;
   if (sampleBytes === 0 || samples.some(sample => sample.length !== sampleBytes)) {
     throw new Error('CMAF test samples must have one consistent non-zero size.');
   }
   const payload = join(...samples.map(sample => new Uint8Array(sample)));
-  const tfhd = box('tfhd', join(u32(0x00020000 | 0x000008 | 0x000010 | 0x000020), u32(7), u32(1536), u32(sampleBytes), u32(0)));
+  const tfhdFlags = 0x00020000 | 0x000008 | 0x000010 | 0x000020 |
+    (sampleDescriptionIndex === undefined ? 0 : 0x000002);
+  const tfhdFields = [u32(tfhdFlags), u32(7)];
+  if (sampleDescriptionIndex !== undefined) tfhdFields.push(u32(sampleDescriptionIndex));
+  tfhdFields.push(u32(1536), u32(sampleBytes), u32(0));
+  const tfhd = box('tfhd', join(...tfhdFields));
   const tfdt = box('tfdt', join(u32(0x01000000), u32(0), u32(0)));
   const makeTrun = (offset: number) => box('trun', join(
     u32(0x000001 | 0x000100 | 0x000200),
@@ -173,6 +184,13 @@ describe('JocCmafPacketExtractor', () => {
     const extractor = new JocCmafPacketExtractor(7);
     expect(() => extractor.updateInitSegment(makeInitSegment('vide', 'ec-3'))).toThrow(/not an E-AC-3 audio track/i);
     expect(() => extractor.updateInitSegment(makeInitSegment('soun', 'mp4a'))).toThrow(/not an E-AC-3 audio track/i);
+  });
+
+  it('rejects sample-description changes without a replacement init segment', () => {
+    const extractor = new JocCmafPacketExtractor(7);
+    extractor.updateInitSegment(makeInitSegment('soun', 'ec-3', makeDec3Box(), true));
+    expect(() => extractor.extractMediaSegment(makeMediaSegment([eac3Frame()], 2)))
+      .toThrow(/sample description index changed/i);
   });
 
   it('requires an initialization segment before media fragments', () => {
