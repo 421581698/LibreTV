@@ -26,6 +26,31 @@ Metadata, codec strings, channel counts, browser capability hints, and Web Audio
 - Native ArtPlayer/HTMLMediaElement playback, hls.js/MSE, Safari native HLS, direct MP4/WebM, audio-track selection, and playback recovery remain the playback infrastructure.
 - Playback auto-recovery policy remains read-only by default; diagnostics do not silently switch sources or downgrade quality.
 - Dolby Vision RPU analysis is a separate video-evidence path and does not establish Dolby audio decoding or Atmos output.
+- The remaining `V4SpatialScreen` / `v4-spatial-*` identifiers belong to the homepage/catalog screen UI, not an audio renderer or Web Audio processing path; retain them unless that separate UI is intentionally renamed.
+
+## Retired spatial implementation audit
+
+Audited at commit `f149bdf768d1a27efd2195cfc0689a0fcbfe5272`:
+
+- The retired `src/lib/spatial-audio.ts`, `src/lib/spatial-media-session.ts`, their tests, and both generic spatial smoke scripts are absent from the Git tree.
+- The active `src/components/player-shell.tsx` has no references to spatial-session, HRTF, or generic immersive-audio paths.
+- The iPad Edition Verify workflow no longer lists the retired module/test/script paths in either push or pull-request path filters.
+- Generic codec names such as DTS and IAMF remain only in internal format-classification enums/parser recognition where needed to avoid false classification; the diagnostics UI labels non-Dolby codecs as `非 Dolby 音频编码（仅识别）`. They are not Dolby product playback/rendering features.
+- The homepage component name `V4SpatialScreen` is not evidence of an audio spatial renderer.
+
+## Exact-head automated verification evidence
+
+At commit `f149bdf768d1a27efd2195cfc0689a0fcbfe5272`, all five required GitHub Actions workflows completed successfully:
+
+| Workflow | Run ID | Result |
+|---|---:|---|
+| LibreTV iPad Edition Verify | 45530144830 | success |
+| Resource Playback Verification | 45530144887 | success |
+| HLS Browser Playback Smoke | 45530144945 | success |
+| HLS External Stream Smoke | 45530144919 | success |
+| Scrapling Collector | 45530144843 | success |
+
+These are automated CI results, not physical iPad Safari, Dolby decoder, Atmos renderer, passthrough, or Cloudflare deployment acceptance. Any subsequent commit must receive its own exact-head checks before being called verified.
 
 ## Capability status
 
