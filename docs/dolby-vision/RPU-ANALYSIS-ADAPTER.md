@@ -61,9 +61,10 @@ The CI also exercises the adapter against the upstream `dovi_tool 2.3.4` integra
 - `assets/hevc_tests/regular.hevc`: a complete HEVC elementary-stream test asset containing Dolby Vision RPU data.
 - `assets/hevc_tests/regular.mkv`: a Matroska test asset whose HEVC video track contains the same RPU sequence.
 - Both files are fetched from the pinned upstream release tag and checked against their Git blob object IDs before analysis.
-- The upstream extractor test asserts that the extracted RPU matches `regular_rpu.bin` and contains 259 RPU frames. LibreTV additionally runs its own adapter and validates each emitted JSON report through the runtime contract.
+- The upstream extractor test asserts that the extracted RPU matches `regular_rpu.bin` and contains 259 RPU frames. LibreTV's CI now independently requires the adapter report to contain exactly 259 frames, no selected-track restriction, no frame limit, matching input SHA-256, a non-empty RPU SHA-256, and internally consistent per-level frame counts.
+- CI remuxes the pinned real HEVC fixture into an MP4 container, then exercises the actual private parser HTTP service with real `ffprobe`, FFmpeg `hevc_mp4toannexb`, and `dovi_tool 2.3.4` (not mocked subprocesses). The test verifies the complete 259-frame RPU result, original MP4 SHA-256 binding, extracted HEVC digest, and Ed25519 signature.
 
-These are complete upstream integration-test assets, not feature-length movie samples. Passing this CI proves the HEVC elementary-stream and Matroska extraction/report paths against those fixtures; it does not establish compatibility with every real-world HEVC encode, container, profile, or an entire commercial movie.
+These are complete upstream integration-test assets, not feature-length movie samples. Passing this CI proves the HEVC elementary-stream, Matroska, and MP4 parser-service paths against the pinned real encoded fixture. It does not establish compatibility with every real-world HEVC encode, container, profile, or an entire commercial movie. A feature-length acceptance report still requires a specific authorized media asset and its immutable registry ID.
 
 ## Important boundaries
 
