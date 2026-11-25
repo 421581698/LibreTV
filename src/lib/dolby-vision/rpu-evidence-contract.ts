@@ -52,10 +52,10 @@ export const DolbyVisionRpuReportSchema = z.object({
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['metadataLevelFrameCounts'], message: '单个元数据层级的帧计数不能超过 RPU 总帧数。' });
   }
   if (['hevc', 'av1'].includes(report.inputKind) && typeof report.extractionScope !== 'object') {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['extractionScope'], message: 'HEVC 报告必须包含轨道/帧范围。' });
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['extractionScope'], message: 'HEVC/AV1 报告必须包含轨道/帧范围。' });
   }
-  if (report.inputKind === 'hevc' && report.sourceMediaSha256 === null) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceMediaSha256'], message: 'HEVC 报告必须绑定原始媒体 SHA-256。' });
+  if (['hevc', 'av1'].includes(report.inputKind) && report.sourceMediaSha256 === null) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceMediaSha256'], message: 'HEVC/AV1 报告必须绑定原始媒体 SHA-256。' });
   }
   if (report.inputKind === 'rpu' && report.sourceMediaSha256 !== null) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceMediaSha256'], message: '独立 RPU 文件不能声明原始媒体绑定。' });
