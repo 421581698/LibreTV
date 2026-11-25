@@ -229,5 +229,45 @@ class AuthorizedProgressiveSourceGatewayTests(unittest.TestCase):
         self.assertEqual(blocked, {"status": "skipped", "reason": "egress_firewall_not_confirmed"})
 
 
+    def test_playback_confirmation_enqueues_durable_ingestion_for_allowlisted_host(self):
+        import hashlib
+        with patch.dict(os.environ, {
+            "DV_SOURCE_GATEWAY_ENABLED": "1",
+            "DV_AUTHORIZED_SOURCE_HOSTS": "media.example",
+            "SCRAPLING_EGRESS_FIREWALL_CONFIRMED": "1",
+        }), patch.object(collector, "require_token"), patch.object(
+            collector.registry_store, "submit_job",
+            return_value={"status": "queued", "id": "durable-job-1"},
+        ) as submit:
+            result = collector.record_playback_evidence(
+                self.candidate_id,
+                collector.PlaybackEvidence(
+                    media_type="mp4", observed_seconds=6, progressed_seconds=4.5
+                ),
+                "Bearer test",
+            )
+
+        self.assertEqual(result["media_ingestion"], {
+            "status": "queued", "job_id": "durable-job-1"
+        })
+        self.assertEqual(submit.call_count, 1)
+        args, kwargs = submit.call_args
+        self.assertEqual(args[0], "dv_media_ingest")
+        payload = args[1]
+        self.assertEqual(payload["candidate_id"], self.candidate_id)
+        self.assertEqual(payload["resource_id"], result["resource"]["id"])
+        with collector.db() as db:
+            row = db.execute(
+                "SELECT url,validation FROM candidates WHERE id=?",
+                (self.candidate_id,),
+            ).fetchone()
+        expected_version = hashlib.sha256(
+            (str(row["url"]) + "\\0" + str(row["validation"] or "")).encode("utf-8")
+        ).hexdigest()[:24]
+        self.assertEqual(payload["source_version"], expected_version)
+        self.assertEqual(args[2], "dv-source-ingest:" + self.candidate_id + ":" + expected_version)
+        self.assertEqual(kwargs, {"max_attempts": 3})
+
+
 if __name__ == "__main__":
     unittest.main()
