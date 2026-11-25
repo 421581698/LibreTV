@@ -114,7 +114,7 @@ async function readLimitedBody(
  * 真正的 SSRF、DNS 和重定向安全检查，
  * 由 searchSources -> fetchUpstream -> ssrf 安全层负责。
  */
-function validateSources(
+export function validateSources(
   rawSources: unknown,
 ): SourceConfig[] {
   if (rawSources === undefined) {
