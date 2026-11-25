@@ -251,8 +251,8 @@ def _fragment_video_timing(
     asset: dict,
     track_id: int,
     trex_default_duration: int,
-) -> tuple[int, int]:
-    """Return (tfdt decode time, total video sample duration) for one fragment."""
+) -> tuple[int, int, int]:
+    """Return (tfdt decode time, total video sample duration, sample count)."""
     with _open_asset(object_root, asset) as source:
         top = _top_level_boxes(source, asset["byte_length"])
         moof = next((item for item in top if item[0] == "moof"), None)
@@ -293,6 +293,7 @@ def _fragment_video_timing(
                 raise HlsAssemblyError("tfdt version or decode timestamp is invalid.")
             decode_time = int.from_bytes(tfdt_data[decode_offset:decode_offset + decode_size], "big")
             duration_sum = 0
+            total_sample_count = 0
             for trun in truns:
                 data = _box_payload(source, trun)
                 if len(data) < 8:
@@ -301,6 +302,7 @@ def _fragment_video_timing(
                 sample_count = int.from_bytes(data[4:8], "big")
                 if sample_count <= 0 or sample_count > 1_000_000:
                     raise HlsAssemblyError("trun sample count is invalid.")
+                total_sample_count += sample_count
                 position = 8
                 if trun_flags & 0x000001:
                     position += 4
@@ -327,7 +329,7 @@ def _fragment_video_timing(
                         raise HlsAssemblyError("Fragment sample duration overflows the media timeline.")
                 if position != len(data):
                     raise HlsAssemblyError("trun contains unsupported trailing or malformed sample data.")
-            matching.append((decode_time, duration_sum))
+            matching.append((decode_time, duration_sum, total_sample_count))
         if len(matching) != 1:
             raise HlsAssemblyError("Each media fragment must contain exactly one timed video traf.")
         return matching[0]
@@ -342,7 +344,7 @@ def _validate_video_timeline(
     timeline = []
     previous_end = None
     for index, asset in enumerate(segment_assets):
-        decode_time, duration = _fragment_video_timing(object_root, asset, track_id, trex_default)
+        decode_time, duration, sample_count = _fragment_video_timing(object_root, asset, track_id, trex_default)
         if previous_end is not None and decode_time != previous_end:
             raise HlsAssemblyError("Video tfdt timestamps are not continuous with preceding sample durations.")
         previous_end = decode_time + duration
@@ -352,6 +354,7 @@ def _validate_video_timeline(
             "ordinal": index,
             "decodeTime": decode_time,
             "sampleDuration": duration,
+            "sampleCount": sample_count,
             "endDecodeTime": previous_end,
             "timescale": timescale,
         })
