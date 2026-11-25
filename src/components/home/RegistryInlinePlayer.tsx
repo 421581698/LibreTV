@@ -155,6 +155,8 @@ export function RegistryInlinePlayer({
             onPendingStart={setPendingStart}
             episodeKey={`registry:${resource.id}`}
             dolbyVisionAssetId={activeImmutableAsset?.assetId}
+            dolbyVisionSourceKind="registry"
+            dolbyVisionSourceIdentity={resource.id}
           />
         </div>
       </section>
