@@ -114,7 +114,7 @@ export function RegistryInlinePlayer({
       const mediaIngestion = (payload as Record<string, unknown>).media_ingestion;
       if (!mediaIngestion || typeof mediaIngestion !== 'object' || Array.isArray(mediaIngestion)) return;
       const status = (mediaIngestion as Record<string, unknown>).status;
-      if (status === 'queued' || status === 'registered') {
+      if (status === 'queued' || status === 'running' || status === 'succeeded' || status === 'registered') {
         setAssetLookupNonce((value) => value + 1);
       }
     }).catch(() => {
