@@ -1858,6 +1858,8 @@ export function PlayerShell({
   // —— 上/下集禁用态：走 ArtPlayer 的 controls API 更新样式，不直接改 DOM ——
   // 直接 querySelector 改 style 在控件重建（切全屏/播放器重绘）后不会恢复，且依赖内部 class 名。
   useEffect(() => {
+    // Cinema owns the episode buttons; ArtPlayer does not register these controls in this mode.
+    if (cinemaMode) return;
     const controls = artRef.current?.controls;
     if (!controls) return;
     controls.update({
@@ -1868,7 +1870,7 @@ export function PlayerShell({
       name: 'next-episode',
       style: { opacity: hasNextEpisode ? '1' : '0.4', pointerEvents: hasNextEpisode ? 'auto' : 'none' },
     });
-  }, [hasPrevEpisode, hasNextEpisode, url]);
+  }, [cinemaMode, hasPrevEpisode, hasNextEpisode, url]);
 
   // —— 标记变化：重置采样基准并立即刷新提示 ——
   // 刚写入片段时当前时间可能恰好等于新边界，若沿用上一拍采样会被判成
