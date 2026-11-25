@@ -52,13 +52,21 @@ export function advanceNativePlaybackObservation(
       mediaErrorCode: sample?.mediaErrorCode ?? null,
     };
   }
-  if (!sample || !Number.isFinite(sample.currentTime) || sample.currentTime < 0 ||
+  if (previous.status === 'error') return previous;
+  if (!sample) return previous;
+  if (sample.mediaErrorCode !== null) {
+    return advanceNativePlaybackObservation(previous, 'error', sample);
+  }
+  if (!Number.isFinite(sample.currentTime) || sample.currentTime < 0 ||
       sample.readyState < 2 || sample.paused || sample.seeking || sample.ended ||
       sample.videoWidth <= 0 || sample.videoHeight <= 0 ||
       !Number.isFinite(sample.videoWidth) || !Number.isFinite(sample.videoHeight)) {
-    return previous;
+    // The previously observed progress must not appear live while paused,
+    // stalled without decodable frames, or seeking to another location.
+    if (previous.status === 'waiting' && previous.progressedSeconds === 0 &&
+        previous.baselineTime === null) return previous;
+    return emptyNativePlaybackObservation();
   }
-  if (previous.status === 'error') return previous;
   const time = sample.currentTime;
   // A backwards clock or a >5 second jump may be a seek without seeking events.
   // Never use such a jump as playback progression evidence.
@@ -66,6 +74,11 @@ export function advanceNativePlaybackObservation(
     (time < previous.lastTime || time - previous.lastTime > 5);
   const baselineTime = previous.baselineTime === null || jumped ? time : previous.baselineTime;
   const progressedSeconds = Math.max(0, time - baselineTime);
+  // A stalled timeupdate event or duplicate sample cannot establish ongoing
+  // playback, even when an earlier sample crossed the progress threshold.
+  if (previous.status === 'progress-observed' && previous.lastTime === time) {
+    return { ...previous, status: 'waiting' };
+  }
   return {
     status: progressedSeconds >= 1 ? 'progress-observed' : 'waiting',
     videoWidth: sample.videoWidth,
@@ -117,6 +130,9 @@ export function observeNativeVideoPlayback(
     if (!video) return;
     video.removeEventListener('timeupdate', sample);
     video.removeEventListener('playing', sample);
+    video.removeEventListener('pause', reset);
+    video.removeEventListener('waiting', reset);
+    video.removeEventListener('stalled', reset);
     video.removeEventListener('loadedmetadata', sample);
     video.removeEventListener('loadstart', reset);
     video.removeEventListener('emptied', reset);
@@ -134,6 +150,9 @@ export function observeNativeVideoPlayback(
     video = next;
     video.addEventListener('timeupdate', sample);
     video.addEventListener('playing', sample);
+    video.addEventListener('pause', reset);
+    video.addEventListener('waiting', reset);
+    video.addEventListener('stalled', reset);
     video.addEventListener('loadedmetadata', sample);
     video.addEventListener('loadstart', reset);
     video.addEventListener('emptied', reset);
