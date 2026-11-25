@@ -15,6 +15,7 @@ import {
 } from 'react';
 
 import { FridayOpticalBoundary } from '@/components/friday/FridayOpticalBoundary';
+import { FridayNativeOptics } from '@/components/friday/FridayNativeOptics';
 import { useFridayGlass } from '@/components/friday/FridayGlassProvider';
 import type { GlassMaterial } from '@/lib/friday-glass/runtime';
 
@@ -150,6 +151,8 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
     activeMaterial !== 'cinema' && preferences.intensity > 0 && !disableEngine &&
     variant !== 'control' &&
     as !== 'button' && as !== 'a' && as !== 'span';
+  const canHostNativeOptics = (variant === 'dock' || variant === 'panel') &&
+    as !== 'button' && as !== 'a' && as !== 'span';
   const intensity = preferences.intensity / 100;
   const [Engine, setEngine] = useState<EngineComponent | null>(null);
   const [shortEdge, setShortEdge] = useState<number | null>(null);
@@ -241,6 +244,7 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
         </span>
       )
       : null,
+    canHostNativeOptics ? <FridayNativeOptics variant={variant} material={activeMaterial} /> : null,
     children,
   );
 });
