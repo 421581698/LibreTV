@@ -1,0 +1,79 @@
+/* Friday V1.2 iPad/desktop presentation. Imported after cinema legacy styles.
+   Only chrome surfaces are sampled; media/video pixels never receive a filter. */
+.ipad-edition .ipad-nav__topbar-inner.liquid-glass,
+.ipad-edition .ipad-nav__sidebar.liquid-glass {
+  background-image: linear-gradient(160deg,
+    rgb(255 255 255 / .16), transparent 42%, rgb(135 193 255 / .055)) !important;
+  background-color: rgb(var(--friday-fill) / var(--friday-alpha)) !important;
+  border-color: rgb(var(--friday-rim, 255 255 255) / .36) !important;
+  -webkit-backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(175%) !important;
+  backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(175%) !important;
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .48),
+    inset 0 -1px 1px rgb(0 0 0 / .13), 0 12px 38px rgb(0 0 0 / .16) !important;
+}
+.ipad-edition .ipad-nav__topbar-inner.liquid-glass {
+  --friday-reflect: .65;
+}
+.ipad-edition .ipad-nav__sidebar.liquid-glass {
+  /* Increase legibility slightly in the open drawer, without opaque white fill. */
+  --friday-alpha: .39;
+  --friday-blur: 23px;
+}
+.ipad-edition .ipad-nav__sidebar.liquid-glass[data-friday-material="clear"] {
+  --friday-alpha: .19;
+  --friday-blur: 9px;
+}
+.ipad-edition .ipad-nav__sidebar.liquid-glass[data-friday-material="frosted"] {
+  --friday-alpha: .69;
+  --friday-blur: 29px;
+}
+.ipad-edition .ipad-nav__sidebar.liquid-glass[data-friday-material="cinema"] {
+  --friday-alpha: .82;
+}
+.ipad-edition .ipad-nav__topbar-inner.liquid-glass > .friday-glass-selection {
+  background: linear-gradient(160deg, rgb(255 255 255 / .27),
+    rgb(255 255 255 / .045) 56%, rgb(135 199 255 / .14));
+  border: 1px solid rgb(255 255 255 / .23);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .38),
+    0 3px 9px rgb(0 0 0 / .1);
+}
+.ipad-edition .ipad-nav__scrim {
+  background: rgb(0 0 0 / .23) !important;
+}
+.ipad-edition :is(.ipad-edition__search-form, .ipad-edition__search-page form,
+ .ipad-edition__category-area button, .ipad-edition__filter-bar,
+ .ipad-edition__modal, [role="dialog"]):not(.ipad-edition__poster-card) {
+  --friday-ui-fill: rgb(var(--friday-fill) / .24);
+}
+/* Only surfaces that opt into Friday material have the chrome treatment.
+   Avoid broad button/image selectors that could overwrite search card art. */
+.ipad-edition :is(.ipad-edition__search-form, .ipad-edition__modal, [role="dialog"])[data-friday-material] {
+  background-color: rgb(var(--friday-fill) / var(--friday-alpha)) !important;
+  -webkit-backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(160%) !important;
+  backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(160%) !important;
+}
+html[data-friday-theme="dark"] .ipad-edition .ipad-nav__topbar-inner.liquid-glass,
+html[data-friday-theme="dark"] .ipad-edition .ipad-nav__sidebar.liquid-glass {
+  color: rgb(245 249 255);
+}
+html[data-friday-theme="light"] .ipad-edition .ipad-nav__topbar-inner.liquid-glass,
+html[data-friday-theme="light"] .ipad-edition .ipad-nav__sidebar.liquid-glass {
+  color: rgb(21 34 47);
+}
+html[data-friday-glass="safe"] .ipad-edition :is(.ipad-nav__topbar-inner, .ipad-nav__sidebar).liquid-glass,
+html .ipad-edition :is(.ipad-nav__topbar-inner, .ipad-nav__sidebar).liquid-glass[data-friday-material="solid"] {
+  background: rgb(var(--friday-fill)) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[data-friday-playback="protected"] .ipad-edition[data-ipad-player="true"] .liquid-glass {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .ipad-edition :is(.ipad-nav__topbar-inner, .ipad-nav__sidebar).liquid-glass {
+    background: rgb(var(--friday-fill)) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
