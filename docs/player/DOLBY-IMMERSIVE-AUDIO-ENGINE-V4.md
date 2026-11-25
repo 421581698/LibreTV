@@ -46,6 +46,8 @@ Native media audio   Web Audio HRTF   Future native adapter
 
 ## Added in this 4.0 upgrade slice
 
+- Added a bounded CMAF E-AC-3 packet extractor on top of the existing fMP4 parser. It validates the selected audio track/sample entry, sample payload bounds, timestamps and discontinuities. It does not establish JOC presence or decode/render audio.
+- Reviewed OpenJOC-Browser as an architecture reference. Its Bilibili extension-specific page hooks are not transplanted; the reusable concepts are worker decoding, timestamped PCM, bounded queues and video-clock synchronization. See `OPENJOC-BROWSER-INTEGRATION-REVIEW.md`.
 - Added a version-1 native bridge snapshot validator with session/freshness checks, bounded values, enum validation and unknown-field stripping.
 - Added isolated Swift and Kotlin native adapter libraries plus a platform build/test workflow definition. They report limited platform facts only; complete app-shell integration and physical-device acceptance remain external gates.
 - Reviewed OpenJOC v0.20.2 as a candidate software JOC decoder (Apache-2.0 core); it is not vendored or integrated. See `docs/player/JOC-DECODER-ADOPTION-REVIEW.md`.
