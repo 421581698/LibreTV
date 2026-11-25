@@ -154,6 +154,11 @@ export class JocCmafPacketExtractor {
       if (fragmentTrack.sampleEntry !== 'ec-3') {
         throw new Error('E-AC-3 CMAF sample description changed to an unsupported codec.');
       }
+      const expectedDescriptionIndex = track.defaultSampleDescriptionIndex ?? 1;
+      if (fragmentTrack.sampleDescriptionIndex !== null &&
+          fragmentTrack.sampleDescriptionIndex !== expectedDescriptionIndex) {
+        throw new Error('E-AC-3 CMAF sample description index changed without a new initialization segment.');
+      }
       for (const sample of fragmentTrack.samples) {
         if (sample.duration !== 1536 || sample.size === null || sample.size <= 0) {
           throw new Error('OpenJOC CMAF JOC samples must have a 1536-sample duration and a positive size.');
