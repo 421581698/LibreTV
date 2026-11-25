@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
+import { parseFmp4InitSegment } from './fmp4-fragment-parser';
 import { JocCmafPacketExtractor } from './joc-cmaf-packets';
 
 interface Mp4Box {
@@ -57,8 +58,12 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
     const moov = boxes.find(box => box.type === 'moov');
     expect(moov).toBeDefined();
     const initStart = ftyp?.start ?? moov!.start;
-    const extractor = new JocCmafPacketExtractor(1);
-    extractor.updateInitSegment(mp4.subarray(initStart, moov!.end));
+    const initBytes = mp4.subarray(initStart, moov!.end);
+    const init = parseFmp4InitSegment(initBytes);
+    const audioTrack = init.tracks.find(track => track.handlerType === 'soun' && track.sampleEntries.includes('ec-3'));
+    expect(audioTrack, 'fragmented MP4 contains an E-AC-3 audio track').toBeDefined();
+    const extractor = new JocCmafPacketExtractor(audioTrack!.trackId);
+    extractor.updateInitSegment(initBytes);
 
     const mediaSegments: Uint8Array[] = [];
     for (const [index, box] of boxes.entries()) {
