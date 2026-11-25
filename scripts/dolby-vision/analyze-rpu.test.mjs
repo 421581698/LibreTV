@@ -53,12 +53,13 @@ describe('dovi_tool RPU report parsing', () => {
       1: '[{"frame":0},{"frame":2}]',
     }, 2)).toThrow(/超出完整 RPU 帧范围/);
   });
-  it('normalizes Annex-B UNSPEC62 RPU NAL units into dovi_tool regular RPU bytes', () => {
+  it('normalizes Annex-B UNSPEC62 RPU NAL units into dovi_tool Annex-B RPU chunks', () => {
     const regular = Buffer.from([0x19, 0x00, 0x00, 0x01, 0x80, 0x55, 0x66, 0x80]);
     const nalu = Buffer.from([0x7c, 0x01, 0x19, 0x00, 0x00, 0x03, 0x01, 0x80, 0x55, 0x66, 0x80]);
     const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), nalu]);
-    expect(normalizeRpuInput(annexB)).toEqual(regular);
-    expect(normalizeRpuInput(regular)).toEqual(regular);
+    const doviToolChunk = Buffer.concat([Buffer.from([0, 0, 0, 1]), regular]);
+    expect(normalizeRpuInput(annexB)).toEqual(doviToolChunk);
+    expect(normalizeRpuInput(regular)).toEqual(doviToolChunk);
   });
 
   it('normalizes multiple Annex-B RPU NAL units without losing unit boundaries', () => {
@@ -68,7 +69,10 @@ describe('dovi_tool RPU report parsing', () => {
       Buffer.from([0, 0, 0, 1]), first,
       Buffer.from([0, 0, 0, 1]), second,
     ]);
-    expect(normalizeRpuInput(annexB)).toEqual(Buffer.from([0x19, 0x11, 0x80, 0x19, 0x22, 0x80]));
+    expect(normalizeRpuInput(annexB)).toEqual(Buffer.from([
+      0, 0, 0, 1, 0x19, 0x11, 0x80,
+      0, 0, 0, 1, 0x19, 0x22, 0x80,
+    ]));
   });
 
   it('rejects malformed AV1 NAL headers and invalid emulation-prevention bytes', () => {
