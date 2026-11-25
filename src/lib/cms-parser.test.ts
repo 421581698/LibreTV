@@ -75,6 +75,19 @@ describe('extractEpisodesFromPlayUrl', () => {
     expect(extractEpisodesFromPlayUrl(play)).toEqual(['https://cdn/a3.m3u8']);
   });
 
+  it('rejects playback URLs with embedded credentials while preserving safe HTTP(S) links', () => {
+    const play = [
+      '凭据地址$https://user:pass@media.example/ep0.m3u8',
+      '正常地址$https://media.example/ep1.m3u8',
+      '非安全协议$ftp://media.example/ep2.m3u8',
+      'HTTP 地址$http://media.example/ep3.mp4',
+    ].join('#');
+    expect(extractEpisodeItemsFromPlayUrl(play)).toEqual([
+      { title: '正常地址', url: 'https://media.example/ep1.m3u8' },
+      { title: 'HTTP 地址', url: 'http://media.example/ep3.mp4' },
+    ]);
+  });
+
   it('第一条线路为中转页时优先取 m3u8 线路（量子/非凡类源）', () => {
     const play =
       'HD中字$https://vip.lzcdn2.com/share/abc$$$HD中字$https://vip.lzcdn2.com/20220329/1012_e9be6a92/index.m3u8';
