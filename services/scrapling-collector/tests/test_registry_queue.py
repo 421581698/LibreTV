@@ -222,6 +222,18 @@ class RegistryQueueTests(unittest.TestCase):
             self.assertEqual(full.status_code, 200)
             self.assertEqual(asyncio.run(consume(full)), body)
 
+            # A mutation after the digest check but before the response body is
+            # consumed must not leak bytes under the original asset identity.
+            changed_after_open = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=0-3"
+            )
+            object_path.write_bytes(b"abcdefghij")
+            with self.assertRaises(HTTPException) as changed:
+                asyncio.run(consume(changed_after_open))
+            self.assertEqual(changed.exception.status_code, 409)
+            object_path.write_bytes(body)
+            queue._DV_VERIFIED_OBJECTS.clear()
+
             for invalid in ("bytes=10-", "bytes=8-2", "bytes=-0", "bytes=0-1,4-5", "items=0-1"):
                 with self.subTest(invalid=invalid), self.assertRaises(HTTPException) as raised:
                     queue.api_get_dolby_vision_media_asset_content(
