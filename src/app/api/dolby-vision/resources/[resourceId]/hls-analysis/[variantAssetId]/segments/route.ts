@@ -101,9 +101,9 @@ export async function POST(
 
   // The endpoint is request-scoped; never keep a serverless invocation alive
   // for an unbounded number of registered fragments.
-  const timeoutMs = 16 * 60 * 1000;
   const maxRequestMs = 15 * 60 * 1000;
-  const startedAt = Date.now();
+  const deadline = Date.now() + maxRequestMs;
+  const remainingMs = () => Math.max(0, deadline - Date.now());
   const maxEnvelopeBytes = 32 * 1024 * 1024;
   let accumulatedEnvelopeBytes = 0;
   const expectedSegments: ExpectedHlsRpuFragment[] = [];
@@ -115,11 +115,11 @@ export async function POST(
 
   try {
     for (let ordinal = 0; ordinal < 10_000; ordinal += 1) {
-      if (Date.now() - startedAt > maxRequestMs) {
+      if (remainingMs() === 0) {
         return NextResponse.json({ code: 'DV_HLS_ANALYSIS_TIME_BUDGET_EXCEEDED', analyzedCount: ordinal },
           { status: 503, headers: { 'Cache-Control': 'no-store' } });
       }
-      const fragment = await fetchDolbyVisionHlsAssemblySegment(resourceId, variantAssetId, ordinal, timeoutMs);
+      const fragment = await fetchDolbyVisionHlsAssemblySegment(resourceId, variantAssetId, ordinal, Math.max(1, remainingMs()));
       if (!fragment) {
         return NextResponse.json({ code: 'DV_HLS_REGISTRY_NOT_CONFIGURED' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
       }
@@ -221,6 +221,10 @@ export async function POST(
         return NextResponse.json({ code: 'DV_HLS_SEGMENT_COUNT_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
       }
 
+      if (remainingMs() === 0) {
+        await fragmentBody.cancel();
+        return NextResponse.json({ code: 'DV_HLS_ANALYSIS_TIME_BUDGET_EXCEEDED', analyzedCount: ordinal }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      }
       const expected: ExpectedHlsRpuFragment = {
         fragmentAssetId,
         fragmentSha256,
@@ -267,7 +271,7 @@ export async function POST(
         duplex: 'half',
         cache: 'no-store',
         redirect: 'manual',
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(Math.max(1, remainingMs())),
       } as RequestInit & { duplex: 'half' });
 
       if (parserResponse.status >= 300 && parserResponse.status < 400) {
@@ -345,6 +349,9 @@ export async function POST(
       orderedRpuEvidenceSha256: verified.orderedRpuEvidenceSha256,
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
+    if (remainingMs() === 0) {
+      return NextResponse.json({ code: 'DV_HLS_ANALYSIS_TIME_BUDGET_EXCEEDED', analyzedCount: expectedSegments.length }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+    }
     return NextResponse.json({ code: 'DV_HLS_SEGMENT_ANALYSIS_UNAVAILABLE' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
   }
 }
