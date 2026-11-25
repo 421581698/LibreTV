@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from collections import OrderedDict
 import json
 import os
 import sqlite3
@@ -22,6 +23,53 @@ TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
 DV_INGESTION_TOKEN = (os.environ.get("DV_INGESTION_TOKEN", "").strip() or (Path(os.environ["DV_INGESTION_TOKEN_FILE"]).read_text(encoding="utf-8").strip() if os.environ.get("DV_INGESTION_TOKEN_FILE") else ""))
 DV_MEDIA_OBJECT_ROOT = Path(os.environ.get("DV_MEDIA_OBJECT_ROOT", "/data/dv-media-objects"))
 DV_MEDIA_STAGING_ROOT = Path(os.environ.get("DV_MEDIA_STAGING_ROOT", "/data/dv-media-staging"))
+
+# Avoid re-reading multi-gigabyte media on every browser Range request. The
+# cache is keyed by inode plus nanosecond mtime/ctime and size; ordinary writes
+# necessarily change ctime, forcing a fresh digest check. It is process-local
+# and bounded so it cannot grow with the number of registered assets.
+_DV_VERIFIED_OBJECTS: OrderedDict[tuple[int, int, int, int, int], str] = OrderedDict()
+_DV_VERIFIED_OBJECTS_LOCK = threading.Lock()
+_DV_VERIFIED_OBJECTS_MAX = 512
+
+
+def _stat_fingerprint(info: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def _verify_media_object_digest(descriptor: int, expected_digest: str, expected_size: int) -> None:
+    before = os.fstat(descriptor)
+    if not stat.S_ISREG(before.st_mode) or before.st_size != expected_size:
+        raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
+    fingerprint = _stat_fingerprint(before)
+    with _DV_VERIFIED_OBJECTS_LOCK:
+        cached_digest = _DV_VERIFIED_OBJECTS.get(fingerprint)
+        if cached_digest == expected_digest:
+            _DV_VERIFIED_OBJECTS.move_to_end(fingerprint)
+            return
+
+    digest = hashlib.sha256()
+    verified_bytes = 0
+    try:
+        while verified_bytes < expected_size:
+            chunk = os.pread(descriptor, min(1024 * 1024, expected_size - verified_bytes), verified_bytes)
+            if not chunk:
+                break
+            digest.update(chunk)
+            verified_bytes += len(chunk)
+        after = os.fstat(descriptor)
+    except OSError as exc:
+        raise HTTPException(status_code=409, detail="Registered media object could not be integrity-checked") from exc
+
+    if (verified_bytes != expected_size or _stat_fingerprint(after) != fingerprint
+            or digest.hexdigest() != expected_digest):
+        raise HTTPException(status_code=409, detail="Registered media object digest or length mismatch")
+
+    with _DV_VERIFIED_OBJECTS_LOCK:
+        _DV_VERIFIED_OBJECTS[fingerprint] = expected_digest
+        _DV_VERIFIED_OBJECTS.move_to_end(fingerprint)
+        while len(_DV_VERIFIED_OBJECTS) > _DV_VERIFIED_OBJECTS_MAX:
+            _DV_VERIFIED_OBJECTS.popitem(last=False)
 
 
 def _bounded_env_integer(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -910,30 +958,14 @@ def api_get_dolby_vision_media_asset_content(
         raise HTTPException(status_code=410, detail="Registered media object is missing")
     except OSError:
         raise HTTPException(status_code=409, detail="Registered media object cannot be safely opened")
-    info = os.fstat(descriptor)
-    if not stat.S_ISREG(info.st_mode) or info.st_size != total_size:
-        os.close(descriptor)
-        raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
-
-    # Validate the complete immutable object before serving either a full body
-    # or a partial Range. pread() hashes the exact opened descriptor without
-    # changing the file offset later consumed by the streaming response.
-    object_digest = hashlib.sha256()
-    verified_bytes = 0
+    # Hash the exact opened descriptor before first use. Subsequent Range
+    # requests reuse only a fingerprint-matched verification result, avoiding
+    # a full multi-gigabyte read for every seek while detecting normal writes.
     try:
-        while verified_bytes < total_size:
-            chunk = os.pread(descriptor, min(1024 * 1024, total_size - verified_bytes), verified_bytes)
-            if not chunk:
-                break
-            object_digest.update(chunk)
-            verified_bytes += len(chunk)
-        unchanged_size = os.fstat(descriptor).st_size == total_size
-    except OSError as exc:
+        _verify_media_object_digest(descriptor, digest, total_size)
+    except HTTPException:
         os.close(descriptor)
-        raise HTTPException(status_code=409, detail="Registered media object could not be integrity-checked") from exc
-    if verified_bytes != total_size or not unchanged_size or object_digest.hexdigest() != digest:
-        os.close(descriptor)
-        raise HTTPException(status_code=409, detail="Registered media object digest or length mismatch")
+        raise
 
     response_headers = {
         "Content-Length": str(end - start + 1),
