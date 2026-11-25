@@ -93,6 +93,8 @@ describe('parseFmp4InitSegment', () => {
       defaultSampleDuration: 3000,
       defaultSampleSize: 2048,
       defaultSampleFlags: 0x00010000,
+      sampleRate: null,
+      decoderConfig: null,
     }]);
   });
 
