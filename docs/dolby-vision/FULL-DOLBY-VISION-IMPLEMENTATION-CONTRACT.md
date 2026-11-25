@@ -26,6 +26,7 @@ The application must report each stage independently. A successful earlier stage
 | HEVC RPU analysis | Implemented for the registered MP4 path | Private parser service, dovi_tool 2.3.x, source SHA-256 binding, signed evidence |
 | HEVC / Matroska fixture validation | Implemented in CI | Pinned upstream 259-frame fixture; not a feature-length customer asset |
 | HLS declaration mapping | Implemented (declaration-only) | Safari native HLS inspection now reports per-variant codec declarations; media-segment RPU and cross-segment continuity remain unimplemented |
+| HLS immutable graph inspection | Implemented (graph evidence only) | Protected collector and Next.js endpoints traverse the registered root/variant playlist graph and return content-addressed initialization/segment members; the Dolby Vision panel displays graph counts. Segment RPU extraction and continuity remain unimplemented |
 | AV1 OBU structural inspection | Partial foundation | Bounded raw OBU scanner counts metadata/T.35 OBUs and rejects malformed lengths; Dolby provider identification, EMDF parsing, RPU extraction, container adapters and signed AV1 evidence remain unimplemented |
 | Dolby Vision decoding | Not integrated by LibreTV | Requires a supported native platform decoder or properly licensed decoder component |
 | RPU-aware rendering / display mapping | Not integrated | No renderer is allowed to be represented as Dolby Vision processing without evidence |
@@ -37,6 +38,7 @@ The application must report each stage independently. A successful earlier stage
 
 - Ordinary CMS `/watch` playback must not infer a registry resource from a CMS VOD ID, title, source key, or playback URL. Complete integration requires a server-side, verified mapping from the exact CMS episode/source identity to a registered direct-media resource; absent that mapping, the UI must keep the asset unbound.
 
+- For registered HLS resources, the protected graph endpoint returns only resource-bound immutable asset identities and ordered parent/child roles; the UI reports playlist, initialization, and media-segment counts. This is graph inspection, not bitstream/RPU analysis.
 - Keep codec declaration parsing separate from elementary-stream inspection.
 - Extend container adapters independently: MP4/HEVC first, then AV1/OBU and additional containers only with real fixtures.
 - Bind every report to the immutable source asset ID and SHA-256.
