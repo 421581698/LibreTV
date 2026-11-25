@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
+import { canAnalyzeDolbyVisionRpuAsset } from '@/lib/dolby-vision/rpu-analysis-eligibility';
 import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
 
 interface DolbyVisionDiagnosticsPanelProps {
@@ -16,12 +17,7 @@ interface DolbyVisionDiagnosticsPanelProps {
  */
 export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVisionDiagnosticsPanelProps) {
   const declared = Boolean(report?.detected);
-  const canAnalyzeRpu = Boolean(
-    assetId
-    && report?.container === 'mp4'
-    && report.codecFamilies.length === 1
-    && report.codecFamilies[0] === 'hevc',
-  );
+  const canAnalyzeRpu = canAnalyzeDolbyVisionRpuAsset(assetId, report);
   const profileLabel = report?.profiles.length
     ? report.profiles.map((profile) => `Profile ${profile}`).join(' / ')
     : '未检测到可验证的 Profile 声明';
