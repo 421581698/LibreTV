@@ -289,7 +289,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                     <span>嵌套清单：{hlsGraph.playlistCount}</span>
                   </div>
                 )}
-                {hlsGraph.variantAssetIds.length > 0 && (
+                {hlsGraph && hlsGraph.resourceId === sourceIdentity && hlsGraph.variantAssetIds.length > 0 && (
                   <div className="mt-2 space-y-1.5">
                     {hlsGraph.variantAssetIds.map((variantId) => (
                       <button
