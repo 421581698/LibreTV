@@ -118,6 +118,21 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
             ingested["assets"]["seg2.m4s"]["asset_id"],
         ])
         self.assertEqual(result["rpuPresence"], "unknown")
+        self.assertEqual(len(result["segmentInputs"]), 2)
+        for ordinal, item in enumerate(result["segmentInputs"]):
+            expected_fragment = media_fragment(ordinal + 1)
+            expected_input = init_segment() + expected_fragment
+            segment_path = Path(item["outputPath"])
+            self.assertEqual(segment_path.read_bytes(), expected_input)
+            self.assertEqual(item["ordinal"], ordinal)
+            self.assertEqual(item["fragmentAssetId"], result["segmentAssetIds"][ordinal])
+            self.assertEqual(item["fragmentSha256"], hashlib.sha256(expected_fragment).hexdigest())
+            self.assertEqual(item["initializationSha256"], hashlib.sha256(init_segment()).hexdigest())
+            self.assertEqual(item["assembledSegmentSha256"], hashlib.sha256(expected_input).hexdigest())
+            self.assertEqual(item["decodeTime"], ordinal * 4000)
+            self.assertEqual(item["sampleDuration"], 4000)
+            self.assertEqual(item["sampleCount"], 1)
+
 
     def test_rejects_non_contiguous_tfdt_timestamps_even_when_mfhd_is_sequential(self):
         variant_id, _ = self.prepare_graph(second_decode_time=4500)
