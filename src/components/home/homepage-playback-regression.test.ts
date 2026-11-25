@@ -308,6 +308,8 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain("if (isIpadEditionPlayback || !scrubbingRef.current) return;");
     expect(watch).toContain("onPointerUp={(event) => {");
     expect(watch).toContain("onPointerCancel={(event) => {");
+    expect(watch).toContain("onLostPointerCapture={() => {");
+    expect(watch).toContain("setWatchClock(current => ({ ...current, position: target }));");
     expect(watch).toContain("releasePointerCapture(event.pointerId)");
     expect(watch).toContain('scrubbingPositionRef.current = position');
     expect(watch).toContain('Number.isFinite(watchClock.duration) && watchClock.duration > 0');

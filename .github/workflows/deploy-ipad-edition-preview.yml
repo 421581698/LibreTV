@@ -1858,7 +1858,19 @@ jobs:
                     progress && Math.abs(Number(progress.getAttribute("aria-valuenow")) - 64) < 1 &&
                     window.__mockSeekCount === 1);
                 }, undefined, { timeout: 3000 });
-                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-drag-seek", seekPosition: 64, seekCalls: 1 }));
+                // A seek is not done merely because the thumb moved during
+                // dragging. After the preview timeout, the committed position
+                // must stay at the target rather than bouncing to the old clock.
+                await page.waitForTimeout(1300);
+                await page.waitForFunction(() => {
+                  const slider = document.querySelector(".cinema-seek-surface");
+                  const elapsed = document.querySelector(".watch-cinema-time span:first-child");
+                  return Boolean(slider && Math.abs(Number(slider.getAttribute("aria-valuenow")) - 64) < 1 &&
+                    elapsed?.textContent?.trim() === "1:04" &&
+                    !document.querySelector(".watch-cinema-scrub-preview") &&
+                    window.__mockSeekCount === 1);
+                }, undefined, { timeout: 3000 });
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-drag-seek", seekPosition: 64, seekCalls: 1, noBounceAfterPreview: true }));
 
                 // Simulate a real touch stream, not synthetic pointer dispatch or
                 // input.value assignment. This exercises touch-action:none and
