@@ -74,7 +74,7 @@ public struct NativeAudioSnapshotV1: Codable, Sendable {
 public enum IOSAudioRouteMapper {
     public static func route(forPortTypeRawValue rawValue: String) -> NativeAudioRoute {
         switch rawValue {
-        case "BuiltInSpeaker":
+        case "Speaker", "BuiltInSpeaker":
             return .builtInSpeaker
         case "Headphones", "HeadsetMic":
             return .wiredHeadphones
