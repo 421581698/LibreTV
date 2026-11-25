@@ -231,6 +231,7 @@ def ingest_authorized_candidate(
             deadline = time.monotonic() + total_timeout
             with os.fdopen(descriptor, "wb", closefd=True) as target_file:
                 last_checkpoint = 0
+                last_checkpoint_at = time.monotonic()
                 while received < expected_length:
                     if cancelled():
                         raise registry.JobCancelled()
@@ -244,9 +245,11 @@ def ingest_authorized_candidate(
                         raise SourceGatewayError("Origin exceeded the declared media length")
                     digest.update(chunk)
                     target_file.write(chunk)
-                    if received - last_checkpoint >= 8 * CHUNK_SIZE:
+                    now = time.monotonic()
+                    if received - last_checkpoint >= 8 * CHUNK_SIZE or now - last_checkpoint_at >= 30:
                         checkpoint({"stage": "authorized_media_download", "bytes_received": received, "total_bytes": expected_length})
                         last_checkpoint = received
+                        last_checkpoint_at = now
                 target_file.flush()
                 os.fsync(target_file.fileno())
             if cancelled():
