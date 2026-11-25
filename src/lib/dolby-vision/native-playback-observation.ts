@@ -41,7 +41,7 @@ export function emptyNativePlaybackObservation(): NativePlaybackObservation {
 /** Pure state transition, with no success claims from play/loadedmetadata alone. */
 export function advanceNativePlaybackObservation(
   previous: NativePlaybackObservation,
-  event: 'reset' | 'sample' | 'error',
+  event: 'reset' | 'invalidate' | 'sample' | 'error',
   sample?: NativePlaybackSample,
 ): NativePlaybackObservation {
   if (event === 'reset') return emptyNativePlaybackObservation();
@@ -53,6 +53,7 @@ export function advanceNativePlaybackObservation(
     };
   }
   if (previous.status === 'error') return previous;
+  if (event === 'invalidate') return emptyNativePlaybackObservation();
   if (!sample) return previous;
   if (sample.mediaErrorCode !== null) {
     return advanceNativePlaybackObservation(previous, 'error', sample);
@@ -118,6 +119,7 @@ export function observeNativeVideoPlayback(
     if (!closed) onUpdate(observation);
   };
   const reset = () => publish(advanceNativePlaybackObservation(observation, 'reset'));
+  const invalidate = () => publish(advanceNativePlaybackObservation(observation, 'invalidate'));
   const sample = () => {
     if (!video) return;
     publish(advanceNativePlaybackObservation(observation, 'sample', readNativeVideoSample(video)));
@@ -131,14 +133,15 @@ export function observeNativeVideoPlayback(
     if (!video) return;
     video.removeEventListener('timeupdate', sample);
     video.removeEventListener('playing', sample);
-    video.removeEventListener('pause', reset);
-    video.removeEventListener('waiting', reset);
-    video.removeEventListener('stalled', reset);
+    video.removeEventListener('pause', invalidate);
+    video.removeEventListener('ended', invalidate);
+    video.removeEventListener('waiting', invalidate);
+    video.removeEventListener('stalled', invalidate);
     video.removeEventListener('loadedmetadata', sample);
     video.removeEventListener('loadstart', reset);
     video.removeEventListener('emptied', reset);
-    video.removeEventListener('seeking', reset);
-    video.removeEventListener('seeked', reset);
+    video.removeEventListener('seeking', invalidate);
+    video.removeEventListener('seeked', invalidate);
     video.removeEventListener('error', error);
     video = null;
   };
@@ -151,14 +154,15 @@ export function observeNativeVideoPlayback(
     video = next;
     video.addEventListener('timeupdate', sample);
     video.addEventListener('playing', sample);
-    video.addEventListener('pause', reset);
-    video.addEventListener('waiting', reset);
-    video.addEventListener('stalled', reset);
+    video.addEventListener('pause', invalidate);
+    video.addEventListener('ended', invalidate);
+    video.addEventListener('waiting', invalidate);
+    video.addEventListener('stalled', invalidate);
     video.addEventListener('loadedmetadata', sample);
     video.addEventListener('loadstart', reset);
     video.addEventListener('emptied', reset);
-    video.addEventListener('seeking', reset);
-    video.addEventListener('seeked', reset);
+    video.addEventListener('seeking', invalidate);
+    video.addEventListener('seeked', invalidate);
     video.addEventListener('error', error);
     if (video.error) error();
     else sample();
