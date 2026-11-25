@@ -2,68 +2,58 @@
 
 Review date: 2026-11-25.
 
-## Reference implementation reviewed
+## Reference reviewed
 
 - Project: https://github.com/chyinan/OpenJOC-Browser
-- Reviewed source revision: `34b39f468eb4e2384a2a5b24960a690535153f61`
-- Project license: Apache-2.0.
-- Project package metadata marks the browser extension package as private.
-- The project is a Chromium extension integration, not a drop-in web-player package.
+- Reviewed revision: `34b39f468eb4e2384a2a5b24960a690535153f61`
+- License: Apache-2.0.
+- The project is a Chromium extension integration, not a drop-in web-player package; its package metadata marks the browser extension package private.
 
-The reference implementation demonstrates a practical software JOC path:
-bounded CMAF sample extraction, OpenJOC WASM decoding in a Worker, generation-scoped worker lifecycle, timestamped PCM transport, bounded backpressure, an AudioWorklet output queue, and synchronization to the video element's media clock.
+The useful architectural ideas are bounded CMAF extraction, Worker-based OpenJOC WASM decoding, generation-scoped lifecycle, timestamped PCM, bounded backpressure, AudioWorklet output, and synchronization to the video media clock.
 
-## What is reusable as architecture
+## Reusable architecture
 
-The following concepts are appropriate for LibreTV:
+LibreTV adopts the following boundaries:
 
 1. Keep the existing HTML video element as the master playback clock.
-2. Parse only ISO-BMFF transport metadata in the application layer; keep E-AC-3/JOC/EMDF/OAMD semantics inside the pinned decoder.
-3. Extract complete E-AC-3 CMAF samples with exact sample boundaries and media timestamps.
-4. Decode in a dedicated Worker, not on the UI thread.
-5. Copy PCM out of WASM memory before it can be reused.
-6. Transfer bounded, timestamped PCM blocks to an AudioWorklet.
-7. Enforce queue budgets, cancellation, source-generation isolation, discontinuity resets and native-audio fallback.
-8. Suppress the media element's original audio only after the software path has produced validated, non-empty PCM for the active playback generation.
+2. Keep ISO-BMFF transport parsing in the application layer and E-AC-3/JOC semantics in the pinned decoder.
+3. Extract complete CMAF samples with exact byte boundaries and timestamps.
+4. Decode in a dedicated Worker and copy PCM out of WASM memory before reuse.
+5. Transfer bounded timestamped PCM to an AudioWorklet.
+6. Enforce queue budgets, cancellation, source-generation isolation, discontinuity resets, and native-audio fallback.
+7. Suppress original media audio only after validated PCM is ready and the first aligned output quantum has rendered.
 
-## What must not be transplanted unchanged
+## Not transplanted
 
-OpenJOC-Browser's site integration is specifically designed around the Bilibili page and its browser-extension contexts: MAIN-world page observation, Bilibili playurl state, Bilibili URL allowlists, service-worker/offscreen-document ownership and extension messaging.
+The reference implementation is specific to Bilibili and its browser-extension environment: MAIN-world page hooks, Bilibili playurl state, site URL allowlists, service-worker/offscreen-document ownership, and extension messaging. LibreTV does not copy those hooks, URL assumptions, extension APIs, credentials/referrer assumptions, or site entitlement logic. The private extension package is not used as an npm dependency. This branch adopts reviewed architecture, not unreviewed source or bundled HRTF assets.
 
-LibreTV is a first-party web player using its existing ArtPlayer/hls.js/Safari-native-HLS ownership. Copying Bilibili page hooks, URL patterns, credentials/referrer assumptions, extension APIs or site-specific entitlement logic would be incorrect and unsafe.
+## LibreTV implementation status
 
-The reference package is marked private, so LibreTV should not depend on it as an npm package. Any source-code reuse must be reviewed file-by-file, preserve Apache-2.0 notices and OpenJOC/SADIE II third-party attributions, and undergo a separate dependency and asset audit. This review adopts architecture, not copied source code or bundled HRTF assets.
+The existing fMP4 parser is extended by `JocCmafPacketExtractor` and a read-only hls.js fragment tap. The extractor binds a selected audio track, enforces bounded sample count/size/payload, extracts complete sample bytes and timestamps, and propagates discontinuities.
 
-## LibreTV work now present
+The browser runtime now includes:
+- pinned OpenJOC v0.20.2 WASM build and Worker ABI;
+- `dec3` parsing and CMAF-JOC profile admission;
+- in-band I0 BSI checks and D0 `chanmap` to `chan_loc` agreement;
+- synthetic I0+D0 extraction/mismatch tests;
+- timestamped PCM transport and bounded AudioWorklet output;
+- explicit opt-in activation and fail-open restoration of native media audio.
 
-The existing LibreTV fMP4 parser already provides bounded ISO-BMFF box parsing, init-track metadata, per-sample byte offsets, media timestamps and mdat containment validation.
+The default ArtPlayer + hls.js / Safari native-HLS playback path remains unchanged. The observer is available only on the hls.js path; Safari native-HLS does not expose fragments to this observer.
 
-A new `JocCmafPacketExtractor` builds on that parser and adds:
+## Evidence and remaining gates
 
-- explicit selected-track identity;
-- strict `soun` + `ec-3` sample-entry admission;
-- bounded per-segment sample count, per-sample size and aggregate payload bytes;
-- extraction of complete sample payload views;
-- decode/presentation timestamps, duration and native media timescale;
-- propagation of track timeline discontinuities.
-
-This is deliberately only a transport/sample-extraction layer. An `ec-3` sample entry is not proof of JOC. It does not decode the samples, identify an in-band JOC profile, render objects, synchronize PCM, or change the active player audio output.
-
-## Next integration gates
-
-| Gate | Required implementation/evidence | State |
+| Gate | Current evidence | Remaining limitation |
 |---|---|---|
-| CMAF sample extraction | Track-bound complete E-AC-3 samples and bounded payload | Implemented; tests pending latest CI |
-| hls.js fragment tap | Capture init/media fragments for the active source without taking over loader ownership | Not implemented |
-| OpenJOC WASM runtime | Pin ABI/version, load only same-origin packaged WASM, worker cancellation and memory bounds | Candidate build passes; player runtime not integrated |
-| JOC admission | Decoder-reported supported in-band profile and successful AU decode | Not implemented |
-| PCM sync | Video master clock, timestamped PCM queue, discontinuity/seek/source reset | Not implemented |
-| Audio switch | Mute native media only after validated PCM readiness; restore on every failure | Not implemented |
-| Real fixtures | Authorized JOC CMAF fixtures with independently reviewed expected decode/output | Not run |
-| Device/performance | Browser/device CPU, memory, latency, underrun and thermal testing | Not run |
+| CMAF extraction | Complete bounded samples, track binding, timestamps, discontinuities | Real production-media coverage |
+| hls.js tap | Read-only fragment observer, init/media extraction | No Safari native-HLS fragment observation |
+| OpenJOC WASM | Pinned build, upstream bridge tests, WASM integration | Not a licensed Dolby decoder |
+| JOC track admission | Parsed `dec3`, 48 kHz profile, type-A extension and complexity/bitrate limits | Full semantic validation remains in OpenJOC |
+| I0/D0 binding | I0 BSI and D0 channel-map metadata checks; synthetic I0+D0 extractor tests | Genuine I0+D0 media decode and independent PCM reference comparison |
+| PCM output | Timestamped stereo PCM, bounded queue, AudioWorklet and fallback logic | Real-device A/V sync and long-play validation |
+| Native adapters | iOS Swift and Android Kotlin adapter-library tests pass | Not complete app shells or trusted host/player integration |
+| Physical devices | No physical-device acceptance claimed | iPhone/iPad/Android output-route, performance and thermal tests |
 
-## Evidence labels
+CI on the current PR head passes the browser runtime workflow, full repository tests, TypeScript, lint, general verification, resource/collector verification, iOS adapter tests, Android adapter tests, and pinned OpenJOC candidate tests. The separate Cloudflare Workers Build check remains failed; the isolated Cinema V2.3 Preview workflow is skipped and is not represented as a deployed preview.
 
-A future successful software path may be labeled `software JOC decode` only after the decoder confirms a supported in-band JOC profile and emits PCM for the current source generation. It may be labeled `software binaural spatial render` only after the binaural renderer is actually selected and reports output frames.
-
-Neither label means native Dolby passthrough, native Atmos output, authored-object recovery, Dolby certification, or exact equivalence to Dolby's licensed renderer.
+A successful software path may be labeled `software JOC decode` only when the decoder confirms a supported in-band profile and emits PCM for the active source generation. This does not mean native Dolby passthrough, native Atmos output, authored-object recovery, Dolby certification, or equivalence to a licensed renderer.

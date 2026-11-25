@@ -1,14 +1,14 @@
 # OpenJOC Browser Runtime
 
-Status: experimental, opt-in, not a production default.
+Status: experimental, opt-in, and not a production default.
 
-## Build
+## Pinned decoder and reproducible build
 
-The browser decoder is built from the reviewed OpenJOC v0.20.2 source commit:
+The browser decoder is built from OpenJOC v0.20.2, pinned at:
 
-f9b54bbbb8e1b44c746a72e1b14b289cad418cf9
+`f9b54bbbb8e1b44c746a72e1b14b289cad418cf9`
 
-Run this before a local Next.js build:
+Build locally before packaging the Next.js application:
 
 ```bash
 npm ci
@@ -16,41 +16,51 @@ npm run build:openjoc-wasm
 npm run build
 ```
 
-The build command writes a same-origin WASM asset to public/wasm/openjoc_wasm.wasm and retains:
-- the upstream OpenJOC license;
-- a target-specific Cargo dependency tree;
-- a pinned build manifest;
-- the generated WASM SHA-256.
+The build writes `public/wasm/openjoc_wasm.wasm` and records the upstream license, target-specific Cargo dependency tree, pinned build manifest, and generated WASM SHA-256. The WASM binary is generated rather than committed. Normal application builds do not silently install Rust or fetch upstream source.
 
-The WASM binary is generated, not committed. A deployment/build environment must explicitly run npm run build:openjoc-wasm before Next.js packaging. The normal build does not silently install Rust or fetch source code.
+## Experimental query modes
 
-## Opt-in modes
+- `?jocTap=1`: read-only observation of hls.js fragments and bounded CMAF sample extraction.
+- `?jocDecode=1`: additionally decode extracted access units in the pinned OpenJOC Worker and report decoder evidence without changing audio output.
+- `?jocOutput=1`: additionally allow the software PCM AudioWorklet route. A user gesture is required. The original media audio is muted only after a supported decoder profile, at least 128 ms of queued PCM, and the first timestamp-aligned AudioWorklet output quantum. Failure paths restore native media audio.
 
-- ?jocTap=1: observe hls.js fragments and extract bounded E-AC-3 CMAF samples only.
-- ?jocDecode=1: additionally send complete extracted samples to the pinned OpenJOC Worker and discard PCM after decoder inspection.
-- ?jocOutput=1: additionally create the AudioWorklet output lane. While video is playing, tap inside the player after timestamped PCM has buffered; the software lane only mutes the media element after decoder profile evidence, at least 128 ms of PCM, and the first timestamp-aligned AudioWorklet output quantum. On underrun, queue overflow, seek, unsupported playback rate, teardown, or decoder failure, native media audio is restored.
+These modes are experimental. They do not establish native Dolby or Atmos output.
 
-The opt-in modes are experimental. Do not use them as evidence of native Dolby/Atmos output.
+## Implemented runtime boundaries
 
-## Runtime boundaries
+- Existing ArtPlayer + hls.js MSE ownership remains unchanged; there is no second media element or MSE pipeline.
+- The fragment tap is read-only and works only on the hls.js path. Safari native-HLS does not expose its fragments to this observer.
+- The selected track must be a `soun` track with an `ec-3` sample entry and a parsed `dec3` configuration.
+- The browser parser enforces the pinned OpenJOC CMAF-JOC track profile: 48 kHz, one independent I0, optional single D0, type-A JOC extension signal, complexity index at most 16, and data rate at most 3024 kbps.
+- Per-sample structural validation admits one complete 1536-sample, six-block I0 access unit, optionally followed by D0. It checks supported stream type/substream IDs, syncframe boundaries, sample-rate/block profile, and in-band I0 BSI against `dec3`.
+- When D0 is present, its in-band `chanmap` is mapped to `chan_loc` and compared with `dec3`. Unsupported mappings and mismatches are rejected.
+- These browser-side checks bind container metadata and the BSI fields needed for admission; they are not a replacement for the full upstream E-AC-3/JOC semantic validator. OpenJOC still owns JOC/EMDF interpretation and decoding.
+- The Worker copies PCM out of WASM memory before decoder-frame reuse. PCM output is Float32 stereo at 48 kHz.
+- The AudioWorklet queue is bounded to one second; decoder backpressure is applied at 500 ms. Input samples are capped at 1 MiB and WASM linear memory at 256 MiB.
+- CMAF PTS is mapped onto the hls.js timeline using `frag.start` as an anchor. Missing anchors are rejected rather than guessed. Seek, source-generation changes, init changes, discontinuities, unsupported playback rates, underruns, overflow, and decoder errors trigger reset/fallback handling.
+- Software output requires AudioWorklet, a secure context, a 48 kHz AudioContext, and a user gesture.
 
-- Existing ArtPlayer + hls.js MSE ownership remains unchanged.
-- The HLS fragment tap is read-only and is available only on the hls.js path. Safari native-HLS does not expose these fragments to this tap.
-- CMAF ec-3 is only a codec hint. Before decode, each sample must pass a bounded syncframe-envelope check for exactly one 1536-sample I0 access unit, optionally followed by D0; non-48-kHz, non-six-block, reordered, truncated, extra-substream, and unsupported-profile envelopes are rejected. OpenJOC must still report its decoded profile and access-unit counters before software output can be activated.
-- The browser-side I0/D0 check is structural only. It does not yet validate the full `dec3` configuration, D0 channel-map/`chan_loc` agreement, JOC EMDF semantics, or dependent-substream PCM against a reference fixture. A structurally admitted D0 sample is not proof that D0 was correctly decoded.
-- The Worker copies PCM out of WASM memory before releasing the decoder frame.
-- PCM is Float32 stereo at 48 kHz. The bounded AudioWorklet queue is capped at one second; the decoder applies backpressure at 500 ms. Worker input samples are capped at 1 MiB and WASM linear memory is capped at 256 MiB.
-- CMAF PTS is mapped to the hls.js fragment timeline using frag.start as an anchor. If that anchor is absent, the sample is rejected rather than guessed.
-- The AudioWorklet follows an explicitly supplied video media clock. The browser integration currently supplies video.currentTime * 48000; a real fixture and device test must verify that the HLS fragment anchor and media element timeline agree for each supported source profile.
-- Output requires a 48 kHz AudioContext, AudioWorklet, a secure context, and a user gesture to resume audio.
+## Current CI evidence
+
+The current PR-head integration run remuxes the upstream OpenJOC JOC E-AC-3 fixture into fragmented MP4, adds the CMAF JOC type-A `dec3` extension to test-only container metadata (FFmpeg omits it), extracts seven CMAF samples, and sends the original E-AC-3 sample bytes through the pinned OpenJOC WASM ABI to PCM.
+
+Pinned regression baseline:
+- CMAF samples: 7
+- Decoded access units: 7
+- PCM frames: 1568
+- Decoder profile: `etsi-strict`
+- PCM regression SHA-256: `7e8dc2f9a3671fc9e14e5c9ead03c7d88dcd5ee51fa9ab99f27f58b00b0a8318`
+
+This is a deterministic regression baseline, not an independently authored reference master. The upstream media fixture used in this CMAF integration run is I0-only. Synthetic I0+D0 extraction and `dec3`/channel-map binding tests pass, but genuine I0+D0 media decoding and dependent-substream PCM reference comparison are not yet established.
 
 ## Acceptance still required
 
 Before enabling this outside opt-in testing:
-1. Run the generated WASM against authorized real E-AC-3 JOC CMAF fixtures, including a CMAF sample containing I0+D0 with matching `dec3` channel metadata, and verify dependent-substream PCM against an independent reference; also cover seek, discontinuity, preroll, and malformed samples.
-2. Verify profile/object evidence and reference PCM against an independently checked decode.
-3. Measure A/V drift, queue pressure, underrun recovery, CPU, memory, and long-play behavior in Safari and Chromium on actual devices.
-4. Verify that the native audio route is restored on every failure path.
-5. Complete iOS/Android host integration and physical-device acceptance separately.
 
-OpenJOC software decode and binaural rendering are not a native Dolby decoder, native Atmos bitstream passthrough, Dolby-certified renderer, or Dolby certification.
+1. Run authorized production E-AC-3 JOC CMAF media through the complete browser Worker/Worklet path, including genuine I0+D0 media, and compare PCM with an independently checked reference.
+2. Validate seek, preroll, discontinuity, source switching, and A/V drift against real media timestamps.
+3. Measure queue pressure, underrun recovery, CPU, memory, latency, and long-play behavior in Safari and Chromium on physical devices.
+4. Verify native-audio restoration on every failure path and test iPhone, iPad, and Android device routes.
+5. Complete trusted native-host integration separately. The Swift/Kotlin modules are adapter libraries, not complete native apps.
+
+OpenJOC software decode currently outputs stereo PCM. It is not a licensed Dolby decoder, native Atmos bitstream passthrough, authored-object-preserving renderer, Dolby-certified renderer, or Dolby certification.

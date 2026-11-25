@@ -1,118 +1,82 @@
 # LibreTV Dolby Immersive Audio Engine 4.0
 
-Status: engineering upgrade baseline added on `feature/dolby-immersive-audio-v4-2026-11-25`.
+Status: experimental implementation slice on `feature/dolby-immersive-audio-v4-2026-11-25`.
 Base: `feature/cinema-engine-v2-3-integration`.
-This document records implemented software contracts and explicit external acceptance gates. It does not claim Dolby certification, JOC decoding, native Atmos output, or physical-device acceptance.
+The branch remains a Draft PR. No merge to main or production deployment is included.
 
 ## Scope and non-goals
 
-- Keep the existing ArtPlayer + hls.js / Safari native-HLS playback ownership.
+- Preserve existing ArtPlayer + hls.js / Safari native-HLS ownership.
 - Keep native media-element audio as the default and fail-open path.
-- Keep the existing opt-in Web Audio spatial engine; never silently attach it to non-CORS media.
-- Distinguish codec/manifest metadata, browser API availability, configured DSP, successful decode, object rendering, and physical output.
-- Do not ship an unreviewed decoder, undocumented binary, or proprietary Dolby implementation.
-- Do not describe HRTF virtualization as Dolby Atmos.
-- Do not promise 7.1/7.1.4 support from browser channel-count metadata alone.
+- Keep software JOC decode/output behind explicit experimental query flags and a user gesture.
+- Distinguish metadata hints, platform capability, successful decode, object rendering, and physical output.
+- Do not claim Dolby certification, native Dolby decoder output, native Atmos passthrough, authored-object preservation, or 7.1.4 capability.
 
 ## Layered architecture
 
 ```text
-Player / ArtPlayer / HLS source ownership
+Player / ArtPlayer / existing HLS source ownership
                  |
-Audio Capability Manager
-  browser API probe | source metadata | route constraints
+Audio Capability Inventory
+  browser APIs | stream metadata | native adapter facts
                  |
 Evidence & Policy Gate
-  confidence | CORS | user gesture | supported layout
+  source generation | CORS | supported profile | user gesture
        |                  |                 |
-Native media audio   Web Audio HRTF   Future native adapter
-(default/fallback)   opt-in only       iOS / Android
+Native media audio   Existing HRTF       Experimental OpenJOC
+(default/fallback)   opt-in path         Worker / WASM
        |                  |                 |
                  Output Verification
-  native output evidence | JOC decode evidence | object-render evidence
+  native output evidence | JOC decode evidence | PCM route state
   binaural configured state | fallback reason | diagnostics
 ```
 
-## Current verified implementation inherited from V2.2/V2.3 integration
+## Implemented in this branch
 
-- HLS audio rendition inspection reads `CHANNELS`, codec hints and JOC marker.
-- JOC is retained as metadata only; it is not proof of decode.
-- Spatial processing is opt-in and requires a user gesture.
-- CORS checks prevent attaching Web Audio to a media element that would become silent.
-- Stereo HRTF virtualization and a guarded 5.1 binaural route exist; six-channel sources without verified speaker ordering bypass.
-- PlayerShell exposes spatial-audio controls.
-- Playback source ownership remains with the existing player path; no second media/MSE pipeline is created.
-- Unit tests cover metadata parsing, CORS guards and spatial route decisions.
+- Typed browser audio feature inventory and evidence-based output classification. API presence and HLS metadata are not treated as proof of decode or output.
+- PlayerShell capability and verification labels integrated into the existing player UI.
+- Fail-open handling for missing/unsupported HLS metadata, source changes, spatial-engine errors, and stale state.
+- Version-1 native bridge snapshot validation with strict schema/range/enum checks, playback-session binding, freshness checks, and unknown-field stripping.
+- Isolated iOS Swift and Android Kotlin adapter libraries. They report only platform facts exposed to their host; active Dolby output, active JOC decode, and object rendering remain unknown without direct evidence.
+- Pinned OpenJOC v0.20.2 WASM build, upstream license retention, reproducible build manifest, dependency tree and SHA-256 evidence.
+- Dedicated decoder Worker, bounded input/memory, PCM copying, timestamped transport and decoder evidence.
+- Read-only hls.js fragment observation, CMAF sample extraction, `dec3` parsing and CMAF-JOC profile admission.
+- In-band I0 BSI validation and D0 `chanmap` / `dec3 chan_loc` consistency checks.
+- Bounded 48 kHz stereo AudioWorklet queue, video-clock alignment, user-gesture activation and safe fallback to native media audio.
+- Existing opt-in HRTF path remains separate from JOC decode and is never labeled Atmos.
 
-## Added in this 4.0 upgrade slice
+## Validation evidence on current PR head
 
-- Added a bounded CMAF E-AC-3 packet extractor on top of the existing fMP4 parser. It validates the selected audio track/sample entry, sample payload bounds, timestamps and discontinuities. It does not establish JOC presence or decode/render audio.
-- Added a read-only hls.js `FRAG_LOADED` observer and wired it to the existing PlayerShell only when `?jocTap=1` is explicitly present. It observes already-loaded main/audio init and media fragments, extracts E-AC-3 samples through the existing parser, and emits metadata-only diagnostic events. It does not alter loading, MSE, audio output or playback state; the default player path is unchanged.
-- Reviewed OpenJOC-Browser as an architecture reference. Its Bilibili extension-specific page hooks are not transplanted; the reusable concepts are worker decoding, timestamped PCM, bounded queues and video-clock synchronization. See `OPENJOC-BROWSER-INTEGRATION-REVIEW.md`.
-- Added a version-1 native bridge snapshot validator with session/freshness checks, bounded values, enum validation and unknown-field stripping.
-- Added isolated Swift and Kotlin native adapter libraries plus a platform build/test workflow definition. They report limited platform facts only; complete app-shell integration and physical-device acceptance remain external gates.
-- Reviewed OpenJOC v0.20.2 as a candidate software JOC decoder (Apache-2.0 core); it is not vendored or integrated. See `docs/player/JOC-DECODER-ADOPTION-REVIEW.md`.
+The current PR head has passing checks for:
+- pinned OpenJOC WASM build and upstream decoder bridge tests;
+- FFmpeg fragmented-MP4 remux and CMAF extraction → OpenJOC WASM → PCM integration;
+- TypeScript, full repository tests, lint and reproducible decoder build-evidence upload;
+- general verification and production build;
+- web/resource and collector verification;
+- iOS Swift adapter tests, Android adapter build/unit tests, and pinned OpenJOC candidate tests/WASM builds.
 
-- A typed browser audio feature inventory for Web Audio, MediaElementAudioSourceNode, HRTF PannerNode, AudioWorklet, MediaCapabilities and WebCodecs AudioDecoder API presence.
-- Evidence-based output classification with distinct states for native Dolby output, JOC decode plus object rendering, configured binaural processing, JOC-marker-only, stereo and unknown.
-- Browser-only evidence deliberately leaves native Dolby output unknown and JOC/object decoding not integrated.
-- Regression tests ensure a JOC marker cannot be promoted to decoded Atmos and HRTF cannot be mislabeled as Atmos.
+The upstream CMAF regression fixture provides seven I0-only samples, seven decoded access units, and 1568 stereo PCM frames. The deterministic PCM regression hash is `7e8dc2f9a3671fc9e14e5c9ead03c7d88dcd5ee51fa9ab99f27f58b00b0a8318`. This is a regression baseline, not an independently authored reference master. Synthetic I0+D0 extraction and channel metadata binding are tested, but genuine I0+D0 media decoding is not yet proven.
 
-## Capability boundaries
+## Capability boundaries and remaining acceptance
 
-### Web / Safari
-
-The browser can expose API availability and media metadata. It cannot reliably expose the operating system's final Dolby output route, headphone virtualization state, or proof that a browser pipeline decoded and rendered JOC objects. API presence is not proof of codec support or actual output.
-
-### iOS / iPadOS native adapter
-
-An isolated Swift Package now exists at `native/ios`. It reads the current AVAudioSession output route and emits the version-1 snapshot shape. It does not create a complete iOS app target, inspect a native player decoder, or prove Dolby/JOC/object rendering. Safari JavaScript cannot impersonate this adapter; a trusted native shell and real-device acceptance are still required.
-
-### Android native adapter
-
-An isolated Kotlin library now exists at `native/android`. It checks platform decoder capability for E-AC-3 JOC, reads Spatializer availability/enabled state where supported, and accepts the active output device from its host player. It is not a complete Android app target, is not yet wired to Media3 playback, and does not prove active JOC decoding or Dolby output. Browser JavaScript cannot query or assert these native states.
-
-### JOC decoding
-
-The current browser path does not extract complete E-AC-3 JOC access units and does not include a verified JOC decoder/object renderer. A future adapter requires:
-1. upstream source, license and reproducible-build audit;
-2. complete E-AC-3 access-unit extraction and framing;
-3. decoder correctness against known fixtures;
-4. object metadata parsing and renderer integration;
-5. PTS/discontinuity/preroll mapping and bounded PCM queues;
-6. AudioWorklet output, underrun handling and cancellation;
-7. iPhone/iPad and Android performance/thermal acceptance.
-
-No JOC WASM dependency is shipped by this upgrade slice.
-
-## Acceptance gates
-
-| Gate | Required evidence | Current status |
+| Area | Current state | Remaining acceptance |
 |---|---|---|
-| Browser API inventory | deterministic feature-probe tests | Passed on commit `8f531c8`; rerun required for newer head |
-| Audio metadata | HLS parser tests; JOC marker remains a hint | Existing tests |
-| HRTF route | route-selection and CORS regression tests | Existing tests |
-| Player integration | browser playback, source switch and teardown | CI verification passed on `8f531c8`; isolated Preview deployment/acceptance not yet confirmed |
-| Native iOS Dolby | native app build + device output evidence | Not implemented |
-| Native Android Dolby | native app build + device output evidence | Not implemented |
-| JOC decode/object render | licensed decoder + reference fixtures + output evidence | Not implemented |
-| Physical devices | real iPhone/iPad/Android device records | Not run |
-| Performance | CPU/memory/latency/thermal measurements | Not run |
+| Browser software decode | Experimental OpenJOC WASM Worker | Authorized production media and independent PCM reference |
+| D0 dependent substream | Synthetic extraction and metadata binding | Genuine I0+D0 decode and PCM comparison |
+| HLS synchronization | PTS mapping anchored to hls.js `frag.start` | Real-media seek/preroll/discontinuity and A/V drift |
+| Safari native HLS | Existing native playback remains default | Fragment tap is unavailable on native-HLS path |
+| Native iOS/Android | Isolated adapter libraries | Complete trusted host/player integration and physical-device tests |
+| Native Dolby/Atmos | Unknown unless independently evidenced | Licensed native decoder/renderer and route/output evidence |
+| Performance | Bounded queues and memory guards | CPU, memory, latency, thermal and long-play tests |
 
-## Follow-up hardening in this branch\n\n- Missing HLS audio metadata now disables the spatial graph and resets the UI mode to off instead of leaving a stale enabled indicator.\n- Unsupported channel declarations take the same fail-open path.\n- Spatial-engine initialization or processing errors explicitly disable the engine before reporting fallback.\n- Added regression coverage proving E-AC-3/multichannel metadata alone cannot establish native Dolby output.\n\n## Required device matrix
-
-- iPhone Safari: portrait, landscape, rotation, background/foreground, headphones and Bluetooth route changes.
-- iPad Safari: landscape, split view, Stage Manager, rotation, long playback and audio route changes.
-- Android Chrome: supported versions, wired/Bluetooth headphones and output route changes.
-- Android native adapter (future): Media3 decoder and Spatializer verification.
-- Every report records device/OS/browser, tested commit SHA, source codec/track metadata, route evidence, result and logs. Do not store media URLs or tokens in diagnostics.
+The browser software output is stereo PCM. OpenJOC software decode is not a licensed Dolby decoder, native Atmos renderer, native bitstream passthrough, or Dolby certification. CI and physical-device acceptance are separate. The Cloudflare Workers Build check remains a separate failed external check; the isolated Cinema V2.3 Preview workflow is skipped, and no deployment is claimed.
 
 ## Release rules
 
-- Native Dolby output is reported only when a native adapter supplies explicit, traceable output evidence.
-- JOC decoding is reported only when the decoder reports successful access-unit processing and object rendering is separately confirmed.
-- HRTF is reported as software binaural processing, never as Atmos.
-- Unknown layouts bypass processing.
-- Any DSP failure returns to the original media route where safe.
-- CI, Preview, Chromium emulation and physical-device acceptance are separate gates.
-- No merge to main or production deployment is part of this work.
+- Native Dolby output requires explicit traceable native-adapter output evidence.
+- JOC decode requires successful decoder access-unit evidence for the active source generation.
+- Object rendering must be separately evidenced; JOC decoding alone is not object rendering.
+- HRTF is reported as software binaural processing, never Atmos.
+- Unknown or unsupported layouts bypass processing.
+- Any software-DSP failure restores the original media audio route where safe.
+- No merge or production deployment is part of this work.
