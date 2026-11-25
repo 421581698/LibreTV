@@ -203,33 +203,18 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the documented JSON ac=detail action for BaoFeng API sources', async () => {
-    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      expect(url).toContain('?ac=detail&ids=171637');
-      expect(url).not.toContain('ac=videolist');
-      return new Response(JSON.stringify({
-        code: 1,
-        list: [{
-          vod_id: '171637',
-          vod_name: '今天是太阳雨',
-          vod_year: '2026',
-          vod_play_url: '第1集$https://media.example.com/episode-1.m3u8',
-        }],
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    });
+  it('rejects a disabled provider through the detail endpoint before fetching', async () => {
+    const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
 
     const response = await GET(makeRequest({
-      id: '171637',
-      source: source('https://bfzyapi.com/api.php/provide/vod/', 'storm-source'),
+      id: 'movie-1',
+      source: source('https://disabled-provider.example/api.php', 'bfzy'),
     }));
 
-    expect(response.status).toBe(200);
-    const data = await response.json() as { episodes: string[]; videoInfo: { title?: string } };
-    expect(data.episodes).toEqual(['https://media.example.com/episode-1.m3u8']);
-    expect(data.videoInfo.title).toBe('今天是太阳雨');
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: '该点播源已停用' });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('does not attach playable episodes from a different CMS vod_id', async () => {
@@ -303,6 +288,110 @@ describe('GET /api/detail', () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ error: '未找到播放资源' });
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps generic CMS episode labels, order and playback URLs aligned', async () => {
+    const playUrl = [
+      '第01集$https://media-fixture.example/series/ep01.m3u8',
+      '第02集$https://media-fixture.example/series/ep02.m3u8',
+      '特别篇$https://media-fixture.example/series/special.m3u8',
+    ].join('#');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const requested = new URL(String(input));
+      expect(requested.searchParams.get('ac')).toBe('videolist');
+      expect(requested.searchParams.get('ids')).toBe('series-fixture-01');
+      return new Response(JSON.stringify({
+        code: 1,
+        list: [{
+          vod_id: 'series-fixture-01',
+          vod_name: '通用测试剧集',
+          vod_play_url: playUrl,
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'series-fixture-01',
+      source: source('https://cms-series-fixture.example/api.php/provide/vod', 'cms-series-fixture'),
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as {
+      episodes: string[];
+      episodeItems: Array<{ title: string; url: string }>;
+      videoInfo: { title?: string; sourceKey?: string };
+    };
+    expect(data.episodes).toEqual([
+      'https://media-fixture.example/series/ep01.m3u8',
+      'https://media-fixture.example/series/ep02.m3u8',
+      'https://media-fixture.example/series/special.m3u8',
+    ]);
+    expect(data.episodeItems).toEqual([
+      { title: '第01集', url: data.episodes[0] },
+      { title: '第02集', url: data.episodes[1] },
+      { title: '特别篇', url: data.episodes[2] },
+    ]);
+    expect(data.videoInfo).toMatchObject({
+      title: '通用测试剧集',
+      sourceKey: 'cms-series-fixture',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+
+
+  it('filters unsafe URLs from the HTML detail fallback before returning episodes', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('ac=videolist')) {
+        return new Response(JSON.stringify(cmsDetail('')), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(
+        '<html><h1>Fallback fixture</h1><script>const a="$https://user:pass@media.example/blocked.m3u8"; const b="$https://media.example/fallback-safe.m3u8";</script></html>',
+        { status: 200, headers: { 'content-type': 'text/html' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'movie-1',
+      source: source('https://cms-html-fixture.example/api.php'),
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as { episodes: string[] };
+    expect(data.episodes).toEqual(['https://media.example/fallback-safe.m3u8']);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a source marked as not safety-reviewed before fetching details', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const response = await GET(makeRequest({
+      id: 'movie-1',
+      source: { ...source('https://review-required.example/api.php'), isAdult: true },
+    }));
+    expect(response.status).toBe(403);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('never returns credential-bearing playback URLs from a CMS detail response', async () => {
+    const playUrl = [
+      '不安全$https://user:pass@media.example/blocked.m3u8',
+      '正片$https://media.example/safe.m3u8',
+    ].join('#');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify(cmsDetail(playUrl)),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )));
+    const response = await GET(makeRequest({
+      id: 'movie-1',
+      source: source('https://cms-playback-fixture.example/api.php'),
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as { episodes: string[] };
+    expect(data.episodes).toEqual(['https://media.example/safe.m3u8']);
   });
 
   it('returns 502 when the upstream request fails unexpectedly', async () => {

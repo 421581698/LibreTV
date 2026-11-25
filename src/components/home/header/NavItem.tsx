@@ -4,5 +4,5 @@ const normalize = (value: string | null) => !value || value === '/' ? '/' : valu
 export function NavItem({ pathname, href, label, className = '' }: P) {
   const current = normalize(pathname);
   const active = href === '/' ? current === '/' : current === href || current.startsWith(href + '/');
-  return <Link href={href} className={('v4-nav-link ' + className + (active ? ' is-active' : '')).trim()} aria-current={active ? 'page' : undefined}>{label}</Link>;
+  return <Link href={href} className={('v4-nav-link ' + className + (active ? ' is-active' : '')).trim()} data-friday-material="regular" aria-current={active ? 'page' : undefined}>{label}</Link>;
 }

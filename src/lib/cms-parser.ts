@@ -7,6 +7,18 @@ import type { SearchResultItem, VideoDetail } from './types';
 
 const M3U8_PATTERN = /\$https?:\/\/[^"'\s]+?\.m3u8/g;
 
+
+/** Accept only absolute HTTP(S) playback URLs without embedded credentials. */
+function isSafePlaybackUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'http:' || url.protocol === 'https:') &&
+      Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 const UA_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -48,8 +60,8 @@ export function parseSearchList(
 
 /**
  * 从 vod_play_url 中提取分集地址：格式 源1$$$源2，集1$URL1#集2$URL2。
- * 部分源（如量子 lziapi、非凡 ffzy）第一条线路是网页中转页（…/share/xxx，不可播），
- * 真实 m3u8 在后面的线路里，因此优先取包含 m3u8 直链的线路；均无 m3u8 时回退第一条。
+ * Some CMS providers place a web redirect before the direct media URL.
+ * Prefer a line containing a direct m3u8 URL; if none exists, retain the first valid HTTP(S) line.
  */
 export function extractEpisodeItemsFromPlayUrl(playUrl: string): { title: string; url: string }[] {
   if (!playUrl) return [];
@@ -64,9 +76,7 @@ export function extractEpisodeItemsFromPlayUrl(playUrl: string): { title: string
           if (separator < 0) return null;
           const title = episode.slice(0, separator).trim();
           const url = episode.slice(separator + 1).trim();
-          return url.startsWith('http://') || url.startsWith('https://')
-            ? { title, url }
-            : null;
+          return isSafePlaybackUrl(url) ? { title, url } : null;
         })
         .filter((episode): episode is { title: string; url: string } => episode !== null)
     )
@@ -84,7 +94,7 @@ export function extractEpisodesFromPlayUrl(playUrl: string): string[] {
 export function extractM3u8FromText(text: string): string[] {
   if (!text) return [];
   const matches = text.match(M3U8_PATTERN) || [];
-  return matches.map((link) => link.replace(/^\$/, ''));
+  return matches.map((link) => link.replace(/^\$/, '')).filter(isSafePlaybackUrl);
 }
 
 /** 根据 CMS 分类识别电影；不能只依赖「电影」二字，因为 Apple CMS 常用「动作片/科幻片」等类型名。 */
@@ -225,7 +235,7 @@ export function parseDetailPageHtml(
     const parenIndex = u.indexOf('(');
     if (parenIndex > 0) u = u.substring(0, parenIndex);
     return u;
-  });
+  }).filter(isSafePlaybackUrl);
 
   const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
   const descMatch = html.match(/<div[^>]*class=["']sketch["'][^>]*>([\s\S]*?)<\/div>/);
@@ -254,8 +264,8 @@ export function isAdultContent(typeName: string | undefined): boolean {
   return ADULT_KEYWORDS.some((k) => typeName.includes(k));
 }
 
-export function filterAdultResults<T extends { typeName?: string }>(items: T[], enabled: boolean): T[] {
-  if (!enabled) return items;
+export function filterAdultResults<T extends { typeName?: string }>(items: T[], _enabled: boolean): T[] {
+  // Safety filtering is server-enforced; a client preference cannot disable it.
   return items.filter((item) => !isAdultContent(item.typeName));
 }
 

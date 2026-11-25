@@ -36,4 +36,13 @@ describe('rankSourcesByHealth', () => {
     expect(ranked.map((source) => source.key)).toEqual(['slow', 'unknown', 'fast', 'failed']);
   });
 
+  it('uses configured lower weight to break otherwise equal health ties', () => {
+    const weighted = [
+      { key: 'weight-6', weight: 6 },
+      { key: 'weight-1', weight: 1 },
+      { key: 'weight-3', weight: 3 },
+    ];
+    expect(rankSourcesByHealth(weighted, {}, 10_000).map((source) => source.key))
+      .toEqual(['weight-1', 'weight-3', 'weight-6']);
+  });
 });

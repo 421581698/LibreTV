@@ -464,7 +464,7 @@ html:has(.netflix-watch) .netflix-player-frame {
   margin: 0 !important;
   border-radius: 0 !important;
 }
-html:has(.netflix-watch) .netflix-title-row,
+html:has(.netflix-watch) .netflix-watch-shell:not(.ipad-edition-watch) .netflix-title-row,
 html:has(.netflix-watch) .netflix-watch-tools,
 html:has(.netflix-watch) .netflix-watch-sidebar,
 html:has(.netflix-watch) .netflix-related-section,
@@ -529,7 +529,7 @@ html:has(.netflix-watch-shell) body {
 html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
   display: none !important;
 }
-.netflix-watch-shell {
+.netflix-watch-shell:not(.ipad-edition-watch) {
   position: fixed !important;
   inset: 0 !important;
   z-index: 20 !important;
@@ -617,7 +617,7 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
   object-fit: contain !important;
   background: #000 !important;
 }
-.netflix-watch-shell .netflix-title-row,
+.netflix-watch-shell:not(.ipad-edition-watch) .netflix-title-row,
 .netflix-watch-shell .netflix-related-section,
 .netflix-watch-shell .netflix-below-player,
 .netflix-watch-shell .netflix-next-preview,
@@ -884,7 +884,7 @@ html:has(.netflix-watch-shell) body > nav.v4-mobile-tabbar {
 .netflix-watch-shell .watch-cinema-tabs button { min-height:44px !important; padding:0 17px !important; border:1px solid rgba(255,255,255,.12) !important; border-radius:999px !important; color:rgba(255,255,255,.72) !important; background:rgba(43,43,45,.68) !important; font-size:14px !important; white-space:nowrap !important; }
 .netflix-watch-shell .watch-cinema-tabs button.active { color:#fff !important; background:rgba(80,80,84,.78) !important; }
 .netflix-watch-shell .watch-cinema-copy { order:4 !important; display:none !important; }
-.netflix-watch-shell .netflix-title-row,
+.netflix-watch-shell:not(.ipad-edition-watch) .netflix-title-row,
 .netflix-watch-shell .netflix-watch-tools { display:none !important; }
 .netflix-watch-shell .netflix-watch-utility-panel.is-open { z-index:70 !important; }
 @media (max-width:700px) {
@@ -1223,4 +1223,541 @@ html:has(.netflix-watch) .netflix-watch-shell .watch-topbar-right > button {
   .netflix-watch-shell .player-quality-controls {
     transition: none !important;
   }
+}
+
+
+/* Playback obstruction repair:
+   keep the auxiliary action strip out of the lower seek/progress panel, and
+   auto-hide it together with the other cinema controls during active playback. */
+.netflix-watch-shell .netflix-watch-tools {
+  inset: calc(66px + env(safe-area-inset-top, 0px)) auto auto 14px !important;
+  z-index: 54 !important;
+  max-width: min(520px, calc(100vw - 28px)) !important;
+  transition: opacity 240ms ease, visibility 240ms step-start !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .netflix-watch-tools {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 240ms ease, visibility 240ms step-end !important;
+}
+.netflix-watch-shell:has(.netflix-watch-utility-panel.is-open) .netflix-watch-tools {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+@media (max-width: 700px) {
+  .netflix-watch-shell .netflix-watch-tools {
+    top: calc(62px + env(safe-area-inset-top, 0px)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    max-width: none !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+  }
+}
+
+
+/* Center the seek rail between elapsed/remaining time and keep it reachable
+   while the cinematic chrome is auto-hidden. A scrub owns the visibility lock
+   until pointer/touch release, so the thumb and preview never disappear mid-drag. */
+.netflix-watch-shell .watch-cinema-playback {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(54px, 72px) minmax(0, 1fr) minmax(54px, 72px) !important;
+  grid-template-rows: 24px !important;
+  align-items: center !important;
+  gap: 0 14px !important;
+  width: 100% !important;
+  max-width: min(100%, 1080px) !important;
+  margin-inline: auto !important;
+}
+.netflix-watch-shell .watch-cinema-time { display: contents !important; }
+.netflix-watch-shell .watch-cinema-time span:first-child {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  text-align: left !important;
+}
+.netflix-watch-shell .watch-cinema-time span:last-child {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  text-align: right !important;
+}
+.netflix-watch-shell .watch-cinema-progress {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  touch-action: pan-x !important;
+  --watch-progress: 0%;
+}
+.netflix-watch-shell .watch-cinema-progress::-webkit-slider-runnable-track {
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(to right, #fff 0 var(--watch-progress), rgba(255,255,255,.3) var(--watch-progress) 100%) !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-webkit-slider-thumb {
+  width: 14px !important;
+  height: 14px !important;
+  margin-top: -5px !important;
+  border: 2px solid rgba(0,0,0,.25) !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 1px 8px rgba(0,0,0,.55) !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-track {
+  height: 4px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(to right, #fff 0 var(--watch-progress), rgba(255,255,255,.3) var(--watch-progress) 100%) !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-thumb {
+  width: 12px !important;
+  height: 12px !important;
+  border: 2px solid rgba(0,0,0,.25) !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 1px 8px rgba(0,0,0,.55) !important;
+}
+.netflix-watch-shell .watch-cinema-scrub-preview {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: calc(100% + 8px) !important;
+  z-index: 3 !important;
+  transform: translateX(-50%) !important;
+  padding: 4px 9px !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  background: rgba(0,0,0,.78) !important;
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums !important;
+  pointer-events: none !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-info {
+  left: clamp(18px, 8vw, 120px) !important;
+  right: clamp(18px, 8vw, 120px) !important;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-meta,
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-time,
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-rate,
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-tabs,
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-copy {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-playback {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: 18px !important;
+  width: 100% !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-progress {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+.netflix-watch-shell.cinema-controls-scrubbing .watch-topbar,
+.netflix-watch-shell.cinema-controls-scrubbing .cinema-center-controls,
+.netflix-watch-shell.cinema-controls-scrubbing .watch-cinema-info,
+.netflix-watch-shell.cinema-controls-scrubbing .player-quality-controls {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+.netflix-watch-shell.cinema-controls-scrubbing .watch-cinema-progress {
+  height: 30px !important;
+  min-height: 30px !important;
+}
+@media (max-width: 700px) {
+  .netflix-watch-shell .watch-cinema-playback {
+    grid-template-columns: minmax(42px, 52px) minmax(0, 1fr) minmax(42px, 52px) !important;
+    gap: 0 8px !important;
+  }
+  .netflix-watch-shell.cinema-controls-hidden .watch-cinema-info {
+    left: 18px !important;
+    right: 18px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .netflix-watch-shell .watch-cinema-progress { transition: none !important; }
+}
+
+.netflix-watch-shell .watch-cinema-rate {
+  position: fixed !important;
+  right: 40px !important;
+  bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+  z-index: 51 !important;
+}
+@media (max-width: 700px) {
+  .netflix-watch-shell .watch-cinema-rate {
+    right: 22px !important;
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* iPad playback transport correction:
+   keep the timeline centered across the complete control rail (not squeezed
+   into the left grid column), and keep the live play/pause state explicit. */
+.netflix-watch-shell .watch-cinema-info {
+  left: 50% !important;
+  right: auto !important;
+  width: min(1100px, calc(100vw - 48px)) !important;
+  transform: translateX(-50%) !important;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+.netflix-watch-shell .watch-cinema-playback {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 44px !important;
+  grid-template-rows: auto 22px !important;
+  align-items: center !important;
+  gap: 7px 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.netflix-watch-shell .watch-cinema-time {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+.netflix-watch-shell .watch-cinema-progress {
+  grid-column: 1 / -1 !important;
+  grid-row: 2 !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-self: stretch !important;
+  touch-action: pan-x !important;
+}
+.netflix-watch-shell .watch-cinema-rate {
+  position: static !important;
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  justify-self: end !important;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+}
+.netflix-watch-shell .watch-cinema-scrub-preview {
+  left: 50% !important;
+  bottom: calc(100% + 10px) !important;
+  transform: translateX(-50%) !important;
+  z-index: 5 !important;
+  white-space: nowrap !important;
+}
+.netflix-watch-shell .cinema-play-control .cinema-play-icon--play path {
+  fill: currentColor !important;
+  stroke: none !important;
+}
+.netflix-watch-shell .cinema-play-control .cinema-play-icon--pause path {
+  fill: none !important;
+  stroke: currentColor !important;
+}
+.netflix-watch-shell .cinema-play-control[data-playback-state="playing"] {
+  color: #fff !important;
+}
+.netflix-watch-shell .cinema-play-control[data-playback-state="paused"] {
+  color: #fff !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-playback {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: 22px !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-time,
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-rate {
+  display: none !important;
+}
+.netflix-watch-shell.cinema-controls-hidden .watch-cinema-progress {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+}
+@media (max-width: 700px) {
+  .netflix-watch-shell .watch-cinema-info {
+    left: 50% !important;
+    right: auto !important;
+    width: calc(100vw - 32px) !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .netflix-watch-shell .watch-cinema-playback {
+    grid-template-columns: minmax(0, 1fr) 40px !important;
+    grid-template-rows: auto 22px !important;
+    gap: 6px 8px !important;
+  }
+  .netflix-watch-shell .watch-cinema-progress {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    height: 22px !important;
+    min-height: 22px !important;
+  }
+}
+@media (max-height: 700px) and (orientation: landscape) {
+  .netflix-watch-shell .watch-cinema-info {
+    width: min(900px, calc(100vw - 40px)) !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+
+/* PR #99 — Apple TV minimal timeline (方案 A).
+   Only the visible seek rail and thumb are refined; the existing range input
+   keeps its larger 22px hit area and all playback behavior remains untouched. */
+.netflix-watch-shell .watch-cinema-progress {
+  height: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  touch-action: pan-x !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-webkit-slider-runnable-track {
+  height: 2px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    to right,
+    #fff 0 var(--watch-progress),
+    rgba(255,255,255,.34) var(--watch-progress) 100%
+  ) !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-webkit-slider-thumb {
+  width: 8px !important;
+  height: 8px !important;
+  margin-top: -3px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.4) !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-track {
+  height: 2px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,.34) !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-progress {
+  height: 2px !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+}
+.netflix-watch-shell .watch-cinema-progress::-moz-range-thumb {
+  width: 8px !important;
+  height: 8px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.4) !important;
+}
+
+/* PR #99 — iPad Edition minimal timeline. Keep native range input and playback behavior. */
+.ipad-edition-watch .watch-cinema-info {
+  left: 50% !important; right: auto !important;
+  width: min(88vw, 1200px) !important; max-width: min(88vw, 1200px) !important;
+  transform: translateX(-50%) !important; padding: 0 !important;
+  border: 0 !important; border-radius: 0 !important; background: transparent !important;
+  box-shadow: none !important; -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important; overflow: visible !important;
+}
+.ipad-edition-watch .watch-cinema-playback {
+  position: relative !important;
+  width: 100% !important; max-width: none !important;
+  grid-template-columns: minmax(0, 1fr) 44px !important;
+  grid-template-rows: 20px 44px !important; align-items: center !important;
+  gap: 2px 14px !important;
+}
+.ipad-edition-watch .watch-cinema-time {
+  grid-column: 1 !important; grid-row: 1 !important; display: flex !important;
+  align-items: center !important; justify-content: space-between !important;
+  min-width: 0 !important; color: rgba(255,255,255,.88) !important;
+  font-size: 13px !important; line-height: 20px !important; font-weight: 500 !important;
+  font-variant-numeric: tabular-nums !important; letter-spacing: .01em !important;
+}
+.ipad-edition-watch .watch-cinema-time span:last-child { color: rgba(255,255,255,.58) !important; }
+.ipad-edition-watch .watch-cinema-progress {
+  grid-column: 1 / -1 !important; grid-row: 2 !important; display: block !important;
+  width: 100% !important; height: 44px !important; min-height: 44px !important;
+  margin: 0 !important; padding: 0 !important; background: transparent !important;
+  appearance: none !important; -webkit-appearance: none !important;
+  cursor: pointer !important; touch-action: pan-x !important; --watch-progress: 0%;
+}
+.ipad-edition-watch .watch-cinema-progress::-webkit-slider-runnable-track {
+  height: 2px !important; border: 0 !important; border-radius: 999px !important;
+  background: linear-gradient(to right, #fff 0 var(--watch-progress), rgba(255,255,255,.34) var(--watch-progress) 100%) !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-webkit-slider-thumb {
+  width: 8px !important; height: 8px !important; margin-top: -3px !important;
+  border: 0 !important; border-radius: 50% !important; background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.42) !important;
+  appearance: none !important; -webkit-appearance: none !important;
+  transition: transform 140ms ease, box-shadow 140ms ease !important;
+}
+.ipad-edition-watch .watch-cinema-progress:active::-webkit-slider-thumb,
+.ipad-edition-watch .watch-cinema-progress:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 0 5px rgba(255,255,255,.13), 0 1px 7px rgba(0,0,0,.45) !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-moz-range-track {
+  height: 2px !important; border: 0 !important; border-radius: 999px !important;
+  background: rgba(255,255,255,.34) !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-moz-range-progress {
+  height: 2px !important; border: 0 !important; border-radius: 999px !important; background: #fff !important;
+}
+.ipad-edition-watch .watch-cinema-progress::-moz-range-thumb {
+  width: 8px !important; height: 8px !important; border: 0 !important;
+  border-radius: 50% !important; background: #fff !important;
+  box-shadow: 0 1px 5px rgba(0,0,0,.42) !important;
+  transition: transform 140ms ease, box-shadow 140ms ease !important;
+}
+.ipad-edition-watch .watch-cinema-progress:active::-moz-range-thumb,
+.ipad-edition-watch .watch-cinema-progress:focus-visible::-moz-range-thumb {
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 0 5px rgba(255,255,255,.13), 0 1px 7px rgba(0,0,0,.45) !important;
+}
+.ipad-edition-watch .watch-cinema-scrub-preview {
+  left: 50% !important; bottom: calc(44px + 2px) !important; z-index: 8 !important;
+  transform: translateX(-50%) !important; padding: 3px 8px !important;
+  border: 0 !important; border-radius: 6px !important; color: #fff !important;
+  background: rgba(20,20,20,.88) !important; font-size: 12px !important;
+  font-weight: 600 !important; font-variant-numeric: tabular-nums !important;
+  white-space: nowrap !important; pointer-events: none !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-info {
+  left: 50% !important; right: auto !important;
+  width: min(88vw, 1200px) !important; max-width: min(88vw, 1200px) !important;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: none !important;
+  opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-playback {
+  grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: 44px !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-progress {
+  grid-column: 1 !important; grid-row: 1 !important; height: 44px !important; min-height: 44px !important;
+}
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-time,
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-rate { display: none !important; }
+.ipad-edition-watch.cinema-controls-scrubbing .watch-cinema-info { opacity: 1 !important; visibility: visible !important; }
+@media (max-width: 700px) {
+  .ipad-edition-watch .watch-cinema-info,
+  .ipad-edition-watch.cinema-controls-hidden .watch-cinema-info {
+    width: 88vw !important; max-width: 88vw !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition-watch .watch-cinema-progress::-webkit-slider-thumb,
+  .ipad-edition-watch .watch-cinema-progress::-moz-range-thumb { transition: none !important; }
+}
+
+
+/* Web fullscreen must target the watch shell rather than the video node so
+   the custom transport remains in the fullscreen top layer with the video. */
+.netflix-watch-shell:fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  overflow: hidden !important;
+  background: #000 !important;
+}
+.netflix-watch-shell:fullscreen .watch-topbar { z-index: 55 !important; }
+.netflix-watch-shell:fullscreen .cinema-center-controls { z-index: 48 !important; }
+.netflix-watch-shell:fullscreen .watch-cinema-info { z-index: 50 !important; }
+
+/* PR #99 playback auto-hide correction:
+   In normal playback the entire bottom transport (including the seek rail)
+   must disappear with the rest of the cinema controls. Keep it visible only
+   while an active scrub is in progress; pointer interaction on the video
+   surface can reveal it again. */
+.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-info {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 240ms ease, visibility 240ms step-end !important;
+}
+
+
+/* PR #99 iPad player hit-testing and hidden seek target correction. */
+/* ArtPlayer's video surface is above the legacy z-index:55 topbar rule.
+   The iPad header needs its own higher layer so fullscreen/AirPlay buttons
+   receive real pointer and touch input instead of the video element. */
+.ipad-edition-watch > .watch-topbar.netflix-watch-overlay-topbar {
+  z-index: 90 !important;
+}
+
+/* The shared desktop rule intentionally keeps its slim seek rail reachable.
+   iPad Edition auto-hide means fully hidden chrome: remove the invisible range
+   from hit testing and keyboard focus until the next reveal gesture. */
+.ipad-edition-watch.cinema-controls-hidden .watch-cinema-progress {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+/* iOS/iPadOS seek targets must receive the horizontal drag instead of
+   handing it to the browser's pan recognizer. The old pan-x setting made
+   both ArtPlayer's timeline and the page-owned range behave like scroll
+   gestures, so neither seek path consistently received move/release events. */
+.netflix-player-frame .artplayer .art-progress,
+.netflix-player-frame .art-video-player .art-progress,
+.netflix-player-frame .artplayer .art-progress-bar,
+.netflix-player-frame .art-video-player .art-progress-bar,
+.netflix-watch-shell .watch-cinema-progress,
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame .art-progress,
+.ipad-edition[data-ipad-player="true"] .netflix-player-frame .art-progress-bar,
+.ipad-edition[data-ipad-player="true"] .watch-cinema-progress {
+  pointer-events: auto !important;
+  touch-action: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Hidden iPad seek rails must not remain in hit testing after the shared
+   gesture rule above restores pointer input for visible playback controls. */
+.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-progress {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }

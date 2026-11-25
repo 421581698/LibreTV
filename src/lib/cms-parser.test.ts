@@ -75,11 +75,24 @@ describe('extractEpisodesFromPlayUrl', () => {
     expect(extractEpisodesFromPlayUrl(play)).toEqual(['https://cdn/a3.m3u8']);
   });
 
-  it('第一条线路为中转页时优先取 m3u8 线路（量子/非凡类源）', () => {
+  it('rejects playback URLs with embedded credentials while preserving safe HTTP(S) links', () => {
+    const play = [
+      '凭据地址$https://user:pass@media.example/ep0.m3u8',
+      '正常地址$https://media.example/ep1.m3u8',
+      '非安全协议$ftp://media.example/ep2.m3u8',
+      'HTTP 地址$http://media.example/ep3.mp4',
+    ].join('#');
+    expect(extractEpisodeItemsFromPlayUrl(play)).toEqual([
+      { title: '正常地址', url: 'https://media.example/ep1.m3u8' },
+      { title: 'HTTP 地址', url: 'http://media.example/ep3.mp4' },
+    ]);
+  });
+
+  it('第一条线路为中转页时优先取 m3u8 线路（通用 CMS 源）', () => {
     const play =
-      'HD中字$https://vip.lzcdn2.com/share/abc$$$HD中字$https://vip.lzcdn2.com/20220329/1012_e9be6a92/index.m3u8';
+      'HD中字$https://media-fixture.example/share/abc$$$HD中字$https://media-fixture.example/series/index.m3u8';
     expect(extractEpisodesFromPlayUrl(play)).toEqual([
-      'https://vip.lzcdn2.com/20220329/1012_e9be6a92/index.m3u8',
+      'https://media-fixture.example/series/index.m3u8',
     ]);
   });
 
@@ -103,6 +116,11 @@ describe('extractM3u8FromText', () => {
     const text = '正片$https://cdn.com/x/index.m3u8 更多';
     expect(extractM3u8FromText(text)).toEqual(['https://cdn.com/x/index.m3u8']);
   });
+  it('rejects fallback playback URLs containing embedded credentials', () => {
+    const text = '凭据地址$https://user:pass@media.example/unsafe.m3u8 正常地址$https://media.example/safe.m3u8';
+    expect(extractM3u8FromText(text)).toEqual(['https://media.example/safe.m3u8']);
+  });
+
 });
 
 describe('parseDetail', () => {
@@ -223,10 +241,10 @@ describe('parseDetailPageHtml', () => {
     expect(detail.videoInfo.desc).toBe('简介 内容');
   });
 
-  it('非凡影视特征路径兜底', () => {
-    const html = '$https://vip.ffzy.com/20231101/12345_abcdef/index.m3u8';
+  it('支持日期路径格式的通用回退', () => {
+    const html = '$https://media-fixture.example/series/fallback/index.m3u8';
     const detail = parseDetailPageHtml(html, source);
-    expect(detail.episodes).toContain('https://vip.ffzy.com/20231101/12345_abcdef/index.m3u8');
+    expect(detail.episodes).toContain('https://media-fixture.example/series/fallback/index.m3u8');
   });
 });
 
@@ -238,10 +256,10 @@ describe('成人内容过滤', () => {
     expect(isAdultContent(undefined)).toBe(false);
   });
 
-  it('filterAdultResults 按开关过滤', () => {
+  it('filterAdultResults cannot be disabled by a client preference', () => {
     const items = [{ typeName: '伦理片' }, { typeName: '剧情片' }];
     expect(filterAdultResults(items, true)).toEqual([{ typeName: '剧情片' }]);
-    expect(filterAdultResults(items, false)).toHaveLength(2);
+    expect(filterAdultResults(items, false)).toEqual([{ typeName: '剧情片' }]);
   });
 });
 

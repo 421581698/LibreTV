@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { POST } from './route';
+import { POST, validateSources } from './route';
 import { NextRequest } from 'next/server';
 import { SESSION_COOKIE, signSession } from '@/lib/auth';
 import type { SearchResponse, SearchStreamEvent, SourceConfig } from '@/lib/types';
@@ -71,6 +71,44 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('validateSources', () => {
+  it('preserves validated CMS provider metadata without accepting cross-origin metadata URLs', () => {
+    const sources = validateSources([{
+      key: 'cms-fixture',
+      name: '通用测试源',
+      url: 'https://cms-fixture.example/api.php/provide/vod',
+      api: 'https://cms-fixture.example/api.php/provide/vod/?ac=list',
+      from: 'https://cms-fixture.example/api.php/provide/vod/from/cms-fixture/',
+      type: 1,
+      weight: 1,
+    }, {
+      key: 'untrusted',
+      name: '外部元数据',
+      url: 'https://cms.example.com/api.php/provide/vod',
+      api: 'https://attacker.example/api.php/provide/vod/?ac=list',
+      from: 'https://attacker.example/from/',
+      type: 1,
+      weight: 2,
+    }]);
+    expect(sources[0]).toMatchObject({
+      key: 'cms-fixture',
+      api: 'https://cms-fixture.example/api.php/provide/vod/?ac=list',
+      from: 'https://cms-fixture.example/api.php/provide/vod/from/cms-fixture/',
+      type: 1,
+      weight: 1,
+    });
+    expect(sources[1]).not.toHaveProperty('api');
+    expect(sources[1]).not.toHaveProperty('from');
+    expect(sources[1]).toMatchObject({ type: 1, weight: 2 });
+
+    const reversed = validateSources([
+      { key: 'later', name: '后置', url: 'https://cms-later.example/api.php', weight: 6 },
+      { key: 'first', name: '优先', url: 'https://cms-first.example/api.php', weight: 1 },
+    ]);
+    expect(reversed.map((source) => source.key)).toEqual(['first', 'later']);
+  });
+});
+
 describe('POST /api/search', () => {
   it('聚合多源结果：同源去重、成人内容过滤、失败源进 failures', async () => {
     mockUpstream();
@@ -90,6 +128,38 @@ describe('POST /api/search', () => {
     expect(data.failures).toHaveLength(1);
     expect(data.failures[0].sourceKey).toBe('b');
     expect(data.failures[0].error).toContain('500');
+  });
+
+  it('normalizes generic CMS search results and safely encodes the keyword', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const requested = new URL(String(input));
+      expect(requested.searchParams.get('wd')).toBe('星际探索 & 未来');
+      expect(requested.searchParams.get('ac')).toBe('videolist');
+      return new Response(cmsList([
+        { vod_id: 'film-01', vod_name: '星际探索', type_name: '科幻电影', vod_year: 2019 },
+        { vod_id: 'film-01', vod_name: '重复条目', type_name: '科幻电影' },
+        { vod_id: 'film-02', vod_name: '未来城市', type_name: '科幻电影' },
+        { vod_id: '', vod_name: '缺少 ID 的条目', type_name: '科幻电影' },
+      ]), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await POST(makeRequest({
+      wd: '星际探索 & 未来',
+      sources: [{ key: 'cms-fixture', name: 'Mock CMS', url: 'https://cms-fixture.example/api.php/provide/vod' }],
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as SearchResponse;
+    expect(data.list).toHaveLength(2);
+    expect(data.list.map((item) => item.vodId)).toEqual(['film-01', 'film-02']);
+    expect(data.list[0]).toMatchObject({
+      sourceKey: 'cms-fixture',
+      sourceUrl: 'https://cms-fixture.example/api.php/provide/vod',
+      name: '星际探索',
+      typeName: '科幻电影',
+      year: '2019',
+    });
+    expect(data.failures).toEqual([]);
   });
 
   it('uses browser-local Collector credentials only on an authenticated search request', async () => {
@@ -244,7 +314,7 @@ describe('POST /api/search', () => {
     expect(lines[lines.length - 1].type).toBe('done');
   });
 
-  it.each([true, false])('逐源、最终与缓存结果使用相同过滤规则（成人过滤：%s）', async (filterAdult) => {
+  it.each([true, false])('逐源、最终与失败后重试使用相同过滤规则（成人过滤：%s）', async (filterAdult) => {
     const sources: SourceConfig[] = [
       { key: 'good', name: '有效源', url: `https://cms.example.com/consistent-${filterAdult}` },
       { key: 'bad', name: '失败源', url: `https://cms.example.com/failed-${filterAdult}` },
@@ -266,21 +336,23 @@ describe('POST /api/search', () => {
     const good = events.find((event) => event.type === 'source' && event.sourceKey === 'good');
     const failed = events.find((event) => event.type === 'source' && event.sourceKey === 'bad');
     const done = events.find((event) => event.type === 'done');
-    const ids = filterAdult ? ['1'] : ['1', '4'];
+    const ids = ['1'];
     expect(good?.list.map((item) => item.vodId)).toEqual(ids);
     expect(good).toMatchObject({ type: 'source', sourceKey: 'good', ok: true, ms: expect.any(Number) });
     expect(failed).toMatchObject({ type: 'source', sourceKey: 'bad', ok: false, list: [], error: 'HTTP 500' });
     expect(done).toMatchObject({ type: 'done', list: good?.list, failures: [{ sourceKey: 'bad', error: 'HTTP 500' }] });
 
-    // 同一缓存同时服务 JSON 和流式客户端，不能重新引入原始杂项。
+    // 含失败源的结果不得缓存；重试必须重新请求上游并保留过滤规则。
     const calls = fetchSpy.mock.calls.length;
     const json = await POST(makeRequest(body));
     const cached = await json.json() as SearchResponse;
     expect(cached.list).toEqual(good?.list);
     expect(cached.failures).toEqual(done?.type === 'done' ? done.failures : undefined);
     const cachedStream = await POST(makeRequest(body, true));
-    expect((await cachedStream.text()).trim().split('\n').map((line) => JSON.parse(line))).toEqual([done]);
-    expect(fetchSpy).toHaveBeenCalledTimes(calls);
+    const retriedEvents = (await cachedStream.text()).trim().split('\n').map((line) => JSON.parse(line) as SearchStreamEvent);
+    expect(retriedEvents.filter((event) => event.type === 'source')).toHaveLength(2);
+    expect(retriedEvents.find((event) => event.type === 'done')).toMatchObject({ type: 'done', list: good?.list, failures: [{ sourceKey: 'bad', error: 'HTTP 500' }] });
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(calls);
 
     // 新地址走非缓存 JSON 分支，仍须得到相同的筛选结果。
     const fresh = await POST(makeRequest({ ...body, sources: sources.map((source) => ({ ...source, url: source.url + '/fresh' })) }));

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/homepage-cinema-lobby-order-2026-11-11
+      - feature/libretv-ipad-edition-product
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
       - '.github/workflows/hls-browser-playback-smoke.yml'
@@ -14,12 +15,13 @@ on:
   pull_request:
     branches:
       - main
+      - feature/libretv-ipad-edition-foundation
     paths:
       - 'scripts/hls-browser-playback-smoke.mjs'
+      - 'src/components/player-shell.tsx'
       - '.github/workflows/hls-browser-playback-smoke.yml'
       - 'src/lib/m3u8-downloader.ts'
       - 'src/lib/m3u8-parse.ts'
-      - 'src/components/player-shell.tsx'
       - 'src/components/live-player.tsx'
   workflow_dispatch:
 
@@ -42,5 +44,7 @@ jobs:
         run: npm install --no-save --package-lock=false playwright@1.55.0
       - name: Install Google Chrome with proprietary media codecs
         run: npx playwright install --with-deps chrome
+      - name: Install WebKit runtime
+        run: npx playwright install --with-deps webkit
       - name: Verify real browser HLS playback
         run: node scripts/hls-browser-playback-smoke.mjs

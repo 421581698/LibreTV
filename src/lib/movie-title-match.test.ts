@@ -1,0 +1,36 @@
+import { describe, expect, it } from 'vitest';
+import { findMovieMatch, getMovieSearchTerms } from './movie-title-match';
+import type { SearchResultItem } from './types';
+
+const item = (name: string): SearchResultItem => ({
+  sourceKey: 'test',
+  sourceName: '测试源',
+  vodId: '1',
+  name,
+});
+
+describe('movie title matching', () => {
+  it('matches the Spider-Man film by its English title when the homepage uses the Chinese title', () => {
+    expect(findMovieMatch('蜘蛛侠：崭新之日', [item('Spider-Man: Brand New Day')])?.name)
+      .toBe('Spider-Man: Brand New Day');
+  });
+
+  it('matches known Chinese aliases', () => {
+    expect(findMovieMatch('蜘蛛侠：崭新之日', [item('蜘蛛侠4')])?.name).toBe('蜘蛛侠4');
+    expect(findMovieMatch('蜘蛛侠：崭新之日', [item('蜘蛛侠：英雄重生')])?.name)
+      .toBe('蜘蛛侠：英雄重生');
+  });
+
+  it('ignores release year and common quality suffixes', () => {
+    expect(findMovieMatch('蜘蛛侠：崭新之日', [item('蜘蛛侠：崭新之日 2026 4K')])?.name)
+      .toBe('蜘蛛侠：崭新之日 2026 4K');
+  });
+
+  it('does not select a different Spider-Man film by loose substring matching', () => {
+    expect(findMovieMatch('蜘蛛侠：崭新之日', [item('蜘蛛侠：英雄远征')])).toBeUndefined();
+  });
+
+  it('provides original and localized fallback search terms', () => {
+    expect(getMovieSearchTerms('蜘蛛侠：崭新之日')).toContain('Spider-Man: Brand New Day');
+  });
+});

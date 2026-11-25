@@ -12,6 +12,7 @@ services:
       - "8080:8080"
     networks:
       - collector_net
+      - dolby_internal
     # 无状态服务：观看历史在浏览器 IndexedDB、设置在 localStorage，无需挂载卷
     environment:
       # 必填：访问密码（在 .env 中设置，缺失时 compose 启动即报错提醒）
@@ -19,6 +20,13 @@ services:
       # 可选：FMHY / Scrapling 采集服务（启用 collector profile 后使用）
       - SCRAPLING_API_BASE=${SCRAPLING_API_BASE:-http://scrapling-collector:8000}
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - DV_REGISTRY_API_BASE=${DV_REGISTRY_API_BASE:-http://scrapling-collector:8000}
+      - DV_PARSER_API_BASE=${DV_PARSER_API_BASE:-http://dolby-vision-parser:8788}
+      - DV_SERVICE_TOKEN=${DV_SERVICE_TOKEN:-}
+      - DV_SIGNING_KEY_ID=${DV_SIGNING_KEY_ID:-dv-key-1}
+      - DV_SIGNING_PUBLIC_KEY_PEM_B64=${DV_SIGNING_PUBLIC_KEY_PEM_B64:-}
+      - DV_MAX_UPLOAD_BYTES=${DV_MAX_UPLOAD_BYTES:-536870912}
+      - DV_ANALYSIS_TIMEOUT_MS=${DV_ANALYSIS_TIMEOUT_MS:-900000}
       # 可选：会话/代理签名密钥（多实例部署建议显式设置：openssl rand -hex 32）
       # - PROXY_SECRET=your-secret
       # 可选：Cookie Secure 策略覆盖（true=强制开启 / false=强制关闭；不设置时按请求协议自动推导，HTTP 部署无需配置）
@@ -46,6 +54,47 @@ services:
       # 可选：影视榜单推荐源（60s API）实例地址，官方公共实例有限流
       # - 60S_API_BASE=https://60s.crystelf.top
 
+
+  # Optional private Dolby Vision RPU analysis service.
+  # Start with both --profile collector and --profile dolby-vision after provisioning the collector token, parser token, and signing key file.
+  # See services/dolby-vision-parser/README.md for the complete private setup.
+  dolby-vision-parser:
+    profiles: ["dolby-vision"]
+    build:
+      context: .
+      dockerfile: services/dolby-vision-parser/Dockerfile
+    container_name: libretv-dolby-vision-parser
+    restart: unless-stopped
+    networks:
+      - dolby_internal
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,noexec,nosuid
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 2g
+    cpus: 2.0
+    environment:
+      - DV_SERVICE_TOKEN=${DV_SERVICE_TOKEN:-}
+      - DV_SIGNING_KEY_ID=${DV_SIGNING_KEY_ID:-dv-key-1}
+      - DV_SIGNING_PRIVATE_KEY_FILE=/run/secrets/dv-signing-private-key
+      - DV_MAX_UPLOAD_BYTES=${DV_MAX_UPLOAD_BYTES:-536870912}
+      - DV_MAX_CONCURRENT_JOBS=${DV_MAX_CONCURRENT_JOBS:-1}
+      - DV_ANALYSIS_TIMEOUT_MS=${DV_ANALYSIS_TIMEOUT_MS:-900000}
+      - PORT=8788
+    volumes:
+      - ${DV_SIGNING_PRIVATE_KEY_FILE:-./secrets/dv-signing-private-key.pem}:/run/secrets/dv-signing-private-key:ro
+    expose:
+      - "8788"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8788/health').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # Optional isolated Python runtime for FMHY discovery + Scrapling crawling.
   # Start explicitly with: docker compose --profile collector up -d --build
@@ -79,6 +128,17 @@ services:
       net.ipv6.conf.default.disable_ipv6: "1"
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
+      - DV_INGESTION_TOKEN_FILE=/run/secrets/dv-ingestion-token
+      - DV_MEDIA_OBJECT_ROOT=${DV_MEDIA_OBJECT_ROOT:-/data/dv-media-objects}
+      - DV_MEDIA_STAGING_ROOT=${DV_MEDIA_STAGING_ROOT:-/data/dv-media-staging}
+      - DV_MAX_INGEST_BYTES=${DV_MAX_INGEST_BYTES:-536870912}
+      - DV_MAX_CONCURRENT_INGESTS=${DV_MAX_CONCURRENT_INGESTS:-1}
+      # Optional progressive-media source gateway; disabled until an operator explicitly authorizes exact hosts.
+      - DV_SOURCE_GATEWAY_ENABLED=${DV_SOURCE_GATEWAY_ENABLED:-0}
+      - DV_AUTHORIZED_SOURCE_HOSTS=${DV_AUTHORIZED_SOURCE_HOSTS:-}
+      - DV_SOURCE_GATEWAY_MAX_BYTES=${DV_SOURCE_GATEWAY_MAX_BYTES:-536870912}
+      - DV_SOURCE_GATEWAY_TIMEOUT_SECONDS=${DV_SOURCE_GATEWAY_TIMEOUT_SECONDS:-15}
+      - DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS=${DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS:-3600}
       # Keep every outbound collector operation disabled until the host firewall has been installed and verified.
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
@@ -88,6 +148,7 @@ services:
       - "8000"
     volumes:
       - scrapling_data:/data
+      - ${DV_INGESTION_TOKEN_FILE:-./secrets/dv-ingestion-token}:/run/secrets/dv-ingestion-token:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
@@ -119,6 +180,13 @@ services:
     environment:
       - SCRAPLING_API_TOKEN=${SCRAPLING_API_TOKEN:-}
       - SCRAPLING_EGRESS_FIREWALL_CONFIRMED=${SCRAPLING_EGRESS_FIREWALL_CONFIRMED:-0}
+      - DV_SOURCE_GATEWAY_ENABLED=${DV_SOURCE_GATEWAY_ENABLED:-0}
+      - DV_AUTHORIZED_SOURCE_HOSTS=${DV_AUTHORIZED_SOURCE_HOSTS:-}
+      - DV_SOURCE_GATEWAY_MAX_BYTES=${DV_SOURCE_GATEWAY_MAX_BYTES:-536870912}
+      - DV_SOURCE_GATEWAY_TIMEOUT_SECONDS=${DV_SOURCE_GATEWAY_TIMEOUT_SECONDS:-15}
+      - DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS=${DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS:-3600}
+      - DV_MEDIA_OBJECT_ROOT=${DV_MEDIA_OBJECT_ROOT:-/data/dv-media-objects}
+      - DV_MEDIA_STAGING_ROOT=${DV_MEDIA_STAGING_ROOT:-/data/dv-media-staging}
       - SCRAPLING_DB_PATH=${SCRAPLING_DB_PATH:-/data/collector.sqlite3}
       - SEEDHUB_PURGE_LEGACY_CATALOG=${SEEDHUB_PURGE_LEGACY_CATALOG:-1}
     volumes:
@@ -131,6 +199,10 @@ volumes:
   scrapling_data:
 
 networks:
+  dolby_internal:
+    name: libretv_dolby_vision_internal
+    driver: bridge
+    internal: true
   collector_net:
     name: libretv_scrapling_net
     driver: bridge

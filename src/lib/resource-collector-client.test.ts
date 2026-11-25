@@ -1,9 +1,52 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { collectorRequest } from './resource-collector-client';
+import { collectorRequest, fetchDolbyVisionRegistryAsset } from './resource-collector-client';
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+});
+
+describe('fetchDolbyVisionRegistryAsset', () => {
+  it('uses only server-side credentials and the fixed internal Compose collector origin', async () => {
+    vi.stubEnv('DV_REGISTRY_API_BASE', 'http://scrapling-collector:8000');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-registry-token');
+    const fetchMock = vi.fn().mockResolvedValue(new Response('media', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await fetchDolbyVisionRegistryAsset('dv_asset-123');
+    expect(response?.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://scrapling-collector:8000/v1/registry/media-assets/dv_asset-123/content',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer server-registry-token' },
+        cache: 'no-store',
+        redirect: 'manual',
+      }),
+    );
+  });
+
+  it('allows HTTPS registry origins but rejects arbitrary HTTP and browser-only credentials', async () => {
+    vi.stubEnv('DV_REGISTRY_API_BASE', 'http://attacker.example:8000');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-token');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await fetchDolbyVisionRegistryAsset('dv_asset-123')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    vi.stubEnv('DV_REGISTRY_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', '');
+    expect(await fetchDolbyVisionRegistryAsset('dv_asset-123')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed asset IDs before making a request', async () => {
+    vi.stubEnv('DV_REGISTRY_API_BASE', 'https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN', 'server-token');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await fetchDolbyVisionRegistryAsset('../secret')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('collectorRequest', () => {

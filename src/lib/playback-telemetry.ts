@@ -25,6 +25,14 @@ export interface PlaybackSample {
   fatalErrors?: number;
   recoveries?: number;
   playedSeconds?: number;
+  /** Phase 1 read-only diagnostics. Never include media URLs or tokens. */
+  autoRecoveryMode?: 'read-only' | 'enabled';
+  /** A >=12s post-playback stall was observed (reporting only, no action). */
+  stalledObserved?: boolean;
+  /** A >=30s post-playback stall was reported as degraded. */
+  degradedObserved?: boolean;
+  /** Automatic recoveries suppressed by the read-only policy. */
+  suppressedRecoveries?: number;
 }
 
 export interface PlaybackHealthEntry {
@@ -110,6 +118,12 @@ export function mergePlaybackHealth(
       fatalErrors: boundedCount(sample.fatalErrors),
       recoveries: boundedCount(sample.recoveries),
       playedSeconds: boundedCount(sample.playedSeconds),
+      autoRecoveryMode: sample.autoRecoveryMode === 'read-only' || sample.autoRecoveryMode === 'enabled'
+        ? sample.autoRecoveryMode
+        : undefined,
+      stalledObserved: sample.stalledObserved === true ? true : undefined,
+      degradedObserved: sample.degradedObserved === true ? true : undefined,
+      suppressedRecoveries: boundedCount(sample.suppressedRecoveries),
     };
     const samples = [...previous.samples, clean].slice(-MAX_SAMPLES_PER_SOURCE);
     const average = (field: 'startupMs' | 'throughputKbps' | 'mediaBitrateKbps') => {
@@ -188,7 +202,8 @@ export function rankSourcesByPlaybackHealth<T extends { key: string }>(
 
 
 /**
- * Quality-first source ordering.
+ * Playback-stability-first source ordering.
+ * Resolution is a tie-breaker after sustainable throughput and measured smoothness.
  *
  * A source is considered sustainable only when observed fragment throughput
  * has at least 25% headroom over the measured media bitrate. This is a ranking
@@ -232,7 +247,7 @@ export function rankSourcesByPlaybackQuality<T extends { key: string }>(
 }
 
 
-/** Rank exact-title source candidates using title-specific observed quality first. */
+/** Rank exact-title candidates by playback sustainability and smoothness before resolution. */
 export function rankMovieCandidatesByQuality<T extends { sourceKey: string; vodId: string }>(
   candidates: T[],
   qualityMap: Record<string, QualityEntry | undefined>,
@@ -266,11 +281,15 @@ export function rankMovieCandidatesByQuality<T extends { sourceKey: string; vodI
         confidence: quality?.from === 'play' ? 2 : quality?.from === 'probe' ? 1 : 0,
         height: quality?.height ?? 0,
         sustainableRank: sustainable === true ? 2 : sustainable === false ? 0 : 1,
+        // Prefer measured smoothness before advertised resolution when both
+        // candidates have enough playback evidence.
+        stability: fresh ? scorePlaybackHealth(entry, now) ?? -1 : -1,
         bitrate: fresh ? entry.mediaBitrateKbpsAvg ?? 0 : 0,
       };
     })
     .sort((a, b) =>
       b.sustainableRank - a.sustainableRank ||
+      b.stability - a.stability ||
       b.confidence - a.confidence ||
       b.height - a.height ||
       b.bitrate - a.bitrate ||

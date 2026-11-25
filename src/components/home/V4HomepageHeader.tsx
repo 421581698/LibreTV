@@ -33,7 +33,7 @@ export function V4HomepageHeader({ overlay = false }: { overlay?: boolean }) {
       <header className={'v4-header' + (overlay ? ' is-overlay' : '')}>
         <div className="v4-header-inner v4-header-inner--no-brand">
           {!overlay && (
-            <div className="v4-header-actions">
+            <div className="v4-header-actions" data-friday-material="regular">
               <SearchModule />
               <AvatarModule pathname={pathname} />
             </div>

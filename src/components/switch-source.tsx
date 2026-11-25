@@ -14,6 +14,7 @@ import { EmptyState, LoadingState } from './states';
 import { useFocusTrap } from './use-focus-trap';
 import { QualityBadge } from './quality-badge';
 import { useQualityProbe } from './use-quality-probe';
+import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 
 /**
  * 换源面板：跨源按标题搜索 → 匹配同名/同前缀资源 → 并发测速（详情接口耗时）→ 按速度排序展示。
@@ -41,12 +42,14 @@ export function SwitchSourceModal({
   currentSourceKey,
   currentVodId,
   currentIndex,
+  getCurrentPosition,
   onClose,
 }: {
   currentTitle: string;
   currentSourceKey: string;
   currentVodId: string;
   currentIndex: number;
+  getCurrentPosition?: () => number;
   onClose: () => void;
 }) {
   const store = useAppStore();
@@ -168,24 +171,38 @@ export function SwitchSourceModal({
     if (targets.length > 0) probe(targets);
   }, [phase, candidates, probe]);
 
-  const sorted = useMemo(() => [...candidates].sort((a, b) => {
-    const aCurrent = isCurrentCandidate(a, currentSourceKey, currentVodId);
-    const bCurrent = isCurrentCandidate(b, currentSourceKey, currentVodId);
-    if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
-
-    // 先排除不可用源，再比较画质证据：真实解码实测 > 播放列表探测 > 未知；
-    // 同为实测时按最高解码高度、有效观测次数排序，速度作为最后的 tie-breaker。
-    if (Boolean(a.ok) !== Boolean(b.ok)) return a.ok ? -1 : 1;
-    const qualityOrder = compareQualityEvidence(
-      qualities[qualityKey(a.source.key, a.result.vodId)],
-      qualities[qualityKey(b.source.key, b.result.vodId)]
+  const sorted = useMemo(() => {
+    const playbackRank = new Map<string, number>(
+      rankMovieCandidatesByQuality(
+        candidates.map((candidate) => candidate.result),
+        store.qualityMap,
+        store.playbackHealth,
+        Date.now(),
+        store.playbackResourceHealth,
+      ).map((candidate, index) => [`${candidate.sourceKey}_${candidate.vodId}`, index] as const)
     );
-    if (qualityOrder !== 0) return qualityOrder;
+    return [...candidates].sort((a, b) => {
+      const aCurrent = isCurrentCandidate(a, currentSourceKey, currentVodId);
+      const bCurrent = isCurrentCandidate(b, currentSourceKey, currentVodId);
+      if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
 
-    const msA = a.ok ? a.ms ?? 99_999 : 99_999;
-    const msB = b.ok ? b.ms ?? 99_999 : 99_999;
-    return msA - msB;
-  }), [candidates, currentSourceKey, currentVodId, qualities]);
+      // 播放历史先决定稳定性优先级；接口测速和画质探测只作为无播放样本时的补充。
+      if (Boolean(a.ok) !== Boolean(b.ok)) return a.ok ? -1 : 1;
+      const rankA = playbackRank.get(candidateKey(a)) ?? Number.MAX_SAFE_INTEGER;
+      const rankB = playbackRank.get(candidateKey(b)) ?? Number.MAX_SAFE_INTEGER;
+      if (rankA !== rankB) return rankA - rankB;
+
+      const qualityOrder = compareQualityEvidence(
+        qualities[qualityKey(a.source.key, a.result.vodId)],
+        qualities[qualityKey(b.source.key, b.result.vodId)]
+      );
+      if (qualityOrder !== 0) return qualityOrder;
+
+      const msA = a.ok ? a.ms ?? 99_999 : 99_999;
+      const msB = b.ok ? b.ms ?? 99_999 : 99_999;
+      return msA - msB;
+    });
+  }, [candidates, currentSourceKey, currentVodId, qualities, store.qualityMap, store.playbackHealth, store.playbackResourceHealth]);
 
   /**
    * 面板展示的源：优先用户点过的那个；还没点过时先落到「第一个可切换的源」——
@@ -257,16 +274,19 @@ export function SwitchSourceModal({
     }
     const targetIndex = currentIndex < c.episodes ? currentIndex : 0;
     onClose(); // 先关闭面板，避免路由参数变化后弹窗残留旧数据
-    router.push(
-      buildWatchUrl({
-        sourceKey: c.source.key,
-        vodId: c.result.vodId,
-        index: targetIndex,
-        title: c.result.name || currentTitle,
-        sourceUrl: c.source.url,
-        detail: c.source.detail,
-      })
-    );
+    const watchUrl = buildWatchUrl({
+      sourceKey: c.source.key,
+      vodId: c.result.vodId,
+      index: targetIndex,
+      title: c.result.name || currentTitle,
+      sourceUrl: c.source.url,
+      detail: c.source.detail,
+    });
+    // Preserve time only when the same episode index survives the source switch.
+    // If the target source has fewer episodes and we fall back to episode 1,
+    // carrying episode N's position would start the wrong episode mid-stream.
+    const position = targetIndex === currentIndex ? getCurrentPosition?.() ?? 0 : 0;
+    router.push(position > 5 ? `${watchUrl}&position=${Math.floor(position)}` : watchUrl);
   };
 
   return (
@@ -300,7 +320,7 @@ export function SwitchSourceModal({
             </p>
             {phase === 'done' && (
               <p className="text-[10px] text-faint mt-0.5">
-                排序优先级：当前播放源 · 可用性 · 实测画质（观测次数）· 探测画质 · 响应速度
+                排序优先级：当前播放源 · 可用性 · 历史播放稳定性 · 实测画质 · 探测画质 · 接口响应
               </p>
             )}
             {phase === 'done' && progress.total > 0 && (
@@ -420,7 +440,7 @@ export function SwitchSourceModal({
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:max-w-[16rem]">
                       <div className="rounded-md bg-chip px-2 py-1.5">
-                        <div className="text-[10px] text-faint">速度</div>
+                        <div className="text-[10px] text-faint">接口响应</div>
                         <div
                           className={cn(
                             'text-xs font-medium tabular-nums',

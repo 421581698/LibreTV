@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { RegistrySearchResource } from '@/lib/types';
 
@@ -21,6 +21,77 @@ export function RegistryInlinePlayer({
   const autoSkipSegments = useAppStore((state) => state.autoSkipSegments);
   const autoplayNext = useAppStore((state) => state.autoplayNext);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
+  const [assetLookupNonce, setAssetLookupNonce] = useState(0);
+  const [immutableAsset, setImmutableAsset] = useState<{
+    resourceId: string;
+    assetId: string;
+    url: string;
+    mediaType: 'hls' | 'mp4' | 'webm';
+  } | null>(null);
+
+  const resourceId = resource?.id;
+  const resourceMediaFormat = resource?.media_format;
+
+  useEffect(() => {
+    setImmutableAsset(null);
+    if (!resourceId || !['hls', 'mp4', 'webm'].includes(resourceMediaFormat ?? '')) return;
+
+    const controller = new AbortController();
+    const retryDelays = assetLookupNonce > 0 ? [3_000, 6_000, 12_000, 20_000, 30_000, 45_000, 60_000, 90_000, 120_000, 180_000, 240_000, 300_000, 360_000, 480_000, 600_000, 900_000, 1_200_000] : [];
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
+    const lookup = async (): Promise<void> => {
+      try {
+        const response = await fetch(`/api/dolby-vision/resources/${encodeURIComponent(resourceId)}/asset`, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          const payload: unknown = await response.json().catch(() => null);
+          if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+            const asset = payload as Record<string, unknown>;
+            if (asset.resourceId === resourceId &&
+                typeof asset.assetId === 'string' && /^[A-Za-z0-9:_-]{1,200}$/.test(asset.assetId) &&
+                typeof asset.sha256 === 'string' && /^[a-f0-9]{64}$/.test(asset.sha256) &&
+                typeof asset.byteLength === 'number' && Number.isSafeInteger(asset.byteLength) && asset.byteLength > 0 &&
+                ['video/mp4', 'video/webm', 'application/vnd.apple.mpegurl'].includes(String(asset.contentType))) {
+              const assetMediaType = asset.contentType === 'video/webm' ? 'webm'
+                : asset.contentType === 'application/vnd.apple.mpegurl' ? 'hls' : 'mp4';
+              if (assetMediaType === resourceMediaFormat && !controller.signal.aborted) {
+                setImmutableAsset({
+                  resourceId,
+                  assetId: asset.assetId,
+                  url: `/api/dolby-vision/assets/${encodeURIComponent(asset.assetId)}/content`,
+                  mediaType: assetMediaType as 'hls' | 'mp4' | 'webm',
+                });
+                return;
+              }
+            }
+          }
+        } else if (![404, 409, 429].includes(response.status) && response.status < 500) {
+          return;
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+      }
+
+      if (!controller.signal.aborted && attempts < retryDelays.length) {
+        retryTimer = setTimeout(() => {
+          attempts += 1;
+          void lookup();
+        }, retryDelays[attempts]);
+      }
+    };
+
+    void lookup();
+    return () => {
+      controller.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [resourceId, resourceMediaFormat, assetLookupNonce]);
 
   const confirmPlayback = useCallback((evidence: { mediaType: string; observedSeconds: number; progressedSeconds: number; decodedWidth: number; decodedHeight: number; selectedRenditionHeight: number; selectedRenditionBitrateKbps: number }) => {
     if (!resource?.candidate_id) return;
@@ -36,13 +107,24 @@ export function RegistryInlinePlayer({
         selected_rendition_height: evidence.selectedRenditionHeight,
         selected_rendition_bitrate_kbps: evidence.selectedRenditionBitrateKbps,
       }),
+    }).then(async (response) => {
+      if (!response.ok) return;
+      const payload: unknown = await response.json().catch(() => null);
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+      const mediaIngestion = (payload as Record<string, unknown>).media_ingestion;
+      if (!mediaIngestion || typeof mediaIngestion !== 'object' || Array.isArray(mediaIngestion)) return;
+      const status = (mediaIngestion as Record<string, unknown>).status;
+      if (status === 'queued' || status === 'running' || status === 'succeeded' || status === 'registered') {
+        setAssetLookupNonce((value) => value + 1);
+      }
     }).catch(() => {
       // Playback remains available if the audit writeback service is temporarily offline.
     });
   }, [resource?.candidate_id]);
 
   if (!resource) return null;
-  const mediaType = resource.media_format;
+  const activeImmutableAsset = immutableAsset?.resourceId === resource.id && immutableAsset.mediaType === resource.media_format ? immutableAsset : null;
+  const mediaType = activeImmutableAsset?.mediaType ?? resource.media_format;
   if (!resource.candidate_id || !mediaType || !['hls', 'mp4', 'webm'].includes(mediaType)) return null;
 
   return (
@@ -61,10 +143,10 @@ export function RegistryInlinePlayer({
         </header>
         <div className="aspect-video w-full bg-black">
           <PlayerShell
-            key={resource.id}
-            url={resource.url}
+            key={activeImmutableAsset ? `${resource.id}:${activeImmutableAsset.assetId}` : resource.id}
+            url={activeImmutableAsset?.url ?? resource.url}
             title={resource.title}
-            mediaType={mediaType}
+            mediaType={mediaType as 'hls' | 'mp4' | 'webm'}
             onPlaybackConfirmed={confirmPlayback}
             adFilter={adFilter}
             autoplayNext={autoplayNext}
@@ -72,6 +154,9 @@ export function RegistryInlinePlayer({
             pendingStart={pendingStart}
             onPendingStart={setPendingStart}
             episodeKey={`registry:${resource.id}`}
+            dolbyVisionAssetId={activeImmutableAsset?.assetId}
+            dolbyVisionSourceKind="registry"
+            dolbyVisionSourceIdentity={resource.id}
           />
         </div>
       </section>

@@ -5,6 +5,74 @@ import worker
 
 
 class WorkerPipelineTests(unittest.TestCase):
+    def test_durable_media_job_routes_hls_to_graph_aware_gateway(self):
+        import hashlib
+        import json
+        from unittest.mock import patch
+
+        checkpoints = []
+        candidate = {
+            "url": "https://media.example/master.m3u8",
+            "validation": json.dumps({"media_format": "hls"}),
+        }
+        source_version = hashlib.sha256(
+            (candidate["url"] + "\0" + candidate["validation"]).encode("utf-8")
+        ).hexdigest()[:24]
+        with (
+            patch.object(worker, "require_egress_firewall"),
+            patch("dv_source_gateway._read_candidate", return_value=candidate),
+            patch("dv_hls_source_gateway.ingest_authorized_hls_candidate", return_value={
+                "status": "registered", "member_count": 3, "edge_count": 2,
+            }) as ingest_hls,
+        ):
+            result = worker.handle(
+                {
+                    "_job_type": "dv_media_ingest",
+                    "candidate_id": "a" * 32,
+                    "resource_id": "r_" + "b" * 28,
+                    "source_version": source_version,
+                },
+                checkpoints.append,
+                lambda: False,
+            )
+        self.assertEqual(result["status"], "registered")
+        ingest_hls.assert_called_once()
+        self.assertIn("authorized_media_ingest_finished", [item["stage"] for item in checkpoints])
+
+    def test_stale_media_job_is_rejected_before_fetch_when_candidate_changes(self):
+        import hashlib
+        import json
+        from unittest.mock import patch
+
+        old_url = "https://media.example/old.mp4"
+        old_validation = json.dumps({"media_format": "progressive", "content_type": "video/mp4"})
+        expected_version = hashlib.sha256(
+            (old_url + "\0" + old_validation).encode("utf-8")
+        ).hexdigest()[:24]
+        changed_candidate = {
+            "url": "https://media.example/new.mp4",
+            "validation": json.dumps({"media_format": "progressive", "content_type": "video/mp4"}),
+        }
+        checkpoints = []
+        with (
+            patch.object(worker, "require_egress_firewall"),
+            patch("dv_source_gateway._read_candidate", return_value=changed_candidate),
+            patch("dv_source_gateway.ingest_authorized_candidate") as ingest,
+        ):
+            result = worker.handle(
+                {
+                    "_job_type": "dv_media_ingest",
+                    "candidate_id": "c" * 32,
+                    "resource_id": "r_" + "d" * 28,
+                    "source_version": expected_version,
+                },
+                checkpoints.append,
+                lambda: False,
+            )
+        self.assertEqual(result, {"status": "skipped", "reason": "candidate_changed_after_queue"})
+        self.assertIn("authorized_media_ingest_skipped", [item["stage"] for item in checkpoints])
+        ingest.assert_not_called()
+
     def test_crawl_job_preflights_pending_direct_media_into_registry(self):
         task_id = "a" * 32
         candidates = [

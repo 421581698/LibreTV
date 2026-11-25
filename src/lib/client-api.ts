@@ -207,6 +207,11 @@ export const api = {
     }
   },
 
+  tmdbDiscover: (type: 'movie' | 'tv', tag: string, page: number, signal?: AbortSignal, region: 'US' | 'CN' | 'GLOBAL' = 'CN') => {
+    const sp = new URLSearchParams({ type, tag, page: String(page), region });
+    return request<DoubanResponse>('/api/tmdb/discover?' + sp.toString(), { signal });
+  },
+
   douban: (type: 'movie' | 'tv', tag: string, pageStart: number, pageSize: number, signal?: AbortSignal) => {
     const sp = new URLSearchParams({ type, tag, pageStart: String(pageStart), pageSize: String(pageSize) });
     return request<DoubanResponse>(`/api/douban?${sp.toString()}`, { signal });

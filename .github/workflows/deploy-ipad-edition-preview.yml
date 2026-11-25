@@ -1,38 +1,100 @@
-name: Deploy LibreTV iPad Edition Preview
+name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
+# Preview-only visual audit activation; never targets the production Worker. [deploy-ipad-edition-preview]
+# Poster proxy verification follows the iPad homepage image reliability fix.
+# Rendered PNG poster pixels are now a required gate; unreadable slots fail closed.
+# [deploy-ipad-edition-preview] Verify glass material, touch gestures and rendered poster pixels across iPad viewports.
+# PR #99 branch pushes may deploy only after all five exact-SHA PR checks succeed. Manual confirmation remains available.
+# Layout diagnostics are passed explicitly into the browser evaluation context for report serialization.
 
 on:
+  push:
+    branches:
+      - feature/libretv-ipad-edition-product
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
-        description: "确认只部署独立 iPad Edition Preview Worker"
+        description: "确认只部署独立 iPad Edition Preview Worker（必须先通过同一提交的五组 CI）"
         required: true
         type: choice
         options:
           - "no"
           - "yes"
         default: "no"
-  push:
-    branches:
-      - feature/libretv-ipad-edition-foundation
+
+# Matched CSS provenance is captured via CSS.styleSheetAdded before querying computed rule origins.
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: libretv-ipad-edition-preview
+  # Newest feature-branch SHA supersedes stale Preview runs blocked on cancelled Verify jobs.
+  # Deployment remains serialized against the dedicated Preview Worker.
   cancel-in-progress: true
 
 jobs:
   deploy-preview:
-    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-foundation' && ((github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-ipad-edition-preview]'))) }}
+    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes')) }}
     name: Build and deploy isolated iPad Edition Preview
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
     environment: preview
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+      - name: Require all five successful PR checks for this exact commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_SHA: ${{ github.sha }}
+          GH_BRANCH: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          const required = [
+            "LibreTV iPad Edition Verify",
+            "Resource Playback Verification",
+            "HLS Browser Playback Smoke",
+            "HLS External Stream Smoke",
+            "Scrapling Collector",
+          ];
+          const url = new URL(`https://api.github.com/repos/${process.env.GH_REPOSITORY}/actions/runs`);
+          url.searchParams.set("branch", process.env.GH_BRANCH);
+          url.searchParams.set("head_sha", process.env.GH_SHA);
+          url.searchParams.set("event", "pull_request");
+          url.searchParams.set("per_page", "100");
+          const headers = {
+            accept: "application/vnd.github+json",
+            authorization: `Bearer ${process.env.GH_TOKEN}`,
+            "x-github-api-version": "2022-11-28",
+          };
+          for (let attempt = 1; attempt <= 144; attempt += 1) {
+            const response = await fetch(url, { headers });
+            if (!response.ok) throw new Error(`Cannot inspect CI runs: HTTP ${response.status}`);
+            const payload = await response.json();
+            const runs = (payload.workflow_runs ?? []).filter(run =>
+              run.head_sha === process.env.GH_SHA &&
+              run.head_branch === process.env.GH_BRANCH &&
+              run.event === "pull_request"
+            );
+            const latest = required.map(name => runs.filter(run => run.name === name)
+              .sort((a, b) => b.run_number - a.run_number || b.id - a.id)[0]);
+            console.log(JSON.stringify(required.map((name, i) => ({
+              name, id: latest[i]?.id, status: latest[i]?.status ?? "missing",
+              conclusion: latest[i]?.conclusion ?? null
+            }))));
+            if (latest.every(run => run?.status === "completed" && run.conclusion === "success")) {
+              console.log("All five required PR checks passed for " + process.env.GH_SHA);
+              process.exit(0);
+            }
+            if (latest.some(run => run?.status === "completed" && run.conclusion !== "success")) {
+              throw new Error("A required CI check did not pass; Preview deployment blocked.");
+            }
+            if (attempt < 144) await new Promise(resolve => setTimeout(resolve, 15000));
+          }
+          throw new Error("Timed out waiting for all five exact-SHA PR checks; Preview deployment blocked.");
+          NODE
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -57,10 +119,29 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing preview secret: CLOUDFLARE_API_TOKEN" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing preview secret: CLOUDFLARE_ACCOUNT_ID" && exit 1)
       - name: Deploy dedicated iPad Edition Preview Worker
+        id: deploy_preview
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy --config wrangler.ipad-edition-preview.toml
+      - name: Configure TMDB metadata secret for Preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TMDB_API_READ_ACCESS_TOKEN: ${{ secrets.TMDB_API_READ_ACCESS_TOKEN }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          METADATA_API_KEY: ${{ secrets.METADATA_API_KEY }}
+        run: |
+          if [ -n "${TMDB_API_READ_ACCESS_TOKEN:-}" ]; then
+            printf '%s' "$TMDB_API_READ_ACCESS_TOKEN" | npx wrangler secret put TMDB_API_READ_ACCESS_TOKEN --config wrangler.ipad-edition-preview.toml
+          elif [ -n "${TMDB_API_KEY:-}" ]; then
+            printf '%s' "$TMDB_API_KEY" | npx wrangler secret put TMDB_API_KEY --config wrangler.ipad-edition-preview.toml
+          elif [ -n "${METADATA_API_KEY:-}" ]; then
+            printf '%s' "$METADATA_API_KEY" | npx wrangler secret put METADATA_API_KEY --config wrangler.ipad-edition-preview.toml
+          else
+            echo "::error::Missing Preview environment secret: configure TMDB_API_READ_ACCESS_TOKEN, TMDB_API_KEY, or METADATA_API_KEY."
+            exit 1
+          fi
       - name: Verify isolated iPad Edition route
         run: |
           node --input-type=module <<'NODE'
@@ -78,9 +159,2038 @@ jobs:
             if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 5000));
           }
           if (!response?.ok) throw new Error("iPad Edition Preview did not respond: " + lastError);
+          const contentType = response.headers.get("content-type") || "";
           const html = await response.text();
-          if (!html.includes("影院大堂") || !html.includes("LibreTV")) {
-            throw new Error("Preview returned HTML but did not render the iPad Edition shell.");
+          if (!contentType.includes("text/html") || html.length < 1000 || !html.toLowerCase().includes("<html")) {
+            throw new Error("Preview route did not return a complete HTML document.");
           }
-          console.log("Dedicated iPad Edition Preview route is reachable and renders the cinema shell.");
+          console.log("Dedicated iPad Edition Preview route returned an HTML document.");
           NODE
+      - name: Install Playwright package for simulated iPad visual audit
+        id: install_playwright
+        timeout-minutes: 5
+        run: |
+          mkdir -p "$RUNNER_TEMP/ipad-audit"
+          npm install --prefix "$RUNNER_TEMP/ipad-audit" --no-save --no-package-lock playwright@1.56.1 pngjs@7.0.0
+          test -f "$RUNNER_TEMP/ipad-audit/node_modules/playwright/package.json"
+          test -f "$RUNNER_TEMP/ipad-audit/node_modules/pngjs/package.json"
+          test -x "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright"
+      - name: Verify runner Chromium runtime prerequisites
+        timeout-minutes: 2
+        run: |
+          # GitHub-hosted Ubuntu images already include Playwright's shared libraries.
+          # Avoid apt-get update here: external package mirrors can stall the entire
+          # visual acceptance workflow before Chromium itself is even downloaded.
+          ldconfig -p | grep -q libnss3.so
+          ldconfig -p | grep -q libatk-1.0.so.0
+          ldconfig -p | grep -q libatk-bridge-2.0.so.0
+          ldconfig -p | grep -q libgbm.so.1
+          fc-match ':lang=zh' >/dev/null
+      - name: Install Playwright Chromium browser
+        id: install_chromium
+        timeout-minutes: 8
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: "120000"
+          PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
+        run: |
+          "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright" install chromium
+      - name: Audit Friday glass appearance and capsule motion
+        shell: bash
+        timeout-minutes: 7
+        env:
+          FRIDAY_AUDIT_URL: https://libretv-ipad-edition-preview.bggdbh.workers.dev
+        run: |
+          mkdir -p artifacts/ipad-visual-audit
+          FRIDAY_PLAYWRIGHT_PACKAGE="$RUNNER_TEMP/ipad-audit/package.json" \
+            node scripts/friday-glass-browser-audit.mjs | tee artifacts/ipad-visual-audit/friday-glass.json
+      # [deploy-ipad-edition-preview] Verify the current closed-by-default capsule.
+      - name: Run iPad viewport and theme visual audit
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
+        timeout-minutes: 18
+        run: |
+          mkdir -p artifacts/ipad-visual-audit
+          node --input-type=module <<'NODE'
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
+          import fs from 'node:fs/promises';
+          const { PNG } = require('pngjs');
+
+          const target = "https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition?__layout_debug=1";
+          const viewports = [
+            { name: "ipad-11-portrait", width: 834, height: 1194, deviceScaleFactor: 2 },
+            { name: "ipad-11-landscape", width: 1194, height: 834, deviceScaleFactor: 2 },
+            { name: "ipad-pro-13-portrait", width: 1032, height: 1376, deviceScaleFactor: 2 },
+            { name: "ipad-pro-13-landscape", width: 1366, height: 1024, deviceScaleFactor: 2 },
+            { name: "ipad-split-half", width: 507, height: 834, deviceScaleFactor: 2 },
+            { name: "ipad-split-two-thirds", width: 694, height: 834, deviceScaleFactor: 2 },
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          let failures = 0;
+          try {
+            for (const viewport of viewports) {
+              for (const colorScheme of ["light", "dark"]) {
+                const context = await browser.newContext({
+                  viewport: { width: viewport.width, height: viewport.height },
+                  deviceScaleFactor: viewport.deviceScaleFactor,
+                  isMobile: true,
+                  hasTouch: true,
+                  colorScheme,
+                });
+                const page = await context.newPage();
+                // Capture native touch and Pointer Event delivery before application hydration.
+                await page.addInitScript(() => {
+                  window.__ipadTouchTrace = [];
+                  const record = (event) => {
+                    const target = event.target instanceof Element
+                      ? (event.target.closest('.ipad-nav__edge-swipe-zone, .ipad-nav__sidebar, .ipad-edition')?.className ?? event.target.tagName)
+                      : String(event.target);
+                    window.__ipadTouchTrace.push({
+                      type: event.type,
+                      pointerType: 'pointerType' in event ? event.pointerType : undefined,
+                      pointerId: 'pointerId' in event ? event.pointerId : undefined,
+                      isPrimary: 'isPrimary' in event ? event.isPrimary : undefined,
+                      x: 'clientX' in event ? event.clientX : ('touches' in event && event.touches[0] ? event.touches[0].clientX : undefined),
+                      y: 'clientY' in event ? event.clientY : ('touches' in event && event.touches[0] ? event.touches[0].clientY : undefined),
+                      cancelable: event.cancelable,
+                      defaultPrevented: event.defaultPrevented,
+                      target,
+                    });
+                    if (window.__ipadTouchTrace.length > 120) window.__ipadTouchTrace.shift();
+                  };
+                  for (const type of ['pointerdown','pointermove','pointerup','pointercancel','touchstart','touchmove','touchend','touchcancel']) {
+                    document.addEventListener(type, record, { capture: true, passive: false });
+                  }
+                });
+                // Force the application theme class, not merely the browser media preference.
+                await page.addInitScript((scheme) => {
+                  // ThemeProvider reads this key during hydration and otherwise may
+                  // overwrite the forced class with a stale/default persisted choice.
+                  try { window.localStorage.setItem('libretv-theme', scheme); } catch { /* isolated audit storage */ }
+                  const applyTheme = () => {
+                    const root = document.documentElement;
+                    if (!root) return;
+                    root.classList.toggle('dark', scheme === 'dark');
+                    root.style.colorScheme = scheme;
+                  };
+                  if (document.documentElement) applyTheme();
+                  else document.addEventListener('DOMContentLoaded', applyTheme, { once: true });
+                }, colorScheme);
+                const consoleErrors = [];
+                const apiDiagnostics = [];
+                const apiDiagnosticTasks = [];
+                const apiRequestStartedAt = new Map();
+                const isHomepageApi = (url) => /^\/api\/(douban|hot-list|bangumi\/calendar|tmdb\/discover)$/.test(new URL(url).pathname);
+                page.on("pageerror", error => consoleErrors.push(error.message));
+                page.on("request", request => {
+                  if (isHomepageApi(request.url())) apiRequestStartedAt.set(request, Date.now());
+                });
+                page.on("requestfailed", request => {
+                  if (!isHomepageApi(request.url())) return;
+                  apiDiagnostics.push({
+                    type: "requestfailed",
+                    pathname: new URL(request.url()).pathname,
+                    durationMs: apiRequestStartedAt.has(request) ? Date.now() - apiRequestStartedAt.get(request) : null,
+                    error: request.failure()?.errorText ?? "unknown",
+                  });
+                });
+                page.on("response", apiResponse => {
+                  if (!isHomepageApi(apiResponse.url())) return;
+                  const task = (async () => {
+                    const pathname = new URL(apiResponse.url()).pathname;
+                    const entry = {
+                      type: "response",
+                      pathname,
+                      status: apiResponse.status(),
+                      durationMs: apiRequestStartedAt.has(apiResponse.request())
+                        ? Date.now() - apiRequestStartedAt.get(apiResponse.request())
+                        : null,
+                    };
+                    try {
+                      // Bound body reads so a stalled upstream cannot block the audit report.
+                      const body = await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => resolve(null), 5000);
+                        apiResponse.text().then(value => {
+                          clearTimeout(timeout);
+                          resolve(value);
+                        }, error => {
+                          clearTimeout(timeout);
+                          reject(error);
+                        });
+                      });
+                      if (body === null) {
+                        entry.bodyReadTimeoutMs = 5000;
+                      } else {
+                        let payload;
+                        try {
+                          payload = JSON.parse(body);
+                          entry.payloadKeys = payload && typeof payload === "object" ? Object.keys(payload) : [];
+                          if (Array.isArray(payload?.items)) entry.itemCount = payload.items.length;
+                          if (Array.isArray(payload?.days)) {
+                            entry.dayCount = payload.days.length;
+                            entry.calendarItemCount = payload.days.reduce((sum, day) => sum + (Array.isArray(day?.items) ? day.items.length : 0), 0);
+                          }
+                          if (!apiResponse.ok()) entry.body = body.slice(0, 1200);
+                        } catch (error) {
+                          entry.jsonParseError = String(error);
+                          entry.body = body.slice(0, 1200);
+                        }
+                      }
+                    } catch (error) {
+                      entry.bodyReadError = String(error);
+                    }
+                    apiDiagnostics.push(entry);
+                  })();
+                  apiDiagnosticTasks.push(task);
+                });
+                const response = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
+                await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
+                await page.waitForFunction((scheme) => {
+                  const root = document.querySelector('.ipad-edition');
+                  if (!root || root.getAttribute('data-environment') !== scheme) return false;
+                  const expectedLayout = root.getBoundingClientRect().width >= 1060 ? 'expanded' : 'compact';
+                  return root.getAttribute('data-ipad-layout') === expectedLayout;
+                }, colorScheme, { timeout: 30000 });
+                const layoutMode = await page.locator('.ipad-edition').getAttribute('data-ipad-layout');
+                // All layouts start closed; the top capsule is always the explicit entry point.
+                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
+                await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'), undefined, { timeout: 10000 });
+                // Exercise the real navigation controls in every viewport/theme pair.
+            // Wait for React to attach client event props before clicking: domcontentloaded
+            // can occur before hydration, which otherwise creates a false timeout.
+            let sidebarInteractionPassed = false;
+            const sidebarInteraction = {};
+            try {
+              const menuButton = page.locator('.ipad-nav__menu-button');
+              const sidebar = page.locator('.ipad-nav__sidebar');
+              const openSidebar = page.locator('.ipad-nav__sidebar.is-open');
+              await page.waitForFunction(() => {
+                const button = document.querySelector('.ipad-nav__menu-button');
+                return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
+              }, undefined, { timeout: 20000 });
+              sidebarInteraction.initialClosed = await sidebar.getAttribute('inert') !== null &&
+                await menuButton.getAttribute('aria-expanded') === 'false';
+              const touch = await context.newCDPSession(page);
+              try {
+                await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260 }] });
+                await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260 }] });
+                await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+              } finally {
+                await touch.detach();
+              }
+              sidebarInteraction.edgeStayedClosed = await menuButton.getAttribute('aria-expanded') === 'false';
+
+              await menuButton.click();
+              await openSidebar.waitFor({ state: 'visible' });
+              sidebarInteraction.opened = await sidebar.getAttribute('inert') === null &&
+                await menuButton.getAttribute('aria-expanded') === 'true';
+              await page.keyboard.press('Escape');
+              await openSidebar.waitFor({ state: 'hidden' });
+              sidebarInteraction.escapeClosed = await menuButton.getAttribute('aria-expanded') === 'false';
+
+              await menuButton.click();
+              await openSidebar.waitFor({ state: 'visible' });
+              await sidebar.getByRole('button', { name: '收起侧边栏' }).click();
+              await openSidebar.waitFor({ state: 'hidden' });
+              sidebarInteraction.explicitClosePassed = await menuButton.getAttribute('aria-expanded') === 'false';
+
+              if (layoutMode !== 'expanded') {
+                await menuButton.click();
+                await openSidebar.waitFor({ state: 'visible' });
+                const scrim = page.locator('.ipad-nav__scrim');
+                const scrimBox = await scrim.boundingBox();
+                if (!scrimBox) throw new Error('Compact sidebar scrim is missing');
+                await scrim.click({ position: { x: scrimBox.width - 24, y: scrimBox.height / 2 } });
+                await openSidebar.waitFor({ state: 'hidden' });
+                sidebarInteraction.scrimClosed = await menuButton.getAttribute('aria-expanded') === 'false';
+              }
+              sidebarInteraction.diagnostics = await sidebar.evaluate(element => ({
+                finalState: { computedStyle: { position: getComputedStyle(element).position } },
+              }));
+              sidebarInteractionPassed = sidebarInteraction.initialClosed && sidebarInteraction.edgeStayedClosed &&
+                sidebarInteraction.opened && sidebarInteraction.escapeClosed && sidebarInteraction.explicitClosePassed &&
+                (layoutMode === 'expanded' || sidebarInteraction.scrimClosed);
+            } catch (error) {
+              sidebarInteraction.error = String(error);
+              console.error('Sidebar interaction audit failed for ' + viewport.name + '-' + colorScheme + ': ' + String(error));
+            }
+            // Restore the default closed state before measuring homepage geometry.
+            const menuButton = page.locator('.ipad-nav__menu-button');
+            if (await menuButton.getAttribute('aria-expanded') === 'true') {
+              await page.keyboard.press('Escape');
+            }
+            await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'hidden', timeout: 5000 });
+            await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+            await page.waitForTimeout(180);
+            // Wait for real homepage content before inspecting all poster-bearing cards.
+                const homepageReadiness = await page.waitForFunction(() => {
+                  const busyRail = document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]');
+                  const heroTitle = document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '';
+                  const animeLoading = (document.querySelector('#ipad-anime-calendar')?.textContent ?? '').includes('正在读取每日放送');
+                  return !busyRail && !animeLoading && !heroTitle.includes('正在为你准备影院');
+                }, undefined, { timeout: 30000 })
+                  .then(() => ({ ready: true, timeoutMs: 30000 }))
+                  .catch(error => ({ ready: false, timeoutMs: 30000, error: String(error) }));
+                // The hero image is outside the poster-slot batch below. Decode it explicitly
+                // before reading naturalWidth so DOM readiness cannot create a false 0px failure.
+                const heroArtworkReadiness = await page.evaluate(async () => {
+                  const media = document.querySelector(".ipad-edition__cinema-hero-media");
+                  const image = media?.querySelector(
+                    ".ipad-edition__cinema-hero-backdrop .poster-engine__image, .ipad-edition__cinema-hero-atmosphere .poster-engine__image, .ipad-edition__cinema-hero-fallback-poster .poster-engine__image"
+                  );
+                  if (!media) return { ready: false, reason: "hero-media-missing", artworkMode: null, source: null, naturalWidth: 0, naturalHeight: 0 };
+                  if (!image) return {
+                    ready: false,
+                    reason: "hero-image-element-missing",
+                    artworkMode: media.getAttribute("data-artwork-mode"),
+                    backdropPresent: media.getAttribute("data-backdrop-present"),
+                    source: null,
+                    naturalWidth: 0,
+                    naturalHeight: 0,
+                  };
+                  image.loading = "eager";
+                  const decoded = await Promise.race([
+                    image.decode().then(() => true, () => false),
+                    new Promise(resolve => setTimeout(() => resolve(false), 20000)),
+                  ]);
+                  return {
+                    ready: decoded && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0,
+                    reason: decoded ? (image.naturalWidth > 0 ? null : "decoded-image-has-zero-natural-width") : "hero-image-decode-timeout-or-error",
+                    artworkMode: media.getAttribute("data-artwork-mode"),
+                    backdropPresent: media.getAttribute("data-backdrop-present"),
+                    source: (image.currentSrc || image.src || "").slice(0, 240),
+                    complete: image.complete,
+                    naturalWidth: image.naturalWidth,
+                    naturalHeight: image.naturalHeight,
+                  };
+                });
+                // Re-assert the requested theme after application hydration has completed.
+                await page.evaluate((scheme) => {
+                  document.documentElement.classList.toggle('dark', scheme === 'dark');
+                  document.documentElement.style.colorScheme = scheme;
+                }, colorScheme);
+                // Include movie, series, new-release and anime slots. A missing SmartImage
+                // element is still a failed poster slot and must remain in the denominator.
+                await page.evaluate(async () => {
+                  const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                  const images = slots.map(slot => slot.querySelector('img')).filter(Boolean);
+                  const waitForImage = (image) => new Promise(resolve => {
+                    if (image.complete) return resolve();
+                    const finish = () => resolve();
+                    image.addEventListener('load', finish, { once: true });
+                    image.addEventListener('error', finish, { once: true });
+                    image.loading = 'eager';
+                    if (image.complete) finish();
+                  });
+                  await Promise.race([
+                    Promise.all(images.map(waitForImage)),
+                    new Promise(resolve => setTimeout(resolve, 45000)),
+                  ]);
+                });
+                await page.locator('section[aria-label="iPad 页面布局诊断"] pre').waitFor({ state: "attached", timeout: 10000 });
+                await page.waitForTimeout(1000);
+                const layoutDiagnostics = await page.evaluate(() => {
+                  const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
+                  const raw = panel?.querySelector('pre')?.textContent ?? '';
+                  try { return JSON.parse(raw); } catch { return { parseError: true, raw: raw.slice(0, 2000) }; }
+                });
+                await page.evaluate(() => {
+                  const panel = document.querySelector('section[aria-label="iPad 页面布局诊断"]');
+                  if (panel) panel.style.display = 'none';
+                });
+                // Resolve each layout node to the exact CSS selectors and stylesheet that matched it.
+                // Computed styles alone cannot identify which overlapping rule supplied a value.
+                const cssSession = await context.newCDPSession(page);
+                try {
+                  const stylesheetById = new Map();
+                  cssSession.on('CSS.styleSheetAdded', ({ header }) => {
+                    stylesheetById.set(header.styleSheetId, {
+                      sourceURL: header.sourceURL,
+                      title: header.title,
+                      origin: header.origin,
+                    });
+                  });
+                  await cssSession.send('DOM.enable');
+                  await cssSession.send('CSS.enable');
+                  // Keep one DOM document snapshot. DOM.getFlattenedDocument can invalidate
+                  // node IDs obtained from DOM.getDocument in Chromium; querying with the
+                  // earlier documentNode after flattening caused the previous audit failure.
+                  const { root: documentNode } = await cssSession.send('DOM.getDocument', { depth: -1, pierce: true });
+                  const nodesById = new Map();
+                  const parentById = new Map();
+                  const visitNode = (node, parentId = null) => {
+                    if (!node || !node.nodeId) return;
+                    nodesById.set(node.nodeId, node);
+                    if (parentId !== null) parentById.set(node.nodeId, parentId);
+                    const children = [
+                      ...(node.children ?? []),
+                      ...(node.shadowRoots ?? []),
+                      ...(node.templateContent ? [node.templateContent] : []),
+                      ...(node.contentDocument ? [node.contentDocument] : []),
+                    ];
+                    for (const child of children) visitNode(child, node.nodeId);
+                  };
+                  visitNode(documentNode);
+                  const attribute = (node, name) => {
+                    const index = (node?.attributes ?? []).indexOf(name);
+                    return index >= 0 ? node.attributes[index + 1] ?? '' : '';
+                  };
+                  const hasClass = (node, name) => attribute(node, 'class').split(/\s+/).includes(name);
+                  const selectors = [
+                    '[data-ipad-edition="true"]',
+                    '.ipad-nav__sidebar',
+                    '.ipad-edition__main',
+                    '.ipad-edition__home',
+                    '.ipad-edition__hero',
+                    'body',
+                    'html',
+                  ];
+                  const findNodeId = selector => {
+                    const node = [...nodesById.values()].find(candidate => {
+                      // CSS.getMatchedStylesForNode accepts Element nodes only. The
+                      // document root also has nodeName metadata and must never match.
+                      if (candidate.nodeType !== 1) return false;
+                      if (selector === '[data-ipad-edition="true"]') return attribute(candidate, 'data-ipad-edition') === 'true';
+                      if (selector.startsWith('.')) return hasClass(candidate, selector.slice(1));
+                      return candidate.nodeName?.toLowerCase() === selector;
+                    });
+                    return node?.nodeId ?? null;
+                  };
+                  const targetNodeIds = Object.fromEntries(selectors.map(selector => [selector, findNodeId(selector)]));
+                  const requestedNodeIds = new Set();
+                  for (const selector of selectors) {
+                    let current = targetNodeIds[selector];
+                    let depth = 0;
+                    while (current && depth < 12 && !requestedNodeIds.has(current)) {
+                      const currentNode = nodesById.get(current);
+                      // Walk only real Elements; stop before #document and other
+                      // non-element nodes so the CSS protocol receives valid node IDs.
+                      if (!currentNode || currentNode.nodeType !== 1) break;
+                      requestedNodeIds.add(current);
+                      current = parentById.get(current);
+                      depth += 1;
+                    }
+                  }
+                  // Keep the CSS provenance capture self-contained. These are the layout
+                  // properties needed to explain the sidebar's containing-block and flow behavior.
+                  const relevantProperties = new Set([
+                    'position', 'top', 'right', 'bottom', 'left', 'inset',
+                    'display', 'visibility', 'z-index', 'transform', 'translate',
+                    'width', 'height', 'min-width', 'max-width', 'min-height', 'max-height',
+                    'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+                    'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+                    'overflow', 'overflow-x', 'overflow-y', 'contain', 'will-change',
+                    'filter', 'perspective', 'backdrop-filter', 'box-sizing',
+                    'flex', 'flex-basis', 'flex-grow', 'flex-shrink',
+                    'grid', 'grid-template-columns', 'grid-template-rows', 'gap', 'row-gap',
+                  ]);
+                  const matchedNodes = await Promise.all([...requestedNodeIds].map(async nodeId => {
+                    const node = nodesById.get(nodeId);
+                    const matched = await cssSession.send('CSS.getMatchedStylesForNode', { nodeId });
+                    const computed = await cssSession.send('CSS.getComputedStyleForNode', { nodeId });
+                    const properties = style => (style?.cssProperties ?? [])
+                      .filter(property => relevantProperties.has(property.name) && !property.disabled)
+                      .map(property => ({ name: property.name, value: property.value, important: Boolean(property.important) }));
+                    const computedProperties = (computed.computedStyle ?? [])
+                      .filter(property => relevantProperties.has(property.name))
+                      .map(property => ({ name: property.name, value: property.value }));
+                    const serializeRule = ({ rule, matchingSelectors }) => ({
+                      selector: rule.selectorList?.text ?? '',
+                      matchingSelectors: matchingSelectors ?? [],
+                      origin: rule.origin,
+                      styleSheetId: rule.style?.styleSheetId ?? null,
+                      stylesheet: stylesheetById.get(rule.style?.styleSheetId) ?? null,
+                      sourceRange: rule.style?.range ?? null,
+                      media: rule.media ?? [],
+                      supports: rule.supports ?? [],
+                      layers: rule.layers ?? [],
+                      declarations: properties(rule.style),
+                    });
+                    return {
+                      nodeId,
+                      parentNodeId: parentById.get(nodeId) ?? null,
+                      nodeName: node?.nodeName ?? null,
+                      nodeValue: node?.nodeValue ?? null,
+                      attributes: node?.attributes ?? [],
+                      computedProperties,
+                      inlineStyle: properties(matched.inlineStyle),
+                      matchedRules: (matched.matchedCSSRules ?? []).map(serializeRule).filter(rule => rule.declarations.length > 0),
+                      inheritedRules: (matched.inherited ?? []).map(entry => ({
+                        nodeName: entry.inlineStyle?.cssProperties ? 'inline' : null,
+                        matchedRules: (entry.matchedCSSRules ?? []).map(serializeRule).filter(rule => rule.declarations.length > 0),
+                      })),
+                    };
+                  }));
+                  layoutDiagnostics.matchedCssOrigins = {
+                    selectors,
+                    targetNodeIds,
+                    documentNodeCount: nodesById.size,
+                    stylesheetCount: stylesheetById.size,
+                    matchedNodes,
+                  };
+                } catch (error) {
+                  layoutDiagnostics.matchedCssCaptureError = String(error);
+                } finally {
+                  await cssSession.detach().catch(() => {});
+                }
+                const metrics = await page.evaluate(({ scheme, layoutDiagnostics }) => {
+                  const root = document.querySelector('[data-ipad-edition="true"]');
+                  const layoutMode = root?.getAttribute('data-ipad-layout') ?? 'compact';
+                  const main = document.querySelector('.ipad-edition__main');
+                  const topbar = document.querySelector('.ipad-nav__topbar');
+                  const hero = document.querySelector('.ipad-edition__cinema-hero');
+                  const heroCopy = document.querySelector('.ipad-edition__cinema-hero-copy');
+                  const rect = element => {
+                    if (!element) return null;
+                    const r = element.getBoundingClientRect();
+                    return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+                  };
+                  const luminance = value => {
+                    const match = value.match(/rgba?\(([^)]+)\)/);
+                    if (!match) return null;
+                    const channels = match[1].split(',').slice(0, 3).map(Number);
+                    if (channels.length !== 3 || channels.some(Number.isNaN)) return null;
+                    const [r, g, b] = channels.map(v => {
+                      const c = v / 255;
+                      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+                    });
+                    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                  };
+                  const navigationSurface = document.querySelector('.ipad-nav__topbar-inner') || document.querySelector('.ipad-nav__sidebar');
+                  const wordmark = document.querySelector('.ipad-nav__capsule-action') || document.querySelector('.ipad-nav__brand');
+                  const navigationStyle = navigationSurface ? getComputedStyle(navigationSurface) : null;
+                  const wordmarkStyle = wordmark ? getComputedStyle(wordmark) : null;
+                  const navigationBackground = navigationStyle?.backgroundColor ?? '';
+                  const navColor = wordmarkStyle?.color ?? '';
+                  const navigationBackgroundLuminance = luminance(navigationBackground);
+                  const navTextLuminance = luminance(navColor);
+                  const navigationRadius = Number.parseFloat(navigationStyle?.borderTopLeftRadius ?? '0');
+                  const navigationBackdropFilter = navigationStyle?.backdropFilter ?? 'none';
+                  const navigationWebkitBackdropFilter = navigationStyle?.webkitBackdropFilter ?? 'none';
+                  const theme = {
+                    navigationPresent: Boolean(navigationSurface),
+                    navigationBackground,
+                    navigationBackgroundLuminance,
+                    navigationBorder: navigationStyle?.borderTopColor ?? '',
+                    navigationRadius,
+                    navigationBackdropFilter,
+                    navigationWebkitBackdropFilter,
+                    navColor,
+                    navTextLuminance,
+                    validForRequestedScheme: scheme === 'light'
+                      ? navigationBackgroundLuminance !== null && navigationBackgroundLuminance > 0.72 &&
+                        navTextLuminance !== null && navTextLuminance < 0.3
+                      : navigationBackgroundLuminance !== null && navigationBackgroundLuminance < 0.08 &&
+                        navTextLuminance !== null && navTextLuminance > 0.7,
+                    navigationBlurValid: navigationBackdropFilter.includes('blur(') || navigationWebkitBackdropFilter.includes('blur('),
+                    navigationGeometryValid: navigationRadius >= 14 && Boolean(navigationStyle?.borderTopColor),
+                  };
+                  const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                  const posterChecks = slots.map(slot => {
+                    const image = slot.querySelector('img');
+                    const sourceAddress = (slot.getAttribute('data-poster-url') ?? '').trim();
+                    if (!image) return { slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown', hasImageElement: false, emptyAddress: !sourceAddress, svgPlaceholder: false, loaded: false, visible: false, pixelVisible: false };
+                    const source = image.currentSrc || image.getAttribute('src') || image.src || '';
+                    const svgPlaceholder = /^data:image\/svg\+xml/i.test(source);
+                    const style = getComputedStyle(image);
+                    const box = image.getBoundingClientRect();
+                    const visible = box.width > 2 && box.height > 2 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0.1;
+                    const loaded = image.complete && image.naturalWidth > 0 && image.naturalHeight > 0 && !svgPlaceholder;
+                    let pixelVisible = false;
+                    if (loaded && visible) {
+                      try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 8; canvas.height = 8;
+                        const context = canvas.getContext('2d', { willReadFrequently: true });
+                        context.drawImage(image, 0, 0, 8, 8);
+                        const pixels = context.getImageData(0, 0, 8, 8).data;
+                        const samples = new Set();
+                        for (let i = 0; i < pixels.length; i += 4) {
+                          if (pixels[i + 3] > 8) samples.add(pixels[i] + ',' + pixels[i + 1] + ',' + pixels[i + 2]);
+                        }
+                        pixelVisible = samples.size > 2;
+                      } catch {
+                        pixelVisible = false;
+                      }
+                    }
+                    return {
+                      slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
+                      hasImageElement: true, emptyAddress: !sourceAddress, svgPlaceholder,
+                      loaded, visible, pixelVisible,
+                      naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight,
+                      renderedWidth: Math.round(box.width), renderedHeight: Math.round(box.height),
+                      source: source.slice(0, 180),
+                    };
+                  });
+                  const posters = Array.from(document.querySelectorAll('.ipad-edition__poster-card'));
+                  const animeCards = Array.from(document.querySelectorAll('.ipad-edition__anime-card'));
+                  const cardGeometry = [
+                    ...posters.map((element, index) => ({ element, index, kind: 'poster' })),
+                    ...animeCards.map((element, index) => ({ element, index, kind: 'anime' })),
+                  ].map(({ element, index, kind }) => {
+                    const box = element.getBoundingClientRect();
+                    const style = getComputedStyle(element);
+                    const image = element.querySelector('img')?.getBoundingClientRect();
+                    return {
+                      kind,
+                      index,
+                      x: Math.round(box.x),
+                      y: Math.round(box.y),
+                      width: Math.round(box.width),
+                      height: Math.round(box.height),
+                      imageWidth: image ? Math.round(image.width) : null,
+                      imageHeight: image ? Math.round(image.height) : null,
+                      aspectRatio: style.aspectRatio,
+                      minWidth: style.minWidth,
+                      maxWidth: style.maxWidth,
+                      overflowX: style.overflowX,
+                    };
+                  });
+                  const mainWidth = main?.getBoundingClientRect().width ?? window.innerWidth;
+                  const cardGeometryInvalidCount = cardGeometry.filter(card =>
+                    card.width <= 0 || card.height <= 0 || card.width > mainWidth + 2
+                  ).length;
+                  const home = document.querySelector('.ipad-edition__home');
+                  const homeStyle = home ? getComputedStyle(home) : null;
+                  const layoutChain = [];
+                  let layoutNode = hero;
+                  for (let depth = 0; layoutNode && depth < 7; depth += 1, layoutNode = layoutNode.parentElement) {
+                    const rect = layoutNode.getBoundingClientRect();
+                    const style = getComputedStyle(layoutNode);
+                    layoutChain.push({
+                      tag: layoutNode.tagName.toLowerCase(),
+                      className: typeof layoutNode.className === 'string' ? layoutNode.className : '',
+                      top: Math.round(rect.top),
+                      bottom: Math.round(rect.bottom),
+                      height: Math.round(rect.height),
+                      paddingTop: style.paddingTop,
+                      marginTop: style.marginTop,
+                      display: style.display,
+                      position: style.position,
+                      transform: style.transform,
+                      rowGap: style.rowGap,
+                    });
+                  }
+                  const top = topbar?.getBoundingClientRect();
+                  const copy = heroCopy?.getBoundingClientRect();
+                  const heroRect = hero?.getBoundingClientRect();
+                  const heroMedia = hero?.querySelector('.ipad-edition__cinema-hero-media');
+                  // Measure the artwork's painted box and every ancestor's horizontal
+                  // clipping boundary. Do not use elementFromPoint here: decorative
+                  // gradients/overlays may sit above the backdrop, and pointer-events:none
+                  // layers are intentionally omitted from hit testing while still painting.
+                  const heroArtworkSampleXs = [1, Math.max(1, window.innerWidth - 2)];
+                  const heroArtworkEdgeCoverage = heroArtworkSampleXs.map(x => {
+                    if (!heroMedia || !heroRect) return false;
+                    const mediaRect = heroMedia.getBoundingClientRect();
+                    if (mediaRect.width <= 0 || mediaRect.height <= 0 ||
+                        mediaRect.left > x + 1 || mediaRect.right < x - 1) return false;
+                    for (let ancestor = heroMedia.parentElement;
+                      ancestor && ancestor !== document.documentElement;
+                      ancestor = ancestor.parentElement) {
+                      const style = getComputedStyle(ancestor);
+                      const rect = ancestor.getBoundingClientRect();
+                      const clipsX = ['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX) ||
+                        ['hidden', 'clip', 'auto', 'scroll'].includes(style.overflow);
+                      if (clipsX && (rect.left > x + 1 || rect.right < x - 1)) return false;
+                      if (style.clipPath !== 'none' && (rect.left > x + 1 || rect.right < x - 1)) return false;
+                      if (style.contain.includes('paint') &&
+                          (rect.left > x + 1 || rect.right < x - 1)) return false;
+                    }
+                    return true;
+                  });
+                  const heroContentElements = ['.ipad-edition__cinema-hero-kicker', '.ipad-edition__cinema-hero-copy h1', '.ipad-edition__cinema-hero-meta', '.ipad-edition__cinema-hero-cta']
+                    .map(selector => hero?.querySelector(selector)?.getBoundingClientRect())
+                    .filter(Boolean);
+                  const heroContentTop = heroContentElements.length ? Math.min(...heroContentElements.map(rect => rect.top)) : null;
+                  const heroContentBottom = heroContentElements.length ? Math.max(...heroContentElements.map(rect => rect.bottom)) : null;
+                  const heroContentCenterOffsetPx = heroRect && heroContentTop !== null && heroContentBottom !== null
+                    ? Math.round((heroContentTop + heroContentBottom) / 2 - (heroRect.top + heroRect.bottom) / 2) : null;
+                  const heroTextOverlapsNavigation = Boolean(top && copy && top.left < copy.right && top.right > copy.left && top.top < copy.bottom && top.bottom > copy.top);
+                  const heroOverlapsNavigation = Boolean(top && heroRect && top.left < heroRect.right && top.right > heroRect.left && top.top < heroRect.bottom && top.bottom > heroRect.top);
+                  const heroClearancePx = top && heroRect ? Math.round(heroRect.top - top.bottom) : null;
+                  const heroCta = document.querySelector('.ipad-edition__cinema-hero-cta');
+                  const heroCtaWhiteSpace = heroCta ? getComputedStyle(heroCta).whiteSpace : null;
+                  // The hero uses a landscape backdrop as its primary artwork. A portrait
+                  // poster is rendered only in the no-backdrop fallback, so inspect the
+                  // actual active PosterRenderer instead of assuming a poster <img> exists.
+                  const heroArtworkMode = hero?.querySelector('.ipad-edition__cinema-hero-media')?.getAttribute('data-artwork-mode') ?? null;
+                  const heroArtworkImage = hero?.querySelector(
+                    '.ipad-edition__cinema-hero-backdrop .poster-engine__image, .ipad-edition__cinema-hero-atmosphere .poster-engine__image, .ipad-edition__cinema-hero-fallback-poster .poster-engine__image'
+                  );
+                  const heroArtworkWidthRequirement = heroArtworkMode === 'landscape-backdrop' ? 1200 : 500;
+                  const heroPosterResolution = heroArtworkImage ? {
+                    loaded: heroArtworkImage.complete && heroArtworkImage.naturalWidth > 0 && heroArtworkImage.naturalHeight > 0,
+                    naturalWidth: heroArtworkImage.naturalWidth,
+                    naturalHeight: heroArtworkImage.naturalHeight,
+                    meets1200px: heroArtworkImage.naturalWidth >= heroArtworkWidthRequirement,
+                    requiredWidth: heroArtworkWidthRequirement,
+                    artworkMode: heroArtworkMode,
+                    source: (heroArtworkImage.currentSrc || heroArtworkImage.src || '').slice(0, 180),
+                  } : { loaded: false, naturalWidth: 0, naturalHeight: 0, meets1200px: false, requiredWidth: heroArtworkWidthRequirement, artworkMode: heroArtworkMode, source: null };
+                  // naturalWidth/naturalHeight prove a real image decoded. Canvas pixel inspection is diagnostic only: cross-origin posters can taint the canvas without being visually broken.
+              const realLoaded = posterChecks.filter(item => item.loaded && item.visible).length;
+                  const posterSlotBreakdown = Object.fromEntries([...new Set(posterChecks.map(item => item.slotType))].map(type => {
+                    const matching = posterChecks.filter(item => item.slotType === type);
+                    const loaded = matching.filter(item => item.loaded && item.visible).length;
+                    return [type, { total: matching.length, realLoaded: loaded, loadRate: matching.length ? Number((loaded / matching.length).toFixed(3)) : 0 }];
+                  }));
+                  return {
+                    viewportWidth: window.innerWidth,
+                    documentWidth: document.documentElement.scrollWidth,
+                    bodyWidth: document.body.scrollWidth,
+                    horizontalOverflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > window.innerWidth + 2,
+                    shell: rect(root), main: rect(main), home: rect(home), topbar: rect(topbar), hero: rect(hero), heroCopy: rect(heroCopy),
+                    heroArtworkEdgeCoverage,
+                    homeComputed: homeStyle ? { paddingTop: homeStyle.paddingTop, marginTop: homeStyle.marginTop, rowGap: homeStyle.rowGap, display: homeStyle.display, transform: homeStyle.transform } : null,
+                    layoutChain,
+                    layoutDiagnostics,
+                    heroTextOverlapsNavigation,
+                    heroOverlapsNavigation,
+                    heroContentCenterOffsetPx,
+                    heroClearancePx,
+                    heroCtaWhiteSpace,
+                    heroPosterResolution,
+                    homepageStillLoading: Boolean(document.querySelector('.ipad-edition__poster-grid[aria-busy="true"]')) || (document.querySelector('.ipad-edition__cinema-hero-copy h1')?.textContent ?? '').includes('正在为你准备影院'),
+                    animeCalendarStillLoading: (document.querySelector('#ipad-anime-calendar')?.textContent ?? '').includes('正在读取每日放送'),
+                    posterCount: posters.length,
+                    animeCardCount: animeCards.length,
+                    cardGeometry,
+                    cardGeometryInvalidCount,
+                    posterSlotCount: posterChecks.length,
+                    posterSlotBreakdown,
+                    posterImageElementCount: posterChecks.filter(item => item.hasImageElement).length,
+                    emptyPosterAddressCount: posterChecks.filter(item => item.emptyAddress).length,
+                    missingPosterImageElementCount: posterChecks.filter(item => !item.hasImageElement).length,
+                    svgPlaceholderCount: posterChecks.filter(item => item.svgPlaceholder).length,
+                    realPosterImagesLoaded: realLoaded,
+                    visiblePosterImages: posterChecks.filter(item => item.visible).length,
+                    pixelVisiblePosterImages: posterChecks.filter(item => item.pixelVisible).length,
+                    pixelInspectionUnavailableCount: posterChecks.filter(item => item.loaded && item.visible && !item.pixelVisible).length,
+                    posterImageLoadRate: posterChecks.length ? Number((realLoaded / posterChecks.length).toFixed(3)) : 0,
+                    posterChecks,
+                    popularHeading: Boolean(document.querySelector('#ipad-popular-movies-title')),
+                    theme,
+                  };
+                }, { scheme: colorScheme, layoutDiagnostics });
+                metrics.homepageReadiness = homepageReadiness;
+                metrics.heroArtworkReadiness = heroArtworkReadiness;
+                const themeKey = viewport.name;
+                const themeBaselines = globalThis.__ipadThemeBaselines ?? (globalThis.__ipadThemeBaselines = {});
+                if (colorScheme === 'light') {
+                  themeBaselines[themeKey] = metrics.theme;
+                  metrics.themePairValid = metrics.theme.validForRequestedScheme &&
+                    metrics.theme.navigationPresent && metrics.theme.navigationBlurValid &&
+                    metrics.theme.navigationGeometryValid;
+                } else {
+                  const light = themeBaselines[themeKey];
+                  metrics.themeDifference = light ? {
+                    navigationBackgroundChanged: light.navigationBackground !== metrics.theme.navigationBackground,
+                    navigationColorChanged: light.navColor !== metrics.theme.navColor,
+                    navigationBlurPresentInBothThemes: light.navigationBlurValid && metrics.theme.navigationBlurValid,
+                  } : null;
+                  metrics.themePairValid = Boolean(light && light.validForRequestedScheme && metrics.theme.validForRequestedScheme &&
+                    light.navigationPresent && metrics.theme.navigationPresent &&
+                    light.navigationBlurValid && metrics.theme.navigationBlurValid &&
+                    light.navigationGeometryValid && metrics.theme.navigationGeometryValid &&
+                    metrics.themeDifference.navigationBackgroundChanged &&
+                    metrics.themeDifference.navigationColorChanged &&
+                    metrics.themeDifference.navigationBlurPresentInBothThemes);
+                }
+                // Force every poster slot through a real paint/decode cycle before the
+                // full-page capture. DOM naturalWidth alone can be true while a lazy
+                // image has not yet been painted into the captured screenshot.
+                await page.evaluate(async () => {
+                  const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                  const images = slots.map(slot => slot.querySelector('img')).filter(Boolean);
+                  // Promote every lazy poster at once. Sequential per-card decode waits
+                  // multiplied an 8s timeout by every slot in every viewport/theme pair.
+                  for (const image of images) image.loading = 'eager';
+                  await Promise.race([
+                    Promise.all(images.map(image =>
+                      typeof image.decode === 'function' ? image.decode().catch(() => {}) : Promise.resolve()
+                    )),
+                    new Promise(resolve => setTimeout(resolve, 12000)),
+                  ]);
+                  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  window.scrollTo(0, 0);
+                  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  if (document.fonts?.ready) await Promise.race([
+                    document.fonts.ready,
+                    new Promise(resolve => setTimeout(resolve, 3000)),
+                  ]);
+                });
+                // Inspect every poster from a browser-composited viewport screenshot.
+                // A single fullPage capture cannot contain horizontally off-screen carousel
+                // cards: their document X coordinates can exceed the PNG width. Center each
+                // slot in the real page viewport, capture the complete composited viewport,
+                // then crop using viewport-relative CSS coordinates. This still avoids the
+                // isolated image-layer false-black behavior of locator.screenshot().
+                const posterSlots = await page.locator('[data-ipad-poster-slot]').count();
+                const posterPixelChecks = [];
+                // Bound the complete per-viewport/theme poster audit, not just each image decode.
+                // The audit still checks every slot when it fits the budget; if screenshots stall,
+                // remaining slots are explicitly recorded as uninspected and the gate fails closed.
+                const posterInspectionStartedAt = Date.now();
+                const posterInspectionBudgetMs = 60_000;
+                let posterInspectionBudgetExceeded = false;
+                for (let index = 0; index < posterSlots; index += 1) {
+                  if (Date.now() - posterInspectionStartedAt >= posterInspectionBudgetMs) {
+                    posterInspectionBudgetExceeded = true;
+                    for (let remaining = index; remaining < posterSlots; remaining += 1) {
+                      const slotType = await page.locator('[data-ipad-poster-slot]').nth(remaining).getAttribute('data-ipad-poster-slot').catch(() => 'unknown');
+                      posterPixelChecks.push({
+                        index: remaining,
+                        slotType: slotType ?? 'unknown',
+                        inspected: false,
+                        reason: 'poster-inspection-time-budget-exceeded',
+                        blankBlack: false,
+                      });
+                    }
+                    console.error('Poster pixel audit exceeded its 60s per-viewport/theme budget; remaining slots are marked uninspected.');
+                    break;
+                  }
+                  await page.evaluate(async (slotIndex) => {
+                    const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                    const slot = slots[slotIndex];
+                    if (!slot) return;
+                    // Center the card inside its own horizontal rail first. scrollIntoView()
+                    // alone can leave the final flex item outside the screenshot crop when
+                    // scroll-snap and the page's vertical scroller compete for the gesture.
+                    const rail = slot.parentElement;
+                    if (rail) {
+                      const slotRect = slot.getBoundingClientRect();
+                      const railRect = rail.getBoundingClientRect();
+                      rail.scrollLeft += slotRect.left - railRect.left - (rail.clientWidth - slotRect.width) / 2;
+                    }
+                    slot.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+                    const image = slot.querySelector('img');
+                    if (image) image.loading = 'eager';
+                    // Decode was bounded once for the whole poster set above. Do not
+                    // repeat an 8s per-image wait before every screenshot.
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                  }, index);
+
+                  let renderedViewportPng;
+                  try {
+                    const remainingPosterBudgetMs = Math.max(
+                      1,
+                      posterInspectionBudgetMs - (Date.now() - posterInspectionStartedAt),
+                    );
+                    renderedViewportPng = PNG.sync.read(await page.screenshot({
+                      fullPage: false,
+                      animations: "disabled",
+                      // Full viewport compositing can exceed 1.5s on large 2x iPad
+                      // captures. Allow a bounded 5s while preserving the 60s audit budget.
+                      timeout: Math.max(1, Math.min(5000, remainingPosterBudgetMs)),
+                    }));
+                  } catch (error) {
+                    const slotType = await page.locator('[data-ipad-poster-slot]').nth(index)
+                      .getAttribute('data-ipad-poster-slot').catch(() => 'unknown');
+                    posterPixelChecks.push({
+                      index,
+                      slotType: slotType ?? 'unknown',
+                      inspected: false,
+                      reason: 'poster-screenshot-failed: ' + String(error).slice(0, 300),
+                      blankBlack: false,
+                    });
+                    console.error('Poster pixel screenshot failed for slot ' + index + ': ' + String(error));
+                    continue;
+                  }
+                  if ((index + 1) % 5 === 0 || index + 1 === posterSlots) {
+                    console.log(`Poster pixel audit progress: ${index + 1}/${posterSlots} slots in ${Date.now() - posterInspectionStartedAt}ms.`);
+                  }
+                  const item = await page.evaluate((slotIndex) => {
+                    const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
+                    const slot = slots[slotIndex];
+                    const image = slot?.querySelector('img');
+                    if (!slot || !image) {
+                      return {
+                        index: slotIndex,
+                        slotType: slot?.getAttribute('data-ipad-poster-slot') ?? 'unknown',
+                        missingImage: true,
+                      };
+                    }
+                    const rect = image.getBoundingClientRect();
+                    return {
+                      index: slotIndex,
+                      slotType: slot.getAttribute('data-ipad-poster-slot') ?? 'unknown',
+                      missingImage: false,
+                      x: rect.left,
+                      y: rect.top,
+                      width: rect.width,
+                      height: rect.height,
+                      naturalWidth: image.naturalWidth,
+                      naturalHeight: image.naturalHeight,
+                      complete: image.complete,
+                      source: (image.currentSrc || image.src || '').slice(0, 180),
+                    };
+                  }, index);
+
+                  if (item.missingImage) {
+                    posterPixelChecks.push({
+                      index: item.index,
+                      slotType: item.slotType,
+                      inspected: false,
+                      reason: "missing-image-element",
+                      blankBlack: false,
+                    });
+                    continue;
+                  }
+
+                  const screenshotScaleX = renderedViewportPng.width / viewport.width;
+                  const screenshotScaleY = renderedViewportPng.height / viewport.height;
+                  const left = Math.max(0, Math.floor(item.x * screenshotScaleX));
+                  const top = Math.max(0, Math.floor(item.y * screenshotScaleY));
+                  const right = Math.min(renderedViewportPng.width, Math.ceil((item.x + item.width) * screenshotScaleX));
+                  const bottom = Math.min(renderedViewportPng.height, Math.ceil((item.y + item.height) * screenshotScaleY));
+                  let sum = 0;
+                  let sumSquares = 0;
+                  let darkPixels = 0;
+                  let samples = 0;
+                  const colorBuckets = new Set();
+                  for (let y = top; y < bottom; y += 1) {
+                    for (let x = left; x < right; x += 1) {
+                      const offset = (y * renderedViewportPng.width + x) * 4;
+                      const alpha = renderedViewportPng.data[offset + 3] / 255;
+                      if (alpha < 0.9) continue;
+                      const red = renderedViewportPng.data[offset];
+                      const green = renderedViewportPng.data[offset + 1];
+                      const blue = renderedViewportPng.data[offset + 2];
+                      const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+                      sum += luminance;
+                      sumSquares += luminance * luminance;
+                      if (luminance <= 16) darkPixels += 1;
+                      colorBuckets.add([red >> 4, green >> 4, blue >> 4].join(","));
+                      samples += 1;
+                    }
+                  }
+                  const meanLuminance = samples ? sum / samples : 0;
+                  const variance = samples ? Math.max(0, sumSquares / samples - meanLuminance ** 2) : 0;
+                  const standardDeviation = Math.sqrt(variance);
+                  const nearBlackRatio = samples ? darkPixels / samples : 1;
+                  const blankBlack = samples === 0 ||
+                    (meanLuminance < 8 && standardDeviation < 4 && nearBlackRatio > 0.995);
+                  posterPixelChecks.push({
+                    index: item.index,
+                    slotType: item.slotType,
+                    inspected: samples > 0,
+                    width: Math.max(0, right - left),
+                    height: Math.max(0, bottom - top),
+                    meanLuminance: Number(meanLuminance.toFixed(2)),
+                    luminanceStdDev: Number(standardDeviation.toFixed(2)),
+                    nearBlackRatio: Number(nearBlackRatio.toFixed(4)),
+                    colorBucketCount: colorBuckets.size,
+                    blankBlack,
+                    naturalWidth: item.naturalWidth,
+                    naturalHeight: item.naturalHeight,
+                    complete: item.complete,
+                    source: item.source,
+                  });
+                }
+                metrics.posterPixelInspectionSource = "per-poster-viewport-composited-screenshot";
+                metrics.posterInspectionBudgetMs = posterInspectionBudgetMs;
+                metrics.posterInspectionDurationMs = Date.now() - posterInspectionStartedAt;
+                metrics.posterInspectionBudgetExceeded = posterInspectionBudgetExceeded;
+                metrics.posterPixelChecks = posterPixelChecks;
+                metrics.posterPixelInspectionUnavailableCount = posterPixelChecks.filter(item => !item.inspected).length;
+                metrics.blankBlackPosterCount = posterPixelChecks.filter(item => item.blankBlack).length;
+                metrics.posterPixelInspectionPassed = posterPixelChecks.length === metrics.posterSlotCount &&
+                  metrics.posterPixelInspectionUnavailableCount === 0 && metrics.blankBlackPosterCount === 0;
+
+                // Audit the real viewport, not a stitched full-page capture. Chromium can
+                // reposition fixed elements while stitching a fullPage screenshot, making
+                // the top navigation appear over unrelated poster rows even though its
+                // measured viewport position is correct.
+                await page.locator("#ipad-popular-series").scrollIntoViewIfNeeded();
+                await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                const scrollAudit = await page.evaluate(() => {
+                  const layoutMode = document.querySelector('.ipad-edition')?.getAttribute('data-ipad-layout') ?? 'compact';
+                  const navElement = document.querySelector('.ipad-nav__topbar-inner') || document.querySelector('.ipad-nav__topbar');
+                  const nav = navElement?.getBoundingClientRect();
+                  const main = document.querySelector('.ipad-edition__main')?.getBoundingClientRect();
+                  const labels = Array.from(document.querySelectorAll("#ipad-popular-series .ipad-edition__poster-card strong, #ipad-popular-series .ipad-edition__poster-card small"));
+                  const visibleLabels = labels.map((element) => {
+                    const rect = element.getBoundingClientRect();
+                    const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+                    const overlapsNavigation = Boolean(nav && visible &&
+                      nav.left < rect.right && nav.right > rect.left && nav.top < rect.bottom && nav.bottom > rect.top);
+                    return {
+                      text: element.textContent?.trim() ?? "",
+                      left: Math.round(rect.left),
+                      right: Math.round(rect.right),
+                      top: Math.round(rect.top),
+                      bottom: Math.round(rect.bottom),
+                      visible,
+                      overlapsNavigation,
+                    };
+                  });
+                  return {
+                    layoutMode,
+                    scrollY: Math.round(window.scrollY),
+                    navigationLeft: nav ? Math.round(nav.left) : null,
+                    navigationRight: nav ? Math.round(nav.right) : null,
+                    navigationTop: nav ? Math.round(nav.top) : null,
+                    navigationBottom: nav ? Math.round(nav.bottom) : null,
+                    mainLeft: main ? Math.round(main.left) : null,
+                    mainRight: main ? Math.round(main.right) : null,
+                    visiblePosterLabels: visibleLabels.filter(item => item.visible).length,
+                    overlappingPosterLabels: visibleLabels.filter(item => item.overlapsNavigation),
+                    contentClearsSidebar: Boolean(main && !document.querySelector('.ipad-nav__sidebar.is-open')),
+                    navigationViewportValid: Boolean(nav && nav.top >= 0 && nav.bottom <= window.innerHeight),
+                  };
+                });
+                metrics.scrollAudit = scrollAudit;
+                const name = viewport.name + "-" + colorScheme;
+                await page.evaluate(() => window.scrollTo(0, 0));
+                await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                await page.screenshot({ path: "artifacts/ipad-visual-audit/" + name + ".png", fullPage: false, animations: "disabled" });
+                // The navigation capsule intentionally floats above the full-bleed hero artwork.
+                // Gate on copy/navigation collision, not artwork/navigation intersection or a
+                // positive gap between the hero and fixed navigation. Hero copy is bottom-anchored
+                // by design, so do not require its center to match the hero's geometric center.
+                const failed = !sidebarInteractionPassed || sidebarInteraction.diagnostics.finalState?.computedStyle?.position !== "fixed" || response?.ok() !== true || metrics.horizontalOverflow || !metrics.shell || !metrics.main || metrics.main.y > 220 || metrics.main.width < viewport.width * 0.7 || !homepageReadiness.ready || !heroArtworkReadiness.ready || metrics.homepageStillLoading || metrics.animeCalendarStillLoading || metrics.posterCount < 1 || metrics.posterSlotCount < 1 || metrics.cardGeometryInvalidCount > 0 || metrics.posterImageLoadRate < 0.75 || !metrics.posterPixelInspectionPassed || !metrics.heroPosterResolution?.loaded || !metrics.heroPosterResolution.meets1200px || metrics.heroTextOverlapsNavigation || metrics.heroCtaWhiteSpace !== "nowrap" || !metrics.hero || metrics.hero.y < 0 || metrics.hero.y > Math.min(160, viewport.height * 0.25) || !metrics.heroArtworkEdgeCoverage?.every(Boolean) || !metrics.themePairValid || !scrollAudit.navigationViewportValid || !scrollAudit.contentClearsSidebar || scrollAudit.overlappingPosterLabels.length > 0;
+                if (failed) failures += 1;
+                await Promise.allSettled(apiDiagnosticTasks);
+                results.push({ name, httpStatus: response?.status() ?? null, failed, sidebarInteractionPassed, sidebarInteraction, metrics, pageErrors: consoleErrors, apiDiagnostics });
+                console.log(JSON.stringify(results.at(-1)));
+                await context.close();
+              }
+            }
+          } catch (error) {
+            failures += 1;
+            results.push({ fatalError: String(error), completedViewportThemePairs: results.length });
+            console.error("Fatal iPad visual audit error:", error);
+          } finally {
+            await browser.close();
+            await fs.writeFile("artifacts/ipad-visual-audit/report.json", JSON.stringify({
+              target,
+              mode: "simulated Chromium viewport audit; not real iPad Safari",
+              total: results.length,
+              failures,
+              fatalError: failures && results.at(-1)?.fatalError ? results.at(-1).fatalError : null,
+              results,
+            }, null, 2));
+          }
+          if (failures) process.exitCode = 1;
+          NODE
+      - name: Verify clean Preview URL without layout debug parameter
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
+        timeout-minutes: 8
+        run: |
+          node --input-type=module <<'NODE'
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
+          const url = "https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition";
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          try {
+            for (const colorScheme of ["light", "dark"]) {
+              const context = await browser.newContext({
+                viewport: { width: 1194, height: 834 },
+                deviceScaleFactor: 2,
+                isMobile: true,
+                hasTouch: true,
+                colorScheme,
+              });
+              const page = await context.newPage();
+              const errors = [];
+              page.on("pageerror", error => errors.push(error.message));
+              const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+              await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
+              await page.locator(".ipad-edition__cinema-hero").waitFor({ state: "visible", timeout: 30000 });
+              await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
+              await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'hidden', timeout: 30000 });
+              // The environment engine attaches its data attributes in a client effect.
+              // Wait for the requested scheme before asserting clean-URL theme readiness.
+              await page.waitForFunction(
+                (scheme) => document.querySelector(".ipad-edition")?.getAttribute("data-environment") === scheme,
+                colorScheme,
+                { timeout: 15000 },
+              );
+              const metrics = await page.evaluate(() => ({
+                hasDebugOverlay: Boolean(document.querySelector('[aria-label="iPad 页面布局诊断"]')),
+                hasDebugQuery: new URLSearchParams(location.search).has("__layout_debug"),
+                rootEnvironment: document.querySelector(".ipad-edition")?.dataset.environment ?? null,
+                viewportWidth: document.documentElement.clientWidth,
+                documentWidth: document.documentElement.scrollWidth,
+                heroWidth: Math.round(document.querySelector(".ipad-edition__cinema-hero")?.getBoundingClientRect().width ?? 0),
+              }));
+              const failed = !response?.ok() || metrics.hasDebugOverlay || metrics.hasDebugQuery ||
+                metrics.rootEnvironment !== colorScheme || metrics.documentWidth > metrics.viewportWidth + 1 ||
+                metrics.heroWidth < metrics.viewportWidth * 0.7 || errors.length > 0;
+              results.push({ colorScheme, status: response?.status() ?? null, failed, metrics, errors });
+              console.log(JSON.stringify(results.at(-1)));
+              await context.close();
+              if (failed) throw new Error("Clean Preview audit failed for " + colorScheme);
+            }
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - name: Capture iPad subpage visual baselines
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
+        timeout-minutes: 12
+        run: |
+          mkdir -p artifacts/ipad-visual-audit/subpages
+          node --input-type=module <<'NODE'
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
+          import fs from 'node:fs/promises';
+
+          const base = "https://libretv-ipad-edition-preview.bggdbh.workers.dev";
+          const routes = [
+            { name: "search", path: "/ipad-edition/search", chrome: true, heading: true },
+            { name: "movies", path: "/ipad-edition/movies", chrome: true, heading: true },
+            { name: "series", path: "/ipad-edition/series", chrome: true, heading: true },
+            { name: "anime", path: "/ipad-edition/anime", chrome: true, heading: true },
+            { name: "detail", path: "/ipad-edition/detail?source=friday-cms&id=ipad-preview-fixture&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod", chrome: true, heading: false },
+            { name: "detail-tmdb", path: "/ipad-edition/detail?tmdbId=12345&tmdbType=movie&title=TMDB%20%E9%A2%84%E8%A7%88%E6%A0%B7%E7%89%87", chrome: true, heading: false },
+            { name: "detail-bangumi", path: "/ipad-edition/detail?bangumiId=425&title=Bangumi%20%E9%A2%84%E8%A7%88%E6%A0%B7%E7%89%87", chrome: true, heading: false },
+            { name: "watch", path: "/ipad-edition/watch?source=friday-cms&id=ipad-preview-fixture&index=0&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod", chrome: false, heading: false },
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          try {
+            for (const route of routes) {
+              for (const colorScheme of ["light", "dark"]) {
+                const context = await browser.newContext({
+                  viewport: { width: 1194, height: 834 },
+                  deviceScaleFactor: 2,
+                  isMobile: true,
+                  hasTouch: true,
+                  colorScheme,
+                });
+                const page = await context.newPage();
+                const errors = [];
+                page.on("pageerror", error => errors.push(error.message));
+                // Use deterministic, clearly synthetic CMS data so detail/player baselines
+                // exercise real page content without depending on third-party source uptime.
+                if (["detail", "detail-tmdb", "detail-bangumi", "watch"].includes(route.name)) {
+                  const fixtureDetail = {
+                    episodes: ["https://media.preview.invalid/fixture.mp4"],
+                    episodeItems: [{ title: "预览播放条目", url: "https://media.preview.invalid/fixture.mp4", duration: "00:30" }],
+                    videoInfo: {
+                      title: "iPad Preview 样片",
+                      cover: "https://media.preview.invalid/cms-poster.svg",
+                      desc: "用于 iPad Edition 详情页与播放页视觉验收的合成测试数据，不代表真实片源。",
+                      typeName: "电视剧",
+                      year: "2026",
+                      area: "测试环境",
+                      sourceKey: "friday-cms",
+                      sourceName: "Preview Fixture",
+                      sourceUrl: "https://preview.invalid/api.php/provide/vod",
+                    },
+                  };
+                  await page.route("**/api/status", route => route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({
+                      passwordRequired: false, verified: true, version: "ipad-preview-fixture",
+                      defaultSources: [], defaultLiveSources: [], defaultSubscriptions: [],
+                      defaultRecommendSource: null, defaultImageMode: "direct",
+                    }),
+                  }));
+                  await page.route("**/api/detail?*", route => route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify(fixtureDetail),
+                  }));
+                  const posterSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1800" viewBox="0 0 1200 1800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#253b5c"/><stop offset="1" stop-color="#090d18"/></linearGradient></defs><rect width="1200" height="1800" fill="url(#g)"/><circle cx="600" cy="650" r="260" fill="#d9b66c" opacity=".65"/><text x="600" y="1370" fill="#fff" font-size="76" text-anchor="middle">LIBRETV PREVIEW</text></svg>';
+                  await page.route("https://media.preview.invalid/**", route => {
+                    if (route.request().url().endsWith(".mp4")) {
+                      return route.fulfill({ status: 200, contentType: "video/mp4", body: Buffer.alloc(0) });
+                    }
+                    return route.fulfill({ status: 200, contentType: "image/svg+xml", body: posterSvg });
+                  });
+                  if (route.name === "detail-tmdb") {
+                    await page.route("**/api/tmdb/details?*", route => route.fulfill({
+                      status: 200, contentType: "application/json",
+                      body: JSON.stringify({
+                        id: 12345, title: "TMDB 预览样片", original_title: "TMDB Preview",
+                        overview: "TMDB 详情视觉回归测试数据。", poster_path: "/preview-poster.svg",
+                        backdrop_path: null, vote_average: 8.6, release_date: "2026-01-01",
+                        runtime: 120, genres: [{ id: 1, name: "科幻" }],
+                        production_countries: [{ name: "美国" }], credits: { cast: [], crew: [] },
+                      }),
+                    }));
+                    await page.route("https://image.tmdb.org/t/p/**", route => route.fulfill({
+                      status: 200, contentType: "image/svg+xml", body: posterSvg,
+                    }));
+                  }
+                  if (route.name === "detail-bangumi") {
+                    await page.route("**/api/bangumi/subject?*", route => route.fulfill({
+                      status: 200, contentType: "application/json",
+                      body: JSON.stringify({
+                        id: 425, name: "Bangumi Preview", name_cn: "Bangumi 预览样片",
+                        summary: "Bangumi 详情视觉回归测试数据。", date: "2026-04-01",
+                        platform: "TV", total_episodes: 12, images: { large: "https://media.preview.invalid/bangumi-poster.svg" },
+                        rating: { score: 8.8, total: 100 }, tags: [{ name: "科幻" }, { name: "冒险" }],
+                      }),
+                    }));
+                    await page.route("**/api/tmdb/match?*", route => route.fulfill({
+                      status: 200, contentType: "application/json", body: JSON.stringify({ match: null }),
+                    }));
+                  }
+                }
+                await page.addInitScript((scheme) => {
+                  const apply = () => {
+                    document.documentElement.classList.toggle("dark", scheme === "dark");
+                    document.documentElement.style.colorScheme = scheme;
+                  };
+                  if (document.documentElement) apply();
+                  else document.addEventListener("DOMContentLoaded", apply, { once: true });
+                }, colorScheme);
+                const response = await page.goto(base + route.path, { waitUntil: "domcontentloaded", timeout: 60000 });
+                await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
+                await page.waitForFunction(
+                  (scheme) => document.querySelector(".ipad-edition")?.getAttribute("data-environment") === scheme,
+                  colorScheme,
+                  { timeout: 30000 },
+                );
+                if (route.heading) {
+                  await page.locator(".ipad-edition__page-heading h1").waitFor({ state: "visible", timeout: 30000 });
+                }
+                // Collection pages must reach a terminal data state before a screenshot is accepted.
+                // A heading alone can appear while the grid is still showing loading skeletons.
+                if (["movies", "series", "anime"].includes(route.name)) {
+                  await page.waitForFunction(() => {
+                    const skeletons = document.querySelectorAll(".ipad-edition__poster-skeleton").length;
+                    const content = document.querySelector(".ipad-edition__collection-grid");
+                    const message = document.querySelector(".ipad-edition__rail-message");
+                    return skeletons === 0 && Boolean(content || message);
+                  }, undefined, { timeout: 30000 });
+                }
+                // The player route hides the global chrome; the detail route keeps the iPad shell navigation.
+                // Detail and player screenshots below use deterministic mocked CMS data so their actual
+                // content layouts are exercised without depending on a live third-party source.
+                if (route.name.startsWith("detail")) {
+                  await page.locator(".ipad-cinema-hero h1").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".ipad-cinema-hero__poster").waitFor({ state: "visible", timeout: 30000 });
+                  if (route.name === "detail") {
+                    await page.getByRole("heading", { name: "iPad Preview 样片" }).waitFor({ state: "visible", timeout: 30000 });
+                    await page.locator(".movie-episode-card").first().waitFor({ state: "visible", timeout: 30000 });
+                  }
+                }
+                if (route.name === "watch") {
+                  await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
+                  // The legacy title row is intentionally hidden by Cinema V4.
+                  // Validate the actual Cinema V4 heading and playback controls.
+                  await page.locator(".ipad-edition-watch .cinema-v4-heading").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
+                  await page.locator(".watch-cinema-progress").waitFor({ state: "visible", timeout: 30000 });
+                }
+                const metrics = await page.evaluate((routeName) => {
+                  const root = document.querySelector(".ipad-edition");
+                  const layoutMode = root?.dataset.ipadLayout ?? 'compact';
+                  const sidebarOpen = root?.dataset.ipadSidebarOpen === 'true';
+                  const nav = sidebarOpen ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
+                  const skeletonCount = document.querySelectorAll(".ipad-edition__poster-skeleton").length;
+                  const collection = document.querySelector(".ipad-edition__collection-grid");
+                  const emptyMessage = document.querySelector(".ipad-edition__rail-message");
+                  return {
+                    rootPresent: Boolean(root),
+                    rootEnvironment: root?.dataset.environment ?? null,
+                    documentWidth: document.documentElement.scrollWidth,
+                    viewportWidth: document.documentElement.clientWidth,
+                    contentTextLength: (root?.textContent ?? "").trim().length,
+                    hasNavigationChrome: Boolean(nav),
+                    navigationMode: root?.dataset.ipadLayout ?? 'compact',
+                    loadingSkeletonCount: skeletonCount,
+                    collectionItemCount: collection?.children.length ?? 0,
+                    hasTerminalCollectionState: Boolean(collection || emptyMessage),
+                    hasDetailTitle: Boolean(document.querySelector(".ipad-cinema-hero h1")),
+                    detailArtwork: (() => {
+                      const hero = document.querySelector(".ipad-cinema-hero");
+                      const image = hero?.querySelector(".ipad-cinema-hero__poster, .ipad-cinema-hero__image");
+                      if (!hero || !image) return { present: false, coversHero: false, naturalWidth: 0 };
+                      const heroRect = hero.getBoundingClientRect();
+                      const imageRect = image.getBoundingClientRect();
+                      return {
+                        present: image.getClientRects().length > 0 && imageRect.width > 0 && imageRect.height > 0,
+                        coversHero: imageRect.left <= heroRect.left + 1 && imageRect.top <= heroRect.top + 1 &&
+                          imageRect.right >= heroRect.right - 1 && imageRect.bottom >= heroRect.bottom - 1,
+                        naturalWidth: image.naturalWidth || 0,
+                        naturalHeight: image.naturalHeight || 0,
+                      };
+                    })(),
+                    hasDetailContentLayout: Boolean(document.querySelector(".ipad-cinema-details .ipad-cinema-info")),
+                    episodeCardCount: document.querySelectorAll(".movie-episode-card").length,
+                    hasPlayerFrame: Boolean(document.querySelector(".netflix-player-frame")),
+                    hasWatchContent: Boolean(document.querySelector(".netflix-watch")),
+                    hasVisiblePlayerTitle: (() => {
+                      const title = document.querySelector(".ipad-edition-watch .cinema-v4-heading");
+                      return Boolean(title && title.getClientRects().length > 0 && getComputedStyle(title).visibility !== "hidden");
+                    })(),
+                    visiblePlayerTitleText: document.querySelector(".ipad-edition-watch .cinema-v4-heading")?.textContent?.trim() ?? null,
+                    hasProgressControl: Boolean(document.querySelector(".watch-cinema-progress")),
+                    progressControlWithinViewport: (() => {
+                      const control = document.querySelector(".watch-cinema-progress");
+                      if (!control) return false;
+                      const rect = control.getBoundingClientRect();
+                      return rect.width > 0 && rect.height > 0 && rect.left >= -2 &&
+                        rect.right <= document.documentElement.clientWidth + 2 &&
+                        rect.top >= -2 && rect.bottom <= document.documentElement.clientHeight + 2;
+                    })(),
+                    progressControlCentered: (() => {
+                      const control = document.querySelector(".watch-cinema-progress");
+                      const playback = document.querySelector(".watch-cinema-playback");
+                      if (!control || !playback) return false;
+                      const controlRect = control.getBoundingClientRect();
+                      const playbackRect = playback.getBoundingClientRect();
+                      return Math.abs((controlRect.left + controlRect.right) / 2 -
+                        (playbackRect.left + playbackRect.right) / 2) <= 8;
+                    })(),
+                    playerGeometry: (() => {
+                      const rect = (selector) => {
+                        const element = document.querySelector(selector);
+                        if (!element) return null;
+                        const box = element.getBoundingClientRect();
+                        return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
+                      };
+                      const intersects = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+                      const frame = rect(".netflix-player-frame");
+                      const centerControls = rect(".cinema-center-controls");
+                      const info = rect(".watch-cinema-info");
+                      const tools = rect(".netflix-watch-tools");
+                      const title = rect(".ipad-edition-watch .cinema-v4-heading");
+                      const utility = rect("#netflix-watch-utility-panel");
+                      const viewportWidth = document.documentElement.clientWidth;
+                      const centerControlsInsideFrame = Boolean(frame && centerControls &&
+                        centerControls.left >= frame.left - 2 && centerControls.right <= frame.right + 2 &&
+                        centerControls.top >= frame.top - 2 && centerControls.bottom <= frame.bottom + 2);
+                      // Core player geometry must be measurable. Optional controls may be
+                      // display:none while the player is idle; validate them only when rendered.
+                      const requiredVisibleBoxes = [frame, centerControls, info, title];
+                      // The active title is part of the iPad cinema overlay and must remain visible.
+                      // Only the auxiliary tools and utility drawer are optional geometry.
+                      const optionalVisibleBoxes = [tools, utility].filter(box =>
+                        box && box.width > 0 && box.height > 0
+                      );
+                      const withinViewport = [...requiredVisibleBoxes, ...optionalVisibleBoxes]
+                        .every(box => Boolean(box) && box.left >= -2 && box.right <= viewportWidth + 2 &&
+                          box.top >= -2 && box.bottom <= document.documentElement.clientHeight + 2 &&
+                          box.width > 0 && box.height > 0);
+                      return {
+                        frame, centerControls, info, tools, title, utility,
+                        centerControlsInsideFrame,
+                        centerControlsOverlapInfo: intersects(centerControls, info),
+                        infoOverlapTools: intersects(info, tools),
+                        titleOverlapTools: intersects(title, tools),
+                        withinViewport,
+                      };
+                    })(),
+                    visualScope: routeName === "detail" ? "full-detail-content-with-mocked-cms-fixture"
+                      : routeName === "watch" ? "player-page-with-mocked-cms-fixture"
+                      : "page-content",
+                  };
+                }, route.name);
+                const failed = !response?.ok() || !metrics.rootPresent ||
+                  metrics.rootEnvironment !== colorScheme ||
+                  metrics.documentWidth > metrics.viewportWidth + 1 ||
+                  metrics.contentTextLength < 8 ||
+                  metrics.hasNavigationChrome !== route.chrome ||
+                  (["movies", "series", "anime"].includes(route.name) &&
+                    (metrics.loadingSkeletonCount > 0 || !metrics.hasTerminalCollectionState)) ||
+                  (route.name.startsWith("detail") && (!metrics.hasDetailTitle ||
+                    !metrics.detailArtwork?.present || !metrics.detailArtwork?.coversHero ||
+                    metrics.detailArtwork?.naturalWidth < 1000 || !metrics.hasDetailContentLayout ||
+                    (route.name === "detail" && metrics.episodeCardCount < 1))) ||
+                  (route.name === "watch" && (!metrics.hasPlayerFrame || !metrics.hasWatchContent ||
+                    !metrics.hasVisiblePlayerTitle || !metrics.hasProgressControl || !metrics.progressControlWithinViewport ||
+                    !metrics.progressControlCentered ||
+                    !metrics.playerGeometry?.centerControlsInsideFrame ||
+                    metrics.playerGeometry.centerControlsOverlapInfo ||
+                    metrics.playerGeometry.infoOverlapTools ||
+                    metrics.playerGeometry.titleOverlapTools ||
+                    !metrics.playerGeometry.withinViewport)) ||
+                  errors.length > 0;
+                const name = route.name + "-" + colorScheme;
+                await page.screenshot({
+                  path: "artifacts/ipad-visual-audit/subpages/" + name + ".png",
+                  fullPage: false,
+                  animations: "disabled",
+                });
+                results.push({ name, route: route.path, status: response?.status() ?? null, failed, metrics, errors });
+                console.log(JSON.stringify(results.at(-1)));
+                await context.close();
+                if (failed) throw new Error("iPad subpage visual baseline failed: " + name);
+              }
+            }
+          } finally {
+            await browser.close();
+            await fs.writeFile(
+              "artifacts/ipad-visual-audit/subpages/report.json",
+              JSON.stringify({ viewport: { width: 1194, height: 834 }, total: results.length, results }, null, 2),
+            );
+          }
+          NODE
+      - name: Audit iPad player geometry and overlay collisions
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
+        timeout-minutes: 10
+        run: |
+          mkdir -p artifacts/ipad-visual-audit/player-geometry
+          node --input-type=module <<'NODE'
+          import { createRequire } from 'node:module';
+          const require = createRequire(process.env.RUNNER_TEMP + '/ipad-audit/package.json');
+          const { chromium } = require('playwright');
+          import fs from 'node:fs/promises';
+
+          const base = "https://libretv-ipad-edition-preview.bggdbh.workers.dev";
+          const route = "/ipad-edition/watch?source=friday-cms&id=ipad-preview-fixture&index=0&title=iPad%20Preview%20%E6%A0%B7%E7%89%87&sourceUrl=https%3A%2F%2Fpreview.invalid%2Fapi.php%2Fprovide%2Fvod";
+          const viewports = [
+            { name: "ipad-11-landscape", width: 1194, height: 834 },
+            { name: "ipad-11-portrait", width: 834, height: 1194 },
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const results = [];
+          let failures = 0;
+          try {
+            for (const viewport of viewports) {
+              for (const colorScheme of ["light", "dark"]) {
+                const context = await browser.newContext({
+                  viewport: { width: viewport.width, height: viewport.height },
+                  deviceScaleFactor: 2,
+                  isMobile: true,
+                  hasTouch: true,
+                  colorScheme,
+                });
+                const page = await context.newPage();
+                const errors = [];
+                page.on("pageerror", error => errors.push(error.message));
+                const fixtureDetail = {
+                  episodes: ["https://media.preview.invalid/fixture.webm"],
+                  episodeItems: [{ title: "预览播放条目", url: "https://media.preview.invalid/fixture.webm", duration: "00:02" }],
+                  videoInfo: {
+                    title: "iPad Preview 样片",
+                    desc: "用于 iPad Edition 播放器几何检查的合成测试数据，不代表真实片源。",
+                    typeName: "电视剧",
+                    year: "2026",
+                    area: "测试环境",
+                    sourceKey: "friday-cms",
+                    sourceName: "Preview Fixture",
+                    sourceUrl: "https://preview.invalid/api.php/provide/vod",
+                  },
+                };
+                await page.route("**/api/status", route => route.fulfill({
+                  status: 200,
+                  contentType: "application/json",
+                  body: JSON.stringify({
+                    passwordRequired: false, verified: true, version: "ipad-preview-fixture",
+                    defaultSources: [], defaultLiveSources: [], defaultSubscriptions: [],
+                    defaultRecommendSource: null, defaultImageMode: "direct",
+                  }),
+                }));
+                await page.route("**/api/detail?*", route => route.fulfill({
+                  status: 200,
+                  contentType: "application/json",
+                  body: JSON.stringify(fixtureDetail),
+                }));
+                await page.route("https://media.preview.invalid/**", route => route.fulfill({
+                  status: 200, contentType: "video/webm", body: Buffer.from("GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAAI3EU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHWTbuMU6uEElTDZ1OsggEjTbuMU6uEHFO7a1OsggIh7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsCrXsYMPQkBNgIxMYXZmNjEuNy4xMDNXQYxMYXZmNjEuNy4xMDNEiYhAn0AAAAAAABZUrmvIrgEAAAAAAAA/14EBc8WIFGPifZdEc9ecgQAitZyDdW5kiIEAhoVWX1ZQOIOBASPjg4QdzWUA4JCwgRC6gRCagQJVsIRVuYEBElTDZ/tzc59jwIBnyJlFo4dFTkNPREVSRIeMTGF2ZjYxLjcuMTAzc3PWY8CLY8WIFGPifZdEc9dnyKFFo4dFTkNPREVSRIeUTGF2YzYxLjE5LjEwMSBsaWJ2cHhnyKFFo4hEVVJBVElPTkSHkzAwOjAwOjAyLjAwMDAwMDAwMAAfQ7Z1+eeBAKOjgQAAgBACAJ0BKhAAEAAARwiFhYiZhIgCAgAMDWAA/v+rUICjmYEB9ACxAQABEBAAGAAwP/QMAAAA/v+rUICjmYED6ACxAQABEBAAGAAwP/QMAAAA/v+rUICjmYEF3ACxAQABEBAAGAAwP/QMAAAA/v+rUIAcU7trkbuPs4EAt4r3gQHxggGj8IED", "base64"),
+                }));
+                await page.addInitScript((scheme) => {
+                  const apply = () => {
+                    document.documentElement.classList.toggle("dark", scheme === "dark");
+                    document.documentElement.style.colorScheme = scheme;
+                  };
+                  if (document.documentElement) apply();
+                  else document.addEventListener("DOMContentLoaded", apply, { once: true });
+                }, colorScheme);
+                const response = await page.goto(base + route, { waitUntil: "domcontentloaded", timeout: 60000 });
+                await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".cinema-center-controls").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".cinema-v4-source-control").waitFor({ state: "visible", timeout: 30000 });
+
+                // Wait for the asynchronously loaded PlayerShell to mount its own media element.
+                // Appending an unrelated <video> here would bypass ArtPlayer's native event
+                // listeners and make the timeline audit test a disconnected DOM node.
+                await page.locator(".netflix-player-frame video").waitFor({ state: "attached", timeout: 30000 });
+                if (await page.getByTestId("cinema-native-fallback").count()) throw new Error("Normal player unexpectedly entered native fallback.");
+                if (await page.getByText("播放器初始化失败，请重试或切换片源。", { exact: false }).count()) throw new Error("Player initialization failed.");
+                // Exercise the real React transport controls against the mounted media element.
+                // The media API is stubbed, but the button, event listeners and state rendering are real.
+                await page.evaluate(() => {
+                  const frame = document.querySelector(".netflix-player-frame");
+                  if (!frame) throw new Error("Player frame is missing.");
+                  const video = frame.querySelector("video");
+                  if (!video) throw new Error("PlayerShell media element did not mount.");
+                  // This audit validates the UI state machine, not the browser decoder.
+                  // Stop and detach the short media fixture so native loop/buffer events
+                  // cannot repeatedly cancel the auto-hide timer. Real HLS decoding is
+                  // covered by the independent Chromium HLS playback workflow.
+                  video.pause();
+                  video.autoplay = false;
+                  video.loop = false;
+                  video.removeAttribute("src");
+                  video.querySelectorAll("source").forEach(source => source.remove());
+                  video.srcObject = null;
+                  video.preload = "none";
+                  video.load();
+
+                  let paused = true;
+                  let ended = false;
+                  let currentTime = 0;
+                  Object.defineProperties(video, {
+                    paused: { configurable: true, get: () => paused },
+                    ended: { configurable: true, get: () => ended },
+                    currentTime: { configurable: true, get: () => currentTime, set: value => {
+                      window.__mockSeekCount = (window.__mockSeekCount || 0) + 1;
+                      currentTime = Number(value) || 0;
+                    } },
+                    duration: { configurable: true, get: () => 120 },
+                  });
+                  video.play = () => {
+                    if (window.__mockPlaybackReject) {
+                      return Promise.reject(new DOMException("Playback blocked by test fixture", "NotAllowedError"));
+                    }
+                    paused = false;
+                    video.dispatchEvent(new Event("play"));
+                    video.dispatchEvent(new Event("playing"));
+                    return Promise.resolve();
+                  };
+                  video.pause = () => {
+                    paused = true;
+                    video.dispatchEvent(new Event("pause"));
+                  };
+                  window.__mockPlaybackReject = false;
+                  // Re-emit pause after replacing the media API so React's real
+                  // state observer receives a deterministic initial paused state.
+                  video.dispatchEvent(new Event("pause"));
+                });
+                try {
+                  await page.waitForFunction(() => {
+                    const video = document.querySelector(".netflix-player-frame video");
+                    const button = document.querySelector(".cinema-play-control");
+                    return Boolean(video?.paused && button?.getAttribute("data-playback-state") === "paused");
+                  }, undefined, { timeout: 10000 });
+                } catch (error) {
+                  // Preserve the strict state assertion. Report the actual video and
+                  // React control state instead of an unactionable wait timeout.
+                  const snapshot = await page.evaluate(() => {
+                    const video = document.querySelector(".netflix-player-frame video");
+                    const button = document.querySelector(".cinema-play-control");
+                    return {
+                      videoCount: document.querySelectorAll(".netflix-player-frame video").length,
+                      videoPaused: video?.paused ?? null,
+                      videoEnded: video?.ended ?? null,
+                      videoReadyState: video?.readyState ?? null,
+                      videoNetworkState: video?.networkState ?? null,
+                      videoConnected: video?.isConnected ?? false,
+                      buttonPresent: Boolean(button),
+                      buttonPlaybackState: button?.getAttribute("data-playback-state") ?? null,
+                      buttonAriaLabel: button?.getAttribute("aria-label") ?? null,
+                      playerErrorVisible: Boolean(document.body.textContent?.includes("播放器初始化失败，请重试或切换片源。")),
+                    };
+                  });
+                  await page.screenshot({
+                    path: `artifacts/ipad-visual-audit/player-geometry/${viewport.name}-${colorScheme}-initial-playback-failure.png`,
+                    fullPage: true,
+                  }).catch(() => {});
+                  throw new Error(`Initial native/React playback state failed: ${JSON.stringify(snapshot)}; ${error.message}`);
+                }
+                const playButton = page.locator(".cinema-play-control");
+                await playButton.click();
+                await page.waitForFunction(() => {
+                  const button = document.querySelector(".cinema-play-control");
+                  return button?.getAttribute("data-playback-state") === "playing" &&
+                    button.getAttribute("aria-label") === "暂停" &&
+                    Boolean(button.querySelector(".cinema-play-icon--pause"));
+                }, undefined, { timeout: 5000 });
+                const playingState = await playButton.evaluate(button => ({
+                  state: button.getAttribute("data-playback-state"),
+                  label: button.getAttribute("aria-label"),
+                  pressed: button.getAttribute("aria-pressed"),
+                  pauseIcon: Boolean(button.querySelector(".cinema-play-icon--pause")),
+                }));
+                await playButton.click();
+                await page.waitForFunction(() => {
+                  const button = document.querySelector(".cinema-play-control");
+                  return button?.getAttribute("data-playback-state") === "paused" &&
+                    button.getAttribute("aria-label") === "播放" &&
+                    Boolean(button.querySelector(".cinema-play-icon--play"));
+                }, undefined, { timeout: 5000 });
+                await page.evaluate(() => { window.__mockPlaybackReject = true; });
+                await playButton.click();
+                await page.waitForTimeout(80);
+                const pausedAfterRejectedPlay = await playButton.evaluate(button =>
+                  button.getAttribute("data-playback-state") === "paused" &&
+                  button.getAttribute("aria-label") === "播放" &&
+                  button.getAttribute("aria-pressed") === "false"
+                );
+                const playbackState = {
+                  playingStateCorrect: playingState.state === "playing" && playingState.label === "暂停" &&
+                    playingState.pressed === "true" && playingState.pauseIcon,
+                  pauseStateCorrect: await playButton.getAttribute("data-playback-state") === "paused" &&
+                    await playButton.getAttribute("aria-label") === "播放",
+                  rejectedPlayRemainsPaused: pausedAfterRejectedPlay,
+                };
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-playback-state", playbackState }));
+                if (!Object.values(playbackState).every(Boolean)) failures += 1;
+
+                // Native timeupdate events must drive the visible timeline immediately,
+                // while storage writes remain independently throttled in PlayerShell.
+                await page.evaluate(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  if (!video) throw new Error("Video is missing for live timeline test.");
+                  window.__mockSeekCount = 0;
+                  video.currentTime = 37;
+                  video.dispatchEvent(new Event("timeupdate"));
+                });
+                await page.waitForFunction(() => {
+                  const progress = document.querySelector(".watch-cinema-progress");
+                  const elapsed = document.querySelector(".watch-cinema-time span:first-child");
+                  return Boolean(progress && Math.abs(Number(progress.getAttribute("aria-valuenow")) - 37) < 0.1 &&
+                    elapsed?.textContent?.trim() === "0:37");
+                }, undefined, { timeout: 3000 });
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-live-timeline", currentTime: 37 }));
+
+                // Real browser pointer input exercises hit testing and pointer capture.
+                const seekControl = page.locator(".watch-cinema-progress");
+                const seekBounds = await seekControl.boundingBox();
+                if (!seekBounds) throw new Error("Seek surface missing");
+                const duration = Number(await seekControl.getAttribute("aria-valuemax"));
+                const seekY = seekBounds.y + seekBounds.height / 2;
+                await page.evaluate(() => { window.__mockSeekCount = 0; });
+                await page.mouse.move(seekBounds.x + seekBounds.width * 0.2, seekY);
+                await page.mouse.down();
+                await page.mouse.move(seekBounds.x + seekBounds.width * 64 / duration, seekY, { steps: 12 });
+                await page.waitForFunction(() => {
+                  const slider = document.querySelector(".watch-cinema-progress");
+                  return Math.abs(Number(slider?.getAttribute("aria-valuenow")) - 64) < 1 &&
+                    window.__mockSeekCount === 0;
+                }, undefined, { timeout: 3000 });
+                await page.mouse.up();
+                await page.evaluate(() => document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event("seeked")));
+                await page.waitForFunction(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  const progress = document.querySelector(".watch-cinema-progress");
+                  const elapsed = document.querySelector(".watch-cinema-time span:first-child");
+                  return Boolean(video && Math.abs(video.currentTime - 64) < 1 &&
+                    progress && Math.abs(Number(progress.getAttribute("aria-valuenow")) - 64) < 1 &&
+                    window.__mockSeekCount === 1);
+                }, undefined, { timeout: 3000 });
+                // A seek is not done merely because the thumb moved during
+                // dragging. After the preview timeout, the committed position
+                // must stay at the target rather than bouncing to the old clock.
+                await page.waitForTimeout(1300);
+                await page.waitForFunction(() => {
+                  const slider = document.querySelector(".cinema-seek-surface");
+                  const elapsed = document.querySelector(".watch-cinema-time span:first-child");
+                  return Boolean(slider && Math.abs(Number(slider.getAttribute("aria-valuenow")) - 64) < 1 &&
+                    elapsed?.textContent?.trim() === "1:04" &&
+                    !document.querySelector(".watch-cinema-scrub-preview") &&
+                    window.__mockSeekCount === 1);
+                }, undefined, { timeout: 3000 });
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-drag-seek", seekPosition: 64, seekCalls: 1, noBounceAfterPreview: true }));
+
+                // Simulate a real touch stream, not synthetic pointer dispatch or
+                // input.value assignment. This exercises touch-action:none and
+                // pointer capture on iPad-like mobile Chromium.
+                const touchControlBounds = await seekControl.boundingBox();
+                if (!touchControlBounds) throw new Error("Missing seek surface for touch stream.");
+                const seekTouchY = touchControlBounds.y + touchControlBounds.height / 2;
+                const touchXStart = touchControlBounds.x + touchControlBounds.width * 0.25;
+                const touchXEnd = touchControlBounds.x + touchControlBounds.width * 0.65;
+                const expectedTouchTime = duration * 0.65;
+                await page.evaluate(() => { window.__mockSeekCount = 0; });
+                const touchSession = await context.newCDPSession(page);
+                try {
+                  await touchSession.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+                  await touchSession.send("Input.dispatchTouchEvent", {
+                    type: "touchStart", touchPoints: [{ x: touchXStart, y: seekTouchY, id: 1, force: 1 }],
+                  });
+                  for (let step = 1; step <= 6; step += 1) {
+                    await touchSession.send("Input.dispatchTouchEvent", {
+                      type: "touchMove",
+                      touchPoints: [{ x: touchXStart + (touchXEnd - touchXStart) * step / 6, y: seekTouchY, id: 1, force: 1 }],
+                    });
+                  }
+                  await page.waitForFunction(({ expected }) => {
+                    const value = Number(document.querySelector(".cinema-seek-surface")?.getAttribute("aria-valuenow"));
+                    return Math.abs(value - expected) < 2 && window.__mockSeekCount === 0;
+                  }, { expected: expectedTouchTime }, { timeout: 4000 });
+                  await touchSession.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+                  await page.waitForFunction(({ expected }) => {
+                    const video = document.querySelector(".netflix-player-frame video");
+                    const slider = document.querySelector(".cinema-seek-surface");
+                    return video && slider && Math.abs(video.currentTime - expected) < 2 &&
+                      Math.abs(Number(slider.getAttribute("aria-valuenow")) - expected) < 2 &&
+                      window.__mockSeekCount === 1 &&
+                      !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing");
+                  }, { expected: expectedTouchTime }, { timeout: 4000 });
+                } finally {
+                  await touchSession.detach();
+                }
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-touch-drag-seek",
+                  position: expectedTouchTime, seekCalls: 1 }));
+
+                // A blank-surface tap while paused must not hide the controls.
+                const pausedFrame = await page.locator(".netflix-player-frame").boundingBox();
+                if (!pausedFrame) throw new Error("Player frame has no bounds for paused-tap test.");
+                await page.touchscreen.tap(pausedFrame.x + 32, pausedFrame.y + 32);
+                const pausedTapKeepsControls = await page.locator(".netflix-watch-shell").evaluate(node =>
+                  !node.classList.contains("cinema-controls-hidden")
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-paused-tap", pausedTapKeepsControls }));
+                if (!pausedTapKeepsControls) failures += 1;
+
+                // A valid, tiny WebM fixture prevents Chromium's empty-file
+                // waiting/stalled events from cancelling the hide timer by accident.
+                // Keep the buffering contract explicit: buffering reveals controls;
+                // playback resuming starts a fresh three-second auto-hide deadline.
+                await page.evaluate(() => { window.__mockPlaybackReject = false; });
+                await playButton.click();
+                await page.waitForFunction(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  return Boolean(video && !video.paused &&
+                    document.querySelector(".cinema-play-control")?.getAttribute("data-playback-state") === "playing");
+                }, undefined, { timeout: 5000 });
+                const bufferingStates = {};
+                for (const eventName of ["waiting", "stalled"]) {
+                  await page.evaluate((name) => {
+                    document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event(name));
+                  }, eventName);
+                  bufferingStates[eventName] = !(await page.locator(".netflix-watch-shell").evaluate(node =>
+                    node.classList.contains("cinema-controls-hidden")
+                  ));
+                  await page.evaluate(() => document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event("playing")));
+                }
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-buffering-controls", bufferingStates }));
+                if (!Object.values(bufferingStates).every(Boolean)) failures += 1;
+
+                // A delayed pause event may be delivered after a quick resume.
+                // It must not cancel the current playback auto-hide deadline.
+                await page.evaluate(() => {
+                  const video = document.querySelector(".netflix-player-frame video");
+                  if (!video || video.paused || video.ended) {
+                    throw new Error("Stale-pause fixture requires active playback.");
+                  }
+                  video.dispatchEvent(new Event("pause"));
+                });
+                await page.waitForFunction(() =>
+                  (document.querySelector(".netflix-watch-shell")?.dataset.controlsHideDebug ?? "")
+                    .includes("pause-ignored:media-still-playing"),
+                  undefined,
+                  { timeout: 3000 },
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-stale-pause-ignored", passed: true }));
+
+                // The entire iPad transport (including the seek rail) must hide
+                // after playback settles, then return on a real touch. This catches
+                // the regression where the old CSS deliberately left the progress
+                // slider visible after the other cinema controls disappeared.
+                let autoHideReached = false;
+                try {
+                  await page.waitForFunction(() => {
+                    const shell = document.querySelector(".netflix-watch-shell");
+                    const info = document.querySelector(".watch-cinema-info");
+                    const progress = document.querySelector(".watch-cinema-progress");
+                    const hidden = element => {
+                      if (!element) return false;
+                      const style = getComputedStyle(element);
+                      let effectiveOpacity = 1;
+                      for (let node = element; node instanceof HTMLElement; node = node.parentElement) {
+                        effectiveOpacity *= Number.parseFloat(getComputedStyle(node).opacity || "1");
+                      }
+                      return style.visibility === "hidden" && effectiveOpacity <= 0.05 &&
+                        style.pointerEvents === "none";
+                    };
+                    return Boolean(shell?.classList.contains("cinema-controls-hidden") &&
+                      hidden(info) && hidden(progress));
+                  }, undefined, { timeout: 7000, polling: 50 });
+                  autoHideReached = true;
+                } catch {
+                  // Capture the actual timer/scrub/media state below so a failed
+                  // auto-hide assertion diagnoses the cause instead of aborting
+                  // before the remaining touch/fullscreen regression checks run.
+                }
+                const autoHideDiagnostics = await page.evaluate(() => {
+                  const shell = document.querySelector(".netflix-watch-shell");
+                  const video = document.querySelector(".netflix-player-frame video");
+                  const info = document.querySelector(".watch-cinema-info");
+                  const progress = document.querySelector(".watch-cinema-progress");
+                  const snapshot = element => {
+                    if (!element) return null;
+                    const style = getComputedStyle(element);
+                    return { opacity: style.opacity, visibility: style.visibility,
+                      pointerEvents: style.pointerEvents, rect: element.getBoundingClientRect().toJSON() };
+                  };
+                  return {
+                    shellClass: shell?.className ?? null,
+                    scrubClass: shell?.classList.contains("cinema-controls-scrubbing") ?? null,
+                    debug: shell?.dataset.controlsHideDebug ?? null,
+                    video: video ? { paused: video.paused, ended: video.ended, currentTime: video.currentTime } : null,
+                    info: snapshot(info), progress: snapshot(progress),
+                  };
+                });
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-auto-hide-state",
+                  autoHideReached, autoHideDiagnostics }));
+                if (!autoHideReached) failures += 1;
+                const fullyHiddenPlaybackChrome = await page.evaluate(() => {
+                  const selectors = [".watch-topbar", ".cinema-center-controls", ".watch-cinema-info",
+                    ".watch-cinema-progress", ".player-quality-controls"];
+                  return Object.fromEntries(selectors.map(selector => {
+                    const node = document.querySelector(selector);
+                    const style = node ? getComputedStyle(node) : null;
+                    let effectiveOpacity = 1;
+                    for (let ancestor = node; ancestor instanceof HTMLElement; ancestor = ancestor.parentElement) {
+                      effectiveOpacity *= Number.parseFloat(getComputedStyle(ancestor).opacity || "1");
+                    }
+                    return [selector, style ? { opacity: Number(style.opacity), effectiveOpacity, visibility: style.visibility,
+                      pointerEvents: style.pointerEvents } : null];
+                  }));
+                });
+                const hiddenChromePassed = Object.values(fullyHiddenPlaybackChrome).every(state =>
+                  state && state.visibility === "hidden" && state.effectiveOpacity <= 0.05 && state.pointerEvents === "none"
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-auto-hide", hiddenChromePassed, fullyHiddenPlaybackChrome }));
+                if (!hiddenChromePassed) failures += 1;
+
+                if (!autoHideReached) {
+                  // Keep the independent touch-reveal/toggle checks meaningful
+                  // even when the timer assertion fails: seed the expected hidden
+                  // visual state, while preserving the failure above.
+                  await page.evaluate(() => document.querySelector(".netflix-watch-shell")?.classList.add("cinema-controls-hidden"));
+                }
+                const frameRect = await page.locator(".netflix-player-frame").boundingBox();
+                if (!frameRect) throw new Error("Player frame has no touchable bounds.");
+                const touchX = frameRect.x + Math.max(28, frameRect.width * 0.12);
+                const touchY = frameRect.y + Math.max(28, frameRect.height * 0.18);
+                await page.touchscreen.tap(touchX, touchY);
+                await page.waitForFunction(() => {
+                  const shell = document.querySelector(".netflix-watch-shell");
+                  const info = document.querySelector(".watch-cinema-info");
+                  return Boolean(shell && !shell.classList.contains("cinema-controls-hidden") &&
+                    info && getComputedStyle(info).visibility === "visible" &&
+                    Number(getComputedStyle(info).opacity) > 0.95);
+                }, undefined, { timeout: 5000 });
+                const touchRevealPassed = !(await page.locator(".netflix-watch-shell").evaluate(node =>
+                  node.classList.contains("cinema-controls-hidden")
+                ));
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-touch-reveal", touchRevealPassed }));
+                if (!touchRevealPassed) failures += 1;
+
+                // A second tap on the empty video surface explicitly dismisses
+                // the visible controls; a third tap must reveal them again.
+                await page.touchscreen.tap(touchX, touchY);
+                await page.waitForFunction(() => document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-hidden"), undefined, { timeout: 3000 });
+                await page.touchscreen.tap(touchX, touchY);
+                await page.waitForFunction(() => !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-hidden"), undefined, { timeout: 3000 });
+                const touchTogglePassed = await page.locator(".netflix-watch-shell").evaluate(node =>
+                  !node.classList.contains("cinema-controls-hidden")
+                );
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-touch-toggle", touchTogglePassed }));
+                if (!touchTogglePassed) failures += 1;
+
+                // The topbar button and F shortcut must both request fullscreen
+                // on the watch shell, never only on the ArtPlayer/video child.
+                await page.evaluate(() => {
+                  const shell = document.querySelector(".netflix-watch-shell");
+                  if (!shell) throw new Error("Watch shell is missing for fullscreen test.");
+                  window.__shellFullscreenRequests = 0;
+                  Object.defineProperty(shell, "requestFullscreen", {
+                    configurable: true,
+                    value: () => {
+                      window.__shellFullscreenRequests += 1;
+                      return Promise.resolve();
+                    },
+                  });
+                });
+                await page.locator('.cinema-v4-actions button:has-text("全屏")').click();
+                await page.waitForFunction(() => window.__shellFullscreenRequests === 1, undefined, { timeout: 3000 });
+                await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+                await page.keyboard.press("f");
+                await page.waitForFunction(() => window.__shellFullscreenRequests === 2, undefined, { timeout: 3000 });
+                const unifiedFullscreenEntrypoints = await page.evaluate(() => window.__shellFullscreenRequests === 2);
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-unified-fullscreen-entrypoints", unifiedFullscreenEntrypoints }));
+                if (!unifiedFullscreenEntrypoints) failures += 1;
+
+                // Regression: a second real pointer drag must unlock without
+                // creating a stale scrub lock after the synthesized click.
+                const scrubControl = page.locator(".watch-cinema-progress");
+                const scrubRect = await scrubControl.boundingBox();
+                if (!scrubRect) throw new Error("Seek surface missing in repeated-drag test.");
+                await page.mouse.move(scrubRect.x + scrubRect.width * 0.33, scrubRect.y + scrubRect.height / 2);
+                await page.mouse.down();
+                await page.waitForFunction(() =>
+                  document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
+                  undefined, { timeout: 5000 });
+                const scrubPreviewVisibleDuringDrag = await page.locator(".watch-cinema-scrub-preview").isVisible();
+                await page.mouse.move(scrubRect.x + scrubRect.width * 0.42, scrubRect.y + scrubRect.height / 2, { steps: 6 });
+                await page.mouse.up();
+                await page.waitForFunction(() =>
+                  !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
+                  undefined, { timeout: 5000 });
+                const scrubStateAfterRelease = await page.evaluate(() => ({
+                  locked: Boolean(document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing")),
+                  controlsVisible: !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-hidden"),
+                }));
+                const scrubInteraction = {
+                  previewVisibleDuringDrag: scrubPreviewVisibleDuringDrag,
+                  unlockedAfterRelease: !scrubStateAfterRelease.locked,
+                  controlsRemainVisibleAfterClick: scrubStateAfterRelease.controlsVisible,
+                };
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-scrub-interaction", scrubInteraction }));
+                if (!Object.values(scrubInteraction).every(Boolean)) failures += 1;
+
+                for (const panelState of ["closed", "open"]) {
+                  if (panelState === "open") {
+                    await page.locator(".cinema-v4-source-control").click();
+                    await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
+                  } else {
+                    await page.locator(".netflix-watch-utility-panel").waitFor({ state: "attached", timeout: 10000 });
+                  }
+                  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                  const metrics = await page.evaluate((expectedPanelState) => {
+                    const selectors = {
+                      shell: ".netflix-watch-shell",
+                      topbar: ".netflix-watch-overlay-topbar",
+                      sourceControls: ".netflix-watch-utility-panel .netflix-source-card",
+                      qualityControls: ".netflix-player-frame .cinema-v4-quality-panel",
+                      frame: ".netflix-player-frame",
+                      player: ".netflix-player-frame .artplayer, .netflix-player-frame .art-video-player",
+                      video: ".netflix-player-frame video",
+                      centerControls: ".cinema-center-controls",
+                      info: ".watch-cinema-info",
+                      utilityPanel: ".netflix-watch-utility-panel",
+                      panelClose: ".netflix-watch-panel-heading button",
+                      panelScrim: ".netflix-watch-panel-scrim",
+                    };
+                    const element = selector => document.querySelector(selector);
+                    const rect = node => {
+                      if (!node) return null;
+                      const r = node.getBoundingClientRect();
+                      return { x: Math.round(r.x), y: Math.round(r.y), right: Math.round(r.right), bottom: Math.round(r.bottom), width: Math.round(r.width), height: Math.round(r.height) };
+                    };
+                    const visible = node => {
+                      if (!node) return false;
+                      const style = getComputedStyle(node);
+                      const r = node.getBoundingClientRect();
+                      return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.01 && r.width > 0 && r.height > 0;
+                    };
+                    const intersects = (a,b) => Boolean(a && b && a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y);
+                    const nodes = Object.fromEntries(Object.entries(selectors).map(([key,selector]) => [key,element(selector)]));
+                    const boxes = Object.fromEntries(Object.entries(nodes).map(([key,node]) => [key,rect(node)]));
+                    const styles = Object.fromEntries(["topbar","centerControls","info","utilityPanel"].map(key => {
+                      const node = nodes[key];
+                      const style = node ? getComputedStyle(node) : null;
+                      return [key, style ? { position: style.position, zIndex: style.zIndex, display: style.display, visibility: style.visibility, opacity: style.opacity } : null];
+                    }));
+                    const video = nodes.video;
+                    const videoRect = rect(video);
+                    const frame = boxes.frame;
+                    const within = (inner,outer) => Boolean(inner && outer && inner.x >= outer.x - 1 && inner.y >= outer.y - 1 && inner.right <= outer.right + 1 && inner.bottom <= outer.bottom + 1);
+                    const panelOpen = expectedPanelState === "open";
+                    return {
+                      viewport: { width: innerWidth, height: innerHeight },
+                      boxes,
+                      styles,
+                      visibility: Object.fromEntries(Object.entries(nodes).map(([key,node]) => [key,visible(node)])),
+                      overlaps: {
+                        infoWithCenterControls: intersects(boxes.info,boxes.centerControls),
+                        topbarWithInfo: intersects(boxes.topbar,boxes.info),
+                        topbarWithSourceControls: intersects(boxes.topbar,boxes.sourceControls),
+                      },
+                      videoWithinFrame: video ? within(videoRect,frame) : null,
+                      frameCoversViewport: Boolean(frame && frame.x <= 1 && frame.y <= 1 && frame.right >= innerWidth - 1 && frame.bottom >= innerHeight - 1),
+                      infoWithinViewport: within(boxes.info,{x:0,y:0,right:innerWidth,bottom:innerHeight}),
+                      topbarWithinViewport: within(boxes.topbar,{x:0,y:0,right:innerWidth,bottom:innerHeight}),
+                      panelWithinViewport: panelOpen ? within(boxes.utilityPanel,{x:0,y:0,right:innerWidth,bottom:innerHeight}) : null,
+                      panelOpen,
+                    };
+                  }, panelState);
+                  const failed = !response?.ok() ||
+                    !metrics.boxes.shell || !metrics.boxes.topbar || !metrics.boxes.frame ||
+                    !metrics.boxes.centerControls || !metrics.boxes.info || !metrics.boxes.utilityPanel ||
+                    !metrics.frameCoversViewport || !metrics.infoWithinViewport || !metrics.topbarWithinViewport ||
+                    metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo ||
+                    (metrics.videoWithinFrame === false) ||
+                    (panelState === "closed" && (!metrics.visibility.info || !metrics.visibility.centerControls || metrics.visibility.utilityPanel)) ||
+                    (panelState === "open" && (!metrics.boxes.sourceControls || metrics.overlaps.topbarWithSourceControls || !metrics.visibility.sourceControls || metrics.visibility.qualityControls || !metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.visibility.panelClose || !metrics.visibility.panelScrim || !metrics.panelWithinViewport)) ||
+                    errors.length > 0;
+                  const name = viewport.name + "-" + colorScheme + "-panel-" + panelState;
+                  await page.screenshot({
+                    path: "artifacts/ipad-visual-audit/player-geometry/" + name + ".png",
+                    fullPage: false,
+                    animations: "disabled",
+                  });
+                  results.push({ name, status: response?.status() ?? null, failed, metrics, errors });
+                  console.log(JSON.stringify(results.at(-1)));
+                  if (failed) failures += 1;
+                  if (panelState === "open") {
+                    await page.locator(".netflix-watch-panel-heading button").click();
+                    await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
+                    await page.waitForFunction(() => {
+                      const panel = document.querySelector('.netflix-watch-utility-panel');
+                      const close = panel?.querySelector('.netflix-watch-panel-heading button');
+                      if (!panel || panel.classList.contains('is-open')) return false;
+                      if (!close) return true;
+                      let opacity = 1;
+                      for (let node = close; node instanceof HTMLElement; node = node.parentElement) {
+                        const style = getComputedStyle(node);
+                        if (style.display === 'none' || style.visibility === 'hidden') return true;
+                        opacity *= Number.parseFloat(style.opacity || '1');
+                      }
+                      const rect = close.getBoundingClientRect();
+                      return opacity <= 0.01 || rect.width <= 0 || rect.height <= 0;
+                    }, undefined, { timeout: 5000, polling: 50 });
+                    const closeButtonDismissed = await page.evaluate(() => {
+                      const panel = document.querySelector('.netflix-watch-utility-panel');
+                      const close = panel?.querySelector('.netflix-watch-panel-heading button');
+                      if (!panel || panel.classList.contains('is-open')) return false;
+                      if (!close) return true;
+                      let opacity = 1;
+                      for (let node = close; node instanceof HTMLElement; node = node.parentElement) {
+                        const style = getComputedStyle(node);
+                        if (style.display === 'none' || style.visibility === 'hidden') return true;
+                        opacity *= Number.parseFloat(style.opacity || '1');
+                      }
+                      const rect = close.getBoundingClientRect();
+                      return opacity <= 0.01 || rect.width <= 0 || rect.height <= 0;
+                    });
+                    if (!closeButtonDismissed) failures += 1;
+
+                    await page.locator(".cinema-v4-source-control").click();
+                    await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
+                    await page.locator(".netflix-watch-panel-scrim").click({ position: { x: 48, y: 200 } });
+                    await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
+                    const scrimDismissed = await page.locator(".netflix-watch-utility-panel").evaluate(node => !node.classList.contains("is-open"));
+                    if (!scrimDismissed) failures += 1;
+                    console.log(JSON.stringify({ name: name + "-dismissal", closeButtonDismissed, scrimDismissed }));
+                  }
+                }
+                await context.close();
+              }
+            }
+          } finally {
+            await browser.close();
+            await fs.writeFile(
+              "artifacts/ipad-visual-audit/player-geometry/report.json",
+              JSON.stringify({ mode: "simulated Chromium; synthetic media fixture; not real iPad Safari", total: results.length, failures, results }, null, 2),
+            );
+          }
+          if (failures) process.exitCode = 1;
+          NODE
+      - name: Upload iPad visual audit screenshots and report
+        if: ${{ always() && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' && steps.deploy_preview.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipad-edition-visual-audit
+          path: artifacts/ipad-visual-audit/
+          if-no-files-found: error
+          retention-days: 14
+
+# [deploy-ipad-edition-preview] Capture parent-chain diagnostics on the isolated Preview.
+
+# [deploy-ipad-edition-preview] Verify the upstream product baseline on isolated iPad Preview.
+
+# [deploy-ipad-edition-preview] Capture recommendation API failure diagnostics per iPad viewport/theme.
+
+# PR #99: authorized isolated Preview refresh after Cinema Detail V2 validation.

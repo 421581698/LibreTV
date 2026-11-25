@@ -3,8 +3,7 @@ import { fetchUpstream, getCache, setCache } from './fetch-utils';
 
 /**
  * 影视热榜聚合（经 60s API，免 key，https://github.com/vikiboss/60s）。
- * 豆瓣周榜走其 rexxar 移动端接口（需伪装 iPhone UA），百度热播剧榜解析 top.baidu.com，
- * 均由 60s 代为抓取；这里只做服务端转发 + 内存缓存 + 字段归一。
+ * 当前只保留百度热播剧榜；豆瓣榜单已停用。
  * 仅使用 API_60S_BASE 指定的自部署实例。
  */
 
@@ -15,15 +14,8 @@ function apiBase(): string {
   return (process.env['API_60S_BASE'] || 'https://60s.viki.moe').replace(/\/+$/, '');
 }
 
-/** 榜单标识：豆瓣五个周榜 + 百度热播剧榜 */
-export const HOT_LIST_IDS = [
-  'douban_movie_weekly',
-  'douban_tv_chinese',
-  'douban_tv_global',
-  'douban_show_chinese',
-  'douban_show_global',
-  'baidu_teleplay',
-] as const;
+/** 豆瓣榜单已停用；仅保留百度热播剧榜。 */
+export const HOT_LIST_IDS = ['baidu_teleplay'] as const;
 
 export type HotListId = (typeof HOT_LIST_IDS)[number];
 
@@ -31,23 +23,7 @@ export function isHotListId(id: string): id is HotListId {
   return (HOT_LIST_IDS as readonly string[]).includes(id);
 }
 
-const DOUBAN_WEEKLY_CATEGORY: Partial<Record<HotListId, string>> = {
-  douban_movie_weekly: 'movie',
-  douban_tv_chinese: 'tv_chinese',
-  douban_tv_global: 'tv_global',
-  douban_show_chinese: 'show_chinese',
-  douban_show_global: 'show_global',
-};
-
 // —— 60s API 原始结构（只取用到的字段） ——
-
-interface DoubanWeeklyRaw {
-  id?: number | string;
-  title?: string;
-  rating?: number;
-  cover_proxy?: string;
-  cover?: string;
-}
 
 interface BaiduTeleplayRaw {
   title?: string;
@@ -57,21 +33,6 @@ interface BaiduTeleplayRaw {
 interface SixtyResponse<T> {
   code?: number;
   data?: T;
-}
-
-/** 豆瓣周榜条目 → DoubanItem；缺标题或封面的脏数据丢弃 */
-export function doubanWeeklyToItem(raw: DoubanWeeklyRaw, isTv: boolean): DoubanItem | undefined {
-  // 原生 cover 是 img*.doubanio.com，命中图片代理的豆瓣白名单并带 Referer 伪装，
-  // 可稳定加载；cover_proxy（doubanio.viki.moe 公共镜像）限流严重，仅作兜底
-  const cover = raw.cover || raw.cover_proxy;
-  if (!raw.id || !raw.title || !cover) return undefined;
-  return {
-    id: String(raw.id),
-    title: raw.title,
-    cover,
-    rating: raw.rating && raw.rating > 0 ? String(raw.rating) : undefined,
-    isTv,
-  };
 }
 
 /** 百度热播剧条目 → DoubanItem；无评分，海报为空的条目丢弃 */
@@ -137,25 +98,16 @@ async function fetchJson(path: string): Promise<unknown> {
 }
 
 export async function fetchHotList(id: HotListId): Promise<DoubanItem[]> {
+  if (id !== 'baidu_teleplay') throw new Error('未知榜单');
+
   const cacheKey = `hot-list:${id}`;
   const cached = getCache<DoubanItem[]>(cacheKey);
   if (cached) return cached;
 
-  let items: DoubanItem[];
-
-  const category = DOUBAN_WEEKLY_CATEGORY[id];
-  if (category) {
-    const raw = (await fetchJson(`/v2/douban/weekly/${category}`)) as SixtyResponse<DoubanWeeklyRaw[]>;
-    const isTv = id !== 'douban_movie_weekly';
-    items = assertArray<DoubanWeeklyRaw>(raw.data, '豆瓣周榜')
-      .map((entry) => doubanWeeklyToItem(entry, isTv))
-      .filter((item): item is DoubanItem => item !== undefined);
-  } else {
-    const raw = (await fetchJson('/v2/baidu/teleplay')) as SixtyResponse<BaiduTeleplayRaw[]>;
-    items = assertArray<BaiduTeleplayRaw>(raw.data, '百度热播剧榜')
-      .map((entry, i) => baiduTeleplayToItem(entry, i))
-      .filter((item): item is DoubanItem => item !== undefined);
-  }
+  const raw = (await fetchJson('/v2/baidu/teleplay')) as SixtyResponse<BaiduTeleplayRaw[]>;
+  const items = assertArray<BaiduTeleplayRaw>(raw.data, '百度热播剧榜')
+    .map((entry, index) => baiduTeleplayToItem(entry, index))
+    .filter((item): item is DoubanItem => item !== undefined);
 
   if (items.length === 0) throw new Error('榜单数据为空');
 

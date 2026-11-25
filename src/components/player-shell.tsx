@@ -1,4 +1,5 @@
 'use client';
+import { PlaybackErrorBoundary } from '@/components/playback-error-boundary';
 
 import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
@@ -6,9 +7,22 @@ import Hls, { type HlsConfig } from 'hls.js';
 import type { PlaybackSample } from '@/lib/playback-telemetry';
 import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference } from '@/lib/player-quality';
 import { getMediaPlaybackKind } from '@/lib/media-playback';
+import { selectHlsAudioTrack } from '@/lib/hls-audio-track-control';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
+import {
+  PHASE1_AUTO_RECOVERY_POLICY,
+  applyStallDecision,
+  getAutoRecoveryMode,
+  resolveRecoveryAction,
+  resolveStallAction,
+} from '@/lib/playback-auto-policy';
+import DolbyVisionDiagnosticsPanel from '@/components/dolby-vision-diagnostics-panel';
+import { inspectDolbyVisionFormat, type DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
+import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspector';
+import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-hls-manifest-inspector';
+import { shouldPreferNativeDolbyVisionHls } from '@/lib/dolby-vision/native-hls-playback-policy';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -119,6 +133,11 @@ export interface PlayerSkipApi {
 interface PlayerShellProps {
   url: string;
   title: string;
+  /** iPad-only, page-owned cinema controls; other routes retain ArtPlayer's controls. */
+  cinemaMode?: boolean;
+  cinemaPanel?: 'audio' | 'subtitles' | 'quality' | 'diagnostics' | null;
+  onCloseCinemaPanel?: () => void;
+  onCinemaPanelChange?: (panel: 'audio' | 'subtitles') => void;
   /** Validated format hint for extensionless direct-media URLs. */
   mediaType?: 'hls' | 'mp4' | 'webm';
   /** Called once per episode, only after the video element advances during a sustained playing window. */
@@ -151,9 +170,12 @@ interface PlayerShellProps {
   nextEpisodeKey?: string;
   /** 进度恢复：优先 URL position，其次查询该回调（返回 0 表示无记录） */
   getRestorePosition?: () => number | Promise<number>;
-  onTimeUpdate?: (position: number, duration: number) => void;
-  onEnded?: () => void;
-  onPause?: (position: number, duration: number) => void;
+  /** 高频媒体时钟回调：只更新界面，不负责写入持久化存储。 */
+  onTimeUpdate?: (position: number, duration: number, episodeKey?: string) => void;
+  /** 节流后的进度持久化回调，避免每个 timeupdate 都写 IndexedDB。 */
+  onProgressSave?: (position: number, duration: number, episodeKey?: string) => void;
+  onEnded?: (episodeKey?: string) => void;
+  onPause?: (position: number, duration: number, episodeKey?: string) => void;
   /**
    * 实测画质（视频高度，像素）。
    * 单码率 m3u8 / 直链的分辨率只能等解码后才知道，播放一次后回写缓存，
@@ -161,10 +183,16 @@ interface PlayerShellProps {
    */
   sourceKey?: string;
   resourceKey?: string;
+  /** Stable server-issued Dolby Vision media asset ID; never infer from URL or episode key. */
+  dolbyVisionAssetId?: string;
+  dolbyVisionSourceKind?: 'cms' | 'direct' | 'registry' | 'unknown';
+  dolbyVisionSourceIdentity?: string;
   onPlaybackSample?: (sample: PlaybackSample) => void;
   onQuality?: (height: number) => void;
   /** 恢复策略判源不可用（重试耗尽/格式硬失败）时回调：父级弹出换源面板 */
   onRequestSwitchSource?: (reason: string) => void;
+  /** Route fullscreen requests through the page shell so every custom overlay remains in the fullscreen layer. */
+  onRequestFullscreen?: () => void;
   /** 控制条上的上一集 / 下一集：不在播放器里也能切集，省得回到页面按钮 */
   onPrevEpisode?: () => void;
   onNextEpisode?: () => void;
@@ -175,6 +203,10 @@ interface PlayerShellProps {
 export function PlayerShell({
   url,
   title,
+  cinemaMode = false,
+  cinemaPanel = null,
+  onCloseCinemaPanel,
+  onCinemaPanelChange,
   mediaType,
   onPlaybackConfirmed,
   adFilter,
@@ -190,13 +222,18 @@ export function PlayerShell({
   nextEpisodeKey,
   getRestorePosition,
   onTimeUpdate,
+  onProgressSave,
   onEnded,
   onPause,
   onQuality,
   sourceKey,
   resourceKey,
+  dolbyVisionAssetId,
+  dolbyVisionSourceKind = 'unknown',
+  dolbyVisionSourceIdentity,
   onPlaybackSample,
   onRequestSwitchSource,
+  onRequestFullscreen,
   onPrevEpisode,
   onNextEpisode,
   hasPrevEpisode,
@@ -207,6 +244,9 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  /** Prevent an unsupported native path from looping with hls.js fallback. */
+  const nativeDolbyHlsAttemptedRef = useRef<string | null>(null);
+  const nativeDolbyHlsErrorCleanupRef = useRef<(() => void) | null>(null);
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
@@ -214,6 +254,30 @@ export function PlayerShell({
   const [showPoster, setShowPoster] = useState(true);
   const [qualityPreference, setQualityPreference] = useState<QualityPreference>('auto');
   const [qualityPanelOpen, setQualityPanelOpen] = useState(false);
+  const [audioTrackOptions, setAudioTrackOptions] = useState<Array<{ id: number; label: string; isDefault: boolean }>>([]);
+  const [selectedAudioTrack, setSelectedAudioTrack] = useState(-1);
+  const [audioTrackPanelOpen, setAudioTrackPanelOpen] = useState(false);
+  const [cinemaSubtitleTracks, setCinemaSubtitleTracks] = useState<Array<{ index: number; label: string; mode: TextTrackMode }>>([]);
+  useEffect(() => {
+    if (!cinemaMode || cinemaPanel !== 'subtitles') return;
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    const tracks = video?.textTracks;
+    if (!tracks) { setCinemaSubtitleTracks([]); return; }
+    const syncTracks = () => {
+      setCinemaSubtitleTracks(Array.from(tracks, (track, index) => ({
+        index, label: track.label || track.language || `字幕 ${index + 1}`, mode: track.mode,
+      })));
+    };
+    syncTracks();
+    tracks.addEventListener?.('addtrack', syncTracks);
+    tracks.addEventListener?.('removetrack', syncTracks);
+    tracks.addEventListener?.('change', syncTracks);
+    return () => {
+      tracks.removeEventListener?.('addtrack', syncTracks);
+      tracks.removeEventListener?.('removetrack', syncTracks);
+      tracks.removeEventListener?.('change', syncTracks);
+    };
+  }, [cinemaMode, cinemaPanel, url]);
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -225,6 +289,11 @@ export function PlayerShell({
   const [qualityNotice, setQualityNotice] = useState('');
   const [networkQualityWarning, setNetworkQualityWarning] = useState('');
   const [qualityControlMode, setQualityControlMode] = useState<'hls' | 'native' | 'single'>('single');
+  const [dolbyVisionFormatReportState, setDolbyVisionFormatReportState] = useState<{ sourceUrl: string; report: DolbyVisionFormatReport } | null>(null);
+  // Never render a format report collected for the previous playback URL during a source switch.
+  const dolbyVisionFormatReport = dolbyVisionFormatReportState?.sourceUrl === url
+    ? dolbyVisionFormatReportState.report
+    : null;
   const unsustainableFragmentsRef = useRef(0);
   const sustainableFragmentsRef = useRef(0);
   const [showPlayFallback, setShowPlayFallback] = useState(false);
@@ -263,18 +332,22 @@ export function PlayerShell({
   }, []);
 
   // 始终持有最新 props/回调，避免重建播放器
+  const activeEpisodeKeyRef = useRef(episodeKey ?? '');
+  const pendingEpisodeKeyRef = useRef<string | null>(null);
+  const lastProgressSaveAtRef = useRef(0);
+  const mediaLoadGenerationRef = useRef(0);
   const propsRef = useRef({
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onProgressSave, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource, onRequestFullscreen,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   });
   propsRef.current = {
     url, title, mediaType, onPlaybackConfirmed, adFilter, autoplayNext, skipMark, autoSkipSegments,
     pendingStart, onPendingStart, onPlayerApi, onRecordSegment,
     episodeKey, nextUrl, nextEpisodeKey,
-    getRestorePosition, onTimeUpdate, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource,
+    getRestorePosition, onTimeUpdate, onProgressSave, onEnded, onPause, onQuality, sourceKey, resourceKey, onPlaybackSample, onRequestSwitchSource, onRequestFullscreen,
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   };
 
@@ -293,6 +366,7 @@ export function PlayerShell({
     selectedRenditionBitrateKbps: undefined as number | undefined,
     stalls: 0, fatalErrors: 0, recoveries: 0, playedSeconds: 0,
     lastPosition: 0, lastTickAt: 0, height: 0, waiting: false, flushed: false,
+    stalledObserved: false, degradedObserved: false, suppressedRecoveries: 0,
   });
   const resetPlaybackMetrics = () => {
     setSelectedHlsRendition(null);
@@ -307,6 +381,7 @@ export function PlayerShell({
       selectedRenditionBitrateKbps: undefined, stalls: 0, fatalErrors: 0,
       recoveries: 0, playedSeconds: 0, lastPosition: 0, lastTickAt: 0,
       height: 0, waiting: false, flushed: false,
+      stalledObserved: false, degradedObserved: false, suppressedRecoveries: 0,
     };
   };
   const flushPlaybackMetrics = () => {
@@ -330,6 +405,10 @@ export function PlayerShell({
       fatalErrors: metrics.fatalErrors,
       recoveries: metrics.recoveries,
       playedSeconds: metrics.playedSeconds,
+      autoRecoveryMode: getAutoRecoveryMode(PHASE1_AUTO_RECOVERY_POLICY),
+      stalledObserved: metrics.stalledObserved,
+      degradedObserved: metrics.degradedObserved,
+      suppressedRecoveries: metrics.suppressedRecoveries,
     });
   };
 
@@ -338,6 +417,9 @@ export function PlayerShell({
   // 仅当有分片真正进入 MSE buffer 后才视为恢复，错误遮罩才能被清除。
   const mediaHealthyRef = useRef(true);
   const playbackStartedRef = useRef(false);
+  // Long-running stalls after playback starts should surface the switch-source flow.
+  const stallRecoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stallRecoveryRequestedRef = useRef(false);
   const playbackConfirmedRef = useRef(false);
   const playbackConfirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 起播阶段的 video 元素级错误允许自愈重试一次（重建 hls/MSE）
@@ -519,11 +601,17 @@ export function PlayerShell({
       /* 忽略 */
     }
     showHint('已跳过片尾');
-    propsRef.current.onEnded?.();
+    propsRef.current.onEnded?.(activeEpisodeKeyRef.current);
   };
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    setAudioTrackOptions([]);
+    setSelectedAudioTrack(-1);
+    setAudioTrackPanelOpen(false);
+    // Direct MP4/WebM customType callbacks can bypass setupHls; advance the
+    // generation here so pending HLS restore promises cannot mutate this source.
+    const loadGeneration = ++mediaLoadGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
@@ -534,6 +622,10 @@ export function PlayerShell({
     hlsRef.current?.destroy();
     hlsRef.current = null;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectDolbyVisionFormat({
+      url: mediaUrl,
+      mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',
+    }) });
     if (mediaKind !== 'mp4' && mediaKind !== 'webm') {
       setError('当前直链格式无效，请选择 HLS、MP4 或 WebM 资源');
       return;
@@ -552,6 +644,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
         if (saved > 10 && saved < duration - 2) {
           video.currentTime = saved;
           showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -559,11 +652,19 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
-        video.play().catch(() => setShowPlayFallback(true));
+        video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
       } catch {
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
         // A failed progress lookup must never prevent direct media playback.
+        // Detach the readiness listeners now; the restore attempt is terminal.
         restoredRef.current = true;
-        video.play().catch(() => setShowPlayFallback(true));
+        restoreCleanupRef.current?.();
+        restoreCleanupRef.current = null;
+        video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
       } finally {
         restoreInFlight = false;
       }
@@ -583,10 +684,23 @@ export function PlayerShell({
    * 自动改走同源 cookie 鉴权的 /api/proxy 重试一次。
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
-  const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+  const setupHls = (
+    video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean,
+    forceNativeDolby = false, nativeManifestEvidence?: DolbyVisionFormatReport,
+  ) => {
+    // Audio-track selection belongs to one HLS instance only. Native Safari HLS
+    // remains browser-managed and intentionally exposes no hls.js selector.
+    setAudioTrackOptions([]);
+    setSelectedAudioTrack(-1);
+    setAudioTrackPanelOpen(false);
+    // Every HLS reconfiguration (including direct→proxy fallback and fatal-error
+    // recovery) invalidates async restore work from the previous media pipeline.
+    const loadGeneration = ++mediaLoadGenerationRef.current;
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
+    nativeDolbyHlsErrorCleanupRef.current?.();
+    nativeDolbyHlsErrorCleanupRef.current = null;
     if (qualityPreferenceHandlerRef.current) {
       window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
       qualityPreferenceHandlerRef.current = null;
@@ -595,29 +709,59 @@ export function PlayerShell({
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
+    setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: nativeManifestEvidence ?? inspectDolbyVisionFormat({
+      url: mediaUrl,
+      mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',
+    }) });
     if (mediaKind === 'mp4' || mediaKind === 'webm') {
       setupDirectMedia(video, mediaUrl);
       return;
     }
+    const stopPreviousMedia = () => {
+      // An unsupported replacement must not leave the previous episode playing
+      // underneath the error state or continue advancing its progress silently.
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
     if (mediaKind === 'unsupported') {
+      stopPreviousMedia();
       setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
       return;
     }
-    if (!Hls.isSupported()) {
+    if (forceNativeDolby || !Hls.isSupported()) {
       if (!video.canPlayType('application/vnd.apple.mpegurl') && !video.canPlayType('application/x-mpegURL')) {
         hlsRef.current = null;
+        stopPreviousMedia();
         setError('当前浏览器不支持 HLS 播放，请尝试其他视频源或浏览器');
         return;
       }
       hlsRef.current = null;
+      if (forceNativeDolby) nativeDolbyHlsAttemptedRef.current = mediaUrl;
       armMetadataWatchdog(video, mediaUrl);
       // Safari's native HLS pipeline does not need CORS-readable media bytes.
       // Keeping crossorigin="anonymous" here can make otherwise playable
       // cross-origin HLS streams fail when the source omits ACAO headers.
       video.removeAttribute('crossorigin');
+      // Native Safari HLS does not emit hls.js MANIFEST_PARSED. Probe the
+      // master playlist separately when CORS allows it; this is diagnostics
+      // only and must never interfere with native playback.
+      const nativeManifestController = new AbortController();
+      if (!nativeManifestEvidence) {
+        void inspectNativeHlsDolbyVisionManifest(mediaUrl, nativeManifestController.signal)
+          .then((report) => {
+            if (loadGeneration !== mediaLoadGenerationRef.current) return;
+            setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report });
+          })
+          .catch(() => {
+            // Source changes abort the probe; playback continues independently.
+          });
+      }
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
-      setQualityNotice('当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
+      setQualityNotice(forceNativeDolby
+        ? 'Dolby Vision 变体声明已触发 Safari 原生 HLS 优先路径；这不是实际 Dolby Vision 解码或 HDR 输出证明。原生加载失败会尝试回退 hls.js。'
+        : '当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
       let nativeRestoreInFlight = false;
       const restoreNativePosition = async () => {
         if (restoredRef.current || nativeRestoreInFlight) return;
@@ -626,6 +770,7 @@ export function PlayerShell({
         nativeRestoreInFlight = true;
         try {
           const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
           if (saved > 10 && saved < duration - 2) {
             video.currentTime = saved;
             showHint(`已从 ${formatTime(saved)} 继续播放`);
@@ -638,13 +783,23 @@ export function PlayerShell({
             setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
             return;
           }
-          video.play().catch(() => setShowPlayFallback(true));
+          video.play().catch(() => {
+            if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+          });
         } catch {
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // A failed progress lookup must never block native-HLS playback.
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
-          video.play().catch(() => setShowPlayFallback(true));
+          if (readQualityPreference() === '1080') {
+            video.pause();
+            setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
+            return;
+          }
+          video.play().catch(() => {
+            if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+          });
         } finally {
           nativeRestoreInFlight = false;
         }
@@ -652,8 +807,29 @@ export function PlayerShell({
       const nativeRestoreEvents = ['loadedmetadata', 'durationchange', 'canplay'] as const;
       const onNativeRestoreEvent = () => { void restoreNativePosition(); };
       nativeRestoreEvents.forEach((event) => video.addEventListener(event, onNativeRestoreEvent));
+      const onNativeDolbyError = () => {
+        if (!forceNativeDolby || loadGeneration !== mediaLoadGenerationRef.current || !Hls.isSupported()) return;
+        // The global video:error observer also records this native failure.
+        // Recover after its synchronous event handlers have run, so a stale
+        // error overlay does not cover the subsequent hls.js playback.
+        queueMicrotask(() => {
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
+          // Retain the attempted URL so a failing native path cannot repeatedly
+          // re-enter itself when hls.js fetches the same manifest on fallback.
+          setupHls(video, mediaUrl, allowProxyFallback);
+          setError('');
+        });
+      };
+      if (forceNativeDolby) {
+        video.addEventListener('error', onNativeDolbyError, { once: true });
+        // Native readiness cleanup runs as soon as metadata loads. Keep the
+        // fallback error listener alive throughout playback, not just startup.
+        nativeDolbyHlsErrorCleanupRef.current = () =>
+          video.removeEventListener('error', onNativeDolbyError);
+      }
       restoreCleanupRef.current = () => {
         nativeRestoreEvents.forEach((event) => video.removeEventListener(event, onNativeRestoreEvent));
+        nativeManifestController.abort();
       };
       video.src = mediaUrl;
       video.load();
@@ -662,6 +838,11 @@ export function PlayerShell({
     armMetadataWatchdog(video, mediaUrl);
     const hls = new Hls(buildHlsConfig());
     hlsRef.current = hls;
+    // Destroyed HLS instances may still flush queued callbacks. Every callback
+    // must prove both instance identity and media generation before touching UI,
+    // recovery state, or the replacement media element.
+    const isCurrentHls = () =>
+      hlsRef.current === hls && loadGeneration === mediaLoadGenerationRef.current;
     setQualityControlMode('hls');
     const handleQualityPreferenceChange = () => {
       const preference = readQualityPreference();
@@ -688,6 +869,7 @@ export function PlayerShell({
       restoreInFlight = true;
       try {
         const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
         const currentDuration = artRef.current?.duration || video.duration || duration;
         let prefetchAnchor = video.currentTime;
         if (saved > 10 && Number.isFinite(currentDuration) && saved < currentDuration - 2) {
@@ -699,19 +881,31 @@ export function PlayerShell({
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
         video.play().catch(() => {
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // iOS Safari may reject autoplay after async detail/source loading.
           // Keep the player inline and offer a user-activated retry instead of a silent poster.
           setShowPlayFallback(true);
         });
       } catch {
-        // IndexedDB 读取失败时不阻塞播放，后续事件仍可再次尝试恢复。
+        if (loadGeneration !== mediaLoadGenerationRef.current) return;
+        // A failed IndexedDB lookup must not strand the player on its poster.
+        // If this was the final readiness event, there may be no later event to
+        // retry restoration, so fall back to playback from the current position.
+        restoredRef.current = true;
+        restoreCleanupRef.current?.();
+        restoreCleanupRef.current = null;
+        video.play().catch(() => {
+          if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
+        });
       } finally {
         restoreInFlight = false;
       }
     };
 
     const restoreEvents = ['loadedmetadata', 'durationchange', 'canplay'] as const;
-    const onRestoreEvent = () => { void restoreAndStart(); };
+    const onRestoreEvent = () => {
+      void restoreAndStart();
+    };
     restoreEvents.forEach((event) => video.addEventListener(event, onRestoreEvent));
     restoreCleanupRef.current = () => {
       restoreEvents.forEach((event) => video.removeEventListener(event, onRestoreEvent));
@@ -719,7 +913,7 @@ export function PlayerShell({
 
     if (!hls) {
       // Safari/iOS native HLS path: hls.js is not MSE-supported on these devices.
-      // Let the browser's native media pipeline decide CORS for playback.
+      // Native AudioTrackList may expose track count, but not codec/layout/JOC.
       video.removeAttribute('crossorigin');
       video.src = mediaUrl;
       video.load();
@@ -728,7 +922,38 @@ export function PlayerShell({
     hls.loadSource(mediaUrl);
     hls.attachMedia(video);
 
+    const observeAudioTracks = () => {
+      if (hlsRef.current !== hls || loadGeneration !== mediaLoadGenerationRef.current) return;
+      setAudioTrackOptions(hls.audioTracks.map((track, index) => ({
+        id: index,
+        label: [track.name, track.lang, track.channels ? `${track.channels} ch` : ''].filter(Boolean).join(' · ') || `音轨 ${index + 1}`,
+        isDefault: Boolean(track.default),
+      })));
+      setSelectedAudioTrack(hls.audioTrack);
+    };
+    hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, observeAudioTracks);
+    hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
+      if (!isCurrentHls()) return;
+      setSelectedAudioTrack(data.id);
+    });
+    if (hls.audioTracks.length > 0) observeAudioTracks();
+
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      if (!isCurrentHls()) return;
+      const manifestFormat = inspectHlsDolbyVisionFormat(mediaUrl, hls.levels);
+      setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: manifestFormat });
+      if (shouldPreferNativeDolbyVisionHls(manifestFormat, {
+        userAgent: navigator.userAgent,
+        nativeHlsTypeSupport: video.canPlayType('application/vnd.apple.mpegurl') ||
+          video.canPlayType('application/x-mpegURL'),
+        qualityPreference: readQualityPreference(),
+        playbackStarted: playbackStartedRef.current,
+        alreadyAttemptedNative: nativeDolbyHlsAttemptedRef.current === mediaUrl,
+      })) {
+        nativeDolbyHlsAttemptedRef.current = mediaUrl;
+        setupHls(video, mediaUrl, allowProxyFallback, true, manifestFormat);
+        return;
+      }
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
@@ -742,6 +967,7 @@ export function PlayerShell({
     });
     // 播放链路恢复（FRAG_LOADED / MANIFEST_PARSED）：静默窗外清零连续失败计数
     hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
+      if (!isCurrentHls()) return;
       recoveryRef.current?.markHealthy();
       const metrics = playbackMetricsRef.current;
       const stats = data.frag?.stats;
@@ -790,6 +1016,8 @@ export function PlayerShell({
     // LEVEL_LOADED / levelInfo 仍是播放列表声明值，不是当前视频解码分辨率。
     // 实际分辨率统一由 video.videoHeight 的 loadedmetadata/canplay/playing/resize 事件记录。
     hls.on(Hls.Events.LEVELS_UPDATED, () => {
+      if (!isCurrentHls()) return;
+      setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectHlsDolbyVisionFormat(mediaUrl, hls.levels) });
       // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
@@ -798,6 +1026,7 @@ export function PlayerShell({
       setQualityNotice(qualityResult.notice ?? '');
     });
     hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+      if (!isCurrentHls()) return;
       // The selected playlist rendition and decoded video dimensions are different observations.
       // Track the HLS level in Auto as well as manual modes; never present it as decoded quality.
       const level = hls.levels[data.level];
@@ -817,17 +1046,30 @@ export function PlayerShell({
     });
     // 分片真正进入 MSE buffer 才算媒体恢复：此时视频轨可渲染，错误态可解除
     hls.on(Hls.Events.FRAG_BUFFERED, () => {
+      if (!isCurrentHls()) return;
       mediaHealthyRef.current = true;
     });
 
     hls.on(Hls.Events.ERROR, (_evt, data) => {
-      if (!data.fatal) return;
+      if (!isCurrentHls() || !data.fatal) return;
       const recovery = recoveryRef.current;
       if (!recovery) return;
       const decision = recovery.onFatal(data.type, data.details);
       playbackMetricsRef.current.fatalErrors += 1;
-      if (decision.action === 'retry' || decision.action === 'recover-media') playbackMetricsRef.current.recoveries += 1;
-      switch (decision.action) {
+      // 第一阶段：所有自动恢复动作必须经过只读策略过滤。observe-only 分支只记录上报，
+      // 不重试、不 recoverMediaError（detach/attach 重启）、不自动切源、不降画质。
+      const effective = resolveRecoveryAction(decision, PHASE1_AUTO_RECOVERY_POLICY);
+      if (effective.action === 'observe-only') {
+        playbackMetricsRef.current.suppressedRecoveries += 1;
+        if (effective.wouldHave === 'switch-source' || effective.wouldHave === 'recover-media') {
+          playbackMetricsRef.current.degradedObserved = true;
+        }
+        // 只读提示，不触发任何恢复行为；错误详情随下一次 flush 上报。
+        showHint(`${describeHlsError(data.type, data.details)}：${effective.reason}（仅诊断，不自动恢复）`);
+        return;
+      }
+      if (effective.action === 'retry' || effective.action === 'recover-media') playbackMetricsRef.current.recoveries += 1;
+      switch (effective.action) {
         case 'ignore':
           break;
         case 'retry': {
@@ -836,29 +1078,31 @@ export function PlayerShell({
           if (
             allowProxyFallback &&
             !mediaUrl.startsWith('/api/proxy') &&
-            (decision.attempt >= 2 || data.details === 'manifestLoadError')
+            (effective.attempt >= 2 || data.details === 'manifestLoadError')
           ) {
             showHint('直连失败，改用代理重试...');
             setupHls(video, `/api/proxy?url=${encodeURIComponent(mediaUrl)}`, false);
             return;
           }
-          showHint(`${decision.reason}（第 ${decision.attempt} 次）...`);
-          recovery.schedule(decision.delayMs, () => hls.startLoad());
+          showHint(`${effective.reason}（第 ${effective.attempt} 次）...`);
+          recovery.schedule(effective.delayMs, () => {
+            if (isCurrentHls()) hls.startLoad();
+          });
           break;
         }
         case 'recover-media': {
-          showHint(`${decision.reason}（第 ${decision.attempt} 次）...`);
-          if (decision.swapAudio) hls.swapAudioCodec?.();
+          showHint(`${effective.reason}（第 ${effective.attempt} 次）...`);
+          if (effective.swapAudio) hls.swapAudioCodec?.();
           hls.recoverMediaError();
           break;
         }
         case 'switch-source': {
           // 覆盖播放开始后的场景：起播失败走 setError 遮罩；
           // 播放中失败走回调弹换源面板（父级未提供回调时同样 setError）
-          const message = `${describeHlsError(data.type, data.details)}：${decision.reason}`;
+          const message = `${describeHlsError(data.type, data.details)}：${effective.reason}`;
           if (playbackStartedRef.current) {
             showHint(message);
-            propsRef.current.onRequestSwitchSource?.(decision.reason);
+            propsRef.current.onRequestSwitchSource?.(effective.reason);
           } else {
             setError(`视频加载失败，${message}，请尝试其他视频源`);
           }
@@ -871,8 +1115,14 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    if (nativeDolbyHlsAttemptedRef.current !== targetUrl) nativeDolbyHlsAttemptedRef.current = null;
+    mediaLoadGenerationRef.current += 1;
+    lastProgressSaveAtRef.current = 0;
     flushPlaybackMetrics();
     resetPlaybackMetrics();
+    if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
+    stallRecoveryTimerRef.current = null;
+    stallRecoveryRequestedRef.current = false;
     mediaHealthyRef.current = true;
     playbackStartedRef.current = false;
     playbackConfirmedRef.current = false;
@@ -888,8 +1138,12 @@ export function PlayerShell({
     lastSampleRef.current = 0;
     endedRef.current = false;
     updateSkipPrompt(null);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = null;
     setUndoSkip(null);
-    recoveryRef.current = new PlaybackRecovery();
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = null;
+    setHint('');
     // 换集时清掉上一集的预取窗口，避免带宽被旧集占用
     getVideoPrefetcher().stop();
     setError('');
@@ -897,6 +1151,9 @@ export function PlayerShell({
     setActualQualityHeight(0);
     setActualQualityWidth(0);
     setAvailableQualityHeights([]);
+    setAudioTrackOptions([]);
+    setSelectedAudioTrack(-1);
+    setAudioTrackPanelOpen(false);
     setAvailableQualityLevelCount(0);
     setQualityMetadataComplete(false);
     setQualityNotice('');
@@ -904,8 +1161,16 @@ export function PlayerShell({
     unsustainableFragmentsRef.current = 0;
     sustainableFragmentsRef.current = 0;
     setShowPlayFallback(false);
+    // Cancel retries queued by the previous episode before replacing the
+    // recovery controller; otherwise an old timer can call startLoad() on a
+    // destroyed HLS instance after the user has already switched episodes.
+    recoveryRef.current?.dispose();
+    recoveryRef.current = new PlaybackRecovery();
     const art = artRef.current;
     if (!art) return;
+    // Keep old-source events tagged with the old identity until the browser
+    // actually starts loading the replacement resource.
+    pendingEpisodeKeyRef.current = propsRef.current.episodeKey ?? '';
     setupHls(art.video, targetUrl, true);
   };
 
@@ -913,6 +1178,7 @@ export function PlayerShell({
   useEffect(() => {
     if (!containerRef.current || !propsRef.current.url) return;
     const initialUrl = propsRef.current.url;
+    activeEpisodeKeyRef.current = propsRef.current.episodeKey ?? '';
     // ArtPlayer 默认 3 秒才隐藏控制栏；桌面失去鼠标悬停后缩短为 0.8 秒。
     // 触屏没有 hover，自动隐藏会让按钮来不及点（issue #937）：改为常驻，
     // 由「点按视频 toggle」收起。CONTROL_HIDE_TIME 是 static，创建后修改立即生效。
@@ -931,7 +1197,7 @@ export function PlayerShell({
     suppressedAutoRef.current.clear();
     lastSampleRef.current = 0;
 
-    let lastSave = 0;
+
 
     const art = new Artplayer({
       container: containerRef.current,
@@ -942,13 +1208,13 @@ export function PlayerShell({
       // PR84 mobile watch: never spawn floating PiP/mini-player windows over the page.
       pip: false,
       autoMini: false,
-      screenshot: true,
-      setting: true,
-      playbackRate: true,
-      aspectRatio: true,
+      screenshot: !cinemaMode,
+      setting: !cinemaMode,
+      playbackRate: !cinemaMode,
+      aspectRatio: !cinemaMode,
       // Touch devices use native iOS video fullscreen first, with a web fullscreen fallback.
-      fullscreen: !touchPointer,
-      fullscreenWeb: !touchPointer,
+      fullscreen: !cinemaMode && !touchPointer,
+      fullscreenWeb: !cinemaMode && !touchPointer,
       miniProgressBar: false,
       mutex: true,
       // Keep iOS Safari's video compositing stable without a frosted backdrop.
@@ -957,13 +1223,13 @@ export function PlayerShell({
       // ArtPlayer rotates its web-fullscreen surface to match video orientation on
       // touch devices. iOS native fullscreen remains controlled by WebKit/system rotation.
       autoOrientation: touchPointer,
-      airplay: true,
+      airplay: !cinemaMode,
       hotkey: false,
       theme: '#ffffff',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
       moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true, disablePictureInPicture: true },
       // 上/下集放在播放键右侧：换集是看剧最高频的动作，不该让用户滚回页面下方找按钮
-      controls: [
+      controls: cinemaMode ? [] : [
         {
           name: 'prev-episode',
           index: 11,
@@ -991,6 +1257,11 @@ export function PlayerShell({
           html: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><path fill="currentColor" d="M4 9V4h5v2H6v3H4zm10-5h6v6h-2V6h-4V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-6v-2h4z"/></svg>',
           tooltip: '全屏播放',
           click: () => {
+            const requestFullscreen = propsRef.current.onRequestFullscreen;
+            if (requestFullscreen) {
+              requestFullscreen();
+              return;
+            }
             const nativeVideo = art.video as NativeFullscreenVideo;
             nativeFullscreenCleanupRef.current?.();
             nativeFullscreenCleanupRef.current = requestNativeFullscreenWithFallback(
@@ -1015,6 +1286,29 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    // Keep the page timeline correct even before playback starts and after a
+    // seek while paused. Browsers are not required to emit timeupdate for
+    // metadata changes or a paused seek.
+    const syncTimeline = () => {
+      propsRef.current.onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
+    };
+    art.on('video:loadedmetadata', syncTimeline);
+    art.on('video:durationchange', syncTimeline);
+    art.on('video:seeked', syncTimeline);
+    // Promote the pending identity only when the media element starts loading
+    // the replacement source; pause/timeupdate events emitted while teardown is
+    // in progress must remain attributed to the previous episode.
+    const promotePendingEpisodeIdentity = () => {
+      const pendingEpisodeKey = pendingEpisodeKeyRef.current;
+      if (pendingEpisodeKey !== null) {
+        activeEpisodeKeyRef.current = pendingEpisodeKey;
+        pendingEpisodeKeyRef.current = null;
+      }
+    };
+    art.on('video:loadstart', promotePendingEpisodeIdentity);
+    // Some native HLS/WebKit paths do not expose loadstart consistently.
+    // loadedmetadata is a safe second boundary before normal timeupdate progress.
+    art.on('video:loadedmetadata', promotePendingEpisodeIdentity);
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
@@ -1131,6 +1425,9 @@ export function PlayerShell({
       if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
       if (metrics.waiting) metrics.recoveries += 1;
       metrics.waiting = false;
+      if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
+      stallRecoveryTimerRef.current = null;
+      stallRecoveryRequestedRef.current = false;
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       playbackStartedRef.current = true;
       setShowPoster(false);
@@ -1176,15 +1473,23 @@ export function PlayerShell({
     art.on('video:error', () => {
       playbackMetricsRef.current.fatalErrors += 1;
       mediaHealthyRef.current = false;
-      // 起播阶段的 video 元素级错误（MSE/解码偶发失败）：重建一次播放链路自愈，
-      // 而不是直接钉死错误遮罩——重建后视频轨重新 append，黑屏有声即可解除
-      if (!playbackStartedRef.current && !videoErrorRetryUsedRef.current) {
+      // 起播阶段的 video 元素级错误：原实现会重建一次播放链路自愈。
+      // 第一阶段严格执行只读——自动重建属于"自动重启播放器"，默认关闭；
+      // 改为记录观测并继续走下方错误遮罩（用户可手动换源/重试）。
+      // 保留原代码路径，待未来开启 autoRetry 策略后再恢复自愈。
+      if (
+        !playbackStartedRef.current &&
+        !videoErrorRetryUsedRef.current &&
+        PHASE1_AUTO_RECOVERY_POLICY.autoRetry
+      ) {
         videoErrorRetryUsedRef.current = true;
         playbackMetricsRef.current.recoveries += 1;
         showHint('播放异常，正在重试...');
+        mediaLoadGenerationRef.current += 1;
         setupHls(art.video, currentMediaUrlRef.current, true);
         return;
       }
+      playbackMetricsRef.current.suppressedRecoveries += 1;
       const mediaError = art.video?.error;
       const errorMessage = mediaError?.code === 1
         ? '播放请求已取消，请重新点击播放'
@@ -1201,14 +1506,19 @@ export function PlayerShell({
     art.on('video:timeupdate', () => {
       const metrics = playbackMetricsRef.current;
       const position = art.currentTime;
-      if (metrics.lastTickAt > 0 && position > metrics.lastPosition && position - metrics.lastPosition <= 2.5) metrics.playedSeconds += position - metrics.lastPosition;
+      if (metrics.lastTickAt > 0 && position > metrics.lastPosition && position - metrics.lastPosition <= 2.5) {
+        metrics.playedSeconds += position - metrics.lastPosition;
+      }
       metrics.lastPosition = position;
       metrics.lastTickAt = Date.now();
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       const now = Date.now();
-      if (now - lastSave > 5000) {
-        lastSave = now;
-        propsRef.current.onTimeUpdate?.(art.currentTime, art.duration);
+      // Keep the on-screen timeline in sync with the browser's media clock.
+      // Persistence remains separately throttled to avoid excessive IndexedDB writes.
+      syncTimeline();
+      if (now - lastProgressSaveAtRef.current > 5000) {
+        lastProgressSaveAtRef.current = now;
+        propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
       }
       // —— 跳过片段判定 ——
       const p = propsRef.current;
@@ -1275,11 +1585,43 @@ export function PlayerShell({
         playbackConfirmationTimerRef.current = null;
       }
       // 跳过片尾会主动 pause：此时已按「看完」处理，不能再把片尾位置写回进度
-      if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration);
+      if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
     });
     art.on('video:waiting', () => {
       const metrics = playbackMetricsRef.current;
-      if (!art.video?.paused && !metrics.waiting) { metrics.stalls += 1; metrics.waiting = true; }
+      if (!art.video?.paused && !metrics.waiting) {
+        metrics.stalls += 1;
+        metrics.waiting = true;
+      }
+      // 已经正常播放后持续缓冲 12 秒：第一阶段只记录 stalled/degraded 并上报，
+      // 不自动切源（策略由 resolveStallAction 决定，默认 observe-only）。
+      if (
+        playbackStartedRef.current &&
+        !stallRecoveryRequestedRef.current &&
+        !stallRecoveryTimerRef.current &&
+        !art.video?.paused
+      ) {
+        stallRecoveryTimerRef.current = setTimeout(() => {
+          stallRecoveryTimerRef.current = null;
+          if (art.video && !art.video.paused && !art.video.ended && playbackMetricsRef.current.waiting) {
+            const action = resolveStallAction(12_000, PHASE1_AUTO_RECOVERY_POLICY);
+            // 与单测共享同一执行函数：第一阶段 onSwitchSource 绝不会被调用。
+            applyStallDecision(action, {
+              onSwitchSource: (reason) => {
+                stallRecoveryRequestedRef.current = true;
+                showHint('当前线路持续缓冲，正在准备切换播放线路…');
+                propsRef.current.onRequestSwitchSource?.(reason);
+              },
+              onObserve: (observation) => {
+                const metrics = playbackMetricsRef.current;
+                metrics.stalledObserved = true;
+                if (observation.status === 'degraded') metrics.degradedObserved = true;
+                showHint(`${observation.reason}（仅诊断，未自动切换线路）`);
+              },
+            });
+          }
+        }, 12_000);
+      }
       // 缓冲不足时彻底停止预取，释放所有并发请求给当前播放链路。
       getVideoPrefetcher().stop();
     });
@@ -1293,7 +1635,7 @@ export function PlayerShell({
       if (endedRef.current) return;
       endedRef.current = true;
       updateSkipPrompt(null);
-      propsRef.current.onEnded?.();
+      propsRef.current.onEnded?.(activeEpisodeKeyRef.current);
     });
 
     // —— 键盘快捷键（旧版 hotkey:false + 自定义逻辑的移植） ——
@@ -1322,7 +1664,15 @@ export function PlayerShell({
           current.toggle(); showHint('播放/暂停'); e.preventDefault();
           break;
         case 'f': case 'F':
-          current.fullscreen = !current.fullscreen; e.preventDefault();
+          // Keep keyboard and visible fullscreen buttons on the same shell-level
+          // path; ArtPlayer's own fullscreen would promote only its canvas and
+          // strand the page-owned timeline/transport outside the fullscreen layer.
+          if (propsRef.current.onRequestFullscreen) {
+            propsRef.current.onRequestFullscreen();
+          } else {
+            current.fullscreen = !current.fullscreen;
+          }
+          e.preventDefault();
           break;
         // 标记类快捷键一律要求 Shift：这几键会直接写盘并影响整部剧，
         // 单键太容易误触（误记片头 = 之后每集都被跳过一大段）
@@ -1391,19 +1741,25 @@ export function PlayerShell({
     // 触屏不监听 mousemove/mouseleave，也跳过初始显示：iOS 点按视频的合成事件
     // 序列是 mousemove → click，若 mousemove 先把 show 置 true，紧跟的 ArtPlayer
     // click toggle 会把它翻回 false——控制栏「闪一下即隐」，正是 issue #937 的病灶
-    if (!touchPointer) {
+    if (!cinemaMode && !touchPointer) {
       el?.addEventListener('mousemove', showControlsOnPointerMove);
       el?.addEventListener('mouseleave', hideControlsOnMouseLeave);
       showControlsOnPointerMove();
     }
 
     const onTouchStart = (e: TouchEvent) => {
-      if (art.video?.paused) return;
+      if (cinemaMode || art.video?.paused) return;
       // 已有触控在处理时忽略新手指：否则第二指会把 originalRate 捕获成 3.0，
       // 松手后倍速永久卡在 3x；旧定时器句柄也会被覆盖成无法清除的幽灵触发
       if (isLongPress || longPressTimer) return;
-      // 控制栏 / 设置面板上的长按不触发倍速（按住进度条拖动、长按倍速菜单项会误触）
-      if ((e.target as HTMLElement).closest?.('.art-controls, .art-settings')) return;
+      // 控件交互不触发长按 3 倍速。ArtPlayer 的进度轨道在部分版本中是
+      // .art-controls 的同级节点，而不是其子节点；此前只排除 .art-controls，
+      // 手指按住进度条超过 500ms 就会误触 3x，并在 touchmove 中 preventDefault，
+      // 导致 iPad Safari 无法拖动 seek。显式排除进度轨道及其指示器。
+      const touchTarget = e.target as HTMLElement;
+      if (touchTarget.closest?.(
+        '.art-controls, .art-settings, .art-progress, .art-progress-bar, .art-control-progress, .art-progress-indicator'
+      )) return;
       originalRate = art.video.playbackRate;
       longPressTimer = setTimeout(() => {
         if (art.video?.paused) return;
@@ -1435,29 +1791,39 @@ export function PlayerShell({
     // 卸载与页面隐藏时保存进度
     const saveOnHide = () => {
       if (document.visibilityState === 'hidden' && !endedRef.current) {
-        propsRef.current.onPause?.(art.currentTime, art.duration);
+        propsRef.current.onPause?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
       }
     };
     document.addEventListener('visibilitychange', saveOnHide);
 
     return () => {
+      mediaLoadGenerationRef.current += 1;
       flushPlaybackMetrics();
       // 卸载前刷一次最终进度，避免丢失最后几秒。
       // 已自然播完的集数不回写，避免覆盖 onEnded 里清除的「已看完」记录
       if (!endedRef.current) {
         try {
-          propsRef.current.onPause?.(art.currentTime, art.duration);
+          propsRef.current.onPause?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
         } catch { /* 忽略 */ }
       }
       document.removeEventListener('keydown', shortcuts);
       document.removeEventListener('visibilitychange', saveOnHide);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
+      stallRecoveryTimerRef.current = null;
       nativeFullscreenCleanupRef.current?.();
       nativeFullscreenCleanupRef.current = null;
       cleanupPlaybackUi();
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      // A page/source switch can unmount the player while a long-press timer is
+      // pending or while temporary 3x playback is active. Do not let that timer
+      // mutate a destroyed player or leak the temporary rate into a reused video.
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = null;
+      if (isLongPress && art.video) art.video.playbackRate = originalRate;
+      isLongPress = false;
       el?.removeEventListener('touchstart', onTouchStart);
       el?.removeEventListener('touchend', onTouchEnd);
       el?.removeEventListener('touchcancel', onTouchEnd);
@@ -1469,6 +1835,8 @@ export function PlayerShell({
       if (controlHideTimer) clearTimeout(controlHideTimer);
       restoreCleanupRef.current?.();
       restoreCleanupRef.current = null;
+      nativeDolbyHlsErrorCleanupRef.current?.();
+      nativeDolbyHlsErrorCleanupRef.current = null;
       Artplayer.CONTROL_HIDE_TIME = ART_DEFAULT_CONTROL_HIDE_MS;
       if (qualityPreferenceHandlerRef.current) {
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
@@ -1490,6 +1858,8 @@ export function PlayerShell({
   // —— 上/下集禁用态：走 ArtPlayer 的 controls API 更新样式，不直接改 DOM ——
   // 直接 querySelector 改 style 在控件重建（切全屏/播放器重绘）后不会恢复，且依赖内部 class 名。
   useEffect(() => {
+    // Cinema owns the episode buttons; ArtPlayer does not register these controls in this mode.
+    if (cinemaMode) return;
     const controls = artRef.current?.controls;
     if (!controls) return;
     controls.update({
@@ -1500,7 +1870,7 @@ export function PlayerShell({
       name: 'next-episode',
       style: { opacity: hasNextEpisode ? '1' : '0.4', pointerEvents: hasNextEpisode ? 'auto' : 'none' },
     });
-  }, [hasPrevEpisode, hasNextEpisode, url]);
+  }, [cinemaMode, hasPrevEpisode, hasNextEpisode, url]);
 
   // —— 标记变化：重置采样基准并立即刷新提示 ——
   // 刚写入片段时当前时间可能恰好等于新边界，若沿用上一拍采样会被判成
@@ -1521,12 +1891,30 @@ export function PlayerShell({
 
   // —— 换集：仅切换 HLS 源，不重建播放器（保留网页全屏等状态） ——
   const firstUrlRef = useRef(true);
+  const previousEpisodeUrlRef = useRef(url);
   useEffect(() => {
-    // 挂载时的首次由创建 effect 的 customType 触发，跳过避免重复加载
-    if (firstUrlRef.current) { firstUrlRef.current = false; return; }
-    loadEpisode(url);
+    // The first source is loaded by ArtPlayer's customType during construction.
+    if (firstUrlRef.current) {
+      firstUrlRef.current = false;
+      previousEpisodeUrlRef.current = url;
+      activeEpisodeKeyRef.current = episodeKey ?? '';
+      return;
+    }
+    if (previousEpisodeUrlRef.current !== url) {
+      loadEpisode(url);
+      previousEpisodeUrlRef.current = url;
+    } else {
+      // A source identity can change even when two providers share the same URL.
+      // Update the identity without needlessly reloading an unchanged media URL.
+      // The URL did not change, but the logical episode identity did.
+      // Invalidate any asynchronous restore lookup started for the previous identity.
+      mediaLoadGenerationRef.current += 1;
+      activeEpisodeKeyRef.current = episodeKey ?? '';
+      pendingEpisodeKeyRef.current = null;
+      lastProgressSaveAtRef.current = 0;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url]);
+  }, [url, episodeKey]);
 
   // —— 广告过滤开关变化：重建 HLS loader（无需重建整个播放器） ——
   const firstAdFilterRef = useRef(true);
@@ -1542,8 +1930,91 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
-        <button
+      {(!cinemaMode || cinemaPanel === 'diagnostics') && <div className={cinemaMode ? 'cinema-v4-diagnostics-sheet' : 'contents'}>{cinemaMode && <button type="button" className="cinema-v4-panel-close cinema-v4-diagnostics-close" onClick={onCloseCinemaPanel} aria-label="关闭视频诊断">×</button>}<PlaybackErrorBoundary key={url} label="Dolby Vision" optional><DolbyVisionDiagnosticsPanel cinemaExpanded={cinemaMode} key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} /></PlaybackErrorBoundary></div>}
+      {cinemaMode && (cinemaPanel === 'audio' || cinemaPanel === 'subtitles') && (
+        <div className="cinema-v4-panel-heading" role="group" aria-label="音频与字幕分类">
+          <div className="cinema-v4-panel-tabs">
+            <button type="button" aria-pressed={cinemaPanel === 'audio'} onClick={() => onCinemaPanelChange?.('audio')}>音频</button>
+            <button type="button" aria-pressed={cinemaPanel === 'subtitles'} onClick={() => onCinemaPanelChange?.('subtitles')}>字幕</button>
+          </div>
+          <button type="button" className="cinema-v4-panel-close" aria-label="关闭音频与字幕设置" onClick={onCloseCinemaPanel}>×</button>
+        </div>
+      )}
+      {cinemaMode && cinemaPanel === 'audio' && audioTrackOptions.length <= 1 && (
+        <div className="cinema-v4-empty-panel" role="status">
+          <h3>音轨</h3>
+          <p>{audioTrackOptions.length === 1 ? `当前音轨：${audioTrackOptions[0].label}` : '当前播放路径没有提供可切换的音轨列表。Safari 原生 HLS 可能由系统管理音轨。'}</p>
+          <p>音轨名称或声道数不能证明 Dolby Atmos 解码或设备输出。</p>
+        </div>
+      )}
+      {cinemaMode && cinemaPanel === 'subtitles' && (
+        <div className="cinema-v4-subtitle-panel" role="group" aria-label="字幕选择">
+          <h3>字幕</h3>
+          {cinemaSubtitleTracks.length > 0 ? (
+            <>
+              <button type="button" onClick={() => {
+                const tracks = (artRef.current?.video as HTMLVideoElement | undefined)?.textTracks;
+                if (!tracks) return;
+                for (let index = 0; index < tracks.length; index++) tracks[index].mode = 'disabled';
+                setCinemaSubtitleTracks((prev) => prev.map((track) => ({ ...track, mode: 'disabled' })));
+              }}>关闭字幕</button>
+              {cinemaSubtitleTracks.map((track) => (
+                <button type="button" key={track.index} aria-pressed={track.mode === 'showing'} onClick={() => {
+                  const tracks = (artRef.current?.video as HTMLVideoElement | undefined)?.textTracks;
+                  if (!tracks) return;
+                  for (let index = 0; index < tracks.length; index++) tracks[index].mode = index === track.index ? 'showing' : 'disabled';
+                  setCinemaSubtitleTracks((prev) => prev.map((item) => ({ ...item, mode: item.index === track.index ? 'showing' : 'disabled' })));
+                }}>{track.label}{track.mode === 'showing' ? ' ✓' : ''}</button>
+              ))}
+            </>
+          ) : <p>当前媒体没有公开可切换的原生字幕轨道。独立 ASS/SSA 字幕仍由原有播放引擎管理。</p>}
+        </div>
+      )}
+      {audioTrackOptions.length > 1 && (!cinemaMode || cinemaPanel === 'audio') && (
+        <div className={cinemaMode ? 'cinema-v4-audio-panel' : 'absolute right-3 top-14 z-20 flex flex-col items-end gap-2'} data-testid="audio-track-controls">
+          {!cinemaMode && <button
+            type="button"
+            className="player-quality-badge"
+            aria-expanded={audioTrackPanelOpen}
+            aria-label="音轨选择"
+            onClick={() => setAudioTrackPanelOpen((open) => !open)}
+          >
+            音轨 · {audioTrackOptions.find((track) => track.id === selectedAudioTrack)?.label ?? '当前'}
+          </button>}
+          {(cinemaMode || audioTrackPanelOpen) && (
+            <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl" role="group" aria-label="可用音轨">
+              <p className="mb-2 text-sm font-semibold">选择音轨</p>
+              <div className="space-y-1">
+                {audioTrackOptions.map((track) => (
+                  <button
+                    key={track.id}
+                    type="button"
+                    aria-pressed={selectedAudioTrack === track.id}
+                    className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${selectedAudioTrack === track.id ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    onClick={() => {
+                      const hls = hlsRef.current;
+                      const switched = Boolean(hls && selectHlsAudioTrack(hls, track.id));
+                      if (!switched) {
+                        showHint('当前音轨不可用，请稍后重试');
+                        return;
+                      }
+                      setSelectedAudioTrack(track.id);
+                      setAudioTrackPanelOpen(false);
+                      if (cinemaMode) onCloseCinemaPanel?.();
+                      showHint('已切换音轨');
+                    }}
+                  >
+                    {track.label}{track.isDefault ? ' · 默认' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {(!cinemaMode || cinemaPanel === 'quality') && <div className={cinemaMode ? 'cinema-v4-quality-panel' : 'player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2'}>
+        {cinemaMode && <div className="cinema-v4-quality-heading"><strong>播放画质</strong><button type="button" className="cinema-v4-panel-close" onClick={onCloseCinemaPanel} aria-label="关闭画质设置">×</button></div>}
+        {!cinemaMode && <button
           type="button"
           className="player-quality-badge"
           aria-expanded={qualityPanelOpen}
@@ -1552,8 +2023,8 @@ export function PlayerShell({
         >
           画质 · {qualityPreference === 'auto' ? '自动' : qualityPreference === '1080' ? '1080P' : '4K优先'}
           <span className="ml-2 text-white/70">{actualQualityHeight > 0 ? `当前 ${actualQualityHeight}P` : '检测中'}</span>
-        </button>
-        {qualityPanelOpen && (
+        </button>}
+        {(cinemaMode || qualityPanelOpen) && (
           <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-semibold">播放画质</span>
@@ -1616,7 +2087,7 @@ export function PlayerShell({
             </div>
           </div>
         )}
-      </div>
+      </div>}
       {showPoster && !error && (
         <div
           className="absolute inset-0 bg-black pointer-events-none"

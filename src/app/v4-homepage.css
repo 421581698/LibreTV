@@ -2141,3 +2141,54 @@ body:has(.v4-home) {
 @media (prefers-reduced-motion: reduce) {
   .v4-apple-poster-skeleton { animation: none; }
 }
+
+/* PR #99 — Home cinema hero must be true edge-to-edge artwork.
+   Keep the poster rail constrained, but let the hero escape any page container.
+   The previous .lg-media-frame utility also supplied a rounded media mask;
+   the hero now uses a plain, square-cornered media surface. */
+.v4-home-main--cinema > .v4-hero {
+  box-sizing: border-box !important;
+  position: relative !important;
+  width: 100vw !important;
+  max-width: none !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+.v4-home-main--cinema > .v4-hero > .v4-hero-image {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  clip-path: none !important;
+}
+.v4-home-main--cinema > .v4-hero > .v4-hero-image img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: cover !important;
+  object-position: center 48% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+.v4-home-main--cinema > .v4-hero > .v4-hero-veil {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  pointer-events: none !important;
+}

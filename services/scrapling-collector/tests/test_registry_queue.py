@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 import unittest
@@ -41,7 +42,7 @@ class RegistryQueueTests(unittest.TestCase):
 
     def test_seedhub_collection_job_types_are_rejected_by_api(self):
         from fastapi import HTTPException
-        for job_type in ("seedhub_sync", "seedhub_detail_sync"):
+        for job_type in ("seedhub_sync", "seedhub_detail_sync", "dv_media_ingest"):
             with self.subTest(job_type=job_type), patch.object(queue, "require_auth"), self.assertRaises(HTTPException):
                 queue.api_submit_job(
                     {"job_type": job_type, "payload": {"category": "movies"}, "idempotency_key": "retired:" + job_type},
@@ -127,6 +128,147 @@ class RegistryQueueTests(unittest.TestCase):
         })
         self.assertEqual(one["id"], again["id"])
         self.assertNotEqual(one["movie_id"], other["movie_id"])
+
+    def test_dolby_vision_asset_registry_is_content_addressed_and_immutable(self):
+        resource = queue.upsert_resource({
+            "resource_key": "resource:dv", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/a.mp4",
+            "title": "DV candidate", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        digest = "a" * 64
+        first = queue.register_dolby_vision_media_asset(
+            resource["id"], digest, 123456, "video/mp4"
+        )
+        again = queue.register_dolby_vision_media_asset(
+            resource["id"], digest.upper(), 123456, "video/mp4"
+        )
+        self.assertEqual(first["asset_id"], again["asset_id"])
+        self.assertEqual(first["object_key"], f"sha256/aa/{digest}")
+        self.assertEqual(first["sha256"], digest)
+        with self.assertRaises(ValueError):
+            queue.register_dolby_vision_media_asset(
+                resource["id"], digest, 123457, "video/mp4"
+            )
+        other_resource = queue.upsert_resource({
+            "resource_key": "resource:dv-copy", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/copy.mp4",
+            "title": "Same bytes", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        queue.record_verification(other_resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(other_resource["id"], "player", "passed", {"progressed_seconds": 3})
+        shared = queue.register_dolby_vision_media_asset(
+            other_resource["id"], digest, 123456, "video/mp4"
+        )
+        self.assertEqual(shared["object_key"], first["object_key"])
+        self.assertNotEqual(shared["asset_id"], first["asset_id"])
+        with self.assertRaises(ValueError):
+            queue.register_dolby_vision_media_asset(
+                resource["id"], "not-a-digest", 123456, "video/mp4"
+            )
+        with self.assertRaises(ValueError):
+            queue.register_dolby_vision_media_asset(
+                resource["id"], "b" * 64, 123456, "text/html"
+            )
+
+    def test_dolby_vision_immutable_asset_supports_single_http_byte_ranges(self):
+        from fastapi import HTTPException
+        from pathlib import Path
+
+        resource = queue.upsert_resource({
+            "resource_key": "resource:range", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/range.mp4",
+            "title": "Range fixture", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        body = b"0123456789"
+        digest = __import__("hashlib").sha256(body).hexdigest()
+        asset = queue.register_dolby_vision_media_asset(
+            resource["id"], digest, len(body), "video/mp4"
+        )
+        object_root = Path(self.tmp.name) / "objects"
+        object_path = object_root / asset["object_key"]
+        object_path.parent.mkdir(parents=True)
+        object_path.write_bytes(body)
+
+        async def consume(response):
+            return b"".join([chunk async for chunk in response.body_iterator])
+
+        with patch.object(queue, "DV_MEDIA_OBJECT_ROOT", object_root), patch.object(queue, "require_auth"):
+            partial = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=2-5"
+            )
+            self.assertEqual(partial.status_code, 206)
+            self.assertEqual(partial.headers["content-range"], "bytes 2-5/10")
+            self.assertEqual(partial.headers["content-length"], "4")
+            self.assertEqual(partial.headers["accept-ranges"], "bytes")
+            self.assertEqual(asyncio.run(consume(partial)), b"2345")
+
+            open_ended = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=7-"
+            )
+            self.assertEqual(asyncio.run(consume(open_ended)), b"789")
+
+            suffix = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=-3"
+            )
+            self.assertEqual(asyncio.run(consume(suffix)), b"789")
+
+            full = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test"
+            )
+            self.assertEqual(full.status_code, 200)
+            self.assertEqual(asyncio.run(consume(full)), body)
+
+            # A mutation after the digest check but before the response body is
+            # consumed must not leak bytes under the original asset identity.
+            changed_after_open = queue.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], authorization="Bearer test", range_header="bytes=0-3"
+            )
+            object_path.write_bytes(b"abcdefghij")
+            with self.assertRaises(HTTPException) as changed:
+                asyncio.run(consume(changed_after_open))
+            self.assertEqual(changed.exception.status_code, 409)
+            object_path.write_bytes(body)
+            queue._DV_VERIFIED_OBJECTS.clear()
+
+            for invalid in ("bytes=10-", "bytes=8-2", "bytes=-0", "bytes=0-1,4-5", "items=0-1"):
+                with self.subTest(invalid=invalid), self.assertRaises(HTTPException) as raised:
+                    queue.api_get_dolby_vision_media_asset_content(
+                        asset["asset_id"], authorization="Bearer test", range_header=invalid
+                    )
+                self.assertEqual(raised.exception.status_code, 416)
+                self.assertEqual(raised.exception.headers["Content-Range"], "bytes */10")
+
+    def test_dolby_vision_asset_registration_requires_separate_ingestion_secret(self):
+        from fastapi import HTTPException
+        with patch.object(queue, "DV_INGESTION_TOKEN", "dedicated-ingest-secret"):
+            with self.assertRaises(HTTPException):
+                queue.require_dv_ingestion_auth("collector-api-token")
+            queue.require_dv_ingestion_auth("dedicated-ingest-secret")
+
+    def test_dolby_vision_asset_registration_api_uses_dedicated_secret_and_returns_binding(self):
+        from unittest.mock import patch
+        resource = queue.upsert_resource({
+            "resource_key": "resource:dv-api", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/dv.mp4",
+            "title": "DV API", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        payload = queue.DolbyVisionMediaAssetRegistration(
+            sha256="c" * 64, byte_length=456789, content_type="video/mp4"
+        )
+        with patch.object(queue, "DV_INGESTION_TOKEN", "ingest-only-secret"):
+            result = queue.api_register_dv_media_asset(
+                resource["id"], payload, x_dv_ingestion_token="ingest-only-secret"
+            )
+        with patch.object(queue, "require_auth"):
+            detail = queue.api_get_resource(resource["id"], authorization="Bearer collector")
+        self.assertEqual(result["asset"]["asset_id"], detail["media_assets"][0]["asset_id"])
+        self.assertEqual(detail["media_assets"][0]["sha256"], "c" * 64)
 
     def test_playback_requires_public_preflight(self):
         resource = queue.upsert_resource({
@@ -241,6 +383,134 @@ class RegistryQueueTests(unittest.TestCase):
                 queue.submit_job(job_type, {"category": "movies"}, "retired:" + job_type)
 
 
+
+
+    def test_hls_graph_api_returns_ordered_trusted_init_and_segment_members(self):
+        from fastapi import HTTPException
+        import hashlib
+        from pathlib import Path
+        resource = queue.upsert_resource({
+            "resource_key": "resource:hls-graph-api", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/master.m3u8",
+            "title": "HLS graph fixture", "access_state": "PUBLIC", "media_format": "hls",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        payloads = [
+            ("root", b"#EXTM3U\\nvariant.m3u8\\n", "application/vnd.apple.mpegurl"),
+            ("variant", b'#EXTM3U\\n#EXT-X-MAP:URI="init.mp4"\\n#EXTINF:4,\\nseg.m4s\\n#EXT-X-ENDLIST\\n', "application/vnd.apple.mpegurl"),
+            ("init", b"init-bytes", "video/mp4"),
+            ("segment", b"segment-bytes", "video/iso.segment"),
+        ]
+        assets = []
+        for label, body, content_type in payloads:
+            digest = hashlib.sha256(body).hexdigest()
+            asset = queue.register_dolby_vision_media_asset(resource["id"], digest, len(body), content_type)
+            assets.append(asset)
+        with queue.connect() as c:
+            c.execute(
+                "INSERT INTO registry_hls_asset_graphs(graph_id,resource_id,root_asset_id,created_at) VALUES(?,?,?,?)",
+                ("hls-graph-api", resource["id"], assets[0]["asset_id"], 10),
+            )
+            c.executemany(
+                """INSERT INTO registry_hls_asset_edges(parent_asset_id,child_asset_id,relative_uri,role,ordinal)
+                   VALUES(?,?,?,?,?)""",
+                [
+                    (assets[0]["asset_id"], assets[1]["asset_id"], "variant.m3u8", "playlist", 0),
+                    (assets[1]["asset_id"], assets[2]["asset_id"], "init.mp4", "initialization", 0),
+                    (assets[1]["asset_id"], assets[3]["asset_id"], "seg.m4s", "segment", 1),
+                ],
+            )
+        with patch.object(queue, "require_auth"):
+            result = queue.api_get_hls_asset_graph(resource["id"], authorization="Bearer test")
+        self.assertEqual(result["rootAsset"]["assetId"], assets[0]["asset_id"])
+        self.assertEqual({item["assetId"] for item in result["members"]}, {a["asset_id"] for a in assets[1:]})
+        self.assertEqual([edge["role"] for edge in result["edges"]], ["playlist", "initialization", "segment"])
+        self.assertEqual(result["edges"][-1]["childAssetId"], assets[3]["asset_id"])
+        self.assertTrue(all(item["resourceId"] == resource["id"] for item in result["members"]))
+
+    def test_hls_graph_api_fails_closed_for_unverified_resources_and_missing_graphs(self):
+        from fastapi import HTTPException
+        resource = queue.upsert_resource({
+            "resource_key": "resource:hls-graph-unverified", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/master.m3u8",
+            "title": "Unverified HLS", "access_state": "PUBLIC", "media_format": "hls",
+        })
+        with patch.object(queue, "require_auth"), self.assertRaises(HTTPException) as blocked:
+            queue.api_get_hls_asset_graph(resource["id"], authorization="Bearer test")
+        self.assertEqual(blocked.exception.status_code, 409)
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        with patch.object(queue, "require_auth"), self.assertRaises(HTTPException) as missing:
+            queue.api_get_hls_asset_graph(resource["id"], authorization="Bearer test")
+        self.assertEqual(missing.exception.status_code, 404)
+
+
+    def test_cms_asset_binding_requires_exact_provider_episode_and_playback_hashes(self):
+        from fastapi import HTTPException
+        resource = queue.upsert_resource({
+            "resource_key": "resource:cms-binding-exact", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/asset.mp4",
+            "title": "Verified MP4", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        digest = "a" * 64
+        asset = queue.register_dolby_vision_media_asset(resource["id"], digest, 1234, "video/mp4")
+        binding = queue.CmsAssetBindingRegistration(
+            source_key="custom_1", vod_id="167277", episode_index=0,
+            provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+            resource_id=resource["id"], asset_id=asset["asset_id"],
+        )
+        with patch.object(queue, "require_dv_ingestion_auth"):
+            created = queue.api_register_cms_asset_binding(binding, x_dv_ingestion_token="operator")
+        self.assertEqual(created["status"], "bound")
+        with patch.object(queue, "require_auth"):
+            found = queue.api_get_cms_asset_binding(
+                source_key="custom_1", vod_id="167277", episode_index=0,
+                provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+                authorization="Bearer test",
+            )
+            with self.assertRaises(HTTPException) as mismatch:
+                queue.api_get_cms_asset_binding(
+                    source_key="custom_1", vod_id="167277", episode_index=0,
+                    provider_url_sha256="b" * 64, playback_url_sha256="d" * 64,
+                    authorization="Bearer test",
+                )
+        self.assertEqual(found["assetId"], asset["asset_id"])
+        self.assertEqual(found["sha256"], digest)
+        self.assertEqual(found["rpuPresence"], "unknown")
+        self.assertEqual(mismatch.exception.status_code, 404)
+
+    def test_cms_asset_binding_rejects_unverified_and_conflicting_assets(self):
+        from fastapi import HTTPException
+        resource = queue.upsert_resource({
+            "resource_key": "resource:cms-binding-unverified", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/asset.mp4",
+            "title": "Verified MP4 before revocation", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        asset = queue.register_dolby_vision_media_asset(resource["id"], "e" * 64, 1234, "video/mp4")
+        with queue.connect() as c:
+            c.execute("UPDATE registry_resources SET validation_state='unverified' WHERE id=?", (resource["id"],))
+        binding = queue.CmsAssetBindingRegistration(
+            source_key="custom_1", vod_id="167277", episode_index=0,
+            provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+            resource_id=resource["id"], asset_id=asset["asset_id"],
+        )
+        with patch.object(queue, "require_dv_ingestion_auth"), self.assertRaises(HTTPException) as blocked:
+            queue.api_register_cms_asset_binding(binding, x_dv_ingestion_token="operator")
+        self.assertEqual(blocked.exception.status_code, 409)
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        second_asset = queue.register_dolby_vision_media_asset(resource["id"], "f" * 64, 2345, "video/mp4")
+        with patch.object(queue, "require_dv_ingestion_auth"):
+            queue.api_register_cms_asset_binding(binding, x_dv_ingestion_token="operator")
+            conflicting = binding.model_copy(update={"asset_id": second_asset["asset_id"]})
+            with self.assertRaises(HTTPException) as conflict:
+                queue.api_register_cms_asset_binding(conflicting, x_dv_ingestion_token="operator")
+        self.assertEqual(conflict.exception.status_code, 409)
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,127 @@
+# Full Dolby Vision implementation contract
+
+- Date: 2026-11-25
+- Repository: LibreTV
+- Target branch: `feature/libretv-ipad-edition-product`
+- PR: #99 (keep Draft and unmerged)
+
+## Product definition
+
+“Full Dolby Vision” is an end-to-end chain, not a codec badge:
+
+1. Source and container inspection.
+2. Bitstream validation and Dolby Vision RPU / metadata extraction.
+3. A real Dolby Vision-capable decoder.
+4. RPU-aware Dolby Vision processing / display mapping.
+5. A supported platform display path.
+6. Device-and-output acceptance evidence.
+
+The application must report each stage independently. A successful earlier stage must never imply a later stage succeeded.
+
+## Current implementation status
+
+| Layer | Current state | Evidence / limitation |
+|---|---|---|
+| Codec declaration | Implemented | RFC 6381 and HLS declaration inspection; declarations are hints only |
+| HEVC RPU analysis | Implemented for the registered MP4 path | Private parser service, dovi_tool 2.3.x, source SHA-256 binding, signed evidence |
+| CMS episode-to-asset binding | Implemented (operator-attested exact MP4 mapping) | Requires exact source key, VOD ID, episode index, provider URL SHA-256 and playback URL SHA-256; lookup is fail-closed and playback switches to the immutable registered MP4 asset. No title/ID-only inference |
+| HEVC / Matroska fixture validation | Implemented in CI | Pinned upstream 259-frame fixture; not a feature-length customer asset |
+| HLS declaration mapping | Implemented (declaration-only) | Safari native HLS inspection reports per-variant codec declarations; declarations are not RPU evidence |
+| HLS immutable graph + signed fMP4 RPU analysis | Implemented for clear VOD fMP4 variants | Protected collector graph/assembly endpoints, canonical graph digest, private HEVC parser handoff, Ed25519 graph-bound report verification, and panel entry. Verified aggregate RPU frame count can equal video sample count without proving a one-to-one per-frame mapping. Cross-segment RPU semantics remain unverified; MPEG-TS/encrypted/live/discontinuous HLS is rejected |
+| Clear fMP4 HLS assembly + video timeline | Implemented | Collector verifies registered member hashes/order, ISO BMFF structure, sequential mfhd, video track/timescale, tfdt and trun/tfhd/trex sample durations; timeline is included in the canonical graph digest and HLS signature context |
+| AV1 Dolby metadata extraction | Implemented for registered single-track AV1 MP4 analysis path | FFprobe/FFmpeg AV1 track demux, bounded OBU/T.35/EMDF extraction, dovi_tool RPU validation, original MP4 SHA-256 binding, Ed25519 signature verification and diagnostics-panel entry. Offline extractor also accepts IVF. Real full-length AV1 movie acceptance and device decoding/rendering remain unverified |
+| Dolby Vision decoding | Not integrated by LibreTV | Requires a supported native platform decoder or properly licensed decoder component |
+| RPU-aware rendering / display mapping | Not integrated | No renderer is allowed to be represented as Dolby Vision processing without evidence |
+| Physical Dolby Vision output verification | Pending | Requires named device, OS, content, and output-chain acceptance |
+
+## Implementation sequence
+
+### A. Complete media inspection
+
+- Ordinary CMS `/watch` playback must not infer a registry resource from a CMS VOD ID, title, source key, or playback URL. Complete integration requires a server-side, verified mapping from the exact CMS episode/source identity to a registered direct-media resource; absent that mapping, the UI must keep the asset unbound.
+- The exact CMS binding path now has an operator-only registration endpoint and a server-authenticated lookup. Registration requires a validated PUBLIC PLAYER_CONFIRMED single MP4 resource plus its registered `video/mp4` asset. The composite key includes `source_key`, `vod_id`, `episode_index`, SHA-256 of the configured provider URL, and SHA-256 of the exact playback URL. The watch page hashes the two exact URL strings in UTF-8; when and only when all fields match, it switches playback to the immutable registry asset and supplies its asset ID to the Dolby Vision panel. Otherwise ordinary CMS playback continues unbound.
+
+- For registered HLS resources, the protected graph endpoint returns only resource-bound immutable asset identities and ordered parent/child roles; the UI reports playlist, initialization, and media-segment counts. This is graph inspection, not bitstream/RPU analysis.
+- The collector image packages the assembly module and verifies its import/CLI at build time. An authenticated `POST /v1/registry/resources/{resourceId}/hls-assembly/{variantAssetId}` endpoint streams the assembled MP4 candidate to trusted backend callers and deletes the temporary file after streaming.
+- A separate collector worker assembles one selected clear VOD fMP4 rendition from the verified graph. It rejects encryption, discontinuities, byte ranges, MPEG-TS, missing/extra members, digest mismatches and non-sequential fragment sequence numbers. It verifies root playlist bytes and emits a deterministic graph-manifest SHA-256 covering root/variant identity plus ordered initialization and media members, their roles, hashes, lengths, fragment sequence numbers, and the video timeline. It parses the video track ID/timescale from the initialization segment and validates each fragment's `tfdt` against the preceding fragment's summed `trun` sample durations (including `tfhd`/`trex` defaults); unknown or ambiguous timing fails closed. The server-only HLS analysis route streams the assembled bytes into the HEVC parser and verifies an Ed25519 envelope bound to the exact graph digest and assembled MP4 digest. This verifies video decode-timestamp continuity, not cross-segment RPU continuity.
+- Keep codec declaration parsing separate from elementary-stream inspection.
+- Extend container adapters independently: MP4/HEVC first, then AV1/OBU and additional containers only with real fixtures.
+- Bind every report to the immutable source asset ID and SHA-256.
+- Preserve full-scan scope, parser identity/version, frame count, RPU digest, Profile and per-level frame coverage.
+- Treat unsupported, malformed, truncated, or unavailable data as unknown/error, never as “no RPU”.
+
+### A1. AV1 Dolby Vision adapter contract (Profile 10 / dav1.10)
+
+AV1 is a separate bitstream path and must not enter the HEVC NAL parser.
+
+- Recognize the Dolby Vision AV1 signaling profile independently (for example, `dav1.10`); signaling is only an eligibility hint.
+- Parse AV1 OBU headers and payload lengths with strict bounds checks. Preserve temporal-unit and frame-unit boundaries; reject truncated, malformed, or unsupported OBU streams.
+- Locate Dolby Vision metadata only in the AV1 metadata OBU carrying ITU-T T.35 metadata. Validate the Dolby-specific country/provider identifiers and the EMDF wrapper before extracting an RPU payload.
+- Validate the extracted RPU using the Dolby Vision RPU parser, then bind the report to the exact source asset SHA-256, parser/library identity and version, OBU/frame/temporal-unit counts, RPU digest, Profile and metadata-level coverage.
+- Do not treat arbitrary T.35 metadata, a codec string, or an OBU count as proof of Dolby Vision RPU.
+- Start with raw AV1 elementary-stream fixtures. Add IVF or MP4 adapters only as separate container layers with real fixtures and timestamp/temporal-unit mapping tests.
+- Keep AV1 signed evidence schema-distinct or explicitly versioned from the existing HEVC report. Never label an AV1 report as `inputKind=hevc`.
+- Current `dovi_tool 2.3.4` CLI is used by the HEVC pipeline and is not, by itself, an AV1 demux/extraction command. Reuse of lower-level AV1/EMDF parsing APIs must be independently wrapped and tested; do not assume the CLI supports AV1 because the library contains AV1 helpers.
+
+Required AV1 tests: OBU size overflow/truncation, invalid metadata type, wrong T.35 country/provider, malformed EMDF, empty/invalid RPU, multiple metadata OBUs, missing temporal delimiter, frame/temporal-unit alignment, unsupported container, and source-hash mismatch.
+
+### A2. AV1 parser candidate review
+
+A public MIT-licensed fork of quietvoid/dovi_tool was inspected as a research candidate (reviewed commit 024c15877d88dc662ac45e86dfba297f50256921). It contains an AV1 OBU reader, an IVF reader, Dolby T.35/EMDF recognition, and AV1 RPU fixtures. It is not adopted as a production dependency in this PR.
+
+The inspected parser code needs hardening before reuse:
+
+- Its general LEB128 helper does not report unterminated or overlong encodings as errors; metadata-type parsing must use a strict bounded decoder.
+- The OBU reader allocates according to the declared payload length without an application-level per-OBU cap; enforce a configured maximum before allocation.
+- The IVF frame-header reader treats any UnexpectedEof as clean EOF, including a partially truncated header; distinguish zero-byte EOF from partial-header truncation.
+- Container parsing, OBU parsing, metadata identification, and RPU validation must remain separate stages with independent negative tests.
+
+The fork is therefore a source of implementation ideas and fixtures only. Any reuse requires a reviewed, pinned commit, strict parser fixes, license attribution, fuzz/property tests, and CI evidence before production integration. The repository now contains a separate bounded raw-OBU structural scanner and `scripts/dolby-vision/extract-av1-rpu.mjs`. The extractor recognizes the fixed Dolby T.35 provider identifiers, validates the supported EMDF header/length fields, extracts 0x19-prefixed RPU units, and checks temporal-unit/frame alignment when supplied a raw low-overhead OBU stream. The pinned upstream Profile 5/8 T.35 payload fixtures are scheduled for dovi_tool verification in CI. The parser service now accepts a registered MP4 containing exactly one AV1 video track, demuxes it with FFmpeg, validates Dolby T.35/EMDF OBU metadata, parses the extracted RPU with dovi_tool, and signs the result against the original MP4 SHA-256. The standalone adapter also accepts IVF, while the authenticated server API is currently MP4-only. Real full-length AV1 movie acceptance and hardware Dolby decoding/rendering remain unverified.
+
+### B. Decoder integration gate
+
+- Do not implement a pretend decoder or infer decoding from `canPlayType()`, MediaCapabilities, codec strings, or successful HTML video playback.
+- Browser playback may use an OS-provided decoder internally, but the web application cannot assume that it is a Dolby Vision decoder or prove the selected output mode.
+- A verifiable product decoder requires a supported platform API / native host and the relevant Dolby-authorized SDK or decoder rights.
+- Record the exact decoder identity, version, supported Profiles, input format, and actual decode result.
+
+### C. RPU-aware rendering gate
+
+- Integrate only a Dolby-authorized or otherwise legitimately licensed rendering path that consumes the decoded video and required dynamic metadata.
+- Preserve the original metadata and frame/timestamp alignment.
+- Do not substitute generic HDR tone mapping, Web Audio, CSS filters, WebGL effects, or HRTF processing and call it Dolby Vision.
+- If a licensed renderer is unavailable, retain native platform playback and report rendering as not integrated.
+
+### D. Platform and output verification
+
+- Keep web capability, native decoder capability, and physical display output as separate fields.
+- Acceptance records must identify device model, OS version, player/runtime version, media asset hash, Profile, output route, and observed output mode.
+- Safari/browser automation is regression evidence, not proof of physical Dolby Vision output.
+- HDMI/AVR/display chains require separate acceptance; browser JavaScript cannot reliably inspect every downstream display mode.
+
+## Product behavior until the gates pass
+
+- Continue ordinary supported playback without claiming Dolby Vision enhancement.
+- Show detected declaration, verified RPU evidence, decoder state, renderer state, and output state separately.
+- Label unintegrated decoder/rendering stages as “未接入”; label unavailable physical evidence as “未验证”.
+- Never show a global “Dolby Vision 已完成” success state while any required stage is unintegrated or unverified.
+
+## Required external inputs
+
+The following cannot be fabricated by repository code:
+
+- Dolby-authorized SDK / decoder access and applicable licensing.
+- A native host or platform API that exposes the required decode/render path.
+- Authorized representative media for each Profile/container path.
+- Physical acceptance on named iPhone/iPad models and output routes.
+
+## Release acceptance
+
+A full Dolby Vision release requires all implementation gates above, passing automated regression tests, and recorded physical-device output evidence. Until then, LibreTV may describe its verified media-inspection and RPU-analysis capabilities, but must not claim end-to-end Dolby Vision decoding or presentation.
+
+## Ordered HLS evidence aggregation hardening (PR #99 development)
+
+- The HLS segment-set verifier now requires a consistent signed parser version across all fragments, sums the signed metadata-level frame counts with safe-integer bounds, and exposes `verifiedMetadataLevelFrameCounts`.
+- `orderedRpuEvidenceSha256` is a graph-bound SHA-256 over the ordered signed fragment asset identity, fragment hash, RPU hash, frame count and parser version. It is a reproducible **aggregate evidence fingerprint**, not proof that RPU units align to individual video samples.
+- The API exposes the verified parser version, per-level counts and ordered evidence fingerprint only after the complete set has passed Ed25519, graph identity, sample-count and timeline verification. Mixed parser-version evidence is rejected rather than silently aggregated.
+- These changes **do not** complete a Dolby Vision decoder, per-frame RPU semantics, hardware display rendering, or real-device output acceptance. The six release gates above remain in force.

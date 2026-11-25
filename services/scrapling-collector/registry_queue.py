@@ -1,18 +1,101 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
+from collections import OrderedDict
 import json
 import os
 import sqlite3
+import shutil
+import stat
+import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
+from pydantic import BaseModel, ConfigDict, Field
 
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
 TOKEN = os.environ.get("SCRAPLING_API_TOKEN", "").strip()
+DV_INGESTION_TOKEN = (os.environ.get("DV_INGESTION_TOKEN", "").strip() or (Path(os.environ["DV_INGESTION_TOKEN_FILE"]).read_text(encoding="utf-8").strip() if os.environ.get("DV_INGESTION_TOKEN_FILE") else ""))
+DV_MEDIA_OBJECT_ROOT = Path(os.environ.get("DV_MEDIA_OBJECT_ROOT", "/data/dv-media-objects"))
+DV_MEDIA_STAGING_ROOT = Path(os.environ.get("DV_MEDIA_STAGING_ROOT", "/data/dv-media-staging"))
+
+# Avoid re-reading multi-gigabyte media on every browser Range request. The
+# cache is keyed by inode plus nanosecond mtime/ctime and size; ordinary writes
+# necessarily change ctime, forcing a fresh digest check. It is process-local
+# and bounded so it cannot grow with the number of registered assets.
+_DV_VERIFIED_OBJECTS: OrderedDict[tuple[int, int, int, int, int], str] = OrderedDict()
+_DV_VERIFIED_OBJECTS_LOCK = threading.Lock()
+_DV_VERIFIED_OBJECTS_MAX = 512
+
+
+def _stat_fingerprint(info: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def _verify_media_object_digest(
+    descriptor: int, expected_digest: str, expected_size: int
+) -> tuple[int, int, int, int, int]:
+    before = os.fstat(descriptor)
+    if not stat.S_ISREG(before.st_mode) or before.st_size != expected_size:
+        raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
+    fingerprint = _stat_fingerprint(before)
+    with _DV_VERIFIED_OBJECTS_LOCK:
+        cached_digest = _DV_VERIFIED_OBJECTS.get(fingerprint)
+        if cached_digest == expected_digest:
+            # Re-stat after acquiring the cache lock so a concurrent mutation
+            # cannot reuse a fingerprint observed before the lock was taken.
+            if _stat_fingerprint(os.fstat(descriptor)) != fingerprint:
+                raise HTTPException(status_code=409, detail="Registered media object changed during verification")
+            _DV_VERIFIED_OBJECTS.move_to_end(fingerprint)
+            return fingerprint
+
+    digest = hashlib.sha256()
+    verified_bytes = 0
+    try:
+        while verified_bytes < expected_size:
+            chunk = os.pread(descriptor, min(1024 * 1024, expected_size - verified_bytes), verified_bytes)
+            if not chunk:
+                break
+            digest.update(chunk)
+            verified_bytes += len(chunk)
+        after = os.fstat(descriptor)
+    except OSError as exc:
+        raise HTTPException(status_code=409, detail="Registered media object could not be integrity-checked") from exc
+
+    if (verified_bytes != expected_size or _stat_fingerprint(after) != fingerprint
+            or digest.hexdigest() != expected_digest):
+        raise HTTPException(status_code=409, detail="Registered media object digest or length mismatch")
+
+    with _DV_VERIFIED_OBJECTS_LOCK:
+        _DV_VERIFIED_OBJECTS[fingerprint] = expected_digest
+        _DV_VERIFIED_OBJECTS.move_to_end(fingerprint)
+        while len(_DV_VERIFIED_OBJECTS) > _DV_VERIFIED_OBJECTS_MAX:
+            _DV_VERIFIED_OBJECTS.popitem(last=False)
+    return fingerprint
+
+
+def _bounded_env_integer(name: str, default: int, minimum: int, maximum: int) -> int:
+    raw = os.environ.get(name, str(default)).strip()
+    if not raw.isdigit():
+        raise RuntimeError(f"{name} must be an integer between {minimum} and {maximum}")
+    value = int(raw)
+    if not minimum <= value <= maximum:
+        raise RuntimeError(f"{name} must be an integer between {minimum} and {maximum}")
+    return value
+
+
+DV_MAX_INGEST_BYTES = _bounded_env_integer(
+    "DV_MAX_INGEST_BYTES", 512 * 1024 * 1024, 1024, 2 * 1024 * 1024 * 1024
+)
+DV_MAX_CONCURRENT_INGESTS = _bounded_env_integer("DV_MAX_CONCURRENT_INGESTS", 1, 1, 4)
+DV_INGESTION_SLOTS = threading.BoundedSemaphore(DV_MAX_CONCURRENT_INGESTS)
 router = APIRouter()
 TERMINAL = {"succeeded", "partial", "failed", "cancelled"}
 ACCESS_BLOCKED = {"AUTH_REQUIRED", "SUBSCRIPTION_REQUIRED", "CHALLENGE", "DRM_PROTECTED", "ENCRYPTED_STREAM"}
@@ -57,6 +140,46 @@ def initialize() -> None:
         CREATE INDEX IF NOT EXISTS idx_registry_resources_movie ON registry_resources(movie_id);
         CREATE INDEX IF NOT EXISTS idx_registry_resources_episode ON registry_resources(episode_id);
         CREATE INDEX IF NOT EXISTS idx_registry_resources_verified ON registry_resources(validation_state,playback_state);
+        CREATE TABLE IF NOT EXISTS registry_media_assets (
+          asset_id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
+          sha256 TEXT NOT NULL, byte_length INTEGER NOT NULL CHECK(byte_length > 0),
+          content_type TEXT NOT NULL, object_key TEXT NOT NULL,
+          created_at INTEGER NOT NULL, UNIQUE(resource_id,sha256)
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_media_assets_resource
+          ON registry_media_assets(resource_id,created_at DESC);
+        CREATE TABLE IF NOT EXISTS registry_cms_asset_bindings (
+          source_key TEXT NOT NULL,
+          vod_id TEXT NOT NULL,
+          episode_index INTEGER NOT NULL CHECK(episode_index >= 0),
+          provider_url_sha256 TEXT NOT NULL,
+          playback_url_sha256 TEXT NOT NULL,
+          resource_id TEXT NOT NULL REFERENCES registry_resources(id),
+          asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY(source_key,vod_id,episode_index,provider_url_sha256,playback_url_sha256)
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_cms_asset_bindings_asset
+          ON registry_cms_asset_bindings(resource_id,asset_id);
+        CREATE TABLE IF NOT EXISTS registry_hls_asset_edges (
+          parent_asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
+          child_asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
+          relative_uri TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('playlist','segment','initialization','subtitle')),
+          ordinal INTEGER NOT NULL CHECK(ordinal >= 0),
+          PRIMARY KEY(parent_asset_id,relative_uri),
+          UNIQUE(parent_asset_id,ordinal)
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_hls_edges_child
+          ON registry_hls_asset_edges(child_asset_id);
+        CREATE TABLE IF NOT EXISTS registry_hls_asset_graphs (
+          graph_id TEXT PRIMARY KEY,
+          resource_id TEXT NOT NULL REFERENCES registry_resources(id),
+          root_asset_id TEXT NOT NULL UNIQUE REFERENCES registry_media_assets(asset_id),
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_hls_graphs_resource
+          ON registry_hls_asset_graphs(resource_id,created_at DESC);
         CREATE TABLE IF NOT EXISTS registry_verifications (
           id TEXT PRIMARY KEY, resource_id TEXT NOT NULL REFERENCES registry_resources(id),
           verification_type TEXT NOT NULL, outcome TEXT NOT NULL, evidence TEXT NOT NULL,
@@ -105,6 +228,103 @@ def initialize() -> None:
             event(c, row["id"], "seedhub_collection_retired", {"job_type": row["job_type"]})
 
 
+class DolbyVisionMediaAssetRegistration(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    byte_length: int = Field(gt=0, le=2 * 1024 * 1024 * 1024)
+    content_type: Literal["video/mp4", "video/webm"]
+
+class CmsAssetBindingRegistration(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    source_key: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
+    vod_id: str = Field(min_length=1, max_length=256)
+    episode_index: int = Field(ge=0, le=9999)
+    provider_url_sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    playback_url_sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    resource_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,200}$")
+    asset_id: str = Field(pattern=r"^[A-Za-z0-9:_-]{1,200}$")
+
+
+def require_dv_ingestion_auth(token: str | None) -> None:
+    import hmac
+    supplied = token.strip() if token else ""
+    if not DV_INGESTION_TOKEN or not supplied or not hmac.compare_digest(supplied, DV_INGESTION_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def register_dolby_vision_media_asset(resource_id: str, sha256: str, byte_length: int, content_type: str) -> dict:
+    import re
+    digest = sha256.lower() if isinstance(sha256, str) else ""
+    if not re.fullmatch(r"[a-f0-9]{64}", digest):
+        raise ValueError("Invalid media SHA-256.")
+    if isinstance(byte_length, bool) or not isinstance(byte_length, int) or not 1 <= byte_length <= 2 * 1024 * 1024 * 1024:
+        raise ValueError("Invalid media byte length.")
+    allowed_types = {
+        "video/mp4", "video/webm", "application/vnd.apple.mpegurl",
+        "video/mp2t", "video/iso.segment", "audio/aac", "audio/mp4",
+        "audio/mpeg", "text/vtt",
+    }
+    if content_type not in allowed_types:
+        raise ValueError("Unsupported media content type.")
+    asset_id = "dv_" + hashlib.sha256(f"{resource_id}:{digest}".encode()).hexdigest()[:32]
+    object_key = f"sha256/{digest[:2]}/{digest}"
+    now = int(time.time())
+    with connect() as c:
+        c.execute("BEGIN IMMEDIATE")
+        resource = c.execute(
+            """SELECT id,resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
+        if not resource:
+            c.rollback()
+            raise KeyError(resource_id)
+
+        # Enforce eligibility at the shared registration boundary, not only in
+        # individual uploaders. This also protects metadata-only registration
+        # calls and idempotent re-registration after a resource is blocked.
+        hls_content_types = {
+            "application/vnd.apple.mpegurl", "video/mp4", "video/mp2t",
+            "video/iso.segment", "audio/aac", "audio/mp4", "audio/mpeg", "text/vtt",
+        }
+        expected_standalone_type = {
+            "mp4": "video/mp4",
+            "webm": "video/webm",
+        }.get(resource["media_format"])
+        valid_format = (
+            content_type == expected_standalone_type
+            if expected_standalone_type
+            else resource["media_format"] == "hls" and content_type in hls_content_types
+        )
+        if (
+            resource["resource_type"] != "DIRECT_MEDIA"
+            or resource["access_state"] != "PUBLIC"
+            or resource["validation_state"] != "validated"
+            or resource["playback_state"] != "PLAYER_CONFIRMED"
+            or not valid_format
+        ):
+            c.rollback()
+            raise ValueError(
+                "Media asset registration requires a validated PUBLIC player-confirmed "
+                "DIRECT_MEDIA resource with a matching media format."
+            )
+
+        existing = c.execute("SELECT * FROM registry_media_assets WHERE resource_id=? AND sha256=?", (resource_id, digest)).fetchone()
+        if existing:
+            if existing["byte_length"] != byte_length or existing["content_type"] != content_type:
+                c.rollback()
+                raise ValueError("Immutable asset metadata conflict.")
+            c.commit()
+            return dict(existing)
+        row = c.execute(
+            """INSERT INTO registry_media_assets(asset_id,resource_id,sha256,byte_length,content_type,object_key,created_at)
+               VALUES(?,?,?,?,?,?,?) RETURNING *""",
+            (asset_id, resource_id, digest, byte_length, content_type, object_key, now),
+        ).fetchone()
+        c.commit()
+        return dict(row)
+
+
 def require_auth(authorization: str | None) -> None:
     import hmac
     supplied = authorization.removeprefix("Bearer ").strip() if authorization else ""
@@ -118,7 +338,7 @@ def event(c: sqlite3.Connection, job_id: str, name: str, detail: dict | None = N
 
 
 def submit_job(job_type: str, payload: dict, idempotency_key: str, max_attempts: int = 4) -> dict:
-    if job_type not in {"crawl", "discover"}:
+    if job_type not in {"crawl", "discover", "dv_media_ingest"}:
         raise ValueError("Unsupported job type")
     if not idempotency_key or len(idempotency_key) > 200:
         raise ValueError("Invalid idempotency key")
@@ -570,9 +790,549 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
         row=c.execute("SELECT * FROM registry_resources WHERE id=?",(resource_id,)).fetchone()
         verifications=c.execute("SELECT * FROM registry_verifications WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
         history=c.execute("SELECT * FROM registry_history WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
+        media_assets=c.execute("SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key,created_at FROM registry_media_assets WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
+        hls_graphs=c.execute("SELECT graph_id,resource_id,root_asset_id,created_at FROM registry_hls_asset_graphs WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
     if not row: raise HTTPException(status_code=404,detail="Resource not found")
-    return {"resource":dict(row),"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
+    return {"resource":dict(row),"media_assets":[dict(a) for a in media_assets],"hls_graphs":[dict(g) for g in hls_graphs],"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
 
+
+@router.post("/v1/registry/cms-asset-bindings")
+def api_register_cms_asset_binding(
+    payload: CmsAssetBindingRegistration,
+    x_dv_ingestion_token: str | None = Header(default=None),
+):
+    """Create an explicit operator-attested mapping for one exact CMS episode URL."""
+    require_dv_ingestion_auth(x_dv_ingestion_token)
+    with connect() as c:
+        resource = c.execute(
+            """SELECT id,resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (payload.resource_id,),
+        ).fetchone()
+        asset = c.execute(
+            """SELECT asset_id,resource_id,sha256,byte_length,content_type
+               FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
+            (payload.asset_id, payload.resource_id),
+        ).fetchone()
+        if not resource or not asset:
+            raise HTTPException(status_code=404, detail="Registered resource or asset not found")
+        if (resource["resource_type"] != "DIRECT_MEDIA" or resource["access_state"] != "PUBLIC" or
+                resource["validation_state"] != "validated" or resource["playback_state"] != "PLAYER_CONFIRMED" or
+                resource["media_format"] != "mp4" or asset["content_type"] != "video/mp4"):
+            raise HTTPException(status_code=409, detail="CMS binding requires a validated PUBLIC player-confirmed MP4 asset")
+        key = (
+            payload.source_key, payload.vod_id, payload.episode_index,
+            payload.provider_url_sha256.lower(), payload.playback_url_sha256.lower(),
+        )
+        existing = c.execute(
+            """SELECT resource_id,asset_id FROM registry_cms_asset_bindings
+               WHERE source_key=? AND vod_id=? AND episode_index=? AND provider_url_sha256=? AND playback_url_sha256=?""",
+            key,
+        ).fetchone()
+        if existing and (existing["resource_id"], existing["asset_id"]) != (payload.resource_id, payload.asset_id):
+            raise HTTPException(status_code=409, detail="CMS episode identity is already bound to another immutable asset")
+        if not existing:
+            c.execute(
+                """INSERT INTO registry_cms_asset_bindings
+                   (source_key,vod_id,episode_index,provider_url_sha256,playback_url_sha256,resource_id,asset_id,created_at)
+                   VALUES(?,?,?,?,?,?,?,?)""",
+                (*key, payload.resource_id, payload.asset_id, int(time.time())),
+            )
+    return {
+        "source_key": payload.source_key,
+        "vod_id": payload.vod_id,
+        "episode_index": payload.episode_index,
+        "resource_id": payload.resource_id,
+        "asset_id": payload.asset_id,
+        "status": "bound",
+    }
+
+
+@router.get("/v1/registry/cms-asset-bindings")
+def api_get_cms_asset_binding(
+    source_key: str = Query(..., min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$"),
+    vod_id: str = Query(..., min_length=1, max_length=256),
+    episode_index: int = Query(..., ge=0, le=9999),
+    provider_url_sha256: str = Query(..., min_length=64, max_length=64, pattern=r"^[a-fA-F0-9]{64}$"),
+    playback_url_sha256: str = Query(..., min_length=64, max_length=64, pattern=r"^[a-fA-F0-9]{64}$"),
+    authorization: str | None = Header(default=None),
+):
+    require_auth(authorization)
+    with connect() as c:
+        row = c.execute(
+            """SELECT binding.resource_id,binding.asset_id,asset.sha256,asset.byte_length,asset.content_type,asset.object_key,
+                      resource.resource_type,resource.access_state,resource.validation_state,
+                      resource.playback_state,resource.media_format
+               FROM registry_cms_asset_bindings binding
+               JOIN registry_resources resource ON resource.id=binding.resource_id
+               JOIN registry_media_assets asset ON asset.asset_id=binding.asset_id
+                    AND asset.resource_id=binding.resource_id
+               WHERE binding.source_key=? AND binding.vod_id=? AND binding.episode_index=?
+                 AND binding.provider_url_sha256=? AND binding.playback_url_sha256=?""",
+            (source_key, vod_id, episode_index, provider_url_sha256.lower(), playback_url_sha256.lower()),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Exact CMS episode binding not found")
+    if (row["resource_type"] != "DIRECT_MEDIA" or row["access_state"] != "PUBLIC" or
+            row["validation_state"] != "validated" or row["playback_state"] != "PLAYER_CONFIRMED" or
+            row["media_format"] != "mp4" or row["content_type"] != "video/mp4"):
+        raise HTTPException(status_code=409, detail="CMS binding is no longer eligible")
+    expected_object_key = f"sha256/{row['sha256'][:2]}/{row['sha256']}"
+    if row["object_key"] != expected_object_key:
+        raise HTTPException(status_code=409, detail="CMS binding immutable object key is invalid")
+    return {
+        "resourceId": row["resource_id"],
+        "assetId": row["asset_id"],
+        "sha256": row["sha256"],
+        "byteLength": row["byte_length"],
+        "contentType": row["content_type"],
+        "mediaType": "mp4",
+        "rpuPresence": "unknown",
+    }
+
+
+@router.post("/v1/registry/resources/{resource_id}/hls-assembly/{variant_asset_id}")
+def api_assemble_hls_fmp4(
+    resource_id: str,
+    variant_asset_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Stream a bounded MP4 parser input assembled from verified clear fMP4 HLS members."""
+    require_auth(authorization)
+    from dv_hls_fmp4_assembly import HlsAssemblyError, assemble_registered_hls_fmp4
+
+    DV_MEDIA_STAGING_ROOT.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix="dv-hls-parser-input-", suffix=".mp4", dir=DV_MEDIA_STAGING_ROOT
+    )
+    os.close(descriptor)
+    temporary_path = Path(temporary_name)
+    try:
+        result = assemble_registered_hls_fmp4(
+            resource_id, variant_asset_id, temporary_path, DV_MEDIA_OBJECT_ROOT
+        )
+        return FileResponse(
+            temporary_path,
+            media_type="video/mp4",
+            filename="hls-rpu-parser-input.mp4",
+            background=BackgroundTask(lambda: (temporary_path.unlink(missing_ok=True), shutil.rmtree(temporary_path.with_name(temporary_path.name + ".segments"), ignore_errors=True))),
+            headers={
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+                "X-DV-HLS-GRAPH-ID": result["graphId"],
+                "X-DV-HLS-GRAPH-SHA256": result["graphDigest"],
+                "X-DV-HLS-ROOT-ASSET-ID": result["rootAssetId"],
+                "X-DV-HLS-VARIANT-ASSET-ID": result["variantAssetId"],
+                "X-DV-HLS-ASSEMBLED-SHA256": result["assembledSha256"],
+                "X-DV-HLS-FRAGMENT-COUNT": str(len(result["segmentAssetIds"])),
+                "X-DV-HLS-FRAGMENT-SEQUENCE-CONTINUITY": result["fragmentSequenceContinuity"],
+                "X-DV-HLS-TEMPORAL-CONTINUITY": result["temporalContinuity"],
+                "X-DV-RPU-PRESENCE": result["rpuPresence"],
+            },
+        )
+    except HlsAssemblyError as exc:
+        temporary_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception:
+        temporary_path.unlink(missing_ok=True)
+        raise
+
+
+@router.post("/v1/registry/resources/{resource_id}/hls-assembly/{variant_asset_id}/segments/{fragment_ordinal}")
+def api_assemble_hls_fmp4_segment(
+    resource_id: str,
+    variant_asset_id: str,
+    fragment_ordinal: int,
+    authorization: str | None = Header(default=None),
+):
+    """Stream one independently parseable init+fragment input with signed-provenance headers."""
+    require_auth(authorization)
+    from dv_hls_fmp4_assembly import HlsAssemblyError, assemble_registered_hls_fmp4
+
+    if fragment_ordinal < 0 or fragment_ordinal >= 10_000:
+        raise HTTPException(status_code=422, detail="Invalid HLS fragment ordinal")
+    DV_MEDIA_STAGING_ROOT.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix="dv-hls-segment-parser-input-", suffix=".mp4", dir=DV_MEDIA_STAGING_ROOT
+    )
+    os.close(descriptor)
+    temporary_path = Path(temporary_name)
+    segment_dir = temporary_path.with_name(temporary_path.name + ".segments")
+    try:
+        result = assemble_registered_hls_fmp4(
+            resource_id, variant_asset_id, temporary_path, DV_MEDIA_OBJECT_ROOT,
+            fragment_ordinal=fragment_ordinal,
+        )
+        if not result["segmentInputs"]:
+            raise HTTPException(status_code=404, detail="HLS fragment ordinal not found")
+        segment = result["segmentInputs"][0]
+        segment_path = Path(segment["outputPath"])
+        headers = {
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "X-DV-Asset-ID": segment["fragmentAssetId"],
+            "X-DV-Asset-SHA256": segment["assembledSegmentSha256"],
+            "X-DV-Source-Content-Type": "video/mp4",
+            "X-DV-Analysis-Scope": "hls-fmp4-segment",
+            "X-DV-HLS-RESOURCE-ID": result["resourceId"],
+            "X-DV-HLS-GRAPH-ID": result["graphId"],
+            "X-DV-HLS-GRAPH-SHA256": result["graphDigest"],
+            "X-DV-HLS-ROOT-ASSET-ID": result["rootAssetId"],
+            "X-DV-HLS-VARIANT-ASSET-ID": result["variantAssetId"],
+            "X-DV-HLS-FRAGMENT-COUNT": str(len(result["segmentAssetIds"])),
+            "X-DV-HLS-FRAGMENT-SEQUENCE-CONTINUITY": result["fragmentSequenceContinuity"],
+            "X-DV-HLS-TEMPORAL-CONTINUITY": result["temporalContinuity"],
+            "X-DV-HLS-FRAGMENT-ORDINAL": str(segment["ordinal"]),
+            "X-DV-HLS-FRAGMENT-ASSET-ID": segment["fragmentAssetId"],
+            "X-DV-HLS-FRAGMENT-SHA256": segment["fragmentSha256"],
+            "X-DV-HLS-INITIALIZATION-ASSET-ID": segment["initializationAssetId"],
+            "X-DV-HLS-INITIALIZATION-SHA256": segment["initializationSha256"],
+            "X-DV-HLS-ASSEMBLED-SEGMENT-SHA256": segment["assembledSegmentSha256"],
+            "X-DV-HLS-FRAGMENT-SEQUENCE-NUMBER": str(segment["fragmentSequenceNumber"]),
+            "X-DV-HLS-DECODE-TIME": str(segment["decodeTime"]),
+            "X-DV-HLS-SAMPLE-DURATION": str(segment["sampleDuration"]),
+            "X-DV-HLS-SAMPLE-COUNT": str(segment["sampleCount"]),
+            "X-DV-HLS-TIMESCALE": str(segment["timescale"]),
+        }
+        return FileResponse(
+            segment_path,
+            media_type="video/mp4",
+            filename=f"hls-fragment-{fragment_ordinal:06d}.mp4",
+            background=BackgroundTask(
+                lambda: (temporary_path.unlink(missing_ok=True), shutil.rmtree(segment_dir, ignore_errors=True))
+            ),
+            headers=headers,
+        )
+    except HlsAssemblyError as exc:
+        temporary_path.unlink(missing_ok=True)
+        shutil.rmtree(segment_dir, ignore_errors=True)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception:
+        temporary_path.unlink(missing_ok=True)
+        shutil.rmtree(segment_dir, ignore_errors=True)
+        raise
+
+
+@router.get("/v1/registry/resources/{resource_id}/hls-graph")
+def api_get_hls_asset_graph(resource_id: str, authorization: str | None = Header(default=None)):
+    """Return the exact immutable HLS member graph for downstream byte-level analysis."""
+    require_auth(authorization)
+    with connect() as c:
+        resource = c.execute(
+            """SELECT id,resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
+        if not resource:
+            raise HTTPException(status_code=404, detail="Resource not found")
+        if (resource["resource_type"] != "DIRECT_MEDIA" or resource["access_state"] != "PUBLIC" or
+                resource["validation_state"] != "validated" or resource["playback_state"] != "PLAYER_CONFIRMED" or
+                resource["media_format"] != "hls"):
+            raise HTTPException(status_code=409, detail="HLS graph requires a validated PUBLIC player-confirmed HLS resource")
+        graph = c.execute(
+            """SELECT graph_id,resource_id,root_asset_id,created_at
+               FROM registry_hls_asset_graphs WHERE resource_id=?
+               ORDER BY created_at DESC, graph_id DESC LIMIT 1""",
+            (resource_id,),
+        ).fetchone()
+        if not graph:
+            raise HTTPException(status_code=404, detail="HLS asset graph not found")
+        root = c.execute(
+            """SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key,created_at
+               FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
+            (graph["root_asset_id"], resource_id),
+        ).fetchone()
+        if not root or root["content_type"] != "application/vnd.apple.mpegurl":
+            raise HTTPException(status_code=409, detail="HLS graph root binding is invalid")
+        rows = c.execute(
+            """WITH RECURSIVE reachable(asset_id,depth) AS (
+                 SELECT ?,0
+                 UNION
+                 SELECT edge.child_asset_id, reachable.depth+1
+                 FROM registry_hls_asset_edges edge
+                 JOIN reachable ON edge.parent_asset_id=reachable.asset_id
+                 WHERE reachable.depth < 16
+               )
+               SELECT edge.parent_asset_id,edge.child_asset_id,edge.relative_uri,edge.role,edge.ordinal,
+                      parent.resource_id AS parent_resource_id,
+                      child.asset_id,child.resource_id,child.sha256,child.byte_length,
+                      child.content_type,child.object_key,child.created_at
+               FROM registry_hls_asset_edges edge
+               JOIN reachable ON reachable.asset_id=edge.parent_asset_id
+               JOIN registry_media_assets parent ON parent.asset_id=edge.parent_asset_id
+               JOIN registry_media_assets child ON child.asset_id=edge.child_asset_id
+               WHERE parent.resource_id=? AND child.resource_id=?
+               ORDER BY reachable.depth,edge.parent_asset_id,edge.ordinal""",
+            (graph["root_asset_id"], resource_id, resource_id),
+        ).fetchall()
+    members = {}
+    edges = []
+    for row in rows:
+        member = {
+            "assetId": row["asset_id"],
+            "resourceId": row["resource_id"],
+            "sha256": row["sha256"],
+            "byteLength": row["byte_length"],
+            "contentType": row["content_type"],
+            "objectKey": row["object_key"],
+            "createdAt": row["created_at"],
+        }
+        members[member["assetId"]] = member
+        edges.append({
+            "parentAssetId": row["parent_asset_id"],
+            "childAssetId": row["child_asset_id"],
+            "relativeUri": row["relative_uri"],
+            "role": row["role"],
+            "ordinal": row["ordinal"],
+        })
+    return {
+        "resourceId": resource_id,
+        "graph": dict(graph),
+        "rootAsset": {
+            "assetId": root["asset_id"],
+            "resourceId": root["resource_id"],
+            "sha256": root["sha256"],
+            "byteLength": root["byte_length"],
+            "contentType": root["content_type"],
+            "objectKey": root["object_key"],
+            "createdAt": root["created_at"],
+        },
+        "members": list(members.values()),
+        "edges": edges,
+    }
+
+
+@router.post("/v1/registry/resources/{resource_id}/media-assets")
+def api_register_dv_media_asset(resource_id: str, payload: DolbyVisionMediaAssetRegistration, x_dv_ingestion_token: str | None = Header(default=None)):
+    # Separate server-only credential: the general collector token is not sufficient.
+    require_dv_ingestion_auth(x_dv_ingestion_token)
+    try:
+        return {"asset": register_dolby_vision_media_asset(
+            resource_id, payload.sha256, payload.byte_length, payload.content_type
+        )}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Resource not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+def _stream_dv_object(
+    file_descriptor: int,
+    start: int = 0,
+    length: int | None = None,
+    expected_fingerprint: tuple[int, int, int, int, int] | None = None,
+):
+    """Stream only while the opened immutable object retains its verified identity."""
+    with os.fdopen(file_descriptor, "rb", closefd=True) as media_file:
+        media_file.seek(start)
+        remaining = length
+        while remaining is None or remaining > 0:
+            before = os.fstat(media_file.fileno())
+            if expected_fingerprint is not None and _stat_fingerprint(before) != expected_fingerprint:
+                raise HTTPException(status_code=409, detail="Registered media object changed during playback")
+            chunk_size = 1024 * 1024 if remaining is None else min(1024 * 1024, remaining)
+            chunk = media_file.read(chunk_size)
+            after = os.fstat(media_file.fileno())
+            if expected_fingerprint is not None and _stat_fingerprint(after) != expected_fingerprint:
+                raise HTTPException(status_code=409, detail="Registered media object changed during playback")
+            if not chunk:
+                break
+            if remaining is not None:
+                remaining -= len(chunk)
+            yield chunk
+
+
+def _parse_single_byte_range(value: str, total_size: int) -> tuple[int, int]:
+    """Return inclusive start/end for one RFC 7233 byte range; reject invalid ranges."""
+    import re
+    if not isinstance(value, str) or len(value) > 128 or not value.startswith("bytes=") or "," in value:
+        raise ValueError("Only one bytes range is supported")
+    match = re.fullmatch(r"bytes=(\d*)-(\d*)", value.strip())
+    if not match or (not match.group(1) and not match.group(2)):
+        raise ValueError("Malformed byte range")
+    first, last = match.groups()
+    if not first:
+        suffix_length = int(last)
+        if suffix_length <= 0:
+            raise ValueError("Invalid suffix byte range")
+        return max(0, total_size - suffix_length), total_size - 1
+    start = int(first)
+    end = int(last) if last else total_size - 1
+    if start >= total_size or end < start:
+        raise ValueError("Unsatisfiable byte range")
+    return start, min(end, total_size - 1)
+
+
+@router.post("/v1/registry/resources/{resource_id}/media-assets/ingest")
+async def api_ingest_dolby_vision_media_asset(
+    resource_id: str,
+    request: Request,
+    x_dv_ingestion_token: str | None = Header(default=None),
+):
+    """Accept exact media bytes from a trusted backend; never fetch a URL."""
+    import re
+    require_dv_ingestion_auth(x_dv_ingestion_token)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", resource_id):
+        raise HTTPException(status_code=400, detail="Invalid resource ID")
+    content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    allowed_types = {"video/mp4", "video/webm"}
+    if content_type not in allowed_types:
+        raise HTTPException(status_code=415, detail="Unsupported media content type")
+    raw_length = request.headers.get("content-length", "")
+    if not raw_length:
+        raise HTTPException(status_code=411, detail="Content-Length is required")
+    if len(raw_length) > 10 or not re.fullmatch(r"\d+", raw_length):
+        raise HTTPException(status_code=413, detail="Media upload size rejected")
+    content_length = int(raw_length)
+    maximum_bytes = DV_MAX_INGEST_BYTES
+    if content_length <= 0 or content_length > maximum_bytes:
+        raise HTTPException(status_code=413, detail="Media upload size rejected")
+    with connect() as connection:
+        resource = connection.execute(
+            """SELECT resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Registry resource not found")
+    expected_format = "webm" if content_type == "video/webm" else "mp4"
+    if (resource["resource_type"] != "DIRECT_MEDIA" or
+            resource["access_state"] != "PUBLIC" or
+            resource["validation_state"] != "validated" or
+            resource["playback_state"] != "PLAYER_CONFIRMED" or
+            resource["media_format"] != expected_format):
+        raise HTTPException(
+            status_code=409,
+            detail="Media ingestion requires a validated PUBLIC player-confirmed resource with matching media format",
+        )
+    if not DV_INGESTION_SLOTS.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="Media ingestion capacity is busy", headers={"Retry-After": "5"})
+
+    temporary_path: Path | None = None
+    try:
+        DV_MEDIA_STAGING_ROOT.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary_name = tempfile.mkstemp(prefix="dv-upload-", suffix=".staged", dir=DV_MEDIA_STAGING_ROOT)
+        temporary_path = Path(temporary_name)
+        received = 0
+        with os.fdopen(descriptor, "wb", closefd=True) as staged_file:
+            async for chunk in request.stream():
+                if not chunk:
+                    continue
+                received += len(chunk)
+                if received > content_length or received > maximum_bytes:
+                    raise HTTPException(status_code=413, detail="Media upload exceeded declared size")
+                staged_file.write(chunk)
+            staged_file.flush()
+            os.fsync(staged_file.fileno())
+        if received != content_length:
+            raise HTTPException(status_code=400, detail="Media upload length mismatch")
+
+        from dv_media_ingest import IngestionError, ingest_staged_file
+        try:
+            # Hashing, fsync, and content-addressed object creation are blocking
+            # disk operations; keep them off the ASGI event loop.
+            result = await asyncio.to_thread(
+                ingest_staged_file,
+                resource_id, temporary_path, DV_MEDIA_OBJECT_ROOT, content_type, maximum_bytes
+            )
+        except IngestionError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {
+            "asset": result["asset"],
+            "sha256": result["sha256"],
+            "byte_length": result["byte_length"],
+            "content_type": result["content_type"],
+        }
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
+        DV_INGESTION_SLOTS.release()
+
+
+@router.get("/v1/registry/media-assets/{asset_id}/content")
+def api_get_dolby_vision_media_asset_content(
+    asset_id: str,
+    authorization: str | None = Header(default=None),
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Stream one registered immutable object with single-range support."""
+    import re
+    require_auth(authorization)
+    # Direct unit calls see FastAPI's Header sentinel as the default value;
+    # only an actual string represents a supplied HTTP Range header.
+    if not isinstance(range_header, str):
+        range_header = None
+    with connect() as c:
+        row = c.execute(
+            "SELECT asset_id,sha256,byte_length,content_type,object_key FROM registry_media_assets WHERE asset_id=?",
+            (asset_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+    digest = row["sha256"]
+    expected_key = f"sha256/{digest[:2]}/{digest}"
+    if (not re.fullmatch(r"[a-f0-9]{64}", digest or "") or
+            row["object_key"] != expected_key or
+            row["content_type"] not in {
+                "video/mp4", "video/webm", "application/vnd.apple.mpegurl",
+                "video/mp2t", "video/iso.segment", "audio/aac", "audio/mp4",
+                "audio/mpeg", "text/vtt",
+            }):
+        raise HTTPException(status_code=409, detail="Media asset registry metadata is invalid")
+
+    total_size = row["byte_length"]
+    start, end = 0, total_size - 1
+    status_code = 200
+    if range_header is not None:
+        try:
+            start, end = _parse_single_byte_range(range_header, total_size)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=416,
+                detail="Requested byte range is not satisfiable",
+                headers={"Content-Range": f"bytes */{total_size}", "Accept-Ranges": "bytes"},
+            )
+        status_code = 206
+
+    object_path = DV_MEDIA_OBJECT_ROOT / expected_key
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(object_path, flags)
+    except FileNotFoundError:
+        raise HTTPException(status_code=410, detail="Registered media object is missing")
+    except OSError:
+        raise HTTPException(status_code=409, detail="Registered media object cannot be safely opened")
+    # Hash the exact opened descriptor before first use. Subsequent Range
+    # requests reuse only a fingerprint-matched verification result, avoiding
+    # a full multi-gigabyte read for every seek while detecting normal writes.
+    try:
+        verified_fingerprint = _verify_media_object_digest(descriptor, digest, total_size)
+    except HTTPException:
+        os.close(descriptor)
+        raise
+
+    response_headers = {
+        "Content-Length": str(end - start + 1),
+        "Accept-Ranges": "bytes",
+        "ETag": f'"{digest}"',
+        "X-DV-Asset-SHA256": digest,
+        "X-DV-Asset-ID": row["asset_id"],
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if status_code == 206:
+        response_headers["Content-Range"] = f"bytes {start}-{end}/{total_size}"
+    return StreamingResponse(
+        _stream_dv_object(descriptor, start, end - start + 1, verified_fingerprint),
+        status_code=status_code,
+        media_type=row["content_type"],
+        headers=response_headers,
+    )
 
 @router.post("/v1/registry/resources/{resource_id}/verifications")
 def api_verify_resource(resource_id: str, payload: dict, authorization: str | None = Header(default=None)):

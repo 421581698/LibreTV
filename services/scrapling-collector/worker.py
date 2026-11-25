@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import argparse
 import os
 import uuid
@@ -11,6 +12,9 @@ from app import (
     crawl_site,
     discover_sites,
     require_egress_firewall,
+    public_https_url,
+    resolve_public_addresses,
+    PinnedHTTPSConnection,
     task_candidates,
     validate_candidate,
 )
@@ -24,6 +28,52 @@ MAX_AUTOMATIC_MEDIA_PREFLIGHTS = 20
 def handle(payload: dict, checkpoint, cancelled):
     if cancelled():
         raise JobCancelled()
+    if payload.get("_job_type") == "dv_media_ingest":
+        require_egress_firewall()
+        candidate_id = payload.get("candidate_id")
+        resource_id = payload.get("resource_id")
+        if not isinstance(candidate_id, str) or not isinstance(resource_id, str):
+            raise ValueError("Authorized media ingestion job is missing its registry identifiers")
+        checkpoint({"stage": "authorized_media_ingest_started", "candidate_id": candidate_id})
+        from dv_source_gateway import _json_object, _read_candidate, ingest_authorized_candidate
+        candidate = _read_candidate(candidate_id)
+        validation = _json_object(candidate.get("validation"))
+        expected_source_version = payload.get("source_version")
+        if not isinstance(expected_source_version, str) or not re.fullmatch(r"[a-f0-9]{24}", expected_source_version):
+            checkpoint({"stage": "authorized_media_ingest_skipped", "reason": "missing_source_version"})
+            return {"status": "skipped", "reason": "missing_source_version"}
+        current_source_version = hashlib.sha256(
+            (str(candidate.get("url") or "") + "\0" + str(candidate.get("validation") or "")).encode("utf-8")
+        ).hexdigest()[:24]
+        if current_source_version != expected_source_version:
+            checkpoint({"stage": "authorized_media_ingest_skipped", "reason": "candidate_changed_after_queue"})
+            return {"status": "skipped", "reason": "candidate_changed_after_queue"}
+        if validation.get("media_format") == "hls":
+            from dv_hls_source_gateway import ingest_authorized_hls_candidate
+            result = ingest_authorized_hls_candidate(
+                candidate_id,
+                resource_id,
+                public_https_url=public_https_url,
+                resolve_public_addresses=resolve_public_addresses,
+                pinned_connection_cls=PinnedHTTPSConnection,
+                cancelled=cancelled,
+                checkpoint=checkpoint,
+            )
+        else:
+            result = ingest_authorized_candidate(
+                candidate_id,
+                resource_id,
+                public_https_url=public_https_url,
+                resolve_public_addresses=resolve_public_addresses,
+                pinned_connection_cls=PinnedHTTPSConnection,
+                cancelled=cancelled,
+                checkpoint=checkpoint,
+            )
+        if result.get("status") == "failed":
+            raise RuntimeError("authorized_media_ingest_failed:" + str(result.get("error_type") or "unknown"))
+        checkpoint({"stage": "authorized_media_ingest_finished", "status": result.get("status")})
+        return result
+
     if payload.get("_job_type") == "discover":
         require_egress_firewall()
         checkpoint({"stage": "fmhy_discovery_started"})

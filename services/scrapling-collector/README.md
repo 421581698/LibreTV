@@ -112,3 +112,95 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 4. Restart/redeploy the service and confirm task records remain available from the persistent `/data` disk.
 5. Set the Preview Worker's `SCRAPLING_API_BASE` and `SCRAPLING_API_TOKEN` secrets, then verify `/api/resource-collector` from the Preview app.
 6. Keep this service isolated from production. Do not reuse production secrets.
+
+## Dolby Vision immutable media identity and ingestion
+
+The registry stores immutable media-asset metadata in `registry_media_assets`. The separate `X-DV-Ingestion-Token` credential is not interchangeable with the collector API token. The asset registration endpoint is an internal assertion interface; the trusted raw-byte ingestion endpoint below is preferred because it computes the digest from bytes received by the service. The shared registration function independently enforces `DIRECT_MEDIA`, `PUBLIC`, validated, and `PLAYER_CONFIRMED` state inside its write transaction. Standalone MP4/WebM assets must match the resource format; HLS playlist, initialization, segment, audio, and subtitle members are accepted only for a confirmed HLS resource. This check also applies to idempotent re-registration and the metadata-only registration API, so callers cannot bypass eligibility by choosing a different entry point.
+
+### Trusted local-file worker
+
+The collector image includes `dv_media_ingest.py`. It accepts a staged local regular file only; it has no URL-fetching code and does not resolve or contact candidate hosts. It hashes the staged bytes, rejects symlinks and empty files, and writes to `/data/dv-media-objects/sha256/{prefix}/{digest}` using a temporary file, fsync, and atomic no-overwrite hard-link creation. Existing objects are re-hashed before reuse. Registration occurs only after the durable object is verified. The CLI worker supports up to 2 GiB, subject to the configured per-invocation limit.
+
+### Authenticated raw-byte ingress
+
+`POST /v1/registry/resources/{resource_id}/media-assets/ingest` accepts bytes only; it has no URL parameter, redirect handling, or remote-fetch behavior. It requires the dedicated ingestion token, an allowed media content type, and an exact `Content-Length`. The default HTTP ingress limit is 512 MiB (`DV_MAX_INGEST_BYTES`, allowed range 1 KiB–2 GiB). Concurrent HTTP ingestions default to one (`DV_MAX_CONCURRENT_INGESTS`, allowed range 1–4); excess requests receive HTTP 429 with `Retry-After: 5`. Disk hashing and object creation run outside the ASGI event loop. The temporary upload is removed after success or failure.
+
+The registry also exposes `GET /v1/registry/media-assets/{asset_id}/content`, an authenticated read-only stream resolved solely from the registry row. It validates the digest/key relationship and regular-file metadata, supports one RFC 7233 byte range (including suffix and open-ended ranges), returns `206`/`Content-Range` for satisfiable ranges and `416`/`Content-Range: bytes */<length>` for invalid or unsatisfiable ranges. Consumers must still verify the bytes they receive against the advertised digest; the Dolby Vision parser independently hashes the forwarded upload and rejects a mismatch.
+
+### Immutable HLS asset graphs
+
+The collector image includes `dv_hls_ingest.py` and `dv_hls_source_gateway.py`. The former converts a trusted local clear-HLS staging directory into immutable content-addressed assets. The latter is the graph-aware authorized source adapter: after validated PUBLIC preflight and browser playback confirmation, the durable worker fetches the root playlist and every referenced child playlist, initialization section, media segment, audio and subtitle member. Every URL is independently checked against the exact hostname allowlist, DNS-resolved to public addresses, and fetched over a connection pinned to the validated IP. It stages a complete local graph and then invokes `dv_hls_ingest.py`, which rewrites every playlist URI to the server-side immutable asset content route. Parent/child relationships are persisted in `registry_hls_asset_edges`.
+
+The worker rejects path traversal, symlinked members, missing files, unsupported extensions, cyclic playlist references, non-UTF-8/oversized playlists, encrypted/DRM key declarations, and graphs exceeding 10,000 members, 50,000 edges, or 4 GiB aggregate staged bytes. It supports local `.m3u8`, `.m4s`, `.mp4`, `.ts`, `.aac`, `.m4a`, `.mp3`, and `.vtt` members. The root playlist is registered as `application/vnd.apple.mpegurl`; the player resolves that immutable root for HLS resources, and HLS.js requests the rewritten child asset URLs through the same authenticated byte-range proxy.
+
+Only invoke it after the registry resource is independently validated as PUBLIC and player-confirmed:
+
+```sh
+python dv_hls_ingest.py --resource-id <existing-resource-id> --staging-dir /private-staging/hls --playlist master.m3u8
+```
+
+This is the HLS graph storage primitive. The graph-aware network acquisition adapter is described below.
+
+### Local Compose provisioning
+
+The collector runs as UID/GID 10001. The mounted token file must be readable by that service user:
+
+```sh
+mkdir -p secrets
+openssl rand -hex 32 > secrets/dv-ingestion-token
+sudo chown 10001:10001 secrets/dv-ingestion-token
+chmod 400 secrets/dv-ingestion-token
+export DV_INGESTION_TOKEN_FILE="$PWD/secrets/dv-ingestion-token"
+docker compose --profile collector up -d --build
+```
+
+A trusted local staging workflow may invoke:
+
+```sh
+python dv_media_ingest.py --resource-id <existing-resource-id> --file /private-staging/media.bin --content-type video/mp4
+```
+
+The resource ID must already exist. The content type is a trusted-ingestion assertion, not a codec-analysis result. The local worker itself does not download remote URLs, bypass access controls, or decide whether a source is lawful or authorized. Never run it on arbitrary user-provided paths.
+
+### Authorized progressive-media source gateway
+
+The collector includes two authorized-source gateways: `dv_source_gateway.py` for progressive MP4/WebM and `dv_hls_source_gateway.py` for clear-HLS graphs. When an operator explicitly enables the feature, successful browser playback confirmation enqueues one idempotent `dv_media_ingest` job; the browser request does not wait for network transfers. The worker reads candidate URLs and playback evidence from the collector database. No client-supplied URL is accepted.
+
+Both gateways require:
+
+- `DV_SOURCE_GATEWAY_ENABLED=1` and `SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1`
+- Exact hostname membership in `DV_AUTHORIZED_SOURCE_HOSTS` (comma-separated; no wildcards or suffix matching); every HLS playlist, segment, audio, subtitle, and initialization member must independently pass the same allowlist
+- Candidate preflight still marked validated and PUBLIC, plus persisted browser playback progression evidence
+- Registry resource still marked DIRECT_MEDIA, PUBLIC, validated, and PLAYER_CONFIRMED
+- HTTPS on port 443, public-IP DNS validation and a TCP connection pinned to the validated IP
+- HTTP 200, matching member Content-Type, identity content encoding, and a bounded exact Content-Length
+
+The gateways never follow redirects, forward cookies or authorization headers, or retrieve encryption keys or DRM-protected content. Redirected roots must be explicitly re-registered at their final URL. Progressive MP4/WebM is stored as one immutable asset. HLS recursively fetches a clear playlist graph and then invokes `dv_hls_ingest.py` to create content-addressed assets, rewritten immutable playlist URIs, and parent/child graph edges. The default per-transfer limit is 512 MiB (`DV_SOURCE_GATEWAY_MAX_BYTES`, 1 KiB–2 GiB); the origin read timeout defaults to 15 seconds (`DV_SOURCE_GATEWAY_TIMEOUT_SECONDS`, 5–60 seconds). HLS additionally enforces a 4 GiB graph-wide byte limit, 10,000 members, 50,000 edges, and 16 playlist levels. Both gateways use a configurable total transfer deadline that defaults to 3,600 seconds (`DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS`, 60–21,600 seconds). The durable worker checkpoints byte progress, observes cancellation between reads, and removes private staging files on success or failure. Each queued ingestion job is idempotent for the candidate URL plus its exact persisted validation snapshot; the worker rechecks that source-version fingerprint before any network request and skips stale jobs if the candidate changed after queueing. Each member is fsynced and hashed before immutable registration; the MP4/WebM transfer digest is cross-checked against the stored-object digest.
+
+Example opt-in configuration (only add domains for which the operator has explicit rights to retrieve and store the media):
+
+```dotenv
+SCRAPLING_EGRESS_FIREWALL_CONFIRMED=1
+DV_SOURCE_GATEWAY_ENABLED=1
+DV_AUTHORIZED_SOURCE_HOSTS=media.example,cdn.example
+DV_SOURCE_GATEWAY_MAX_BYTES=536870912
+DV_SOURCE_GATEWAY_TIMEOUT_SECONDS=15
+DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS=3600
+```
+
+In Compose, these variables are passed to both the collector API and durable worker containers, with identical database and media-storage paths. The gateway remains disabled by default and will not download from the discovery allowlist automatically. A host being public, or a candidate being playable, is not proof of redistribution rights; the explicit source-host list is the operator's authorization boundary and must be maintained accordingly. Confirmed progressive MP4/WebM and clear-HLS sources are both routed through the durable worker. HLS graph members are fetched only from exact allowlisted hosts; a child CDN hostname must be added explicitly before it can be used.
+
+**Remaining boundary:** the gateway code and opt-in wiring are implemented, but it has not yet been run against a real operator-authorized origin or a live Compose deployment. The local Docker volume is not an external WORM/object-lock store.
+
+
+### HLS fragment parser-input endpoint
+
+The assembly module now also emits one independently parseable `init + single media fragment` MP4 for each verified fragment. Each sidecar record binds the fragment ordinal and immutable asset ID, original fragment SHA-256, initialization asset ID/SHA-256, assembled init+fragment SHA-256, `mfhd` sequence number, `tfdt`, summed `trun` sample duration/count, and media timescale. The existing full-rendition endpoint removes these sidecar files after its response; it does not expose them.
+
+An authenticated backend can request one fragment through:
+
+`POST /v1/registry/resources/{resourceId}/hls-assembly/{variantAssetId}/segments/{fragmentOrdinal}`
+
+The response is a bounded `video/mp4` stream and carries the graph identity plus the exact fragment/init/assembled-input digests and timing fields in `X-DV-HLS-*` headers. The fragment asset ID is also the parser evidence asset ID; the parser verifies the uploaded init+fragment SHA-256 before signing. Temporary full-rendition and sidecar files are removed after the response completes.
+
+This endpoint prepares and serves one fragment input. It does not independently claim that RPU exists; the private parser must return a valid full-scope RPU report, and the application must verify every fragment signature against the trusted graph before a segment set can be accepted.

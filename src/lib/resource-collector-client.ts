@@ -29,6 +29,95 @@ function collectorConfig(request?: Request) {
   return base && token ? { base, token } : null;
 }
 
+function trustedServerRegistryBase(): string | null {
+  const raw = (process.env.DV_REGISTRY_API_BASE ?? process.env.SCRAPLING_API_BASE ?? '').trim();
+  if (!raw) return null;
+  const httpsBase = validCollectorBase(raw);
+  if (httpsBase) return httpsBase;
+  // Plain HTTP is allowed only for the fixed Docker Compose service name on
+  // its private collector network; arbitrary HTTP hosts remain rejected.
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'http:' || parsed.hostname !== 'scrapling-collector' ||
+        parsed.port !== '8000' || parsed.username || parsed.password ||
+        (parsed.pathname !== '' && parsed.pathname !== '/') || parsed.search || parsed.hash) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+/** Server-only byte fetch. It never reads browser-supplied collector credentials. */
+export async function fetchDolbyVisionRegistryAsset(
+  assetId: string,
+  timeoutMs = 20_000,
+  rangeHeader?: string,
+): Promise<Response | null> {
+  if (!/^[A-Za-z0-9:_-]{1,200}$/.test(assetId)) return null;
+  if (rangeHeader !== undefined && rangeHeader.length > 128) return null;
+  const base = trustedServerRegistryBase();
+  const token = process.env.SCRAPLING_API_TOKEN?.trim();
+  if (!base || !token) return null;
+  return fetch(`${base}/v1/registry/media-assets/${encodeURIComponent(assetId)}/content`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(rangeHeader ? { Range: rangeHeader } : {}),
+    },
+    cache: 'no-store',
+    redirect: 'manual',
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
+/** Server-only HLS parser-input fetch. It always uses trusted server credentials, never browser overrides. */
+export async function fetchDolbyVisionHlsAssembly(
+  resourceId: string,
+  variantAssetId: string,
+  timeoutMs = 15 * 60 * 1000,
+): Promise<Response | null> {
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(resourceId) ||
+      !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId)) return null;
+  const base = trustedServerRegistryBase();
+  const token = process.env.SCRAPLING_API_TOKEN?.trim();
+  if (!base || !token) return null;
+  return fetch(
+    `${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+    },
+  );
+}
+
+/** Server-only fetch for one immutable HLS fragment parser input. */
+export async function fetchDolbyVisionHlsAssemblySegment(
+  resourceId: string,
+  variantAssetId: string,
+  fragmentOrdinal: number,
+  timeoutMs = 15 * 60 * 1000,
+): Promise<Response | null> {
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(resourceId) ||
+      !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId) ||
+      !Number.isSafeInteger(fragmentOrdinal) || fragmentOrdinal < 0 || fragmentOrdinal >= 10_000) return null;
+  const base = trustedServerRegistryBase();
+  const token = process.env.SCRAPLING_API_TOKEN?.trim();
+  if (!base || !token) return null;
+  return fetch(
+    `${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}/segments/${fragmentOrdinal}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+    },
+  );
+}
+
 /** Server-side proxy. Browser overrides are accepted only after the route's private-feature auth guard. */
 export async function collectorRequest(
   path: string,

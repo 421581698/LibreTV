@@ -29,13 +29,17 @@ export function rankSourcesByHealth<T extends Pick<SourceConfig, 'key'>>(
         ? entry.ms!
         : Number.POSITIVE_INFINITY;
       const failStreak = fresh ? Math.max(0, entry.failStreak || 0) : 0;
-      return { source, index, status, latency, failStreak, timestamp: fresh ? entry.timestamp : 0 };
+      const weight = 'weight' in source && typeof source.weight === 'number' && Number.isFinite(source.weight)
+        ? source.weight
+        : Number.POSITIVE_INFINITY;
+      return { source, index, status, latency, failStreak, timestamp: fresh ? entry.timestamp : 0, weight };
     })
     .sort((a, b) =>
       b.status - a.status ||
       a.latency - b.latency ||
       a.failStreak - b.failStreak ||
       b.timestamp - a.timestamp ||
+      a.weight - b.weight ||
       a.index - b.index
     )
     .map(({ source }) => source);

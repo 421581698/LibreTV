@@ -3,6 +3,7 @@ node_modules/
 out/
 .env
 .env*.local
+secrets/
 *.tsbuildinfo
 vitest-results.json
 *.log

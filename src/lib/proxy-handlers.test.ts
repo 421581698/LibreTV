@@ -88,6 +88,68 @@ describe('handleProxyRequest source-specific headers', () => {
   });
 });
 
+describe('handleProxyRequest image cache policy', () => {
+  beforeEach(() => {
+    mocks.guardRequest.mockReturnValue(null);
+    mocks.isValidProxyUrl.mockReturnValue(true);
+    mocks.isBlockedByDNS.mockResolvedValue(false);
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it('allows long browser-private caching only for successful HTTPS allowlisted images', async () => {
+    const target = 'https://img3.doubanio.com/view/photo/m/poster.jpg';
+    mocks.fetchWithSafeRedirects.mockResolvedValue({
+      res: new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/jpeg' } }),
+      finalUrl: target,
+    });
+    const response = await handleProxyRequest(request(), target);
+    expect(response.headers.get('cache-control')).toBe('private, max-age=2592000');
+  });
+
+  it('does not shared-cache images redirected to a non-allowlisted host', async () => {
+    const target = 'https://img3.doubanio.com/view/photo/m/poster.jpg';
+    mocks.fetchWithSafeRedirects.mockResolvedValue({
+      res: new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/jpeg' } }),
+      finalUrl: 'https://cdn.other.example/poster.jpg',
+    });
+    const response = await handleProxyRequest(request(), target);
+    expect(response.headers.get('cache-control')).toBe('private, max-age=300');
+  });
+
+  it('keeps allowlisted HTTP image redirects out of shared cache', async () => {
+    const target = 'https://img3.doubanio.com/view/photo/m/poster.jpg';
+    mocks.fetchWithSafeRedirects.mockResolvedValue({
+      res: new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/jpeg' } }),
+      finalUrl: 'http://img3.doubanio.com/view/photo/m/poster.jpg',
+    });
+    const response = await handleProxyRequest(request(), target);
+    expect(response.headers.get('cache-control')).toBe('private, max-age=300');
+  });
+
+  it('does not cache partial image responses', async () => {
+    const target = 'https://img3.doubanio.com/view/photo/m/poster.jpg';
+    mocks.fetchWithSafeRedirects.mockResolvedValue({
+      res: new Response('partial-image', { status: 206, headers: { 'content-type': 'image/jpeg' } }),
+      finalUrl: target,
+    });
+    const response = await handleProxyRequest(request(), target);
+    expect(response.status).toBe(206);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('does not cache failed image responses', async () => {
+    const target = 'https://img3.doubanio.com/view/photo/m/missing.jpg';
+    mocks.fetchWithSafeRedirects.mockResolvedValue({
+      res: new Response('not found', { status: 404, headers: { 'content-type': 'image/jpeg' } }),
+      finalUrl: target,
+    });
+    const response = await handleProxyRequest(request(), target);
+    expect(response.status).toBe(404);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+});
+
 describe('handleLiveStreamRequest HLS route regression', () => {
   beforeEach(() => {
     mocks.guardRequest.mockReturnValue(null);

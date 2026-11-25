@@ -38,12 +38,13 @@ describe('GET /api/status configuration visibility', () => {
     }));
     const data = await response.json() as {
       verified: boolean;
-      defaultSources: Array<{ name: string }>;
+      defaultSources: Array<{ key: string; name: string }>;
       defaultLiveSources: Array<{ name: string }>;
       defaultSubscriptions: Array<{ url: string }>;
     };
     expect(data.verified).toBe(true);
-    expect(data.defaultSources[0]?.name).toBe('Private CMS');
+    expect(data.defaultSources.map((source) => source.key)).toEqual(['env_0']);
+    expect(data.defaultSources.find((source) => source.name === 'Private CMS')?.name).toBe('Private CMS');
     expect(data.defaultLiveSources[0]?.name).toBe('Private IPTV');
     expect(data.defaultSubscriptions[0]?.url).toContain('subscriptions.example');
   });

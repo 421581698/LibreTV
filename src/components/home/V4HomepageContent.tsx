@@ -5,17 +5,16 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useQuery } from '@tanstack/react-query';
 import { SmartImage } from '@/components/smart-image';
 import { api } from '@/lib/client-api';
-import { fetchHomepageWithFallback } from '@/lib/homepage-recommendation-fallback';
 import { db, type HistoryEntry } from '@/lib/db';
 import { resolveSource, useAppStore } from '@/lib/store';
 import type { DoubanItem } from '@/lib/types';
-import { buildWatchUrl, formatTime } from '@/lib/utils';
+import { fromCmsArtwork, fromTmdbItem } from '@/lib/poster';
+import { formatTime } from '@/lib/utils';
 
 const CONTINUE_LIMIT = 8;
 const RAIL_LIMIT = 10;
 
 export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => void }) {
-  const doubanEnabled = useAppStore((s) => s.doubanEnabled);
   const imageProxyMode = useAppStore((s) => s.imageProxyMode);
   const customImageProxy = useAppStore((s) => s.customImageProxy);
   const history = useLiveQuery(
@@ -24,29 +23,18 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
   );
 
   const tvQuery = useQuery({
-    queryKey: ['homepage-apple-tv-top10'],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('tv', '热门', 0, RAIL_LIMIT, signal),
-      () => api.hotList('douban_tv_chinese', signal),
-      signal
-    ),
-    enabled: doubanEnabled,
+    queryKey: ['homepage-apple-tv-top10', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('tv', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
   const movieQuery = useQuery({
-    queryKey: ['homepage-apple-movie-top10'],
-    queryFn: ({ signal }) => fetchHomepageWithFallback(
-      () => api.douban('movie', '热门', 0, RAIL_LIMIT, signal),
-      () => api.hotList('douban_movie_weekly', signal),
-      signal
-    ),
-    enabled: doubanEnabled,
+    queryKey: ['homepage-apple-movie-top10', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '热门', 1, signal),
     staleTime: 5 * 60_000,
   });
   const newQuery = useQuery({
-    queryKey: ['homepage-apple-new-releases'],
-    queryFn: ({ signal }) => api.douban('movie', '最新', 0, RAIL_LIMIT, signal),
-    enabled: doubanEnabled,
+    queryKey: ['homepage-apple-new-releases', 'CN'],
+    queryFn: ({ signal }) => api.tmdbDiscover('movie', '最新', 1, signal),
     staleTime: 5 * 60_000,
   });
 
@@ -57,8 +45,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
   return (
     <>
 
-      {doubanEnabled ? (
-        <>
+      <>
           <HomepagePosterRail
             id="apple-tv-top10"
             title="热门电视剧"
@@ -89,8 +76,7 @@ export function V4HomepageContent({ onPick }: { onPick: (item: DoubanItem) => vo
             imageProxyMode={imageProxyMode}
             customImageProxy={customImageProxy}
           />
-        </>
-      ) : null}
+      </>
 
       <section className="v4-content-section v4-continue-section" id="my-library" aria-label="继续观看">
         <div className="v4-section-heading">
@@ -151,6 +137,7 @@ function HomepagePosterRail({
             <button className="v4-apple-poster-card" key={item.id} type="button" onClick={() => onPick(item)}>
               <span className="v4-apple-poster-art">
                 <SmartImage
+                  asset={fromTmdbItem(item)}
                   url={item.cover}
                   mode={imageProxyMode}
                   customProxy={customImageProxy}
@@ -179,14 +166,16 @@ function V4ContinueCard({ item }: { item: HistoryEntry }) {
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const source = resolveSource({ customAPIs, envSources }, item.sourceKey);
-  const href = buildWatchUrl({
-    sourceKey: item.sourceKey,
-    vodId: item.vodId,
-    index: item.episodeIndex,
+  const detailParams = new URLSearchParams({
+    source: item.sourceKey,
+    id: item.vodId,
     title: item.title,
-    sourceUrl: source?.url ?? item.sourceUrl,
-    detail: source?.detail,
+    sourceName: source?.name ?? item.sourceKey,
   });
+  const sourceUrl = source?.url ?? item.sourceUrl;
+  if (item.pic) detailParams.set('pic', item.pic);
+  if (sourceUrl) detailParams.set('sourceUrl', sourceUrl);
+  const href = '/ipad-edition/detail?' + detailParams.toString();
   const percent = item.duration > 0
     ? Math.max(0, Math.min(100, Math.round((item.playbackPosition / item.duration) * 100)))
     : 0;
@@ -196,6 +185,7 @@ function V4ContinueCard({ item }: { item: HistoryEntry }) {
       <div className="v4-history-image">
         {item.pic ? (
           <SmartImage
+            asset={fromCmsArtwork({ sourceKey: item.sourceKey, vodId: item.vodId, title: item.title, imageUrl: item.pic })}
             url={item.pic}
             mode={imageProxyMode}
             customProxy={customImageProxy}

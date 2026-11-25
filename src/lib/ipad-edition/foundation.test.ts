@@ -8,8 +8,11 @@ import {
   moveIndex,
   preserveIndex,
   resolveCinemaActivation,
+  resolveIpadNavigationLayout,
   resolvedFocusAxis,
   tokensWithinLimits,
+  resolveEnvironmentProfile,
+  selectRenderPolicy,
 } from './index';
 
 describe('LibreTV iPad Edition foundation', () => {
@@ -27,6 +30,18 @@ describe('LibreTV iPad Edition foundation', () => {
     expect(resolveCinemaActivation(true, 1024)).toBe('stage');
     expect(resolveCinemaActivation(true, 1600)).toBe('stage');
     expect(resolveCinemaActivation(false, 1600)).toBe('inactive');
+  });
+
+  it('switches navigation by actual app-window width rather than orientation or device class', () => {
+    expect(resolveIpadNavigationLayout(520)).toBe('compact');
+    expect(resolveIpadNavigationLayout(834)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1023)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1024)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1032)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1059)).toBe('compact');
+    expect(resolveIpadNavigationLayout(1060)).toBe('expanded');
+    expect(resolveIpadNavigationLayout(1366)).toBe('expanded');
+    expect(resolveIpadNavigationLayout(Number.NaN)).toBe('compact');
   });
 
   it('keeps the V4.2 sidebar and floating capsule behavior', () => {
@@ -47,6 +62,39 @@ describe('LibreTV iPad Edition foundation', () => {
     expect(minimumScrollDelta({ viewportStart: 0, viewportSize: 300, itemStart: 280, itemSize: 80 })).toBe(60);
     expect(resolvedFocusAxis('compact', 'horizontal')).toBe('vertical');
     expect(resolvedFocusAxis('stage', 'horizontal')).toBe('horizontal');
+  });
+
+  it('adapts the shared environment profile to appearance, contrast and backdrop luminance', () => {
+    const dark = resolveEnvironmentProfile({
+      appearance: 'system', systemDark: true, contrast: 'normal',
+      reducedTransparency: false, reducedMotion: false, backdropLuminance: 0.8,
+    });
+    expect(dark.colorScheme).toBe('dark');
+    expect(dark.scrimOpacity).toBeGreaterThan(0.2);
+    expect(dark.motionEnabled).toBe(true);
+    const accessible = resolveEnvironmentProfile({
+      appearance: 'light', systemDark: false, contrast: 'more',
+      reducedTransparency: true, reducedMotion: true, ambientLux: 12,
+    });
+    expect(accessible.contrast).toBe('high');
+    expect(accessible.blurPx).toBe(0);
+    expect(accessible.glassOpacity).toBeGreaterThan(0.9);
+    expect(accessible.motionEnabled).toBe(false);
+    expect(accessible.ambientClass).toBe('dim');
+  });
+
+  it('selects a capable renderer and safely degrades for low-power/accessibility modes', () => {
+    expect(selectRenderPolicy({
+      css: true, svg: true, canvas2d: true, webgl: true,
+      reducedMotion: false, reducedTransparency: false, lowPower: false,
+    }).backend).toBe('webgl');
+    const fallback = selectRenderPolicy({
+      css: true, svg: true, canvas2d: true, webgl: true,
+      reducedMotion: true, reducedTransparency: true, lowPower: true,
+    });
+    expect(fallback.backend).toBe('svg');
+    expect(fallback.allowDisplacement).toBe(false);
+    expect(fallback.allowContinuousAnimation).toBe(false);
   });
 
   it('keeps pointer signals independent and tokens inside the frozen acceptance range', () => {

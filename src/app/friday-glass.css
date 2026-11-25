@@ -1,0 +1,351 @@
+[data-friday-material] {
+  --friday-fill: 250 251 254;
+  --friday-ink: 20 24 32;
+  --friday-alpha: .78;
+  --friday-blur: 14px;
+}
+
+.dark [data-friday-material] {
+  --friday-fill: 21 24 32;
+  --friday-ink: 248 249 252;
+}
+
+[data-friday-material="clear"] {
+  --friday-alpha: .68;
+  --friday-blur: 8px;
+}
+
+[data-friday-material="frosted"] {
+  --friday-alpha: .9;
+  --friday-blur: 22px;
+}
+
+[data-friday-material="ambient"] {
+  --friday-alpha: .82;
+  --friday-blur: 18px;
+}
+
+[data-friday-material="cinema"] {
+  --friday-alpha: .92;
+  --friday-blur: 8px;
+}
+
+html[data-friday-ambient="on"] [data-friday-ambient="dark"],
+[data-friday-cinema-dark="true"] [data-friday-material="cinema"] {
+  --friday-fill: 21 24 32;
+  --friday-ink: 248 249 252;
+}
+
+html[data-friday-ambient="on"] [data-friday-ambient="light"] {
+  --friday-fill: 250 251 254;
+  --friday-ink: 20 24 32;
+}
+
+[data-friday-material="frosted"]:not(.liquid-glass),
+.friday-glass-surface[data-friday-material],
+.liquid-glass[data-friday-material][data-liquid-glass-engine="fallback"],
+.ipad-edition :is(button, form)[data-friday-material]:not([aria-pressed="true"]),
+.netflix-watch-shell button[data-friday-material="cinema"]:not([aria-pressed="true"]) {
+  background-color: rgb(var(--friday-fill) / var(--friday-alpha));
+  color: rgb(var(--friday-ink));
+  -webkit-backdrop-filter: blur(calc(min(var(--friday-blur), var(--friday-blur-cap, 24px)) * var(--friday-intensity, .65))) saturate(125%);
+  backdrop-filter: blur(calc(min(var(--friday-blur), var(--friday-blur-cap, 24px)) * var(--friday-intensity, .65))) saturate(125%);
+}
+
+[data-friday-glass="safe"] :is(.friday-glass-surface[data-friday-material], .liquid-glass[data-friday-material], .netflix-watch-shell button[data-friday-material="cinema"], .ipad-edition :is(button, form)[data-friday-material]),
+.liquid-glass[data-friday-material="solid"] {
+  background: rgb(var(--friday-fill)) !important;
+  color: rgb(var(--friday-ink));
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-friday-glass="webkit"] [data-friday-material] {
+  --friday-blur-cap: 12px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .24);
+}
+
+[data-friday-playback="protected"] .netflix-watch-shell :is(.cinema-glass-control, .cinema-v4-tool),
+.cinema-controls-hidden :is(.cinema-glass-control, .cinema-v4-tool) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-friday-material]:focus-visible,
+[data-friday-material] :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+[data-friday-motion="reduced"] :is(.liquid-glass--interactive, .liquid-glass .glass-button) {
+  animation: none !important;
+  transition: none !important;
+}
+
+[data-friday-motion="full"] .liquid-glass--interactive:active {
+  animation: friday-glass-press 220ms cubic-bezier(.2, 1.45, .45, 1);
+}
+
+@keyframes friday-glass-press {
+  from { scale: .985; }
+  to { scale: 1; }
+}
+
+@media (forced-colors: active) {
+  .liquid-glass[data-friday-material] {
+    background: Canvas !important;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+}
+
+/* The optical renderer stays behind a contrast tint and the semantic content. */
+.liquid-glass[data-friday-material][data-liquid-glass-engine="ready"]::after {
+  display: block !important;
+  z-index: 0;
+  border: 0;
+  background: rgb(var(--friday-fill) / .72);
+  opacity: 1;
+}
+
+.liquid-glass[data-friday-material][data-liquid-glass-engine="ready"] {
+  color: rgb(var(--friday-ink));
+}
+
+.liquid-glass > .friday-glass-selection {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: 0;
+  border-radius: 15px;
+  background: rgb(var(--friday-ink) / .09);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22);
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .friday-glass-selection { display: none; }
+}
+
+
+/* Friday Global Liquid Glass V1.2 — shared material optics.
+   Preserve semantic layout and underlying media. Safari shows translucent
+   background sampling, not an unsupported claim of arbitrary DOM refraction. */
+html[data-friday-theme="light"] [data-friday-material] {
+  --friday-fill: 236 245 255;
+  --friday-ink: 19 30 43;
+  --friday-rim: 255 255 255;
+}
+html[data-friday-theme="dark"] [data-friday-material] {
+  --friday-fill: 17 27 40;
+  --friday-ink: 248 251 255;
+  --friday-rim: 224 242 255;
+}
+html [data-friday-material="regular"] {
+  --friday-alpha: .28;
+  --friday-blur: 14px;
+  --friday-reflect: .3;
+}
+html [data-friday-material="clear"] {
+  --friday-alpha: .095;
+  --friday-blur: 3px;
+  --friday-reflect: .58;
+}
+html [data-friday-material="frosted"] {
+  --friday-alpha: .59;
+  --friday-blur: 28px;
+  --friday-reflect: .16;
+}
+html [data-friday-material="cinema"] {
+  --friday-alpha: .73;
+  --friday-blur: 8px;
+  --friday-reflect: .16;
+  --friday-fill: 8 12 21;
+  --friday-ink: 255 255 255;
+}
+html [data-friday-material="ambient"] {
+  --friday-alpha: .2;
+  --friday-blur: 11px;
+  --friday-reflect: .42;
+}
+html [data-friday-material="solid"] {
+  --friday-alpha: 1;
+  --friday-blur: 0px;
+  --friday-reflect: 0;
+}
+html[data-friday-cinema-dark="false"][data-friday-theme="light"] [data-friday-material="cinema"] {
+  --friday-fill: 237 240 246;
+  --friday-ink: 24 30 41;
+}
+html[data-friday-ambient="on"] [data-friday-ambient="dark"][data-friday-material="ambient"] {
+  --friday-fill: 12 28 52;
+  --friday-ink: 248 251 255;
+}
+html[data-friday-ambient="on"] [data-friday-ambient="light"][data-friday-material="ambient"] {
+  --friday-fill: 235 246 255;
+  --friday-ink: 19 30 43;
+}
+html[data-friday-glass="webkit"] .liquid-glass[data-friday-material],
+html[data-friday-glass="native"] .liquid-glass[data-friday-material],
+html[data-friday-glass="optical"] .liquid-glass[data-friday-material][data-liquid-glass-engine="fallback"],
+html[data-friday-glass="webkit"] .friday-glass-surface[data-friday-material],
+html[data-friday-glass="native"] .friday-glass-surface[data-friday-material] {
+  background-color: rgb(var(--friday-fill) / var(--friday-alpha)) !important;
+  -webkit-backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(165%) !important;
+  backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(165%) !important;
+  border-color: rgb(var(--friday-rim, 255 255 255) / .32);
+  box-shadow: inset 0 1px 0 rgb(var(--friday-rim, 255 255 255) / .44),
+    inset 0 -1px 0 rgb(0 0 0 / .10), 0 10px 34px rgb(0 0 0 / .11);
+}
+html[data-friday-glass="webkit"] .liquid-glass[data-friday-material="clear"],
+html[data-friday-glass="native"] .liquid-glass[data-friday-material="clear"] {
+  background-color: rgb(var(--friday-fill) / .095) !important;
+}
+html[data-friday-glass="safe"] [data-friday-material],
+html [data-friday-material="solid"] {
+  background: rgb(var(--friday-fill)) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[data-friday-glass="safe"] [data-friday-material]::before,
+html[data-friday-glass="safe"] [data-friday-material]::after,
+html [data-friday-material="solid"]::before,
+html [data-friday-material="solid"]::after {
+  animation: none !important;
+}
+html[data-friday-motion="full"] [data-friday-material]:not([data-friday-material="solid"])::before {
+  background: linear-gradient(116deg, transparent 19%, rgb(255 255 255 / .08) 36%,
+    rgb(255 255 255 / .38) 49%, rgb(255 255 255 / .06) 62%, transparent 79%);
+  background-size: 240% 100%;
+  animation: friday-v12-sheen 8s ease-in-out infinite alternate;
+  opacity: calc(var(--friday-reflect, .3) * var(--friday-intensity, .65));
+  pointer-events: none;
+}
+@keyframes friday-v12-sheen {
+  from { background-position: 100% 50%; }
+  to { background-position: 0% 50%; }
+}
+html[data-friday-motion="full"] .liquid-glass--interactive:not([data-friday-material="solid"]):active {
+  animation: friday-v12-elastic 260ms cubic-bezier(.15, 1.5, .35, 1);
+}
+@keyframes friday-v12-elastic {
+  0% { transform: scale(.975); }
+  60% { transform: scale(1.012); }
+  100% { transform: scale(1); }
+}
+html[data-friday-playback="protected"] [data-friday-material]::before,
+html[data-friday-motion="reduced"] [data-friday-material]::before {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-friday-material]::before { animation: none !important; }
+}
+@media (prefers-contrast: more), (forced-colors: active), (prefers-reduced-transparency: reduce) {
+  html [data-friday-material] {
+    background: rgb(var(--friday-fill)) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html [data-friday-material]::before { animation: none !important; }
+}
+
+
+/* Global desktop and player chrome shares the same V1.2 material variables.
+   No geometry, image, poster or video styles are changed. */
+html {
+  --friday-global-alpha: .28;
+  --friday-global-blur: 14px;
+  --friday-global-fill: 236 245 255;
+  --friday-global-text: 19 30 43;
+}
+html[data-friday-theme="dark"] {
+  --friday-global-fill: 17 27 40;
+  --friday-global-text: 248 251 255;
+}
+html[data-friday-material-setting="clear"] { --friday-global-alpha: .095; --friday-global-blur: 3px; }
+html[data-friday-material-setting="frosted"] { --friday-global-alpha: .59; --friday-global-blur: 28px; }
+html[data-friday-material-setting="cinema"] {
+  --friday-global-alpha: .73;
+  --friday-global-blur: 8px;
+  --friday-global-fill: 8 12 21;
+  --friday-global-text: 255 255 255;
+}
+html[data-friday-material-setting="ambient"] { --friday-global-alpha: .2; --friday-global-blur: 11px; }
+html[data-friday-material-setting="solid"] { --friday-global-alpha: 1; --friday-global-blur: 0px; }
+html:is([data-friday-glass="optical"], [data-friday-glass="native"], [data-friday-glass="webkit"])
+:is(.glass-panel, .glass-popover, .glass-dialog, .glass-toolbar, .glass-button) {
+  background-color: rgb(var(--friday-global-fill) / var(--friday-global-alpha));
+  -webkit-backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(155%);
+  backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(155%);
+}
+html:is([data-friday-glass="optical"], [data-friday-glass="native"], [data-friday-glass="webkit"])
+.artplayer :is(.art-bottom, .art-settings, .art-contextmenus, .art-info, .art-notice),
+html:is([data-friday-glass="optical"], [data-friday-glass="native"], [data-friday-glass="webkit"])
+:is(.art-setting-panel, .art-notice) {
+  background-color: rgb(var(--friday-global-fill) / max(.66, var(--friday-global-alpha))) !important;
+  -webkit-backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(145%) !important;
+  backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(145%) !important;
+}
+html[data-friday-glass="safe"] :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button),
+html[data-friday-material-setting="solid"] :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button) {
+  background: rgb(var(--friday-global-fill)) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[data-friday-playback="protected"] .artplayer :is(.art-bottom,.art-settings,.art-contextmenus,.art-info,.art-notice),
+html[data-friday-playback="protected"] :is(.art-setting-panel,.art-notice) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active), (prefers-contrast: more) {
+  html :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button),
+  html .artplayer :is(.art-bottom,.art-settings,.art-contextmenus,.art-info,.art-notice) {
+    background-color: rgb(var(--friday-global-fill)) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+
+/* Reused Friday Canvas2D highlights: decorative layer behind semantic children. */
+.liquid-glass > .friday-v12-canvas-wrap {
+  position: absolute !important;
+  inset: 0;
+  z-index: 0 !important;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none !important;
+  isolation: isolate;
+}
+.friday-v12-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none !important;
+}
+html[data-friday-motion="reduced"] .friday-v12-canvas-wrap,
+html[data-friday-glass="safe"] .friday-v12-canvas-wrap,
+html[data-friday-playback="protected"] .netflix-watch-shell .friday-v12-canvas-wrap,
+html[data-friday-material-setting="solid"] .friday-v12-canvas-wrap {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {
+  .friday-v12-canvas-wrap { display: none !important; }
+}
+
+
+/* Forced-colors must use OS palette, never translucent custom RGB overrides. */
+@media (forced-colors: active) {
+  html [data-friday-material],
+  html .liquid-glass[data-friday-material],
+  html .friday-glass-surface[data-friday-material],
+  html :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button),
+  html .artplayer :is(.art-bottom,.art-settings,.art-contextmenus,.art-info,.art-notice) {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border-color: CanvasText !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  html .friday-v12-canvas-wrap { display: none !important; }
+}

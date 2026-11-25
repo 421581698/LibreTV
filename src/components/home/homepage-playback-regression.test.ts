@@ -13,7 +13,9 @@ const avatarModule = source('src/components/home/header/AvatarModule.tsx');
 const navModules = ['HomeNavModule', 'MoviesNavModule', 'TvNavModule', 'OverseasNavModule', 'AnimeNavModule', 'VarietyNavModule', 'LiveNavModule'].map((name) => source('src/components/home/header/' + name + '.tsx'));
 const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
+const watchPlaybackState = source('src/lib/watch-playback-state.ts');
 const watchStyles = source('src/app/pr84-watch-mobile-fix.css');
+const ipadCinemaStyles = source('src/app/ipad-edition/cinema-v4.css');
 const hero = source('src/components/friday/FridayHero.tsx');
 const canvas = source('src/components/home/HomeIntentCanvas.tsx');
 const orb = source('src/components/friday/FridayOrb.tsx');
@@ -124,28 +126,33 @@ describe('首页与播放页回归契约', () => {
     expect(fridayConversation).toContain("播放器解码实测");
   });
 
-  it('首页以豆瓣精选主视觉和真实推荐海报为主，并保留 IndexedDB 继续观看进度', () => {
+  it('首页以 TMDB 中国区精选主视觉和真实推荐海报为主，并保留 IndexedDB 继续观看进度', () => {
     const homepageHero = source('src/components/home/V4HomepageHero.tsx');
     const homepageContent = source('src/components/home/V4HomepageContent.tsx');
     expect(home).toContain('<V4HomepageHero onPick={handleHomepagePick} />');
     expect(home).toContain('<V4HomepageContent onPick={handleHomepagePick} />');
     expect(home).not.toContain('SeedHubHomepage');
-    expect(homepageHero).toContain("api.douban('movie', '热门'");
+    expect(homepageHero).toContain("api.tmdbDiscover('movie', '热门', 1");
+    expect(homepageHero).toContain('fromTmdbItem(slide)');
     expect(homepageHero).toContain('slide.cover');
-    expect(homepageContent).toContain("api.douban('tv', '热门'");
-    expect(homepageContent).toContain("api.douban('movie', '热门'");
-    expect(homepageContent).toContain("api.hotList('douban_movie_weekly'");
+    expect(homepageContent).toContain("api.tmdbDiscover('tv', '热门', 1");
+    expect(homepageContent).toContain("api.tmdbDiscover('movie', '热门', 1");
+    expect(homepageContent).not.toContain('douban_movie_weekly');
+    expect(homepageContent).toContain('fromTmdbItem(item)');
     expect(homepageContent).toContain('url={item.cover}');
     expect(homepageContent).toContain('v4-continue-section');
     expect(homepageContent).toContain('v4-progress-percent');
-    expect(homepageContent).toContain('buildWatchUrl({');
+    expect(homepageContent).toContain("const href = '/ipad-edition/detail?' + detailParams.toString()");
+    expect(homepageContent).not.toContain('buildWatchUrl({');
     expect(homepageContent).toContain('playbackPosition / item.duration');
     expect(v4Styles).toContain('.v4-history-row');
     expect(v4Styles).toContain('.v4-apple-rail');
     expect(v4Styles).toContain('.v4-apple-poster-card');
-    expect(home).toContain("router.push('/detail?' + params.toString())");
-    expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(movieDetail).toContain('export function MovieDetailPage()');
+    expect(home).toContain("router.push('/ipad-edition/detail?' + params.toString())");
+    expect(home).not.toContain('api.search(movie.title, selectedSources, yellowFilter)');
+    expect(movieDetail).toMatch(/export function MovieDetailPage\(/);
+    expect(movieDetail).toContain("watchPath = '/watch'");
+    expect(movieDetail).toContain(".replace('/watch?', watchPath + '?')");
   });
 
   it('V4 首页 Header 首屏即透明沉浸，滚动时不切换状态', () => {
@@ -253,8 +260,78 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('<SwitchSourceModal');
     expect(watch).toContain('getRestorePosition={getRestorePosition}');
     expect(watch).toContain('setWatchClock({ position, duration })');
-    expect(watch).toContain('onTimeUpdate={(position, duration) =>');
-    expect(watch).toContain('onPause={(position, duration) =>');
+    expect(watch).toContain('onTimeUpdate={(position, duration, eventEpisodeKey) =>');
+    expect(watch).toContain('onProgressSave={handleProgress}');
+    expect(watch).toContain('onPause={(position, duration, eventEpisodeKey) =>');
+    expect(watch).toContain('if (!isCurrentPlaybackEvent(eventEpisodeKey)) return;');
+    expect(player).toContain('activeEpisodeKeyRef.current = propsRef.current.episodeKey ??');
+    expect(player).toContain('onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
+    expect(player).toContain('onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current)');
+    expect(player).toContain("art.on('video:loadstart'");
+    expect(player).toContain('activeEpisodeKeyRef.current = pendingEpisodeKey;');
+    expect(player).toContain('mediaLoadGenerationRef.current += 1');
+    expect(player).toContain('if (loadGeneration !== mediaLoadGenerationRef.current) return;');
+    expect(watch).toContain('saveProgress(sourceKey, outgoingProgressId, currentIndex, outgoingPosition, outgoingDuration)');
+    expect(watch).toContain("const outgoingEnded = Boolean(outgoingVideo?.ended)");
+    expect(watch).toContain('if (!outgoingEnded && outgoingProgressId');
+    expect(watch).toContain('pendingEpisodeKeyRef.current = `${sourceKey}:${vodId || nextUrl}:${index}`;');
+    expect(watch).toContain('const currentEpisodeKey = `${sourceKey}:${vodId || currentUrl}:${currentIndex}`;');
+    expect(watch).toContain('if (currentEpisodeKey !== pendingEpisodeKey) return false;');
+    expect(watch).toContain('return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;');
+    expect(database).toContain('const sameEpisode = existing?.episodeIndex === entry.episodeIndex');
+    expect(database).toContain('sameEpisode ? existing?.playbackPosition ?? 0 : 0');
+    expect(database).toContain("db.transaction('rw', db.history");
+    expect(database).toContain('existing.episodeIndex !== expectedEpisodeIndex');
+    expect(watch).toContain('updateHistoryProgress(sourceKey, outgoingProgressId, outgoingPosition, outgoingDuration, currentIndex)');
+    expect(watch).toContain('duration,\n        currentIndex\n      ).catch(() => {});');
+    expect(watch).toContain('A manual episode change supersedes any pending autoplay-next countdown.');
+    expect(watch).toContain('if (autoNextTimer.current) window.clearTimeout(autoNextTimer.current)');
+    expect(watch).toContain('autoNextTimer.current = null;');
+    expect(watch).toContain('const cancelPendingAutoNext = () =>');
+    expect(watch).toContain('setIsPlaying(false);');
+    expect(watch).toContain('setWatchClock({ position: 0, duration: 0 });');
+    expect(watch).toContain('const mediaUrlChanged = previousPlaybackUrlRef.current !== currentUrl;');
+    expect(watch).toContain('if (!mediaUrlChanged) return;');
+    expect(watch).toContain("watchShellRef.current?.classList.remove('cinema-controls-hidden')");
+    expect(watch).toContain('}, [sourceKey, vodId, currentIndex, currentUrl]);');
+    expect(watch).toContain('}, [sourceKey, vodId, currentUrl, currentIndex, cancelAutoNext]);');
+    expect(watch).toContain('const onSeeked = cancelPendingAutoNext;');
+    expect(watch).toContain("video.addEventListener('seeked', onSeeked)");
+    expect(watch).toContain('setWatchClock({ position, duration })');
+    expect(watch).toContain('if (nextUrl !== currentUrl) {');
+    expect(watch).toContain('const mediaUrlChanged = previousPlaybackUrlRef.current !== currentUrl;');
+    expect(watch).toContain('playerApiRef.current?.seek(finalPosition)');
+    expect(watch).toContain('playerApiRef.current?.seek(position);');
+    expect(watch).toContain('scrubbingPositionRef.current = null;');
+    expect(watch).toContain('setWatchClock((current) => ({ ...current, position }));');
+    expect(watch).toContain("shell.querySelector<HTMLInputElement>('.watch-cinema-progress')");
+    expect(watch).toContain("if (isIpadEditionPlayback || !scrubbingRef.current) return;");
+    expect(watch).toContain("onPointerUp={(event) => {");
+    expect(watch).toContain("onPointerCancel={(event) => {");
+    expect(watch).toContain("onLostPointerCapture={() => {");
+    expect(watch).toContain("setWatchClock(current => ({ ...current, position: target }));");
+    expect(watch).toContain("releasePointerCapture(event.pointerId)");
+    expect(watch).toContain('scrubbingPositionRef.current = position');
+    expect(watch).toContain('Number.isFinite(watchClock.duration) && watchClock.duration > 0');
+    expect(watch).toContain('disabled={!hasFiniteDuration}');
+    const customSeek = watch.slice(watch.indexOf('className="watch-cinema-progress cinema-seek-surface"'), watch.indexOf('className="watch-cinema-progress"'));
+    expect(customSeek).toContain('setPointerCapture(event.pointerId)');
+    expect(customSeek).toContain('hasPointerCapture(event.pointerId)');
+    expect(customSeek).toContain('role="slider"');
+    expect(ipadCinemaStyles).toContain('.cinema-seek-surface');
+    expect(ipadCinemaStyles).toContain('touch-action: none;');
+    expect(watch.slice(watch.indexOf('className="watch-cinema-progress"'))).not.toContain('setPointerCapture(event.pointerId)');
+    expect(watch).toContain('onPointerDown={() => {');
+    expect(watchStyles).toContain('touch-action: none !important;');
+    expect(watchStyles).toContain('.netflix-player-frame .artplayer .art-progress');
+    expect(watchStyles).toContain('.netflix-watch-shell .watch-cinema-progress');
+    expect(watch).not.toContain('onTouchEnd={(event) =>');
+    expect(watch).not.toContain('onBlur={(event) =>');
+    expect(watch).not.toContain('setScrubbingPosition(position);\n                    playerApiRef.current?.seek(position);');
+    expect(watchStyles).toContain('.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-info');
+    expect(watchStyles).toContain('bottom: calc(44px + 2px) !important;');
+    expect(watchStyles).toContain('visibility: hidden !important;');
+    expect(watchStyles).toContain('pointer-events: none !important;');
     expect(watch).toContain('enqueueDownload({');
     expect(watch).toContain('setSwitchOpen(true)');
   });
@@ -265,23 +342,65 @@ describe('首页与播放页回归契约', () => {
     expect(switchSource).toContain('if (!c.episodes)');
     expect(switchSource).toContain('buildWatchUrl({');
     expect(switchSource).toContain('sourceKey: c.source.key');
+    expect(switchSource).toContain('targetIndex === currentIndex ? getCurrentPosition?.() ?? 0 : 0');
     expect(switchSource).toContain('router.push(');
   });
 
   it('点播播放器保留播放、进度、音量、全屏与 HLS 恢复配置', () => {
     expect(player).toContain('volume: 0.8');
-    expect(player).toContain('fullscreen: !touchPointer');
-    expect(player).toContain('fullscreenWeb: !touchPointer');
+    expect(player).toContain('fullscreen: !cinemaMode && !touchPointer');
+    expect(player).toContain('fullscreenWeb: !cinemaMode && !touchPointer');
     expect(player).toContain('requestNativeFullscreenWithFallback');
+    expect(player).toContain('onRequestFullscreen?: () => void;');
+    expect(player).toContain('const requestFullscreen = propsRef.current.onRequestFullscreen');
+    expect(player).toContain('if (propsRef.current.onRequestFullscreen) {\n            propsRef.current.onRequestFullscreen();\n          }');
+    expect(watch).toContain('const requestWatchFullscreen = useCallback');
+    expect(watch).toContain('onRequestFullscreen={requestWatchFullscreen}');
+    expect(watch).toContain('onClick={requestWatchFullscreen}');
     expect(fullscreenHelper).toContain('webkitEnterFullscreen');
+    expect(watch).toContain('requestNativeFullscreenWithFallback(');
+    expect(watch).toContain('enterWebFullscreen');
+    expect(watch).toContain('const fullscreenTarget = watchShellRef.current');
+    expect(watch).toContain('fullscreenTarget.requestFullscreen()');
+    expect(watchStyles).toContain('.netflix-watch-shell:fullscreen');
+    expect(watchStyles).toContain('.netflix-watch-shell:fullscreen .watch-cinema-info');
     expect(player).toContain('if (!art.fullscreenWeb) art.fullscreenWeb = true;');
-    expect(player).toContain('playbackRate: true');
+    expect(player).toContain('playbackRate: !cinemaMode');
+    expect(watch).toContain('cinemaMode={isIpadEditionPlayback}');
+    expect(watch).toContain('nextCinemaPlaybackRate(');
+    expect(watch).toContain('playerApiRef.current?.setPlaybackRate(next)');
+    expect(watchPlaybackState).toContain("video.addEventListener('ratechange', sync)");
+    expect(watch).toContain('bindWatchPlaybackState(frame,');
+    expect(watch).toContain('setWatchRate(playbackRate)');
     expect(player).toContain('art.on(\'video:ratechange\'');
     expect(player).toContain('art.on(\'video:loadedmetadata\'');
     expect(player).toContain('onTimeUpdate');
     expect(player).toContain('setupHls(video, mediaUrl, true)');
+    expect(player).toContain('Cancel retries queued by the previous episode');
+    expect(player).toContain('if (undoTimerRef.current) clearTimeout(undoTimerRef.current);');
+    expect(player).toContain('if (hintTimerRef.current) clearTimeout(hintTimerRef.current);');
+    expect(player).toContain("setHint('');");
+    expect(player).toContain('recoveryRef.current?.dispose();\n    recoveryRef.current = new PlaybackRecovery();');
     expect(player).toContain('artRef.current.currentTime = saved');
+    expect(player).toContain('A failed IndexedDB lookup must not strand the player on its poster.');
+    expect(player).toContain('An unsupported replacement must not leave the previous episode playing');
+    expect(player).toContain("video.removeAttribute('src');\n      video.load();");
+    expect(player).toContain('A failed progress lookup must never prevent direct media playback.');
+    expect(player).toContain('A failed progress lookup must never block native-HLS playback.');
+    expect(player).toContain('Every HLS reconfiguration (including direct→proxy fallback and fatal-error');
+    expect(player).toContain('const loadGeneration = ++mediaLoadGenerationRef.current;');
+    expect(player).toContain('const isCurrentHls = () =>');
+    expect((player.match(/if \(!isCurrentHls\(\)/g) ?? []).length).toBe(7);
+    expect(player).toContain('hls.on(Hls.Events.AUDIO_TRACK_SWITCHED');
+    expect(player).toContain('if (!isCurrentHls()) return;');
+    expect(player).toContain('if (isCurrentHls()) hls.startLoad();');
+    expect(player).toContain('restoredRef.current = true;\n        restoreCleanupRef.current?.();\n        restoreCleanupRef.current = null;\n        video.play().catch(() => {');
+    expect(player).toContain("if (readQualityPreference() === '1080') {\n            video.pause();\n            setQualityNotice('当前使用原生 HLS");
+    expect(player).toContain('restoreCleanupRef.current?.();\n        restoreCleanupRef.current = null;\n        video.play().catch(() => {');
     expect(player).toContain('artRef.current?.pause()');
+    expect(player).toContain('if (longPressTimer) clearTimeout(longPressTimer);');
+    expect(player).toContain('if (isLongPress && art.video) art.video.playbackRate = originalRate;');
+    expect(player).toContain('isLongPress = false;');
   });
 
   it('播放页不显示 Friday 悬浮入口，但保留语音运行时且不增加聊天面板', () => {
@@ -498,7 +617,7 @@ describe('首页与播放页回归契约', () => {
     expect(seedhubCollector).not.toContain('sync_seedhub_details');
     expect(seedhubCollector).not.toContain('/v1/seedhub/sync');
     expect(collectorQueue).toContain('seedhub_collection_retired');
-    expect(collectorQueue).toContain('job_type not in {"crawl", "discover"}');
+    expect(collectorQueue).toContain('job_type not in {"crawl", "discover", "dv_media_ingest"}');
   });
 
   it('首页与分类页底部导航固定在视口水平居中，并避开 iPhone 安全区域', () => {
@@ -547,11 +666,36 @@ describe('首页与播放页回归契约', () => {
     expect(watchStyles).not.toContain('margin-block: -4px !important;');
   });
 
+  it('iPad 播放控制自动隐藏时连同进度条一起隐藏，暂停时保持可操作', () => {
+    expect(watchStyles).toContain('.ipad-edition-watch.cinema-controls-hidden:not(.cinema-controls-scrubbing) .watch-cinema-info');
+    expect(watchStyles).toContain('pointer-events: none !important;');
+    expect(watch).toContain('if (!video || video.paused || video.ended) {');
+    expect(watch).toContain('keepControlsVisible();');
+    expect(watch).toContain("recordControlsDebug('pause-ignored', 'media-still-playing')");
+    expect(watch).toContain('video.addEventListener(\'waiting\', onWaiting)');
+    expect(watch).toContain("video.addEventListener('loadedmetadata', onLoadStart)");
+    expect(watch).toContain('video.addEventListener(\'loadstart\', onLoadStart)');
+    expect(watch).toContain('const onMediaReset = (event: Event) =>');
+    expect(watch).toContain('const resetScrubbing = () =>');
+  });
+
+  it('播放器时间轴跟随每次媒体 timeupdate，进度持久化单独节流', () => {
+    expect(player).toContain('const syncTimeline = () =>');
+    expect(player).toContain("art.on('video:loadedmetadata', syncTimeline)");
+    expect(player).toContain("art.on('video:durationchange', syncTimeline)");
+    expect(player).toContain("art.on('video:seeked', syncTimeline)");
+    expect(player).toContain('syncTimeline();');
+    expect(player).toContain('if (now - lastProgressSaveAtRef.current > 5000)');
+    expect(player).toContain('lastProgressSaveAtRef.current = 0;');
+    expect(player).toContain('propsRef.current.onProgressSave?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);');
+  });
+
   it('无 vodId 的直连视频也能保存、恢复和清理播放进度', () => {
     expect(watch).toContain('const progressId = vodId || currentUrl');
     expect(watch).toContain('progressKeyOf(sourceKey, progressId, currentIndex)');
     expect(watch).toContain('saveProgress(\n        sourceKey,\n        progressId');
     expect(watch).toContain('clearProgress(sourceKey, progressId, currentIndex)');
+    expect(watch).toContain('updateHistoryProgress(sourceKey, progressId, 0, 0, currentIndex)');
   });
 
 
@@ -613,4 +757,40 @@ describe('首页与播放页回归契约', () => {
     expect(rootLayout).not.toContain('maximumScale: 1');
   });
 
+});
+
+
+describe('poster → metadata detail → explicit playback flow', () => {
+  const ipadHome = source('src/app/page.tsx');
+  const detailRoute = source('src/app/ipad-edition/detail/page.tsx');
+  const tmdbDetail = source('src/components/ipad-edition/tmdb-movie-detail-page.tsx');
+  const watchRoute = source('src/app/watch/page.tsx');
+
+  it('opens each TMDB poster directly into its own detail page without searching CMS sources', () => {
+    const handlerStart = ipadHome.indexOf('const handleHomepagePick = (movie: DoubanItem) => {');
+    const handlerEnd = ipadHome.indexOf('const openedFridayDetailRef', handlerStart);
+    const handler = ipadHome.slice(handlerStart, handlerEnd);
+    expect(handler).toContain("router.push('/ipad-edition/detail?' + params.toString())");
+    expect(handler).toContain('tmdbId: movie.id');
+    expect(handler).toContain("tmdbType: movie.isTv ? 'tv' : 'movie'");
+    expect(handler).not.toContain('api.search');
+    expect(detailRoute).toContain('/^\\d{1,12}$/');
+    expect(tmdbDetail).toContain("fetch('/api/tmdb/details?'");
+  });
+
+  it('does not query playback sources until the user taps Start Playback', () => {
+    const startIndex = tmdbDetail.indexOf('const startPlayback = async () => {');
+    const metadataSection = tmdbDetail.slice(0, startIndex);
+    const playbackSection = tmdbDetail.slice(startIndex);
+    expect(metadataSection).not.toContain('api.search(');
+    expect(playbackSection).toContain('api.search(term, sources, yellowFilter, { signal: controller.signal })');
+    expect(tmdbDetail).toContain('onClick={() => void startPlayback()}');
+    expect(tmdbDetail).toContain('▶ 开始播放');
+    expect(playbackSection).toContain(".replace('/watch?', '/ipad-edition/watch?')");
+  });
+
+  it('keeps episode changes inside the iPad playback route', () => {
+    expect(watchRoute).toContain('const pathname = usePathname();');
+    expect(watchRoute).toContain('router.replace(`${pathname}?${sp.toString()}`, { scroll: false })');
+  });
 });

@@ -61,7 +61,7 @@ export default function SearchPage() {
         </header>
 
         <div className="v4-search-box" ref={history.containerRef}>
-          <form role="search" onSubmit={event => { event.preventDefault(); submit(); }}>
+          <form role="search" className="friday-glass-surface" data-friday-material="regular" onSubmit={event => { event.preventDefault(); submit(); }}>
             <Icon name="search" />
             <input
               ref={inputRef}

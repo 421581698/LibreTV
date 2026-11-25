@@ -79,24 +79,17 @@ function HomeContent() {
     router.push('/detail?' + params.toString());
   };
   
-  const handleHomepagePick = async (movie: DoubanItem) => {
-    if (selectedSources.length === 0) {
-      toast('请先在设置中启用至少一个可用点播源。', 'warning');
-      return;
-    }
-    try {
-      const response = await api.search(movie.title, selectedSources, yellowFilter);
-      const normalize = (value: string) => value.replace(/[\\s\\p{P}\\p{S}]/gu, '').toLocaleLowerCase();
-      const target = normalize(movie.title);
-      const match = response.list.find((entry) => normalize(entry.name) === target);
-      if (!match) {
-        toast('暂未在已启用的点播源中找到《' + movie.title + '》的准确资源。', 'warning');
-        return;
-      }
-      openDetail(match, { rating: movie.rating, poster: movie.cover });
-    } catch (error) {
-      toast(error instanceof Error ? error.message : '获取影片详情失败，请稍后重试。', 'error');
-    }
+  const handleHomepagePick = (movie: DoubanItem) => {
+    // 首页推荐来自 TMDB：进入详情只传递元数据 ID，不触发 CMS 点播源搜索。
+    const params = new URLSearchParams({
+      tmdbId: movie.id,
+      tmdbType: movie.isTv ? 'tv' : 'movie',
+      title: movie.title,
+      pic: movie.cover,
+      rating: movie.rating || '',
+      backdrop: movie.backdrop || '',
+    });
+    router.push('/ipad-edition/detail?' + params.toString());
   };
 
   const openedFridayDetailRef = useRef<string | null>(null);

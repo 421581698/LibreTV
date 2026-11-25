@@ -2152,7 +2152,7 @@ def record_playback_evidence(
         raise HTTPException(status_code=400, detail="Invalid candidate ID")
     with db() as connection:
         row = connection.execute(
-            "SELECT host,kind,status,access_state,validation FROM candidates WHERE id=?",
+            "SELECT url,host,kind,status,access_state,validation FROM candidates WHERE id=?",
             (candidate_id,),
         ).fetchone()
         if not row:
@@ -2205,7 +2205,38 @@ def record_playback_evidence(
              payload.selected_rendition_bitrate_kbps, int(time.time())),
         )
     registry_result = register_candidate_playback(candidate_id, evidence)
-    return {"candidate_id": candidate_id, "playback_verification": evidence, **registry_result}
+    media_ingestion = {"status": "skipped", "reason": "source_gateway_disabled"}
+    # The source gateway is deliberately opt-in and runs only after this endpoint
+    # has persisted independent PUBLIC preflight and browser playback evidence.
+    from dv_source_gateway import gateway_enabled, is_source_host_authorized
+    if gateway_enabled():
+        if os.environ.get("SCRAPLING_EGRESS_FIREWALL_CONFIRMED", "").strip() != "1":
+            media_ingestion = {"status": "skipped", "reason": "egress_firewall_not_confirmed"}
+        elif not is_source_host_authorized(row["host"]):
+            media_ingestion = {"status": "skipped", "reason": "source_host_not_explicitly_authorized"}
+        else:
+            # Long media transfers run in the durable worker, not in the
+            # browser's playback-confirmation request.
+            source_version = hashlib.sha256(
+                (str(row["url"]) + "\0" + str(row["validation"] or "")).encode("utf-8")
+            ).hexdigest()[:24]
+            job = registry_store.submit_job(
+                "dv_media_ingest",
+                {
+                    "candidate_id": candidate_id,
+                    "resource_id": registry_result["resource"]["id"],
+                    "source_version": source_version,
+                },
+                "dv-source-ingest:" + candidate_id + ":" + source_version,
+                max_attempts=3,
+            )
+            media_ingestion = {"status": job["status"], "job_id": job["id"]}
+    return {
+        "candidate_id": candidate_id,
+        "playback_verification": evidence,
+        "media_ingestion": media_ingestion,
+        **registry_result,
+    }
 
 
 @app.post("/v1/playback-samples")

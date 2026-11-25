@@ -132,6 +132,33 @@ describe('playback telemetry', () => {
     expect(ranked.map((source) => source.key)).toEqual(['high', 'low', 'unknown', 'unstable4k']);
   });
 
+  it('prefers a smoother measured source over a higher-resolution source when both can sustain their streams', () => {
+    const candidates = [
+      { sourceKey: 'source-4k', vodId: 'movie-1' },
+      { sourceKey: 'source-1080', vodId: 'movie-1' },
+    ];
+    const quality = {
+      'source-4k:movie-1': { from: 'play' as const, height: 2160, timestamp: 10_000 },
+      'source-1080:movie-1': { from: 'play' as const, height: 1080, timestamp: 10_000 },
+    };
+    const health: PlaybackHealthMap = {
+      'source-4k': {
+        sampleCount: 4, lastSampleAt: 10_000, startupMsAvg: 7_000,
+        throughputKbpsAvg: 24_000, mediaBitrateKbpsAvg: 12_000,
+        heightMax: 2160, stallsPerHour: 5, fatalErrorsPerHour: 1,
+        recoveryCount: 2, playedSeconds: 1_200,
+      },
+      'source-1080': {
+        sampleCount: 4, lastSampleAt: 10_000, startupMsAvg: 700,
+        throughputKbpsAvg: 12_000, mediaBitrateKbpsAvg: 5_000,
+        heightMax: 1080, stallsPerHour: 0, fatalErrorsPerHour: 0,
+        recoveryCount: 0, playedSeconds: 1_200,
+      },
+    };
+    const ranked = rankMovieCandidatesByQuality(candidates, quality, health, 10_000);
+    expect(ranked.map((item) => item.sourceKey)).toEqual(['source-1080', 'source-4k']);
+  });
+
   it('chooses the best measured source for the same exact movie while retaining unknown fallbacks', () => {
     const candidates = [
       { sourceKey: 'source-unknown', vodId: 'movie-1' },

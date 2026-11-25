@@ -9,6 +9,11 @@ workers_dev = true
 preview_urls = false
 
 [vars]
+# Public iPad Edition Preview: disable the website access-password prompt.
+AUTH_DISABLED = "true"
 CMS_SEARCH_API = "https://caiji.dyttzyapi.com/api.php/provide/vod"
 API_60S_BASE = "https://60s.bggdbh.workers.dev"
 LLM_MODEL = "glm-4-flash"
+# No default CMS source: BFZY/Storm is intentionally disabled.
+# Douban recommendation endpoints and poster assets are disabled in this Preview.
+# TMDB credentials must be configured as a Worker secret, never as a plain var.

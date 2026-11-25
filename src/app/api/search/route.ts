@@ -114,7 +114,7 @@ async function readLimitedBody(
  * 真正的 SSRF、DNS 和重定向安全检查，
  * 由 searchSources -> fetchUpstream -> ssrf 安全层负责。
  */
-function validateSources(
+export function validateSources(
   rawSources: unknown,
 ): SourceConfig[] {
   if (rawSources === undefined) {
@@ -206,10 +206,34 @@ function validateSources(
       source.detail = item.detail.slice(0, 2048);
     }
 
+    // Preserve trusted CMS metadata supplied by the built-in source registry.
+    // Metadata URLs are constrained to the same HTTPS origin as the validated API URL.
+    for (const field of ['api', 'from'] as const) {
+      if (typeof item[field] !== 'string' || item[field].length > 2048) continue;
+      try {
+        const metadataUrl = new URL(item[field] as string);
+        if (metadataUrl.protocol === 'https:' && metadataUrl.origin === parsed.origin) {
+          source[field] = metadataUrl.toString();
+        }
+      } catch {
+        // Ignore malformed optional metadata; the validated API URL remains usable.
+      }
+    }
+    if (typeof item.type === 'number' && Number.isInteger(item.type) && item.type >= 1 && item.type <= 10) {
+      source.type = item.type;
+    }
+    if (typeof item.weight === 'number' && Number.isFinite(item.weight) && item.weight >= 0 && item.weight <= 1000) {
+      source.weight = item.weight;
+    }
+
     sources.push(source);
   }
 
-  return sources;
+  // Lower configured weight is the default tie-breaker; stable ordering is retained
+  // for sources without an explicit weight.
+  return sources.sort((a, b) =>
+    (a.weight ?? Number.POSITIVE_INFINITY) - (b.weight ?? Number.POSITIVE_INFINITY)
+  );
 }
 
 const SEARCH_CACHE_TTL_MS = 30_000;
@@ -348,7 +372,7 @@ function ndjsonResponse(
           });
 
           if (!cached && !abortController.signal.aborted) {
-            setCachedOutcomes(cacheKey, outcomes);
+            if (outcomes.every((outcome) => outcome.ok)) setCachedOutcomes(cacheKey, outcomes);
           }
 
           if (!abortController.signal.aborted) {
@@ -464,7 +488,7 @@ export async function POST(req: Request) {
     });
 
     if (req.signal.aborted) return jsonError('请求已取消', 400);
-    if (!cached) setCachedOutcomes(cacheKey, outcomes);
+    if (!cached) if (outcomes.every((outcome) => outcome.ok)) setCachedOutcomes(cacheKey, outcomes);
     const [registryResources, seedhubItems] = await Promise.all([registryPromise, seedhubPromise]);
 
     return NextResponse.json({ ...toSearchResponse(outcomes), ...(registryResources.length ? { registryResources } : {}), ...(seedhubItems.length ? { seedhubItems } : {}) }, {

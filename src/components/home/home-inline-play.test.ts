@@ -21,18 +21,20 @@ describe('iPhone homepage detail navigation and top search', () => {
   const homepageHero = read('src/components/home/V4HomepageHero.tsx');
   const homepageContent = read('src/components/home/V4HomepageContent.tsx');
 
-  it('homepage uses Douban featured artwork and real recommendation rails for detail navigation', () => {
+  it('homepage uses TMDB China featured artwork and real recommendation rails for detail navigation', () => {
     expect(home).toContain('<V4HomepageHero onPick={handleHomepagePick} />');
     expect(home).toContain('<V4HomepageContent onPick={handleHomepagePick} />');
     expect(home).not.toContain('SeedHubHomepage');
-    expect(homepageHero).toContain("api.douban('movie', '热门'");
+    expect(homepageHero).toContain("api.tmdbDiscover('movie', '热门', 1");
+    expect(homepageHero).toContain('fromTmdbItem(slide)');
     expect(homepageHero).toContain('slide.cover');
-    expect(homepageContent).toContain("api.douban('tv', '热门'");
-    expect(homepageContent).toContain("api.douban('movie', '热门'");
-    expect(homepageContent).toContain("api.hotList('douban_movie_weekly'");
+    expect(homepageContent).toContain("api.tmdbDiscover('tv', '热门', 1");
+    expect(homepageContent).toContain("api.tmdbDiscover('movie', '热门', 1");
+    expect(homepageContent).not.toContain('douban_movie_weekly');
+    expect(homepageContent).toContain('fromTmdbItem(item)');
     expect(homepageContent).toContain('url={item.cover}');
-    expect(home).toContain('api.search(movie.title, selectedSources, yellowFilter)');
-    expect(home).toContain("router.push('/detail?' + params.toString())");
+    expect(home).not.toContain('api.search(movie.title, selectedSources, yellowFilter)');
+    expect(home).toContain("router.push('/ipad-edition/detail?' + params.toString())");
     expect(player).toContain("import('@/components/player-shell')");
     expect(player).toContain('api.detail(item.vodId, source, controller.signal)');
     expect(player).toContain('<PlayerShell');

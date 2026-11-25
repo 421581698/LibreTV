@@ -3,11 +3,22 @@ name: Resource Playback Verification
 on:
   push:
     branches:
+      - feature/libretv-ipad-edition-product
       - feat/resource-playback-verification-v1
       - feat/resource-intelligence-center-v2
       - integration/**
     paths:
       - "src/components/player-shell.tsx"
+      - "src/components/dolby-vision-diagnostics-panel.tsx"
+      - "services/scrapling-collector/**"
+      - "docker-compose.yml"
+      - "src/app/api/dolby-vision/**"
+      - "src/lib/dolby-vision/**"
+      - "docs/dolby-vision/**"
+      - "scripts/dolby-vision/**"
+      - "services/dolby-vision-parser/**"
+      - "docker-compose.yml"
+      - "services/dolby-vision-parser/**"
       - "src/components/source-manager.tsx"
       - "src/components/home/home-inline-play.test.ts"
       - "src/lib/resource-collector-workflow.ts"
@@ -32,6 +43,14 @@ on:
   pull_request:
     paths:
       - "src/components/player-shell.tsx"
+      - "src/components/dolby-vision-diagnostics-panel.tsx"
+      - "services/scrapling-collector/**"
+      - "docker-compose.yml"
+      - "src/app/api/dolby-vision/**"
+      - "src/lib/dolby-vision/**"
+      - "docs/dolby-vision/**"
+      - "scripts/dolby-vision/**"
+      - "services/dolby-vision-parser/**"
       - "src/components/source-manager.tsx"
       - "src/lib/media-playback.ts"
       - "src/lib/media-playback.test.ts"
@@ -70,8 +89,119 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build
 
-  collector-verification:
+  dolby-vision-rpu-verification:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Set up pinned Rust toolchain for dovi_tool
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - name: Build pinned AV1-capable dovi_tool 2.3.4
+        run: |
+          git clone https://github.com/quietvoid/dovi_tool.git /tmp/dovi_tool-src
+          git -C /tmp/dovi_tool-src checkout --detach 41dae646193c12de152333ff5dbc33579cb9ef4a
+          mkdir -p /tmp/dovi_tool-src/src/bin
+          cp scripts/dolby-vision/av1-rpu-converter.rs /tmp/dovi_tool-src/src/bin/av1-rpu-converter.rs
+          cd /tmp/dovi_tool-src
+          cargo build --locked --release --no-default-features --features internal-font --bin dovi_tool --bin av1-rpu-converter
+          install -m 0755 target/release/dovi_tool /usr/local/bin/dovi_tool
+          install -m 0755 target/release/av1-rpu-converter /usr/local/bin/av1-rpu-converter
+          dovi_tool --version
+      - name: Fetch upstream parser RPU fixture
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/tests/profile8.bin -o /tmp/dolby-vision-profile8.rpu
+          test -s /tmp/dolby-vision-profile8.rpu
+      - name: Install project dependencies for report-contract validation
+        run: npm ci
+      - name: Verify bounded AV1 Dolby T.35 and EMDF extraction
+        run: |
+          node --test scripts/dolby-vision/extract-av1-rpu.test.mjs
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p5-01.bin -o /tmp/dolby-av1-p5-t35.bin
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p84-01.bin -o /tmp/dolby-av1-p8-t35.bin
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p5-01-ref.bin -o /tmp/dolby-av1-p5-reference.rpu
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p84-01-ref.bin -o /tmp/dolby-av1-p8-reference.rpu
+          AV1_RPU_CONVERTER_BIN=/usr/local/bin/av1-rpu-converter node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p5-t35.bin --output /tmp/dolby-av1-p5.rpu
+          AV1_RPU_CONVERTER_BIN=/usr/local/bin/av1-rpu-converter node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p8-t35.bin --output /tmp/dolby-av1-p8.rpu
+          /usr/local/bin/av1-rpu-converter /tmp/dolby-av1-p5-t35.bin /tmp/dolby-av1-p5-reference-checked.rpu /tmp/dolby-av1-p5-reference.rpu
+          /usr/local/bin/av1-rpu-converter /tmp/dolby-av1-p8-t35.bin /tmp/dolby-av1-p8-reference-checked.rpu /tmp/dolby-av1-p8-reference.rpu
+          node --input-type=module -e "import fs from 'node:fs'; for (const [actual,expected] of [['/tmp/dolby-av1-p5.rpu','/tmp/dolby-av1-p5-reference-checked.rpu'],['/tmp/dolby-av1-p8.rpu','/tmp/dolby-av1-p8-reference-checked.rpu']]) { const a=fs.readFileSync(actual), b=fs.readFileSync(expected); if(!a.subarray(4).equals(b)) throw new Error('AV1 UNSPEC62 NAL payload differs from libdovi reference after the Annex-B start code: '+actual); }"
+          node --input-type=module -e "import fs from 'node:fs'; const leb=n=>{const a=[]; do{let b=n&127; n=Math.floor(n/128); if(n)b|=128; a.push(b);}while(n); return Buffer.from(a);}; const obu=(type,payload)=>Buffer.concat([Buffer.from([(type<<3)|2]),leb(payload.length),payload]); for(const profile of ['p5','p8']) { const t35=fs.readFileSync('/tmp/dolby-av1-'+profile+'-t35.bin'); const metadata=Buffer.concat([leb(4),t35]); fs.writeFileSync('/tmp/dolby-av1-'+profile+'.obu',Buffer.concat([obu(2,Buffer.alloc(0)),obu(5,metadata),obu(6,Buffer.from([0]))])); }"
+          AV1_RPU_CONVERTER_BIN=/usr/local/bin/av1-rpu-converter node scripts/dolby-vision/extract-av1-rpu.mjs --kind obu --input /tmp/dolby-av1-p5.obu --output /tmp/dolby-av1-p5-from-obu.rpu
+          AV1_RPU_CONVERTER_BIN=/usr/local/bin/av1-rpu-converter node scripts/dolby-vision/extract-av1-rpu.mjs --kind obu --input /tmp/dolby-av1-p8.obu --output /tmp/dolby-av1-p8-from-obu.rpu
+          node --input-type=module -e "import fs from 'node:fs'; for(const profile of ['p5','p8']) { const a=fs.readFileSync('/tmp/dolby-av1-'+profile+'.rpu'), b=fs.readFileSync('/tmp/dolby-av1-'+profile+'-from-obu.rpu'); if(!a.equals(b)) throw new Error('AV1 OBU extraction differs from direct T.35 extraction for '+profile); }"
+          node --input-type=module -e "import fs from 'node:fs'; for (const profile of ['p5','p8']) { const input=fs.readFileSync('/tmp/dolby-av1-'+profile+'.rpu'); if(input.length<7 || !input.subarray(0,4).equals(Buffer.from([0,0,0,1])) || input[4]!==0x7c || input[5]!==0x01 || input[6]!==0x19) throw new Error('Unexpected AV1 Annex-B UNSPEC62 RPU NAL framing: '+profile); }"
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p5.rpu > /tmp/dolby-av1-p5-report.json
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p8.rpu > /tmp/dolby-av1-p8-report.json
+          node --input-type=module -e "import fs from 'node:fs'; for (const [p,expected] of [['/tmp/dolby-av1-p5-report.json',5],['/tmp/dolby-av1-p8-report.json',8]]) { const r=JSON.parse(fs.readFileSync(p,'utf8')); if(r.source!=='dovi_tool'||r.rpuPresent!==true||!r.profiles.includes(expected)||r.frameCount<1) throw new Error('AV1 RPU acceptance failed: '+JSON.stringify(r)); console.log(JSON.stringify({profile:expected,parsedProfiles:r.profiles,frames:r.frameCount,rpuSha256:r.rpuSha256})); }"
+      - name: Verify private parser service signing and request primitives
+        run: node --test services/dolby-vision-parser/server.test.mjs
+      - name: Build private parser service container
+        run: docker build -f services/dolby-vision-parser/Dockerfile -t libretv-dolby-vision-parser:ci .
+      - name: Validate isolated Dolby Vision Compose profile
+        run: |
+          openssl genpkey -algorithm ED25519 -out /tmp/dv-signing-private-key.pem
+          PASSWORD=ci-placeholder DV_SERVICE_TOKEN=ci-token DV_SIGNING_KEY_ID=ci-key DV_SIGNING_PRIVATE_KEY_FILE=/tmp/dv-signing-private-key.pem docker compose --profile dolby-vision config --quiet
+      - name: Run LibreTV RPU adapter against real parser fixture
+        run: |
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-profile8.rpu --kind rpu > /tmp/dolby-vision-report.json
+          node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync('/tmp/dolby-vision-report.json','utf8')); if(r.source!=='dovi_tool'||r.parserVersion!=='2.3.4'||r.rpuPresent!==true||r.profile!==8||!Number.isInteger(r.frameCount)||r.frameCount<1) throw new Error('RPU adapter acceptance failed: '+JSON.stringify(r)); console.log(JSON.stringify({parser:r.source,version:r.parserVersion,profile:r.profile,frames:r.frameCount,levels:r.metadataLevels,rpuSha256:r.rpuSha256},null,2));"
+          DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
+      - name: Install FFmpeg for real MP4 demux integration
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Fetch pinned upstream HEVC and Matroska integration fixtures
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/hevc_tests/regular.hevc -o /tmp/dolby-vision-regular.hevc
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/hevc_tests/regular.mkv -o /tmp/dolby-vision-regular.mkv
+          test "$(git hash-object /tmp/dolby-vision-regular.hevc)" = "0435ca7d75348ed3fe5362b7188fd59849413721"
+          test "$(git hash-object /tmp/dolby-vision-regular.mkv)" = "4e7c735e42dcfddb5232d5b44acb1f2fff56ab5b"
+          ffmpeg -nostdin -v error -f hevc -i /tmp/dolby-vision-regular.hevc -map 0:v:0 -c:v copy -tag:v hvc1 -movflags +faststart /tmp/dolby-vision-regular.mp4
+          test -s /tmp/dolby-vision-regular.mp4
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 /tmp/dolby-vision-regular.mp4)" = "hevc"
+      - name: Verify full RPU extraction from pinned real HEVC fixture
+        run: |
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-regular.hevc > /tmp/dolby-vision-hevc-report.json
+          node scripts/dolby-vision/assert-full-rpu-report.mjs --report /tmp/dolby-vision-hevc-report.json --input /tmp/dolby-vision-regular.hevc --expected-frames 259
+          DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-hevc-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
+      - name: Verify full RPU extraction from pinned real Matroska fixture
+        run: |
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-regular.mkv > /tmp/dolby-vision-mkv-report.json
+          node scripts/dolby-vision/assert-full-rpu-report.mjs --report /tmp/dolby-vision-mkv-report.json --input /tmp/dolby-vision-regular.mkv --expected-frames 259
+          DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-mkv-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
+      - name: Verify Docker parser container HTTP upload, HEVC demux, full RPU scan and signed evidence
+        env:
+          DV_CI_SERVICE_TOKEN: ci-real-fixture-token
+          DV_CI_KEY_ID: ci-real-fixture-key
+          DV_PARSER_BASE_URL: http://127.0.0.1:8788
+          DV_CI_PUBLIC_KEY_FILE: /tmp/dv-signing-public-key.pem
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm ED25519 -out /tmp/dv-signing-private-key.pem
+          openssl pkey -in /tmp/dv-signing-private-key.pem -pubout -out /tmp/dv-signing-public-key.pem
+          chmod 0444 /tmp/dv-signing-private-key.pem
+          docker run --detach --name libretv-dv-parser-ci             --publish 127.0.0.1:8788:8788             --env DV_SERVICE_TOKEN="$DV_CI_SERVICE_TOKEN"             --env DV_SIGNING_KEY_ID="$DV_CI_KEY_ID"             --env DV_SIGNING_PRIVATE_KEY_FILE=/run/secrets/dv-signing-private-key.pem             --mount type=bind,src=/tmp/dv-signing-private-key.pem,dst=/run/secrets/dv-signing-private-key.pem,readonly             libretv-dolby-vision-parser:ci
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then docker logs libretv-dv-parser-ci || true; fi
+            docker rm -f libretv-dv-parser-ci >/dev/null 2>&1 || true
+            exit "$status"
+          }
+          trap cleanup EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8788/health >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" -eq 1
+          node scripts/dolby-vision/verify-parser-service-fixture.mjs /tmp/dolby-vision-regular.mp4
+
+  collector-verification:
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: services/scrapling-collector

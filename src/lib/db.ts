@@ -142,19 +142,28 @@ export const MAX_SEARCH_HISTORY = 10;
 
 export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<void> {
   const id = `${entry.sourceKey}_${entry.vodId}`;
-  const existing = await db.history.get(id);
-  const merged: HistoryEntry = {
-    ...existing,
-    ...entry,
-    id,
-    typeName: entry.typeName || existing?.typeName,
-    year: entry.year || existing?.year,
-    area: entry.area || existing?.area,
-    playbackPosition: entry.playbackPosition > 10 ? entry.playbackPosition : existing?.playbackPosition ?? 0,
-    duration: entry.duration || existing?.duration || 0,
-    timestamp: Date.now(),
-  };
-  await db.history.put(merged);
+  // Serialize the merge with progress updates so a stale read cannot overwrite
+  // a newer playback position written while this history row is being refreshed.
+  await db.transaction('rw', db.history, async () => {
+    const existing = await db.history.get(id);
+    const sameEpisode = existing?.episodeIndex === entry.episodeIndex;
+    const merged: HistoryEntry = {
+      ...existing,
+      ...entry,
+      id,
+      typeName: entry.typeName || existing?.typeName,
+      year: entry.year || existing?.year,
+      area: entry.area || existing?.area,
+      // A title-level history row stores only one episode position. Preserve it
+      // when reopening the same episode, but never carry it into a different one.
+      playbackPosition: entry.playbackPosition > 10
+        ? entry.playbackPosition
+        : sameEpisode ? existing?.playbackPosition ?? 0 : 0,
+      duration: entry.duration || (sameEpisode ? existing?.duration : 0) || 0,
+      timestamp: Date.now(),
+    };
+    await db.history.put(merged);
+  });
   // 淘汰最旧记录
   const count = await db.history.count();
   if (count > MAX_HISTORY) {
@@ -167,16 +176,23 @@ export async function updateHistoryProgress(
   sourceKey: string,
   vodId: string,
   position: number,
-  duration: number
+  duration: number,
+  expectedEpisodeIndex?: number
 ): Promise<void> {
   const id = `${sourceKey}_${vodId}`;
-  const existing = await db.history.get(id);
-  if (!existing) return;
-  if (Math.abs(existing.playbackPosition - position) < 2 && Math.abs(existing.duration - duration) < 2) return;
-  await db.history.update(id, {
-    playbackPosition: position,
-    duration,
-    timestamp: Date.now(),
+  // Keep the episode check and write in one read/write transaction. Otherwise an
+  // outgoing episode's delayed progress update can race with upsertHistory for
+  // the next episode and attach the old position to the new episodeIndex.
+  await db.transaction('rw', db.history, async () => {
+    const existing = await db.history.get(id);
+    if (!existing) return;
+    if (expectedEpisodeIndex !== undefined && existing.episodeIndex !== expectedEpisodeIndex) return;
+    if (Math.abs(existing.playbackPosition - position) < 2 && Math.abs(existing.duration - duration) < 2) return;
+    await db.history.update(id, {
+      playbackPosition: position,
+      duration,
+      timestamp: Date.now(),
+    });
   });
 }
 

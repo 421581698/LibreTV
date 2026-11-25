@@ -29,6 +29,16 @@ export function formatDisableTtl(ms: number): string {
   return minutes >= 60 ? `${Math.round(minutes / 60)} 小时` : `${minutes} 分钟`;
 }
 
+/** Only official Douban image subdomains may use Douban-specific URL variants and mirrors. */
+export function isDoubanImageUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && /^img\d+\.doubanio\.com$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 封面图加载地址：direct 直连 / proxy 内置代理 / custom 自定义模板（{url} 占位符或直接拼接）。
  * 默认 proxy（内置代理），规避豆瓣防盗链与部分采集站图床直连失败。
@@ -51,13 +61,8 @@ export function buildImageUrl(
 }
 
 /**
- * 封面图降级候选链，各模式首选地址失败后由 SmartImage 按序回退（onError 逐级尝试）：
- * - direct 模式：原站直连 → cmliussss 公共镜像（腾讯 / 阿里，仅豆瓣图）→ 内置代理。
- *   doubanio 反爬对外域与空 Referer 分别返回 403 / 418，纯前端无法绕过；
- *   公共镜像实测直连可用，置于自家代理之前以节省服务器流量。
- * - proxy 模式：内置代理 → 公共镜像（仅豆瓣图）→ 原站直连。
- *   代理是全站封面的公共依赖，不能单点——代理故障时自动落到直连/镜像。
- * - custom 模式为单一地址：模板错误应显式暴露，不被静默回退掩盖。
+ * 封面图降级候选链。豆瓣高清路径与公共镜像严格限制在官方 imgN.doubanio.com
+ * HTTPS 主机；其他图片来源只使用原始地址和站内代理，避免误改第三方 URL。
  */
 export function buildImageCandidates(
   url: string | undefined,
@@ -65,21 +70,23 @@ export function buildImageCandidates(
   customTemplate: string
 ): string[] {
   if (!url) return [];
-  // 豆瓣 API 常返回 s_ratio_poster 小图；优先请求 l_ratio_poster 高清版，
-  // 同时保留原图作为回退，兼容非标准路径和图床不提供大图的情况。
-  const preferredUrl = url.split('/s_ratio_poster/').join('/l_ratio_poster/');
+  const isDouban = isDoubanImageUrl(url);
+  const preferredUrl = isDouban
+    ? url.split('/s_ratio_poster/').join('/l_ratio_poster/')
+    : url;
   if (mode === 'custom') {
     const custom = buildImageUrl(url, mode, customTemplate);
     return custom ? [custom] : [];
   }
 
   const urls = [...new Set([preferredUrl, url])];
-  const mirrors = (source: string) => source.includes('doubanio.com')
-    ? [
-        source.replace(new RegExp('img[0-9]+[.]doubanio[.]com', 'g'), 'img.doubanio.cmliussss.net'),
-        source.replace(new RegExp('img[0-9]+[.]doubanio[.]com', 'g'), 'img.doubanio.cmliussss.com'),
-      ]
-    : [];
+  const mirrors = (source: string) => {
+    if (!isDoubanImageUrl(source)) return [];
+    return [
+      source.replace(/^https:\/\/img\d+\.doubanio\.com/i, 'https://img.doubanio.cmliussss.net'),
+      source.replace(/^https:\/\/img\d+\.doubanio\.com/i, 'https://img.doubanio.cmliussss.com'),
+    ];
+  };
   const variants = [...urls, ...urls.flatMap(mirrors)];
   if (mode === 'proxy') {
     return [...new Set([

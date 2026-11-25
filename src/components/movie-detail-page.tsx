@@ -7,6 +7,8 @@ import { api } from '@/lib/client-api';
 import { useAppStore, resolveSource } from '@/lib/store';
 import { useAuth } from '@/components/auth';
 import { SmartImage } from '@/components/smart-image';
+import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
+import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { LoadingState, ErrorState } from '@/components/states';
 import { addFavorite, addSearchHistory, db, removeFavorite } from '@/lib/db';
 import { favoriteIdFor } from '@/lib/favorite-id';
@@ -15,6 +17,7 @@ import { formatRemarks } from '@/lib/remarks';
 import { isMovieType } from '@/lib/cms-parser';
 import type { SourceConfig, VideoDetail } from '@/lib/types';
 import { enqueueDownload } from '@/components/download-manager';
+import { fromCmsArtwork, fromEpisodeArtwork } from '@/lib/poster';
 
 function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'customAPIs' | 'envSources'>, key: string, name: string, sourceUrl: string): SourceConfig | null {
   const local = resolveSource(store, key);
@@ -27,7 +30,7 @@ function detailSource(store: Pick<ReturnType<typeof useAppStore.getState>, 'cust
   return null;
 }
 
-export function MovieDetailPage() {
+export function MovieDetailPage({ watchPath = '/watch' }: { watchPath?: '/watch' | '/ipad-edition/watch' }) {
   const router = useRouter();
   const params = useSearchParams();
   const customAPIs = useAppStore((state) => state.customAPIs);
@@ -51,6 +54,11 @@ export function MovieDetailPage() {
   const [error, setError] = useState('');
   const [sharing, setSharing] = useState(false);
   const [episodeMenuIndex, setEpisodeMenuIndex] = useState<number | null>(null);
+  const [tmdbArtwork, setTmdbArtwork] = useState<{
+    poster: string;
+    backdrop: string;
+    cast: { id: number; name: string; character?: string; profile_path?: string | null }[];
+  } | null>(null);
 
   // Episode actions are a real popover: dismiss on outside tap or Escape so the
   // menu never remains stranded over the horizontal episode shelf on mobile.
@@ -111,6 +119,7 @@ export function MovieDetailPage() {
     setLoading(true);
     setError('');
     setDetail(null);
+    setTmdbArtwork(null);
     api.detail(vodId, source, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) setDetail(result);
@@ -126,12 +135,56 @@ export function MovieDetailPage() {
   }, [sourceKey, vodId, source, checked, verified]);
 
   const info = detail?.videoInfo;
+
+  // Ordinary CMS search results do not carry a reliable high-resolution artwork
+  // identity. Resolve the title against TMDB only after CMS detail is available;
+  // exact localized/original-title and year checks prevent unrelated matches.
+  useEffect(() => {
+    if (!detail || !info) return;
+    const matchTitle = (info.title || title).trim();
+    if (!matchTitle) return;
+    const mediaType = isMovieType(info.typeName, detail.episodes?.length ?? 0) ? 'movie' : 'tv';
+    const controller = new AbortController();
+    setTmdbArtwork(null);
+    const params = new URLSearchParams({
+      title: matchTitle,
+      alternateTitle: title,
+      ...(info.originalTitle ? { originalTitle: info.originalTitle } : {}),
+      type: mediaType,
+      ...(info.year ? { year: info.year.slice(0, 4) } : {}),
+    });
+    fetch('/api/tmdb/match?' + params.toString(), { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('TMDB_MATCH_UNAVAILABLE');
+        return response.json() as Promise<{ match: { id: number; type: 'movie' | 'tv'; posterUrl?: string; backdropUrl?: string } | null }>;
+      })
+      .then(async ({ match }) => {
+        if (!match || !Number.isInteger(match.id) || match.id <= 0) return;
+        const detailsResponse = await fetch('/api/tmdb/details?' + new URLSearchParams({ id: String(match.id), type: match.type }), { signal: controller.signal });
+        if (!detailsResponse.ok) throw new Error('TMDB_DETAILS_UNAVAILABLE');
+        const metadata = await detailsResponse.json() as {
+          poster_path?: string | null;
+          backdrop_path?: string | null;
+          credits?: { cast?: { id: number; name: string; character?: string; profile_path?: string | null }[] };
+        };
+        if (controller.signal.aborted) return;
+        setTmdbArtwork({
+          poster: metadata.poster_path ? `https://image.tmdb.org/t/p/original${metadata.poster_path}` : match.posterUrl || '',
+          backdrop: metadata.backdrop_path ? `https://image.tmdb.org/t/p/original${metadata.backdrop_path}` : match.backdropUrl || '',
+          cast: (metadata.credits?.cast || []).slice(0, 18),
+        });
+      })
+      .catch(() => {
+        // TMDB is an enhancement, never a dependency for CMS detail or playback.
+      });
+    return () => controller.abort();
+  }, [detail, info, title]);
   const episodes = detail?.episodes ?? [];
   const episodeItems = detail?.episodeItems ?? [];
-  // Detail feeds often omit a dedicated backdrop even when the search result
-  // already supplied a valid poster. Keep the hero artwork populated by falling
-  // back through the detail cover to the original poster URL.
-  const backdrop = info?.backdrop?.trim() || info?.cover?.trim() || poster.trim();
+  // Keep landscape backdrops and portrait posters in separate image slots.
+  // A low-resolution CMS cover/poster must never be enlarged as the hero backdrop.
+  const backdrop = tmdbArtwork?.backdrop || info?.backdrop?.trim() || '';
+  const posterArtwork = tmdbArtwork?.poster || info?.cover?.trim() || poster.trim();
   const knownSeasonNumbers = episodeItems
     .map((item) => item.seasonNumber)
     .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0);
@@ -158,7 +211,7 @@ export function MovieDetailPage() {
   };
   const isMovie = isMovieType(info?.typeName, episodes.length);
   const displayTitle = info?.title || title;
-  const image = info?.cover || poster;
+  const image = posterArtwork;
   const metadata = [
     info?.year,
     info?.area,
@@ -176,8 +229,8 @@ export function MovieDetailPage() {
       index,
       title: displayTitle,
       sourceUrl: source?.url || sourceUrl || undefined,
-    }));
-  }, [sourceKey, vodId, episodes, displayTitle, router, source, sourceUrl]);
+    }).replace('/watch?', watchPath + '?'));
+  }, [sourceKey, vodId, episodes, displayTitle, router, source, sourceUrl, watchPath]);
 
   const toggleFavorite = async () => {
     if (!sourceKey || !vodId) return;
@@ -233,57 +286,46 @@ export function MovieDetailPage() {
   }
 
   return (
-    <main className="movie-detail-page min-h-screen overflow-x-hidden bg-[#08080A] pb-[calc(96px+env(safe-area-inset-bottom))] text-white">
-      
-      <section className="movie-detail-hero relative isolate min-h-[560px] overflow-hidden sm:min-h-[640px]">
-        {backdrop ? (
-          <SmartImage
-            url={backdrop}
-            mode={imageProxyMode}
-            customProxy={customImageProxy}
-            alt={displayTitle}
-            className="movie-detail-hero__image absolute inset-0 -z-20 h-full w-full object-cover object-center"
-            loading="eager"
-          />
-        ) : (
-          <div className="absolute inset-0 -z-20 bg-[#08080A]" aria-hidden="true" />
-        )}
-        <div className="movie-detail-hero__scrim absolute inset-0 -z-10" />
-        <div className="movie-detail-hero__bottom-gradient absolute inset-x-0 bottom-0 -z-10" />
-        <div className="movie-detail-hero__side-gradient absolute inset-0 -z-10" />
-
-        <header className="movie-detail-hero__header relative z-10 flex items-center justify-between px-5 pt-[max(18px,env(safe-area-inset-top))] sm:px-10">
-          <button type="button" onClick={() => router.back()} className="movie-detail-glass-control" aria-label="返回上一页">
-            <span aria-hidden="true">‹</span>
+    <IpadCinemaDetailLayout
+      title={displayTitle}
+      eyebrow="LIBRETV · TITLE DETAILS"
+      backdropUrl={backdrop || undefined}
+      posterUrl={posterArtwork || undefined}
+      backdropFallbackUrl={tmdbArtwork?.backdrop ? info?.backdrop?.trim() : undefined}
+      imageMode={imageProxyMode}
+      customImageProxy={customImageProxy}
+      originalTitle={info?.originalTitle || undefined}
+      metadata={
+        <>
+          {metadata.map((value) => <span key={value}>{value}</span>)}
+        </>
+      }
+      overview={info?.desc || undefined}
+      actions={
+        <>
+          <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="ipad-cinema-play">
+            <span aria-hidden="true">▶</span>{'开始播放'}
           </button>
-          <button type="button" onClick={() => void share()} disabled={sharing} className="movie-detail-glass-control" aria-label="分享影片">↗</button>
-        </header>
-
-        <div className="movie-detail-hero__content relative z-10 mx-auto flex min-h-[520px] max-w-6xl flex-col justify-end px-5 pb-10 pt-32 sm:min-h-[580px] sm:px-10 sm:pb-14">
-          <div className="max-w-2xl">
-            <p className="movie-detail-eyebrow mb-3 text-[10px] font-semibold uppercase text-white/65">LIBRETV · TITLE DETAILS</p>
-            <h1 className="movie-detail-title max-w-3xl text-4xl leading-[1.05] tracking-[-.045em] sm:text-6xl">{displayTitle}</h1>
-            {metadata.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-white/75 sm:text-sm">
-                {metadata.map((value) => <span key={value}>{value}</span>)}
-              </div>
-            )}
-            {info?.desc && <p className="movie-detail-description mt-5 max-w-xl text-sm leading-7 text-white/80 sm:text-base">{info.desc}</p>}
-            <div className="movie-detail-actions mt-7 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => play(0)} disabled={episodes.length === 0} className="inline-flex min-h-12 items-center gap-3 rounded-full bg-white px-7 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40">
-                <span aria-hidden="true">▶</span>{isMovie ? '立即播放' : '开始观看'}
-              </button>
-              <button type="button" onClick={() => void toggleFavorite()} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-xl backdrop-blur-xl" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
-                <span aria-hidden="true">{favorite ? '♥' : '＋'}</span>
-              </button>
-              <button type="button" onClick={() => void share()} disabled={sharing} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/10 text-lg backdrop-blur-xl" aria-label="分享影片">↗</button>
-            </div>
-          </div>
-        </div>
+          <button type="button" onClick={() => void toggleFavorite()} className="ipad-cinema-add" aria-label={favorite ? '取消收藏' : '加入收藏'} aria-pressed={Boolean(favorite)}>
+            {favorite ? '♥' : '＋'}
+          </button>
+          <button type="button" onClick={() => void share()} disabled={sharing} className="ipad-cinema-add" aria-label="分享影片">↗</button>
+        </>
+      }
+      onBack={() => router.back()}
+    >
+      <section className={`ipad-cinema-info${info?.desc ? ' has-overview' : ''}`}>
+        {info?.desc ? <div><h2>剧情简介</h2><p>{info.desc}</p></div> : null}
+        <dl>
+          <div><dt>年份</dt><dd>{info?.year || '暂无数据'}</dd></div>
+          <div><dt>地区</dt><dd>{info?.area || '暂无数据'}</dd></div>
+          <div><dt>类型</dt><dd>{info?.typeName || '暂无数据'}</dd></div>
+          <div><dt>备注</dt><dd>{formatRemarks(info?.remarks) || '暂无数据'}</dd></div>
+          <div><dt>播放源</dt><dd>{sourceName || sourceKey}</dd></div>
+        </dl>
       </section>
-
       {!isMovie && episodes.length > 0 && (
-        <section className="mx-auto max-w-6xl px-5 pb-12 pt-10 sm:px-10" aria-labelledby="movie-episode-heading">
+        <section className="ipad-cinema-section ipad-cinema-episodes" aria-labelledby="movie-episode-heading">
           <div className="mb-5 flex items-end justify-between gap-4">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-white/45">EPISODES</p>
@@ -307,6 +349,7 @@ export function MovieDetailPage() {
                   <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-white/[.06]">
                     {(item?.image || image) ? (
                       <SmartImage
+                        asset={item?.image ? fromEpisodeArtwork({ sourceKey, vodId, episodeIndex: index, title: titleText, imageUrl: item.image, imageSource: item.imageSource, tmdbEpisodeId: item.tmdbEpisodeId, tmdbSeriesId: item.tmdbSeriesId, seasonNumber: item.seasonNumber, episodeNumber: item.episodeNumber }) : undefined}
                         url={item?.image || image}
                         mode={imageProxyMode}
                         customProxy={customImageProxy}
@@ -335,6 +378,16 @@ export function MovieDetailPage() {
           </div>
         </section>
       )}
-      </main>
+      <IpadCinemaCastRow
+        actors={(tmdbArtwork?.cast || []).map((actor) => ({
+          id: actor.id,
+          name: actor.name,
+          role: actor.character,
+          imageUrl: actor.profile_path ? `https://image.tmdb.org/t/p/w342${actor.profile_path}` : '',
+        }))}
+        imageMode={imageProxyMode}
+        customImageProxy={customImageProxy}
+      />
+    </IpadCinemaDetailLayout>
   );
 }
