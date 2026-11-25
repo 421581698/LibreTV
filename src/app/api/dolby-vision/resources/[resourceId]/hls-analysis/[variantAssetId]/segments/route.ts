@@ -290,6 +290,7 @@ export async function POST(
         rpuSha256: segment.report.rpuSha256,
       })),
       timelineContinuity: verified.timelineContinuity,
+      rpuProfileContinuity: verified.rpuProfileContinuity,
       rpuSemanticContinuity: verified.rpuSemanticContinuity,
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
