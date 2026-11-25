@@ -39,8 +39,18 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     metadataLevels: number[];
     graphSha256: string;
   } | null>(null);
+  const [hlsSegmentAnalysisState, setHlsSegmentAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [hlsSegmentAnalysisError, setHlsSegmentAnalysisError] = useState('');
+  const [hlsSegmentEvidence, setHlsSegmentEvidence] = useState<{
+    resourceId: string;
+    variantAssetId: string;
+    segmentCount: number;
+    totalRpuFrameCount: number;
+    graphSha256: string;
+  } | null>(null);
   const hlsGraphRequestRef = useRef<AbortController | null>(null);
   const hlsAnalysisRequestRef = useRef<AbortController | null>(null);
+  const hlsSegmentAnalysisRequestRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   // Hide evidence synchronously on the render where the asset changes; the effect below
   // performs cleanup, but effects run after paint and alone permit one stale render.
@@ -49,6 +59,9 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     : null;
   const currentHlsEvidence = hlsEvidence && hlsEvidence.resourceId === sourceIdentity
     ? hlsEvidence
+    : null;
+  const currentHlsSegmentEvidence = hlsSegmentEvidence && hlsSegmentEvidence.resourceId === sourceIdentity
+    ? hlsSegmentEvidence
     : null;
 
   useEffect(() => {
@@ -70,6 +83,11 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     setHlsEvidence(null);
     setHlsAnalysisState('idle');
     setHlsAnalysisError('');
+    hlsSegmentAnalysisRequestRef.current?.abort();
+    hlsSegmentAnalysisRequestRef.current = null;
+    setHlsSegmentEvidence(null);
+    setHlsSegmentAnalysisState('idle');
+    setHlsSegmentAnalysisError('');
     if (sourceKind !== 'registry' || report?.container !== 'hls' ||
         !sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity)) {
       setHlsGraphState('idle');
@@ -182,6 +200,59 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     }
   }
 
+  async function analyzeHlsSegments(variantAssetId: string) {
+    if (!sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity) ||
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId) ||
+        hlsSegmentAnalysisState === 'loading') return;
+    hlsSegmentAnalysisRequestRef.current?.abort();
+    const controller = new AbortController();
+    hlsSegmentAnalysisRequestRef.current = controller;
+    setHlsSegmentAnalysisState('loading');
+    setHlsSegmentAnalysisError('');
+    setHlsSegmentEvidence(null);
+    try {
+      const response = await fetch(
+        `/api/dolby-vision/resources/${encodeURIComponent(sourceIdentity)}/hls-analysis/${encodeURIComponent(variantAssetId)}/segments`,
+        { method: 'POST', cache: 'no-store', credentials: 'same-origin', signal: controller.signal },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        throw new Error(response.status === 503
+          ? '分片级可信分析服务尚未配置或当前不可用'
+          : response.status === 409
+            ? 'HLS 分片图谱不完整或时间轴不连续'
+            : '分片 RPU 分析或 Ed25519 签名验证失败');
+      }
+      const data = payload as Record<string, unknown>;
+      const graph = data.graph && typeof data.graph === 'object' && !Array.isArray(data.graph)
+        ? data.graph as Record<string, unknown>
+        : null;
+      if (data.verified !== true || data.analysisScope !== 'hls-fmp4-segment-set' ||
+          data.resourceId !== sourceIdentity || data.variantAssetId !== variantAssetId ||
+          !Number.isSafeInteger(data.segmentCount) || !Number.isSafeInteger(data.totalRpuFrameCount) ||
+          data.timelineContinuity !== 'contiguous' ||
+          data.rpuSemanticContinuity !== 'not-established' ||
+          typeof graph?.graphSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(graph.graphSha256) ||
+          !Array.isArray(data.segments) || data.segments.length !== data.segmentCount) {
+        throw new Error('分片签名证据与当前 HLS 资产图不匹配');
+      }
+      if (!controller.signal.aborted) {
+        setHlsSegmentEvidence({
+          resourceId: sourceIdentity,
+          variantAssetId,
+          segmentCount: Number(data.segmentCount),
+          totalRpuFrameCount: Number(data.totalRpuFrameCount),
+          graphSha256: graph.graphSha256,
+        });
+        setHlsSegmentAnalysisState('idle');
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setHlsSegmentAnalysisError(error instanceof Error ? error.message : '分片 RPU 分析暂不可用');
+      setHlsSegmentAnalysisState('error');
+    }
+  }
+
   async function analyzeRegisteredAsset() {
     if (!assetId || !/^[A-Za-z0-9:_-]{1,200}$/.test(assetId) || analysisState === 'loading') return;
     requestRef.current?.abort();
@@ -273,7 +344,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-white/55">RPU 存在性</span>
-              <span>{currentVerifiedEvidence || currentHlsEvidence ? '已验证存在' : '未验证'}</span>
+              <span>{currentVerifiedEvidence || currentHlsEvidence || currentHlsSegmentEvidence ? '已验证存在' : '未验证'}</span>
             </div>
             {sourceKind === 'registry' && report?.container === 'hls' && (
               <div className="mt-2 rounded-lg border border-white/10 bg-white/5 p-2">
@@ -303,10 +374,32 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                           currentHlsEvidence?.variantAssetId === variantId ? '重新验证此 HLS 变体 RPU' :
                             `分析此 HLS 变体 RPU · ${variantId}`}
                       </button>
+                      <button
+                        key={`${variantId}-segments`}
+                        type="button"
+                        disabled={hlsSegmentAnalysisState === 'loading'}
+                        onClick={() => void analyzeHlsSegments(variantId)}
+                        className="w-full rounded-md border border-amber-300/25 bg-amber-300/10 px-2.5 py-2 text-left text-[10px] font-medium text-amber-100 transition hover:bg-amber-300/20 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {hlsSegmentAnalysisState === 'loading' ? '正在逐片解析并验签…' :
+                          currentHlsSegmentEvidence?.variantAssetId === variantId
+                            ? '重新验证全部分片 RPU'
+                            : `逐片解析并验签 · ${variantId}`}
+                      </button>
                     ))}
                   </div>
                 )}
                 {hlsAnalysisError && <p role="alert" className="mt-1 text-amber-200">{hlsAnalysisError}</p>}
+                {hlsSegmentAnalysisError && <p role="alert" className="mt-1 text-amber-200">{hlsSegmentAnalysisError}</p>}
+                {currentHlsSegmentEvidence && (
+                  <div className="mt-2 rounded-md border border-amber-300/25 bg-amber-300/5 p-2 text-[10px] text-amber-100">
+                    <p>已逐片完成 RPU 分析与 Ed25519 验签</p>
+                    <p>已验分片：{currentHlsSegmentEvidence.segmentCount.toLocaleString()}</p>
+                    <p>RPU 帧计数合计：{currentHlsSegmentEvidence.totalRpuFrameCount.toLocaleString()}</p>
+                    <p>图谱 SHA-256：{currentHlsSegmentEvidence.graphSha256.slice(0, 16)}…</p>
+                    <p className="mt-1 text-white/65">视频时间轴连续；RPU 逐帧语义连续性仍未建立。</p>
+                  </div>
+                )}
                 {currentHlsEvidence && (
                   <div className="mt-2 rounded-md border border-emerald-300/20 bg-emerald-300/5 p-2 text-[10px] text-emerald-100">
                     <p>已验证 HLS fMP4 RPU：Profile {currentHlsEvidence.profile ?? '多 Profile / 未唯一归属'}</p>
