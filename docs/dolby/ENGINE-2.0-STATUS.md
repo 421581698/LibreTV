@@ -75,3 +75,16 @@ These are automated CI results, not physical iPad Safari, Dolby decoder, Atmos r
 ## Release boundary
 
 PR #99 remains Draft and unmerged. Work stays on `feature/libretv-ipad-edition-product`. Do not modify `main`, merge the PR, or deploy production as part of this work.
+
+## Workflow reference audit (2026-11-25)
+
+A complete scan of all 25 workflow YAML files in `.github/workflows/` at the pre-audit head found four stale path-filter entries in `.github/workflows/deploy-ipad-edition-preview.yml`:
+
+- `src/lib/spatial-audio.ts`
+- `src/lib/spatial-audio.test.ts`
+- `src/lib/spatial-media-session.ts`
+- `src/lib/spatial-media-session.test.ts`
+
+Those four entries were removed in commit `5e9428c1dc575547c3c35904bc08d9b0e676b014`. The other 24 workflow files had no references to the retired spatial modules or deleted generic spatial smoke scripts. This is a workflow-file audit only; it does not claim that every historical document or arbitrary repository string has been purged.
+
+The change only updates Preview workflow path filters. It does not trigger a Preview deployment, deploy production, or establish physical-device acceptance.
