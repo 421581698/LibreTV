@@ -2738,19 +2738,19 @@ body:has(.ipad-edition[data-environment="light"]) {
 /* The hero remains visible through the capsule. Use a separate moving lens
    for selection so the navigation only needs one backdrop filter. */
 html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday-glass="optical"])
-.ipad-edition[data-ipad-home="true"] .ipad-nav__topbar-inner {
+.ipad-edition .ipad-nav__topbar-inner {
   background:
     linear-gradient(165deg, rgb(255 255 255 / .19), transparent 53%),
-    rgb(15 22 30 / .34);
+    var(--friday-capsule-tint, rgb(15 22 30 / .42)) !important;
   border-color: rgb(255 255 255 / .32);
   box-shadow: inset 0 1px 1px rgb(255 255 255 / .42),
-    inset 0 -1px 1px rgb(255 255 255 / .12), 0 8px 24px rgb(0 0 0 / .2);
-  -webkit-backdrop-filter: blur(12px) saturate(155%);
-  backdrop-filter: blur(12px) saturate(155%);
+    inset 0 -1px 1px rgb(255 255 255 / .12), 0 8px 24px rgb(0 0 0 / .2) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(155%) !important;
+  backdrop-filter: blur(12px) saturate(155%) !important;
 }
 
 html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday-glass="optical"])
-.ipad-edition[data-ipad-home="true"] .ipad-nav__topbar-inner > .friday-glass-selection {
+.ipad-edition .ipad-nav__topbar-inner > .friday-glass-selection {
   border-radius: 999px;
   background: linear-gradient(155deg, rgb(255 255 255 / .37),
     rgb(255 255 255 / .12) 51%, rgb(153 202 219 / .22));
@@ -2759,17 +2759,38 @@ html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday
 }
 
 html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday-glass="optical"])
-.ipad-edition[data-ipad-home="true"] .ipad-nav__topbar-inner:has(> .friday-glass-selection:not([hidden]))
+.ipad-edition .ipad-nav__topbar-inner:has(> .friday-glass-selection:not([hidden]))
 > .ipad-nav__capsule-action.is-active {
-  background: transparent;
+  background: transparent !important;
 }
 
 html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday-glass="optical"])
-.ipad-edition[data-ipad-home="true"] .ipad-nav__capsule-action {
-  text-shadow: 0 1px 3px rgb(0 0 0 / .8);
+.ipad-edition .ipad-nav__capsule-action {
+  text-shadow: var(--friday-capsule-text-shadow, 0 1px 3px rgb(0 0 0 / .8));
 }
 
 html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday-glass="optical"])
-.ipad-edition[data-ipad-home="true"] .ipad-nav__capsule-action .ipad-nav__icon {
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / .7));
+.ipad-edition .ipad-nav__capsule-action .ipad-nav__icon {
+  filter: var(--friday-capsule-icon-shadow, drop-shadow(0 1px 2px rgb(0 0 0 / .7)));
+}
+
+.ipad-edition[data-environment="light"] {
+  --friday-capsule-tint: rgb(247 251 255 / .57);
+  --friday-capsule-text-shadow: none;
+  --friday-capsule-icon-shadow: none;
+  --friday-sidebar-tint: rgb(246 250 255 / .76);
+}
+
+html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday-glass="optical"])
+.ipad-edition .ipad-nav__sidebar.liquid-glass {
+  background: linear-gradient(150deg, rgb(255 255 255 / .13), transparent 45%),
+    var(--friday-sidebar-tint, rgb(17 23 33 / .69)) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(145%) !important;
+  backdrop-filter: blur(16px) saturate(145%) !important;
+  box-shadow: inset 1px 1px 0 rgb(255 255 255 / .33), 12px 0 34px rgb(0 0 0 / .16) !important;
+}
+
+html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday-glass="optical"])
+.ipad-edition .ipad-nav__scrim {
+  background: rgb(0 0 0 / .30) !important;
 }
