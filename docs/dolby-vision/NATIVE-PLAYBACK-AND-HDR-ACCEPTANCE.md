@@ -89,3 +89,34 @@ rendering on hardware, hardware bitstream passthrough, real HDR display output.
 When hardware, licensing, instrumentation, or full-film source is missing, the
 corresponding status is **BLOCKED/NOT VERIFIED**. Continue with other work on
 PR #99, keep it Draft, do not merge to main, and do not deploy production.
+
+## Instrumented Safari playback timeline (PR #99 development)
+
+The Dolby Vision diagnostics panel now subscribes to the **same mounted**
+`HTMLVideoElement` as ArtPlayer. It reports actual, locally observed
+`timeupdate` progression (at least one second with non-zero video dimensions),
+the observed video dimensions, and native `MediaError.code`. It discards
+observations on `loadstart`, `emptied`, seeking, media-element replacement,
+and native errors. An unreported or stalled media timeline remains unverified.
+
+This is an **instrumentation capability**, not a completed Safari acceptance
+test. In particular, the HTML media API reports neither verified decoded
+Dolby Vision RPU nor final display HDR mode or actual hardware bitstream
+passthrough. Even observed advancing video frames must not upgrade those
+statuses without a physical-device reference measurement. Unit tests cover
+the conservative observation state machine, not real-source acceptance.
+
+The live test operator should capture the panel's progress and dimensions
+*alongside* the asset SHA-256, verified RPU evidence and the actual device
+and output-path observations. Keep full HEVC and AV1 acceptance gates
+**NOT VERIFIED** until independent licensed media and Safari devices are
+available.
+
+Official Apple HLS authoring guidance (recheck per OS and codec):
+- https://developer.apple.com/streaming/hls-authoring-specification-for-apple-devices.html
+- https://developer.apple.com/av-foundation/Incorporating-HDR-video-with-Dolby-Vision-into-your-apps.pdf
+
+Apple's HLS guidance describes explicit Dolby Vision profiles, HLS rendition
+declarations and compatible HDR fallbacks. Native AVFoundation can manage
+advanced Dolby Vision metadata on supported Apple devices; browser JavaScript
+cannot claim to control those OS stages or observe the final HDR pixels.
