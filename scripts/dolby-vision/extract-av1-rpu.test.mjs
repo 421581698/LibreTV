@@ -97,7 +97,7 @@ test('extracts Dolby RPU metadata from a temporally aligned raw AV1 OBU stream',
   ]);
   const result = extractDolbyRpuFromObuStream(stream);
   assert.deepEqual(result.rpuBytes, Buffer.concat([
-    Buffer.from([0, 0, 0, 1, 0x7c, 0x01, 0x19]),
+    Buffer.from([0, 0, 0, 1, 0x19]),
     rpu,
   ]));
   assert.deepEqual(result.report, {
@@ -161,8 +161,8 @@ const fs=require("node:fs"); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, p
     });
     const output = await readFile(outputPath);
     assert.deepEqual(output, Buffer.concat([
-      Buffer.from([0, 0, 0, 1, 0x7c, 0x01, 0x19]),
-      Buffer.alloc(22, 0x55).subarray(0, 21),
+      Buffer.from([0, 0, 0, 1, 0x19]),
+      Buffer.alloc(21, 0x55),
       Buffer.from([0x80]),
     ]));
   }
