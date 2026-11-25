@@ -263,8 +263,12 @@ async function analyzeUpload(request, response, env) {
       windowsHide: true,
     });
     const report = JSON.parse(stdout);
+    const validFullScanScope = typeof report.extractionScope === 'object'
+      ? report.extractionScope?.frameLimit === null
+      : analyzedCodec === 'av1' && report.inputKind === 'rpu' &&
+        report.extractionScope === 'pre-extracted-rpu-file';
     if ((sourceContentType === 'video/hevc' && report.inputSha256 !== actualSha256) ||
-        !['hevc', 'rpu', 'av1'].includes(report.inputKind) || report.extractionScope?.frameLimit !== null ||
+        !['hevc', 'rpu', 'av1'].includes(report.inputKind) || !validFullScanScope ||
         !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
         !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '')) {
       sendJson(response, 422, { error: 'PARSER_REPORT_REJECTED' });
