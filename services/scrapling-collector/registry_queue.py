@@ -191,10 +191,44 @@ def register_dolby_vision_media_asset(resource_id: str, sha256: str, byte_length
     now = int(time.time())
     with connect() as c:
         c.execute("BEGIN IMMEDIATE")
-        resource = c.execute("SELECT id FROM registry_resources WHERE id=?", (resource_id,)).fetchone()
+        resource = c.execute(
+            """SELECT id,resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
         if not resource:
             c.rollback()
             raise KeyError(resource_id)
+
+        # Enforce eligibility at the shared registration boundary, not only in
+        # individual uploaders. This also protects metadata-only registration
+        # calls and idempotent re-registration after a resource is blocked.
+        hls_content_types = {
+            "application/vnd.apple.mpegurl", "video/mp2t", "video/iso.segment",
+            "audio/aac", "audio/mp4", "audio/mpeg", "text/vtt",
+        }
+        expected_standalone_type = {
+            "mp4": "video/mp4",
+            "webm": "video/webm",
+        }.get(resource["media_format"])
+        valid_format = (
+            content_type == expected_standalone_type
+            if expected_standalone_type
+            else resource["media_format"] == "hls" and content_type in hls_content_types
+        )
+        if (
+            resource["resource_type"] != "DIRECT_MEDIA"
+            or resource["access_state"] != "PUBLIC"
+            or resource["validation_state"] != "validated"
+            or resource["playback_state"] != "PLAYER_CONFIRMED"
+            or not valid_format
+        ):
+            c.rollback()
+            raise ValueError(
+                "Media asset registration requires a validated PUBLIC player-confirmed "
+                "DIRECT_MEDIA resource with a matching media format."
+            )
+
         existing = c.execute("SELECT * FROM registry_media_assets WHERE resource_id=? AND sha256=?", (resource_id, digest)).fetchone()
         if existing:
             if existing["byte_length"] != byte_length or existing["content_type"] != content_type:
