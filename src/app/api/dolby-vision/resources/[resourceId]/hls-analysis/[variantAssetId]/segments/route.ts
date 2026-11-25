@@ -181,19 +181,28 @@ export async function POST(
           { status: 409, headers: { 'Cache-Control': 'no-store' } },
         );
       }
+      // Re-narrow values after the dynamic diagnostic list for TypeScript.
+      if (currentGraph.fragmentCount === null || fragmentSequenceNumber === null ||
+          decodeTime === null || sampleDuration === null || sampleCount === null ||
+          timescale === null || !fragment.body) {
+        await fragment.body?.cancel();
+        return NextResponse.json({ code: 'DV_HLS_SEGMENT_BINDING_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
+      }
+      const fragmentCount = currentGraph.fragmentCount;
+      const fragmentBody = fragment.body;
       if (graph === null) {
         graph = {
           graphId: currentGraph.graphId,
           graphSha256: currentGraph.graphSha256,
           rootAssetId: currentGraph.rootAssetId,
           variantAssetId: currentGraph.variantAssetId,
-          fragmentCount: currentGraph.fragmentCount,
+          fragmentCount,
         };
       } else if (JSON.stringify(graph) !== JSON.stringify(currentGraph)) {
-        await fragment.body.cancel();
+        await fragmentBody.cancel();
         return NextResponse.json({ code: 'DV_HLS_SEGMENT_GRAPH_CHANGED' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
       }
-      if (currentGraph.fragmentCount !== ordinal + 1 && currentGraph.fragmentCount <= ordinal) {
+      if (fragmentCount !== ordinal + 1 && fragmentCount <= ordinal) {
         await fragment.body.cancel();
         return NextResponse.json({ code: 'DV_HLS_SEGMENT_COUNT_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
       }
@@ -225,7 +234,7 @@ export async function POST(
           'X-DV-HLS-Graph-SHA256': currentGraph.graphSha256,
           'X-DV-HLS-Root-Asset-ID': currentGraph.rootAssetId,
           'X-DV-HLS-Variant-Asset-ID': variantAssetId,
-          'X-DV-HLS-Fragment-Count': String(currentGraph.fragmentCount),
+          'X-DV-HLS-Fragment-Count': String(fragmentCount),
           'X-DV-HLS-Fragment-Sequence-Continuity': 'sequential',
           'X-DV-HLS-Temporal-Continuity': 'contiguous',
           'X-DV-HLS-Fragment-Ordinal': String(fragmentOrdinal),
@@ -240,7 +249,7 @@ export async function POST(
           'X-DV-HLS-Sample-Count': String(sampleCount),
           'X-DV-HLS-Timescale': String(timescale),
         },
-        body: fragment.body,
+        body: fragmentBody,
         duplex: 'half',
         cache: 'no-store',
         redirect: 'manual',
