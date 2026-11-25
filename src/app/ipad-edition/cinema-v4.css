@@ -319,6 +319,25 @@
   color: #fff; background: rgba(18,18,18,.78);
   border: 1px solid rgba(255,255,255,.2); border-radius: 10px;
 }
+/* In a portrait or Split View window, keep the touch-lock recovery control
+   reachable and prevent it from covering the navigation title. */
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-unlock {
+  max-width: min(240px, calc(100% - 40px));
+  justify-content: center;
+}
+@media (max-width: 650px) {
+  .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-unlock {
+    top: auto;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: max(80px, calc(env(safe-area-inset-bottom, 0px) + 64px));
+  }
+}
+@media (max-height: 460px) {
+  .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-unlock {
+    top: max(8px, env(safe-area-inset-top, 0px));
+    bottom: auto;
+  }
+}
 /* Small, dismissible sheets. Only these use subdued Friday glass. */
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-panel-heading,
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-audio-panel,
