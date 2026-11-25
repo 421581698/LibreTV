@@ -32,7 +32,7 @@ const context = {
   variantAssetId,
   fragmentCount: 2,
   fragmentSequenceContinuity: 'sequential' as const,
-  temporalContinuity: 'unknown' as const,
+  temporalContinuity: 'contiguous' as const,
 };
 const report = {
   source: 'dovi_tool',
@@ -81,7 +81,7 @@ function makeAssemblyResponse(overrides: Record<string, string> = {}) {
       'X-DV-HLS-Assembled-SHA256': digest,
       'X-DV-HLS-Fragment-Count': '2',
       'X-DV-HLS-Fragment-Sequence-Continuity': 'sequential',
-      'X-DV-HLS-Temporal-Continuity': 'unknown',
+      'X-DV-HLS-Temporal-Continuity': 'contiguous',
       'X-DV-RPU-Presence': 'unknown',
     },
   });
@@ -124,7 +124,7 @@ describe('POST /api/dolby-vision/resources/[resourceId]/hls-analysis/[variantAss
       variantAssetId,
       assembledSha256: digest,
       graph: context,
-      temporalContinuity: 'unknown',
+      temporalContinuity: 'contiguous',
       crossSegmentRpuContinuity: 'not-verified',
       evidence: { source: 'dovi_tool', rpuPresent: true, profile: 8 },
     });
