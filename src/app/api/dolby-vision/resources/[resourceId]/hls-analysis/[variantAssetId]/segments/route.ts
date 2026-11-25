@@ -337,6 +337,9 @@ export async function POST(
       rpuProfileContinuity: verified.rpuProfileContinuity,
       rpuFrameAlignment: verified.rpuFrameAlignment,
       rpuSemanticContinuity: verified.rpuSemanticContinuity,
+      semanticEvidenceLimitation: verified.semanticEvidenceLimitation,
+      verifiedDecodeEnd: verified.verifiedDecodeEnd,
+      verifiedTimescale: verified.verifiedTimescale,
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ code: 'DV_HLS_SEGMENT_ANALYSIS_UNAVAILABLE' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
