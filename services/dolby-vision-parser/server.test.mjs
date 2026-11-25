@@ -84,7 +84,7 @@ describe('Dolby Vision parser service security primitives', () => {
       variantAssetId: 'variant:playlist',
       fragmentCount: 24,
       fragmentSequenceContinuity: 'sequential',
-      temporalContinuity: 'unknown',
+      temporalContinuity: 'contiguous',
     };
     const envelope = createSignedEnvelope(
       report, 'hls:resource_hls_123:variant:playlist', 'dv-key-1',
@@ -250,7 +250,7 @@ process.exit(2);
         'X-DV-HLS-Variant-Asset-ID': 'variant:playlist',
         'X-DV-HLS-Fragment-Count': '3',
         'X-DV-HLS-Fragment-Sequence-Continuity': 'sequential',
-        'X-DV-HLS-Temporal-Continuity': 'unknown',
+        'X-DV-HLS-Temporal-Continuity': 'contiguous',
       };
       let hlsResponse;
       for (let attempt = 0; attempt < 20; attempt += 1) {
