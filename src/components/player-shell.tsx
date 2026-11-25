@@ -1091,6 +1091,7 @@ export function PlayerShell({
     const jocTapEnabled = jocParams.get('jocTap') === '1' || jocDecodeEnabled;
     if (jocTapEnabled) {
       let jocExtractor: JocCmafPacketExtractor | null = null;
+      let jocTrackId: number | null = null;
       let decoderClient: JocSoftwareDecoderClient | null = null;
       let decoderInit: Promise<JocSoftwareDecoderClient> | null = null;
       let decodeQueue: Promise<void> = Promise.resolve();
@@ -1117,6 +1118,16 @@ export function PlayerShell({
         return decoderInit;
       };
 
+      const queueDecoderReset = (reason: string) => {
+        decodeGeneration += 1;
+        decoderClient?.fallbackToMediaAudio();
+        decodeQueue = decodeQueue.then(async () => {
+          if (decoderClient) await decoderClient.reset();
+        }).catch(error => emitJocEvent('software-decoder-error', {
+          reason: error instanceof Error ? error.message : `Decoder reset failed: ${reason}.`,
+        }));
+      };
+
       const onOutputGesture = () => {
         if (!jocOutputEnabled || !decoderClient || decoderClient.isOutputActive || decoderClient.isActivationPending || !video || video.paused || video.ended) return;
         decoderClient.setMediaClock(video.currentTime * 48000);
@@ -1132,18 +1143,13 @@ export function PlayerShell({
       const onVideoVolumeChange = () => decoderClient?.updateOutputVolume(video.volume);
       const onVideoPlay = () => decoderClient?.resumeOutput();
       const onVideoSeeking = () => {
-        decoderClient?.fallbackToMediaAudio();
-        decodeGeneration += 1;
         jocExtractor?.resetTimeline();
-        decodeQueue = decodeQueue.then(async () => {
-          if (decoderClient) await decoderClient.reset();
-        }).catch(error => emitJocEvent('software-decoder-error', {
-          reason: error instanceof Error ? error.message : 'Decoder seek reset failed.',
-        }));
+        queueDecoderReset('seek');
       };
       const onVideoRateChange = () => {
         if (video.playbackRate !== 1) {
-          decoderClient?.fallbackToMediaAudio();
+          decodeFailed = true;
+          queueDecoderReset('unsupported-playback-rate');
           emitJocEvent('software-output-disabled', { reason: 'Software JOC output currently requires 1x playback speed.' });
         }
       };
@@ -1170,12 +1176,21 @@ export function PlayerShell({
                 track.handlerType === 'soun' && track.sampleEntries.includes('ec-3')
               );
               if (!audioTrack) {
+                if (jocExtractor || jocTrackId !== null) queueDecoderReset('E-AC-3 track removed');
                 jocExtractor = null;
+                jocTrackId = null;
                 return;
               }
-              const extractor = new JocCmafPacketExtractor(audioTrack.trackId);
-              extractor.updateInitSegment(fragment.bytes);
-              jocExtractor = extractor;
+              if (jocExtractor && jocTrackId === audioTrack.trackId) {
+                const updated = jocExtractor.updateInitSegment(fragment.bytes);
+                if (updated.changed) queueDecoderReset('CMAF initialization segment changed');
+              } else {
+                if (jocExtractor || jocTrackId !== null) queueDecoderReset('E-AC-3 track identity changed');
+                const extractor = new JocCmafPacketExtractor(audioTrack.trackId);
+                extractor.updateInitSegment(fragment.bytes);
+                jocExtractor = extractor;
+                jocTrackId = audioTrack.trackId;
+              }
               emitJocEvent('eac3-init', { trackId: audioTrack.trackId, timescale: audioTrack.timescale });
               return;
             }
@@ -1260,6 +1275,7 @@ export function PlayerShell({
         decoderClient?.dispose();
         decoderClient = null;
         jocExtractor = null;
+        jocTrackId = null;
       };
       hls.on(Hls.Events.DESTROYING, disposeJocTap);
     }
