@@ -245,3 +245,60 @@ html[data-friday-motion="reduced"] [data-friday-material]::before {
   }
   html [data-friday-material]::before { animation: none !important; }
 }
+
+
+/* Global desktop and player chrome shares the same V1.2 material variables.
+   No geometry, image, poster or video styles are changed. */
+html {
+  --friday-global-alpha: .28;
+  --friday-global-blur: 14px;
+  --friday-global-fill: 236 245 255;
+  --friday-global-text: 19 30 43;
+}
+html[data-friday-theme="dark"] {
+  --friday-global-fill: 17 27 40;
+  --friday-global-text: 248 251 255;
+}
+html[data-friday-material-setting="clear"] { --friday-global-alpha: .095; --friday-global-blur: 3px; }
+html[data-friday-material-setting="frosted"] { --friday-global-alpha: .59; --friday-global-blur: 28px; }
+html[data-friday-material-setting="cinema"] {
+  --friday-global-alpha: .73;
+  --friday-global-blur: 8px;
+  --friday-global-fill: 8 12 21;
+  --friday-global-text: 255 255 255;
+}
+html[data-friday-material-setting="ambient"] { --friday-global-alpha: .2; --friday-global-blur: 11px; }
+html[data-friday-material-setting="solid"] { --friday-global-alpha: 1; --friday-global-blur: 0px; }
+html:is([data-friday-glass="optical"], [data-friday-glass="native"], [data-friday-glass="webkit"])
+:is(.glass-panel, .glass-popover, .glass-dialog, .glass-toolbar, .glass-button) {
+  background-color: rgb(var(--friday-global-fill) / var(--friday-global-alpha));
+  -webkit-backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(155%);
+  backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(155%);
+}
+html:is([data-friday-glass="optical"], [data-friday-glass="native"], [data-friday-glass="webkit"])
+.artplayer :is(.art-bottom, .art-settings, .art-contextmenus, .art-info, .art-notice),
+html:is([data-friday-glass="optical"], [data-friday-glass="native"], [data-friday-glass="webkit"])
+:is(.art-setting-panel, .art-notice) {
+  background-color: rgb(var(--friday-global-fill) / max(.66, var(--friday-global-alpha))) !important;
+  -webkit-backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(145%) !important;
+  backdrop-filter: blur(calc(var(--friday-global-blur) * var(--friday-intensity, .65))) saturate(145%) !important;
+}
+html[data-friday-glass="safe"] :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button),
+html[data-friday-material-setting="solid"] :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button) {
+  background: rgb(var(--friday-global-fill)) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[data-friday-playback="protected"] .artplayer :is(.art-bottom,.art-settings,.art-contextmenus,.art-info,.art-notice),
+html[data-friday-playback="protected"] :is(.art-setting-panel,.art-notice) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active), (prefers-contrast: more) {
+  html :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button),
+  html .artplayer :is(.art-bottom,.art-settings,.art-contextmenus,.art-info,.art-notice) {
+    background-color: rgb(var(--friday-global-fill)) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
