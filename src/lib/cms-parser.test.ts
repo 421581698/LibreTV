@@ -116,6 +116,11 @@ describe('extractM3u8FromText', () => {
     const text = '正片$https://cdn.com/x/index.m3u8 更多';
     expect(extractM3u8FromText(text)).toEqual(['https://cdn.com/x/index.m3u8']);
   });
+  it('rejects fallback playback URLs containing embedded credentials', () => {
+    const text = '凭据地址$https://user:pass@media.example/unsafe.m3u8 正常地址$https://media.example/safe.m3u8';
+    expect(extractM3u8FromText(text)).toEqual(['https://media.example/safe.m3u8']);
+  });
+
 });
 
 describe('parseDetail', () => {
