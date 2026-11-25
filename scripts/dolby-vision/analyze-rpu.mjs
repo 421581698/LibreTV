@@ -25,8 +25,8 @@ async function sha256File(filePath) {
 
 export function normalizeRpuInput(value) {
   const input = Buffer.from(value);
-  if (input[0] === 0x19) return Buffer.concat([startCode, input]);
   const startCode = Buffer.from([0x00, 0x00, 0x00, 0x01]);
+  if (input[0] === 0x19) return Buffer.concat([startCode, input]);
   const units = [];
   let offset = 0;
   while (offset < input.length) {
