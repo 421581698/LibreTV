@@ -182,7 +182,6 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const trailer = trailers.find((item) => item.site === 'YouTube' && item.type === 'Trailer' && item.official && /^[A-Za-z0-9_-]{11}$/.test(item.key || ''))
     || trailers.find((item) => item.site === 'YouTube' && item.type === 'Trailer' && /^[A-Za-z0-9_-]{11}$/.test(item.key || ''));
   const trailerUrl = trailer?.key ? `https://www.youtube.com/watch?v=${trailer.key}` : '';
-  const leadingCast = cast.slice(0, 3).map((member) => member.name).filter(Boolean).join('、');
 
 
   if (loading) return <main className="ipad-detail-state">正在加载电影资料…</main>;
@@ -199,10 +198,6 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       customImageProxy={customImageProxy}
       originalTitle={movie.original_title || movie.original_name || undefined}
       titleLogoUrl={logo ? imageUrl(logo, 'w500') : undefined}
-      credits={(leadingCast || director) ? <>
-        {leadingCast ? <p><span>主演</span>{leadingCast}</p> : null}
-        {director ? <p><span>导演</span>{director}</p> : null}
-      </> : undefined}
       metadata={
         <>
           {movie.genres?.slice(0, 3).map((genre) => <span key={genre.id}>{genre.name}</span>)}
