@@ -148,26 +148,38 @@ export async function POST(
       const assetIdHeader = fragment.headers.get('x-dv-asset-id') ?? '';
       const assetShaHeader = (fragment.headers.get('x-dv-asset-sha256') ?? '').toLowerCase();
 
-      if (!/^[A-Za-z0-9:_-]{1,200}$/.test(currentGraph.graphId) ||
-          !/^[a-f0-9]{64}$/.test(currentGraph.graphSha256) ||
-          !/^[A-Za-z0-9:_-]{1,200}$/.test(currentGraph.rootAssetId) ||
-          currentGraph.variantAssetId !== variantAssetId ||
-          currentGraph.fragmentCount === null || currentGraph.fragmentCount > 10_000 ||
-          fragmentOrdinal !== ordinal || !/^[A-Za-z0-9:_-]{1,200}$/.test(fragmentAssetId) ||
-          !/^[a-f0-9]{64}$/.test(fragmentSha256) ||
-          !/^[A-Za-z0-9:_-]{1,200}$/.test(initializationAssetId) ||
-          !/^[a-f0-9]{64}$/.test(initializationSha256) ||
-          !/^[a-f0-9]{64}$/.test(assembledSegmentSha256) ||
-          fragmentSequenceNumber === null || decodeTime === null || sampleDuration === null ||
-          sampleCount === null || timescale === null ||
-          assetIdHeader !== fragmentAssetId || assetShaHeader !== assembledSegmentSha256 ||
-          fragment.headers.get('x-dv-analysis-scope') !== 'hls-fmp4-segment' ||
-          fragment.headers.get('x-dv-hls-fragment-sequence-continuity') !== 'sequential' ||
-          fragment.headers.get('x-dv-hls-temporal-continuity') !== 'contiguous' ||
-          contentType !== 'video/mp4' ||
-          (contentLength !== null && contentLength > 512 * 1024 * 1024) || !fragment.body) {
+      const bindingFailures = [
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(currentGraph.graphId) ? 'graph-id' : null,
+        !/^[a-f0-9]{64}$/.test(currentGraph.graphSha256) ? 'graph-sha256' : null,
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(currentGraph.rootAssetId) ? 'root-asset-id' : null,
+        currentGraph.variantAssetId !== variantAssetId ? 'variant-asset-id' : null,
+        currentGraph.fragmentCount === null || currentGraph.fragmentCount > 10_000 ? 'fragment-count' : null,
+        fragmentOrdinal !== ordinal ? 'fragment-ordinal' : null,
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(fragmentAssetId) ? 'fragment-asset-id' : null,
+        !/^[a-f0-9]{64}$/.test(fragmentSha256) ? 'fragment-sha256' : null,
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(initializationAssetId) ? 'initialization-asset-id' : null,
+        !/^[a-f0-9]{64}$/.test(initializationSha256) ? 'initialization-sha256' : null,
+        !/^[a-f0-9]{64}$/.test(assembledSegmentSha256) ? 'assembled-segment-sha256' : null,
+        fragmentSequenceNumber === null ? 'fragment-sequence-number' : null,
+        decodeTime === null ? 'decode-time' : null,
+        sampleDuration === null ? 'sample-duration' : null,
+        sampleCount === null ? 'sample-count' : null,
+        timescale === null ? 'timescale' : null,
+        assetIdHeader !== fragmentAssetId ? 'asset-id-header' : null,
+        assetShaHeader !== assembledSegmentSha256 ? 'asset-sha256-header' : null,
+        fragment.headers.get('x-dv-analysis-scope') !== 'hls-fmp4-segment' ? 'analysis-scope' : null,
+        fragment.headers.get('x-dv-hls-fragment-sequence-continuity') !== 'sequential' ? 'sequence-continuity' : null,
+        fragment.headers.get('x-dv-hls-temporal-continuity') !== 'contiguous' ? 'temporal-continuity' : null,
+        contentType !== 'video/mp4' ? 'content-type' : null,
+        contentLength !== null && contentLength > 512 * 1024 * 1024 ? 'content-length' : null,
+        !fragment.body ? 'body' : null,
+      ].filter((value): value is string => value !== null);
+      if (bindingFailures.length > 0) {
         await fragment.body?.cancel();
-        return NextResponse.json({ code: 'DV_HLS_SEGMENT_BINDING_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
+        return NextResponse.json(
+          { code: 'DV_HLS_SEGMENT_BINDING_INVALID', invalidFields: bindingFailures },
+          { status: 409, headers: { 'Cache-Control': 'no-store' } },
+        );
       }
       if (graph === null) {
         graph = {
