@@ -133,8 +133,10 @@ class RegistryQueueTests(unittest.TestCase):
         resource = queue.upsert_resource({
             "resource_key": "resource:dv", "source_key": "provider",
             "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/a.mp4",
-            "title": "DV candidate", "access_state": "PUBLIC",
+            "title": "DV candidate", "access_state": "PUBLIC", "media_format": "mp4",
         })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
         digest = "a" * 64
         first = queue.register_dolby_vision_media_asset(
             resource["id"], digest, 123456, "video/mp4"
@@ -152,8 +154,10 @@ class RegistryQueueTests(unittest.TestCase):
         other_resource = queue.upsert_resource({
             "resource_key": "resource:dv-copy", "source_key": "provider",
             "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/copy.mp4",
-            "title": "Same bytes", "access_state": "PUBLIC",
+            "title": "Same bytes", "access_state": "PUBLIC", "media_format": "mp4",
         })
+        queue.record_verification(other_resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(other_resource["id"], "player", "passed", {"progressed_seconds": 3})
         shared = queue.register_dolby_vision_media_asset(
             other_resource["id"], digest, 123456, "video/mp4"
         )
@@ -175,8 +179,10 @@ class RegistryQueueTests(unittest.TestCase):
         resource = queue.upsert_resource({
             "resource_key": "resource:range", "source_key": "provider",
             "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/range.mp4",
-            "title": "Range fixture", "access_state": "PUBLIC",
+            "title": "Range fixture", "access_state": "PUBLIC", "media_format": "mp4",
         })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
         body = b"0123456789"
         digest = __import__("hashlib").sha256(body).hexdigest()
         asset = queue.register_dolby_vision_media_asset(
@@ -236,8 +242,10 @@ class RegistryQueueTests(unittest.TestCase):
         resource = queue.upsert_resource({
             "resource_key": "resource:dv-api", "source_key": "provider",
             "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/dv.mp4",
-            "title": "DV API", "access_state": "PUBLIC",
+            "title": "DV API", "access_state": "PUBLIC", "media_format": "mp4",
         })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
         payload = queue.DolbyVisionMediaAssetRegistration(
             sha256="c" * 64, byte_length=456789, content_type="video/mp4"
         )
