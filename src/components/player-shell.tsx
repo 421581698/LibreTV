@@ -19,7 +19,7 @@ import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native
 import { sanitizePlaybackSnapshot } from '@/lib/native-player/snapshot-sanitizer';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 import { parseFmp4InitSegment } from '@/lib/native-player/fmp4-fragment-parser';
-import { JocCmafPacketExtractor } from '@/lib/native-player/joc-cmaf-packets';
+import { JocCmafPacketExtractor, mapJocPresentationTimeToMediaSamples } from '@/lib/native-player/joc-cmaf-packets';
 import { HlsJocFragmentTap } from '@/lib/native-player/hls-joc-fragment-tap';
 import { JocSoftwareDecoderClient } from '@/lib/native-player/joc-software-decoder-client';
 
@@ -1196,7 +1196,6 @@ export function PlayerShell({
             // Map CMAF track PTS onto hls.js media time using the fragment start
             // as an anchor. Do not compare raw track ticks with video.currentTime.
             const firstPts = result.packets[0].presentationTime;
-            const anchorOffset = fragment.start * 48000 - firstPts * 48000 / result.timescale;
             const packetGeneration = decodeGeneration;
             decodeQueue = decodeQueue.then(async () => {
               if (decodeFailed || hlsRef.current !== hls || packetGeneration !== decodeGeneration) return;
@@ -1204,7 +1203,12 @@ export function PlayerShell({
               for (let index = 0; index < result.packets.length; index += 1) {
                 if (packetGeneration !== decodeGeneration) return;
                 const packet = result.packets[index];
-                const mappedPts = Math.round(packet.presentationTime * 48000 / packet.timescale + anchorOffset);
+                const mappedPts = mapJocPresentationTimeToMediaSamples(
+                  packet.presentationTime,
+                  packet.timescale,
+                  fragment.start!,
+                  firstPts,
+                );
                 const accepted = await client.pushPacket({
                   bytes: packet.bytes,
                   presentationTime: mappedPts,
