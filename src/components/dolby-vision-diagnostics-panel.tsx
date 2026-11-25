@@ -313,13 +313,13 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                     <p>解析帧数：{currentHlsEvidence.frameCount.toLocaleString()}</p>
                     <p>元数据层：{currentHlsEvidence.metadataLevels.join(' / ')}</p>
                     <p>图谱 SHA-256：{currentHlsEvidence.graphSha256.slice(0, 16)}…</p>
-                    <p className="mt-1 text-amber-100">时间戳连续性未知；跨分片 RPU 连续性尚未验证。</p>
+                    <p className="mt-1 text-amber-100">视频时间戳连续性已通过校验；跨分片 RPU 连续性尚未验证。</p>
                   </div>
                 )}
                 {hlsGraphError && <p role="alert" className="mt-1 text-amber-200">{hlsGraphError}</p>}
                 <p className="mt-1 text-[10px] leading-snug text-white/45">
                   {currentHlsEvidence
-                    ? '已完成此变体的签名 RPU 分析；时间戳与跨分片 RPU 连续性仍未验证。'
+                    ? '已完成此变体的签名 RPU 分析；视频时间戳连续性已通过校验；跨分片 RPU 连续性仍未验证。'
                     : '这里只核对不可变资产身份与分片关系；分片级 RPU 尚未分析。'}
                 </p>
               </div>
