@@ -232,6 +232,9 @@ describe('signed Dolby Vision RPU envelope', () => {
       rpuProfileContinuity: 'consistent',
       rpuFrameAlignment: 'one-rpu-per-video-sample',
       rpuSemanticContinuity: 'not-established',
+      semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed',
+      verifiedDecodeEnd: 19200,
+      verifiedTimescale: 1000,
     });
     expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
       ...trusted,
