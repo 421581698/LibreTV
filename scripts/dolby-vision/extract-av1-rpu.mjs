@@ -182,7 +182,7 @@ export function extractDolbyRpuFromObuStream(inputValue) {
 
 async function convertT35PayloadWithLibdovi(payload, directory, ordinal, options = {}) {
   const converter = options.converter || process.env.AV1_RPU_CONVERTER_BIN;
-  if (!converter) return regularRpuToHevcUnspec62Nalu(extractDolbyRpuFromT35(payload));
+  if (!converter) return extractDolbyRpuFromT35(payload);
   const inputPath = resolve(directory, `t35-${ordinal.toString().padStart(6, '0')}.bin`);
   const outputPath = resolve(directory, `rpu-${ordinal.toString().padStart(6, '0')}.bin`);
   await writeFile(inputPath, payload, { flag: 'wx', mode: 0o600 });
