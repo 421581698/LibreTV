@@ -148,7 +148,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
   async function analyzeHlsVariant(variantAssetId: string) {
     if (!sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity) ||
         !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId) ||
-        hlsAnalysisState === 'loading') return;
+        hlsAnalysisState === 'loading' || hlsSegmentAnalysisState === 'loading') return;
     hlsAnalysisRequestRef.current?.abort();
     const controller = new AbortController();
     hlsAnalysisRequestRef.current = controller;
@@ -204,7 +204,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
   async function analyzeHlsSegments(variantAssetId: string) {
     if (!sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity) ||
         !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId) ||
-        hlsSegmentAnalysisState === 'loading') return;
+        hlsSegmentAnalysisState === 'loading' || hlsAnalysisState === 'loading') return;
     hlsSegmentAnalysisRequestRef.current?.abort();
     const controller = new AbortController();
     hlsSegmentAnalysisRequestRef.current = controller;
@@ -368,7 +368,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                       <button
                         key={variantId}
                         type="button"
-                        disabled={hlsAnalysisState === 'loading'}
+                        disabled={hlsAnalysisState === 'loading' || hlsSegmentAnalysisState === 'loading'}
                         onClick={() => void analyzeHlsVariant(variantId)}
                         className="w-full rounded-md bg-white/10 px-2.5 py-2 text-left text-[10px] font-medium text-white/90 transition hover:bg-white/20 disabled:cursor-wait disabled:opacity-60"
                       >
@@ -379,7 +379,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                       <button
                         key={`${variantId}-segments`}
                         type="button"
-                        disabled={hlsSegmentAnalysisState === 'loading'}
+                        disabled={hlsSegmentAnalysisState === 'loading' || hlsAnalysisState === 'loading'}
                         onClick={() => void analyzeHlsSegments(variantId)}
                         className="w-full rounded-md border border-amber-300/25 bg-amber-300/10 px-2.5 py-2 text-left text-[10px] font-medium text-amber-100 transition hover:bg-amber-300/20 disabled:cursor-wait disabled:opacity-60"
                       >
