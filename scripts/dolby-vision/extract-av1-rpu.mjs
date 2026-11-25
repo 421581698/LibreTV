@@ -270,10 +270,10 @@ async function demuxAv1Container(inputPath, directory, options) {
   const obuPath = resolve(directory, 'video.obu');
   await execFileAsync(ffmpeg, [
     '-nostdin', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
-    '-c:v', 'copy', '-f', 'obu', obuPath,
+    '-c:v', 'copy', '-fs', String(512 * 1024 * 1024), '-f', 'obu', obuPath,
   ], { encoding: 'utf8', timeout: 15 * 60 * 1000, maxBuffer: 1024 * 1024, windowsHide: true });
   const outputStat = await stat(obuPath);
-  if (!outputStat.isFile() || outputStat.size <= 0 || outputStat.size > 512 * 1024 * 1024) {
+  if (!outputStat.isFile() || outputStat.size <= 0 || outputStat.size >= 512 * 1024 * 1024) {
     throw new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.');
   }
   const bytes = await readFile(obuPath);
