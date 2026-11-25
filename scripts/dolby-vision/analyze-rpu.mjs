@@ -46,7 +46,7 @@ export function normalizeRpuInput(value) {
       escaped.push(byte);
       zeroCount = byte === 0 ? zeroCount + 1 : 0;
     }
-    return Buffer.concat([startCode, Buffer.from([0x7c, 0x01]), Buffer.from(escaped)]);
+    return Buffer.concat([startCode, Buffer.from(escaped)]);
   };
 
   const validateUnspec62Nalu = (nalu) => {
@@ -102,7 +102,9 @@ export function normalizeRpuInput(value) {
     const nalu = input.subarray(payloadStart, next);
     if (nalu[0] === 0x19) validateRegular(nalu);
     else validateUnspec62Nalu(nalu);
-    units.push(input.subarray(offset, next));
+    units.push(nalu[0] === 0x19
+      ? input.subarray(offset, next)
+      : Buffer.concat([startCode, nalu.subarray(2)]));
     offset = next;
   }
   if (units.length === 0) throw new Error('RPU NAL stream contains no RPU units.');
