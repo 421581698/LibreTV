@@ -5,6 +5,7 @@ import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspecto
 import { emptyNativePlaybackObservation, observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { probeNativeDolbyVisionCapabilities, type DolbyVisionNativeCapabilityReport } from '@/lib/dolby-vision/native-playback-capability';
 import { canAnalyzeDolbyVisionRpuAsset } from '@/lib/dolby-vision/rpu-analysis-eligibility';
+import { parseVerifiedHlsSegmentEvidenceResponse } from '@/lib/dolby-vision/hls-segment-evidence-response';
 import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
 
 interface DolbyVisionDiagnosticsPanelProps {
@@ -77,6 +78,9 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
     rpuFrameAlignment: 'frame-count-matches-video-samples';
     metadataLevels: number[];
     graphSha256: string;
+    verifiedParserVersion: string;
+    verifiedMetadataLevelFrameCounts: Record<string, number>;
+    orderedRpuEvidenceSha256: string;
   } | null>(null);
   const hlsGraphRequestRef = useRef<AbortController | null>(null);
   const hlsAnalysisRequestRef = useRef<AbortController | null>(null);
@@ -254,37 +258,12 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
             ? 'HLS 分片图谱不完整或时间轴不连续'
             : '分片 RPU 分析或 Ed25519 签名验证失败');
       }
-      const data = payload as Record<string, unknown>;
-      const graph = data.graph && typeof data.graph === 'object' && !Array.isArray(data.graph)
-        ? data.graph as Record<string, unknown>
-        : null;
-      if (data.verified !== true || data.analysisScope !== 'hls-fmp4-segment-set' ||
-          data.resourceId !== sourceIdentity || data.variantAssetId !== variantAssetId ||
-          !Number.isSafeInteger(data.segmentCount) || !Number.isSafeInteger(data.totalRpuFrameCount) ||
-          data.timelineContinuity !== 'contiguous' ||
-          data.rpuProfileContinuity !== 'consistent' ||
-          data.rpuFrameAlignment !== 'frame-count-matches-video-samples' ||
-          data.rpuSemanticContinuity !== 'not-established' ||
-          typeof graph?.graphSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(graph.graphSha256) ||
-          !Array.isArray(data.segments) || data.segments.length !== data.segmentCount ||
-          !data.segments.every((segment) => Boolean(segment) && typeof segment === 'object' &&
-            !Array.isArray(segment) && Number.isSafeInteger((segment as Record<string, unknown>).frameCount) &&
-            Array.isArray((segment as Record<string, unknown>).metadataLevels) &&
-            ((segment as Record<string, unknown>).metadataLevels as unknown[]).every((level) => Number.isSafeInteger(level)))) {
+      const parsed = parseVerifiedHlsSegmentEvidenceResponse(payload, sourceIdentity, variantAssetId);
+      if (!parsed) {
         throw new Error('分片签名证据与当前 HLS 资产图不匹配');
       }
-      const segmentMetadataLevels = [...new Set(data.segments.flatMap((segment) =>
-        (segment as { metadataLevels: number[] }).metadataLevels))].sort((left, right) => left - right);
       if (!controller.signal.aborted) {
-        setHlsSegmentEvidence({
-          resourceId: sourceIdentity,
-          variantAssetId,
-          segmentCount: Number(data.segmentCount),
-          totalRpuFrameCount: Number(data.totalRpuFrameCount),
-          rpuFrameAlignment: 'frame-count-matches-video-samples',
-          metadataLevels: segmentMetadataLevels,
-          graphSha256: graph.graphSha256,
-        });
+        setHlsSegmentEvidence(parsed);
         setHlsSegmentAnalysisState('idle');
       }
     } catch (error) {
@@ -441,7 +420,10 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
                     <p>RPU 帧计数合计：{currentHlsSegmentEvidence.totalRpuFrameCount.toLocaleString()}</p>
                     <p>RPU 帧数：与视频样本数一致（逐帧对应未验证）</p>
                     <p>Dolby Vision Profile：跨分片一致</p>
+                    <p>解析器版本：dovi_tool {currentHlsSegmentEvidence.verifiedParserVersion}</p>
+                    <p>签名元数据层帧数：{Object.entries(currentHlsSegmentEvidence.verifiedMetadataLevelFrameCounts).map(([level, count]) => `L${level}=${count}`).join(' / ') || '未检出'}</p>
                     <p>图谱 SHA-256：{currentHlsSegmentEvidence.graphSha256.slice(0, 16)}…</p>
+                    <p title={currentHlsSegmentEvidence.orderedRpuEvidenceSha256}>有序 RPU 证据指纹：{currentHlsSegmentEvidence.orderedRpuEvidenceSha256.slice(0, 16)}…</p>
                     <p className="mt-1 text-white/65">视频时间轴连续，RPU 总帧数与视频样本总数相等；逐帧对应及跨片语义连续性尚未验证。</p>
                   </div>
                 )}
