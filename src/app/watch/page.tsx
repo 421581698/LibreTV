@@ -1,6 +1,7 @@
 'use client';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
+import { NativeCinemaFallback } from '@/components/native-cinema-fallback';
 import { PlaybackErrorBoundary } from '@/components/playback-error-boundary';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -238,6 +239,7 @@ function WatchContent() {
       controlsHideTimerRef.current = null;
     };
     const revealControls = (event?: Event) => {
+      if (shell.classList.contains('cinema-v4-locked')) return;
       // Capture the pre-interaction state before showControls removes the class.
       // Otherwise the following synthesized click cannot tell that this press
       // began while controls were hidden and may immediately dismiss them again.
@@ -411,6 +413,7 @@ function WatchContent() {
     // Do not keep restarting the hide deadline for incidental movement; once hidden,
     // the first real pointer movement restores the controls.
     const onPointerMove = () => {
+      if (shell.classList.contains('cinema-v4-locked')) return;
       if (shell.classList.contains('cinema-controls-hidden')) {
         revealControls();
       } else if (video && !video.paused && !video.ended) {
@@ -420,6 +423,7 @@ function WatchContent() {
       }
     };
     const onShellClick = (event: MouseEvent) => {
+      if (shell.classList.contains('cinema-v4-locked')) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
       // Buttons, tabs, links and form controls keep their normal click behavior.
@@ -986,7 +990,13 @@ function WatchContent() {
               className="netflix-player-frame aspect-video bg-black overflow-hidden"
             >
               {currentUrl ? (
-                <PlaybackErrorBoundary key={playerUrl} label="player">
+                <PlaybackErrorBoundary key={playerUrl} label="player" fallback={isIpadEditionPlayback ? (retry) => (
+                  <NativeCinemaFallback url={playerUrl} retry={retry}
+                    onApi={(api) => { playerApiRef.current = api; }}
+                    onClock={(position, duration) => setWatchClock({ position, duration })}
+                    onSwitch={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}
+                    panel={cinemaPanel} onClosePanel={() => setCinemaPanel(null)} />
+                ) : undefined}>
                 <PlayerShell
                   url={playerUrl}
                   title={videoTitle}
@@ -1184,7 +1194,7 @@ function WatchContent() {
                     const current = playerApiRef.current?.getPlaybackRate() ?? watchRate;
                     const next = rates[(rates.indexOf(current) + 1 + rates.length) % rates.length];
                     playerApiRef.current?.setPlaybackRate(next);
-                    setWatchRate(next);
+                    if (playerApiRef.current) setWatchRate(playerApiRef.current.getPlaybackRate());
                   }}
                 >{watchRate}×</button>
               </div>
@@ -1194,7 +1204,7 @@ function WatchContent() {
               <button type="button" className="cinema-v4-tool" aria-label={`播放速度 ${watchRate} 倍`} onClick={() => {
                 const next = nextCinemaPlaybackRate(playerApiRef.current?.getPlaybackRate() ?? watchRate);
                 playerApiRef.current?.setPlaybackRate(next);
-                setWatchRate(next);
+                if (playerApiRef.current) setWatchRate(playerApiRef.current.getPlaybackRate());
               }}><span aria-hidden="true" className="cinema-v4-tool-symbol">{watchRate}×</span><span>倍速</span></button>
               <button type="button" className="cinema-v4-tool" aria-pressed={cinemaLocked} onClick={() => { setCinemaPanel(null); setCinemaLocked((locked) => !locked); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>{cinemaLocked ? '解锁' : '锁定'}</span>

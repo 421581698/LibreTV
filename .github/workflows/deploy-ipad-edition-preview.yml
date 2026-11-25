@@ -1720,6 +1720,8 @@ jobs:
                 // Appending an unrelated <video> here would bypass ArtPlayer's native event
                 // listeners and make the timeline audit test a disconnected DOM node.
                 await page.locator(".netflix-player-frame video").waitFor({ state: "attached", timeout: 30000 });
+                if (await page.getByTestId("cinema-native-fallback").count()) throw new Error("Normal player unexpectedly entered native fallback.");
+                if (await page.getByText("播放器初始化失败，请重试或切换片源。", { exact: false }).count()) throw new Error("Player initialization failed.");
                 // Exercise the real React transport controls against the mounted media element.
                 // The media API is stubbed, but the button, event listeners and state rendering are real.
                 await page.evaluate(() => {

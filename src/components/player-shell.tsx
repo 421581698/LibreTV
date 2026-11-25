@@ -1741,14 +1741,14 @@ export function PlayerShell({
     // 触屏不监听 mousemove/mouseleave，也跳过初始显示：iOS 点按视频的合成事件
     // 序列是 mousemove → click，若 mousemove 先把 show 置 true，紧跟的 ArtPlayer
     // click toggle 会把它翻回 false——控制栏「闪一下即隐」，正是 issue #937 的病灶
-    if (!touchPointer) {
+    if (!cinemaMode && !touchPointer) {
       el?.addEventListener('mousemove', showControlsOnPointerMove);
       el?.addEventListener('mouseleave', hideControlsOnMouseLeave);
       showControlsOnPointerMove();
     }
 
     const onTouchStart = (e: TouchEvent) => {
-      if (art.video?.paused) return;
+      if (cinemaMode || art.video?.paused) return;
       // 已有触控在处理时忽略新手指：否则第二指会把 originalRate 捕获成 3.0，
       // 松手后倍速永久卡在 3x；旧定时器句柄也会被覆盖成无法清除的幽灵触发
       if (isLongPress || longPressTimer) return;
