@@ -1,5 +1,5 @@
 name: Deploy LibreTV iPad Edition Preview to EdgeOne
-# Explicit Preview deployment trigger is supplied by the commit message [edgeone-preview].
+# PR #99 pushes deploy only after all five exact-SHA PR checks succeed.
 # Re-run after repository deployment secret refresh; Preview only.
 
 on:
@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: edgeone-ipad-preview
@@ -22,14 +23,66 @@ concurrency:
 
 jobs:
   verify-and-deploy:
-    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && ((github.event_name == 'push' && contains(github.event.head_commit.message, '[edgeone-preview]')) || (github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes')) }}
+    if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes')) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 90
     steps:
       - name: Checkout PR #99 branch
         uses: actions/checkout@v4
         with:
-          ref: feature/libretv-ipad-edition-product
+          ref: ${{ github.sha }}
+
+      - name: Require all five successful PR checks for this exact commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_SHA: ${{ github.sha }}
+          GH_BRANCH: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          const required = [
+            "LibreTV iPad Edition Verify",
+            "Resource Playback Verification",
+            "HLS Browser Playback Smoke",
+            "HLS External Stream Smoke",
+            "Scrapling Collector",
+          ];
+          const url = new URL(`https://api.github.com/repos/${process.env.GH_REPOSITORY}/actions/runs`);
+          url.searchParams.set("branch", process.env.GH_BRANCH);
+          url.searchParams.set("head_sha", process.env.GH_SHA);
+          url.searchParams.set("event", "pull_request");
+          url.searchParams.set("per_page", "100");
+          const headers = {
+            accept: "application/vnd.github+json",
+            authorization: `Bearer ${process.env.GH_TOKEN}`,
+            "x-github-api-version": "2022-11-28",
+          };
+          for (let attempt = 1; attempt <= 144; attempt += 1) {
+            const response = await fetch(url, { headers });
+            if (!response.ok) throw new Error(`Cannot inspect CI runs: HTTP ${response.status}`);
+            const payload = await response.json();
+            const runs = (payload.workflow_runs ?? []).filter(run =>
+              run.head_sha === process.env.GH_SHA &&
+              run.head_branch === process.env.GH_BRANCH &&
+              run.event === "pull_request"
+            );
+            const latest = required.map(name => runs.filter(run => run.name === name)
+              .sort((a, b) => b.run_number - a.run_number || b.id - a.id)[0]);
+            console.log(JSON.stringify(required.map((name, i) => ({
+              name, id: latest[i]?.id, status: latest[i]?.status ?? "missing",
+              conclusion: latest[i]?.conclusion ?? null
+            }))));
+            if (latest.every(run => run?.status === "completed" && run.conclusion === "success")) {
+              console.log("All five required PR checks passed for " + process.env.GH_SHA);
+              process.exit(0);
+            }
+            if (latest.some(run => run?.status === "completed" && run.conclusion !== "success")) {
+              throw new Error("A required CI check did not pass; Preview deployment blocked.");
+            }
+            if (attempt < 144) await new Promise(resolve => setTimeout(resolve, 15000));
+          }
+          throw new Error("Timed out waiting for all five exact-SHA PR checks; Preview deployment blocked.");
+          NODE
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
