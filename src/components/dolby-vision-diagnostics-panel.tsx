@@ -46,6 +46,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     variantAssetId: string;
     segmentCount: number;
     totalRpuFrameCount: number;
+    metadataLevels: number[];
     graphSha256: string;
   } | null>(null);
   const hlsGraphRequestRef = useRef<AbortController | null>(null);
@@ -235,15 +236,22 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
           data.rpuProfileContinuity !== 'consistent' ||
           data.rpuSemanticContinuity !== 'not-established' ||
           typeof graph?.graphSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(graph.graphSha256) ||
-          !Array.isArray(data.segments) || data.segments.length !== data.segmentCount) {
+          !Array.isArray(data.segments) || data.segments.length !== data.segmentCount ||
+          !data.segments.every((segment) => Boolean(segment) && typeof segment === 'object' &&
+            !Array.isArray(segment) && Number.isSafeInteger((segment as Record<string, unknown>).frameCount) &&
+            Array.isArray((segment as Record<string, unknown>).metadataLevels) &&
+            ((segment as Record<string, unknown>).metadataLevels as unknown[]).every((level) => Number.isSafeInteger(level)))) {
         throw new Error('分片签名证据与当前 HLS 资产图不匹配');
       }
+      const segmentMetadataLevels = [...new Set(data.segments.flatMap((segment) =>
+        (segment as { metadataLevels: number[] }).metadataLevels))].sort((left, right) => left - right);
       if (!controller.signal.aborted) {
         setHlsSegmentEvidence({
           resourceId: sourceIdentity,
           variantAssetId,
           segmentCount: Number(data.segmentCount),
           totalRpuFrameCount: Number(data.totalRpuFrameCount),
+          metadataLevels: segmentMetadataLevels,
           graphSha256: graph.graphSha256,
         });
         setHlsSegmentAnalysisState('idle');
@@ -447,8 +455,10 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
             <div className="flex justify-between gap-3">
               <span className="text-white/55">帧级动态元数据</span>
               <span className="text-right">
-                {currentVerifiedEvidence || currentHlsEvidence
-                  ? (currentVerifiedEvidence?.evidence.metadataLevels ?? currentHlsEvidence?.metadataLevels ?? [])
+                {currentVerifiedEvidence || currentHlsEvidence || currentHlsSegmentEvidence
+                  ? (currentVerifiedEvidence?.evidence.metadataLevels ??
+                    currentHlsEvidence?.metadataLevels ??
+                    currentHlsSegmentEvidence?.metadataLevels ?? [])
                     .some((level) => level === 1 || level === 2)
                     ? '已验证 L1/L2'
                     : 'RPU 已存在，动态元数据未确认'
