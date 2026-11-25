@@ -7,7 +7,8 @@ A private Node.js analysis service for trusted backend-to-backend use. It accept
 - Keep this service on a private network. Do not expose it directly to browsers or the public Internet.
 - Only the authenticated Node.js backend route `/api/dolby-vision/assets/{assetId}/analyze` may call it, using `DV_SERVICE_TOKEN`; browsers never receive this token.
 - The backend route resolves `assetId` through the authenticated collector registry, streams the registered content-addressed MP4 object, checks the registry digest/ETag binding, and sends those exact bytes with the asset ID, original SHA-256 and source MIME headers.
-- The service independently hashes the received MP4 upload and rejects any digest mismatch. It also records the extracted HEVC track hash separately; the signed `sourceMediaSha256` remains bound to the original MP4 bytes.
+- The service independently hashes the received MP4 upload and rejects any digest mismatch. It also records the extracted HEVC track hash separately; the signed `sourceMediaSha256` remains bound to the original MP4 bytes. The signing primitive independently requires the report digest to equal the exact upload digest supplied by the ingest request; a detached or mismatched report cannot be signed.
+- Analysis reports are not cached or reused. Each request re-streams the current immutable content-addressed object and reruns the pinned parser, avoiding stale evidence across asset replacement, parser upgrades, or analysis-parameter changes.
 - The signing key is injected at runtime as a secret; never commit it, bake it into the image, or expose it to the player.
 - No remote URL fetching is implemented. This avoids SSRF and uncontrolled third-party media retrieval.
 - Upload size, concurrent jobs, parser runtime and request time are bounded.
