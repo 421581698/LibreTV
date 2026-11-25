@@ -113,8 +113,8 @@ test('extracts Dolby RPU metadata from a temporally aligned raw AV1 OBU stream',
 
 
 test('inserts HEVC emulation-prevention bytes in the UNSPEC62 RPU NAL unit', () => {
-  const nalu = regularRpuToHevcUnspec62Nalu(Buffer.from([0x19, 0x00, 0x00, 0x01, 0x80]));
-  assert.deepEqual(nalu, Buffer.from([0x7c, 0x01, 0x19, 0x00, 0x00, 0x03, 0x01, 0x80]));
+  const nalu = regularRpuToHevcUnspec62Nalu(Buffer.from([0x19, 0x00, 0x00, 0x01, 0x80, 0x55, 0x66]));
+  assert.deepEqual(nalu, Buffer.from([0x7c, 0x01, 0x19, 0x00, 0x00, 0x03, 0x01, 0x80, 0x55, 0x66]));
 });
 
 
@@ -133,7 +133,7 @@ test('demuxes one AV1 video track from MP4 and IVF containers without re-encodin
   const ffmpegPath = resolve(directory, 'ffmpeg');
   await writeFile(fixturePath, obuFixture);
   await writeFile(inputPath, Buffer.from('container fixture'));
-  await writeFile(ffprobePath, '#!/usr/bin/env node\nprocess.stdout.write(process.env.TEST_AV1_STREAMS || "av1\n");\n');
+  await writeFile(ffprobePath, String.raw`#!/usr/bin/env node\nprocess.stdout.write(process.env.TEST_AV1_STREAMS || "av1\\n");\n`);
   await writeFile(ffmpegPath, '#!/usr/bin/env node\nconst fs=require("node:fs"); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, process.argv.at(-1));\n');
   await chmod(ffprobePath, 0o755);
   await chmod(ffmpegPath, 0o755);
