@@ -90,6 +90,8 @@ function WatchContent() {
   const [watchRate, setWatchRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
+  const [cinemaPanel, setCinemaPanel] = useState<'audio' | 'subtitles' | 'quality' | 'diagnostics' | null>(null);
+  const [cinemaLocked, setCinemaLocked] = useState(false);
   const [showAutoNext, setShowAutoNext] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [skipPanelOpen, setSkipPanelOpen] = useState(false);
@@ -225,7 +227,7 @@ function WatchContent() {
       recordControlsDebug('timer-fire', activeVideo
         ? `paused=${activeVideo.paused},ended=${activeVideo.ended},time=${activeVideo.currentTime.toFixed(2)}`
         : 'video-missing');
-      if (scrubbingRef.current || !activeVideo || activeVideo.paused || activeVideo.ended) {
+      if (scrubbingRef.current || shell.classList.contains('cinema-panel-open') || !activeVideo || activeVideo.paused || activeVideo.ended) {
         controlsHideTimerRef.current = null;
         return;
       }
@@ -289,7 +291,7 @@ function WatchContent() {
     };
     const scheduleHide = () => {
       clearHideTimer('reschedule');
-      if (scrubbingRef.current) {
+      if (scrubbingRef.current || shell.classList.contains('cinema-panel-open')) {
         showControls();
         return;
       }
@@ -402,7 +404,7 @@ function WatchContent() {
         revealControls(event);
         return;
       }
-      if (scrubbingRef.current) return;
+      if (scrubbingRef.current || shell.classList.contains('cinema-panel-open')) return;
       if (controlsWereHiddenAtPointerStart || shell.classList.contains('cinema-controls-hidden')) {
         controlsWereHiddenAtPointerStart = false;
         if (video && !video.paused && !video.ended) scheduleHide();
@@ -854,6 +856,11 @@ function WatchContent() {
       document.removeEventListener('keydown', handler);
     };
   }, [currentIndex, episodes.length, goEpisode]);
+  useEffect(() => {
+    setCinemaPanel(null);
+    setCinemaLocked(false);
+  }, [currentUrl]);
+
   const orderedEpisodes = reversed
     ? [...episodes].map((_, i) => episodes.length - 1 - i)
     : episodes.map((_, i) => i);
@@ -899,13 +906,14 @@ function WatchContent() {
     );
   }
   return (
-    <div ref={watchShellRef} className={`min-h-screen flex flex-col netflix-watch-shell${isIpadEditionPlayback ? ' ipad-edition-watch' : ''}${controlsVisible ? '' : ' cinema-controls-hidden'}${isScrubbing ? ' cinema-controls-scrubbing' : ''}`}>
+    <div ref={watchShellRef} className={`min-h-screen flex flex-col netflix-watch-shell${isIpadEditionPlayback ? ' ipad-edition-watch' : ''}${controlsVisible ? '' : ' cinema-controls-hidden'}${isScrubbing ? ' cinema-controls-scrubbing' : ''}${cinemaPanel || showPlayerPanel ? ' cinema-panel-open' : ''}${cinemaLocked ? ' cinema-v4-locked' : ''}`}>
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
-            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push('/'); }}>
+            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push(isIpadEditionPlayback ? '/ipad-edition' : '/'); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
             </button>
+            {isIpadEditionPlayback && <span className="cinema-v4-heading" title={videoTitle}>{videoTitle}</span>}
           </div>
           <div className="watch-topbar-right">
             <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={requestWatchFullscreen}>
@@ -936,7 +944,7 @@ function WatchContent() {
             }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3zM8 20l4-4 4 4M8 9h8" /></svg>
             </button>
-            <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => setShowPlayerPanel((value) => !value)}>
+            <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => { setCinemaPanel(null); setShowPlayerPanel((value) => !value); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
             </button>
           </div>
@@ -953,6 +961,9 @@ function WatchContent() {
                 <PlayerShell
                   url={playerUrl}
                   title={videoTitle}
+                  cinemaMode={isIpadEditionPlayback}
+                  cinemaPanel={cinemaPanel}
+                  onCloseCinemaPanel={() => setCinemaPanel(null)}
                   mediaType={activeCmsAssetBinding ? 'mp4' : undefined}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
@@ -1148,6 +1159,41 @@ function WatchContent() {
               </div>
             </section>
 
+            <div className="cinema-v4-actions" role="toolbar" aria-label="影院播放功能">
+              <button type="button" className="cinema-v4-tool" aria-label={`播放速度 ${watchRate} 倍`} onClick={() => {
+                const rates = [1, 1.25, 1.5, 2, 0.75];
+                const current = playerApiRef.current?.getPlaybackRate() ?? watchRate;
+                const next = rates[(rates.indexOf(current) + 1 + rates.length) % rates.length];
+                playerApiRef.current?.setPlaybackRate(next);
+                setWatchRate(next);
+              }}><span aria-hidden="true" className="cinema-v4-tool-symbol">{watchRate}×</span><span>倍速</span></button>
+              <button type="button" className="cinema-v4-tool" aria-pressed={cinemaLocked} onClick={() => { setCinemaPanel(null); setCinemaLocked((locked) => !locked); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>{cinemaLocked ? '解锁' : '锁定'}</span>
+              </button>
+              {hasEpisodeNavigation && <button type="button" className="cinema-v4-tool" onClick={() => { setCinemaPanel(null); setSidebarTab('episodes'); setShowPlayerPanel(true); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>选集</span>
+              </button>}
+              <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'audio' || cinemaPanel === 'subtitles'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => panel === 'audio' || panel === 'subtitles' ? null : 'audio'); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v12H9l-5 3v-3H3z"/><path d="M7 10h10M7 13h6"/></svg><span>音频与字幕</span>
+              </button>
+              <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'quality'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => panel === 'quality' ? null : 'quality'); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l4-4 3 3 3-4"/></svg><span>画质</span>
+              </button>
+              <button type="button" className="cinema-v4-tool" onClick={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="5" rx="1"/><rect x="3" y="14" width="18" height="5" rx="1"/></svg><span>播放源</span>
+              </button>
+              <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'diagnostics'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => panel === 'diagnostics' ? null : 'diagnostics'); }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg><span>诊断</span>
+              </button>
+              <button type="button" className="cinema-v4-tool" onClick={requestWatchFullscreen}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>全屏</span>
+              </button>
+            </div>
+            {isIpadEditionPlayback && cinemaLocked && (
+              <button type="button" className="cinema-v4-unlock" onClick={() => setCinemaLocked(false)} aria-label="解锁屏幕">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>解除触控锁定</span>
+              </button>
+            )}
             <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
               <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
