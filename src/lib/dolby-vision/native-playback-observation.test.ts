@@ -77,6 +77,12 @@ describe('real HTMLVideoElement observation state machine', () => {
     const progressed = advanceNativePlaybackObservation(start, 'sample', { ...playing, currentTime: 2 });
     const duplicate = advanceNativePlaybackObservation(progressed, 'sample', { ...playing, currentTime: 2 });
     expect(duplicate.status).toBe('waiting');
+    expect(duplicate.progressedSeconds).toBe(0);
+    const repeated = advanceNativePlaybackObservation(duplicate, 'sample', { ...playing, currentTime: 2 });
+    expect(repeated.status).toBe('waiting');
+    const resumed = advanceNativePlaybackObservation(repeated, 'sample', { ...playing, currentTime: 2.5 });
+    expect(resumed.status).toBe('waiting');
+    expect(advanceNativePlaybackObservation(resumed, 'sample', { ...playing, currentTime: 3 }).status).toBe('progress-observed');
   });
 
   it('fails closed when the video reports an error during sampling', () => {
