@@ -66,6 +66,44 @@ describe('GET /api/dolby-vision/assets/[assetId]/content', () => {
     expect(response.headers.get('Content-Range')).toBe('bytes */10');
   });
 
+  it('rejects a valid-looking partial response for a different requested range', async () => {
+    vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response('1234', {
+      status: 206,
+      headers: {
+        'Content-Type': 'video/mp4',
+        'Content-Length': '4',
+        'Content-Range': 'bytes 1-4/10',
+        'Accept-Ranges': 'bytes',
+        ETag: `"${'a'.repeat(64)}"`,
+        'X-DV-Asset-ID': assetId,
+        'X-DV-Asset-SHA256': 'a'.repeat(64),
+      },
+    }));
+    const response = await GET(makeRequest('bytes=2-5'), { params: Promise.resolve({ assetId }) });
+    expect(response.status).toBe(502);
+  });
+
+  it('rejects partial responses when no Range was requested', async () => {
+    const response = await GET(makeRequest(), { params: Promise.resolve({ assetId }) });
+    expect(response.status).toBe(502);
+  });
+
+  it('rejects a full response when a Range was requested', async () => {
+    vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response('0123456789', {
+      status: 200,
+      headers: {
+        'Content-Type': 'video/mp4',
+        'Content-Length': '10',
+        'Accept-Ranges': 'bytes',
+        ETag: `"${'a'.repeat(64)}"`,
+        'X-DV-Asset-ID': assetId,
+        'X-DV-Asset-SHA256': 'a'.repeat(64),
+      },
+    }));
+    const response = await GET(makeRequest('bytes=2-5'), { params: Promise.resolve({ assetId }) });
+    expect(response.status).toBe(502);
+  });
+
   it('rejects a partial response whose length does not match its byte range', async () => {
     vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(new Response('2345', {
       status: 206,
