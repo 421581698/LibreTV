@@ -74,6 +74,32 @@ describe('Dolby Vision parser service security primitives', () => {
     });
   });
 
+  it('signs canonical HLS fMP4 graph provenance and rejects malformed context', () => {
+    const context = {
+      scope: 'hls-fmp4',
+      resourceId: 'resource_hls_123',
+      graphId: 'graph_123',
+      graphSha256: 'c'.repeat(64),
+      rootAssetId: 'root:playlist',
+      variantAssetId: 'variant:playlist',
+      fragmentCount: 24,
+      fragmentSequenceContinuity: 'sequential',
+      temporalContinuity: 'unknown',
+    };
+    const envelope = createSignedEnvelope(
+      report, 'hls:resource_hls_123:variant:playlist', 'dv-key-1',
+      privateKeyPem, report.sourceMediaSha256, 1800000000, context,
+    );
+    assert.deepEqual(envelope.analysisContext, context);
+    const { signature, ...payload } = envelope;
+    assert.equal(verify(null, Buffer.from(canonicalize(payload)), publicKeyPem, Buffer.from(signature, 'base64url')), true);
+    assert.throws(() => createSignedEnvelope(
+      report, 'hls:resource_hls_123:variant:playlist', 'dv-key-1',
+      privateKeyPem, report.sourceMediaSha256, 1800000000,
+      { ...context, graphSha256: 'not-a-digest' },
+    ));
+  });
+
   it('refuses partial reports, selected-track-only reports, and detached RPU files', () => {
     assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: null, frameLimit: 50 } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
     assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: 1, frameLimit: null } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
