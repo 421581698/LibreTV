@@ -152,12 +152,20 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
               </span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-white/55">浏览器解码</span>
-              <span>未验证</span>
+              <span className="text-white/55">Dolby Vision 专用解码器</span>
+              <span className="text-right">LibreTV 尚未集成</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-white/55">RPU 驱动动态渲染</span>
+              <span>尚未集成</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-white/55">系统原生解码状态</span>
+              <span>当前网页无法确认</span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-white/55">显示端 Dolby Vision 输出</span>
-              <span>未验证</span>
+              <span>需要真机与输出链路验证</span>
             </div>
           </div>
           {assetId && report?.container === 'mp4' && (
