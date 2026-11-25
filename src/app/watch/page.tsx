@@ -953,6 +953,7 @@ function WatchContent() {
                 <PlayerShell
                   url={playerUrl}
                   title={videoTitle}
+                  mediaType={activeCmsAssetBinding ? 'mp4' : undefined}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
                   skipMark={skipMark}
