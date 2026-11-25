@@ -4,6 +4,7 @@ import './search.css';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
+import { useFridayGlass } from '@/components/friday/FridayGlassProvider';
 import { api } from '@/lib/client-api';
 import { resolveSource, useAppStore } from '@/lib/store';
 import { validateSourceUrl } from '@/lib/utils';
@@ -11,6 +12,7 @@ import type { SearchResultItem } from '@/lib/types';
 import { fromCmsSearchResult } from '@/lib/poster';
 
 function IpadSearchContent() {
+  const { preferences } = useFridayGlass();
   const params = useSearchParams();
   const router = useRouter();
   const initial = params.get('q') ?? '';
@@ -123,7 +125,7 @@ function IpadSearchContent() {
         <h1>搜索与发现</h1>
         <p>跨已启用的点播源搜索电影、剧集与动画。</p>
       </header>
-      <form className="ipad-edition__search-form" data-friday-material="regular" onSubmit={(event) => { event.preventDefault(); void runSearch(query); }}>
+      <form className="ipad-edition__search-form" data-friday-material={preferences.material} onSubmit={(event) => { event.preventDefault(); void runSearch(query); }}>
         <span aria-hidden="true">
           <svg viewBox="0 0 24 24">
             <circle cx="10.8" cy="10.8" r="6.7" />
@@ -137,7 +139,7 @@ function IpadSearchContent() {
       {!query.trim() ? (
         <section className="ipad-edition__category-area">
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">BROWSE BY GENRE</p><h2>热门分类</h2></div></div>
-          <div className="ipad-edition__category-grid">{categories.map(([label, term]) => <button key={label} type="button" data-friday-material="regular" onClick={() => void runSearch(term)}><span>{label}</span><small>探索相关影片</small><b aria-hidden="true">↗</b></button>)}</div>
+          <div className="ipad-edition__category-grid">{categories.map(([label, term]) => <button key={label} type="button" data-friday-material={preferences.material} onClick={() => void runSearch(term)}><span>{label}</span><small>探索相关影片</small><b aria-hidden="true">↗</b></button>)}</div>
         </section>
       ) : null}
       {error ? (
