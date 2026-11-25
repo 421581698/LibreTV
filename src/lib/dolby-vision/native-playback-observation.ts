@@ -76,8 +76,9 @@ export function advanceNativePlaybackObservation(
   const progressedSeconds = Math.max(0, time - baselineTime);
   // A stalled timeupdate event or duplicate sample cannot establish ongoing
   // playback, even when an earlier sample crossed the progress threshold.
-  if (previous.status === 'progress-observed' && previous.lastTime === time) {
-    return { ...previous, status: 'waiting' };
+  if (previous.lastTime === time) {
+    if (previous.status === 'waiting') return previous;
+    return { ...previous, status: 'waiting', baselineTime: time, progressedSeconds: 0 };
   }
   return {
     status: progressedSeconds >= 1 ? 'progress-observed' : 'waiting',
