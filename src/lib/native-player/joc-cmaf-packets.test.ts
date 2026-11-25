@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JocCmafPacketExtractor } from './joc-cmaf-packets';
+import { JocCmafPacketExtractor, mapJocPresentationTimeToMediaSamples } from './joc-cmaf-packets';
 
 function u32(value: number): Uint8Array {
   return new Uint8Array([(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255]);
@@ -41,6 +41,17 @@ function makeMediaSegment(payload = [1, 2, 3, 4, 5, 6, 7, 8]): Uint8Array {
 }
 
 describe('JocCmafPacketExtractor', () => {
+  it('maps CMAF PTS deltas onto the anchored hls.js media clock', () => {
+    expect(mapJocPresentationTimeToMediaSamples(240_000, 48_000, 12.5, 240_000)).toBe(600_000);
+    expect(mapJocPresentationTimeToMediaSamples(241_536, 48_000, 12.5, 240_000)).toBe(601_536);
+    expect(mapJocPresentationTimeToMediaSamples(483_072, 96_000, 12.5, 480_000)).toBe(601_536);
+  });
+
+  it('rejects invalid CMAF-to-media timeline anchors', () => {
+    expect(() => mapJocPresentationTimeToMediaSamples(1, 0, 1, 0)).toThrow(/positive timescale/i);
+    expect(() => mapJocPresentationTimeToMediaSamples(Number.NaN, 48_000, 1, 0)).toThrow(/finite timestamps/i);
+  });
+
   it('extracts bounded E-AC-3 samples with timestamps without claiming JOC', () => {
     const extractor = new JocCmafPacketExtractor(7);
     extractor.updateInitSegment(makeInitSegment());
