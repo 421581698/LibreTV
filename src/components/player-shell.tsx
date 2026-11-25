@@ -1927,7 +1927,7 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      {(!cinemaMode || cinemaPanel === 'diagnostics') && <DolbyVisionDiagnosticsPanel cinemaExpanded={cinemaMode} key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} />}
+      {(!cinemaMode || cinemaPanel === 'diagnostics') && <div className={cinemaMode ? 'cinema-v4-diagnostics-sheet' : 'contents'}>{cinemaMode && <button type="button" className="cinema-v4-panel-close cinema-v4-diagnostics-close" onClick={onCloseCinemaPanel} aria-label="关闭视频诊断">×</button>}<DolbyVisionDiagnosticsPanel cinemaExpanded={cinemaMode} key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} /></div>}
       {cinemaMode && (cinemaPanel === 'audio' || cinemaPanel === 'subtitles') && (
         <div className="cinema-v4-panel-heading" role="group" aria-label="音频与字幕分类">
           <div className="cinema-v4-panel-tabs">
@@ -2010,6 +2010,7 @@ export function PlayerShell({
         </div>
       )}
       {(!cinemaMode || cinemaPanel === 'quality') && <div className={cinemaMode ? 'cinema-v4-quality-panel' : 'player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2'}>
+        {cinemaMode && <div className="cinema-v4-quality-heading"><strong>播放画质</strong><button type="button" className="cinema-v4-panel-close" onClick={onCloseCinemaPanel} aria-label="关闭画质设置">×</button></div>}
         {!cinemaMode && <button
           type="button"
           className="player-quality-badge"
