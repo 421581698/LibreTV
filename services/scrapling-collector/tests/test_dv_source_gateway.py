@@ -262,7 +262,7 @@ class AuthorizedProgressiveSourceGatewayTests(unittest.TestCase):
                 (self.candidate_id,),
             ).fetchone()
         expected_version = hashlib.sha256(
-            (str(row["url"]) + "\\0" + str(row["validation"] or "")).encode("utf-8")
+            (str(row["url"]) + "\0" + str(row["validation"] or "")).encode("utf-8")
         ).hexdigest()[:24]
         self.assertEqual(payload["source_version"], expected_version)
         self.assertEqual(args[2], "dv-source-ingest:" + self.candidate_id + ":" + expected_version)
