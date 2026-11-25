@@ -221,6 +221,51 @@ async function checkPlayback(url, body, verifyTouchSeek = false) {
   }
 }
 
+
+async function checkV12GlassLab() {
+  const page = await browser.newPage({
+    viewport: { width: 1194, height: 834 },
+    reducedMotion: 'no-preference',
+  });
+  try {
+    const response = await page.goto(new URL('/ipad-edition/glass-lab', candidate).href);
+    assert(response?.ok(), 'Friday V1.2 Glass Lab did not load');
+    const samples = page.locator('.liquid-glass[data-friday-material]').filter({ hasText: 'Friday · V1.2' });
+    await samples.first().waitFor();
+    assert.equal(await samples.count(), 6, 'Six material samples must be visible');
+    const materials = await samples.evaluateAll(elements => elements.map(element => ({
+      material: element.getAttribute('data-friday-material'),
+      background: getComputedStyle(element).backgroundColor,
+    })));
+    assert.deepEqual(materials.map(item => item.material),
+      ['regular', 'clear', 'frosted', 'cinema', 'ambient', 'solid']);
+    assert.notEqual(materials[1].background, materials[2].background,
+      'Clear and Frosted must have visibly distinct CSS fill');
+    assert.notEqual(materials[0].background, materials[5].background,
+      'Regular and Solid must not share the same fill');
+    const difference = page.locator('output[data-refraction-pixel-difference]');
+    await page.waitForFunction(() =>
+      Number(document.querySelector('[data-refraction-pixel-difference]')
+        ?.getAttribute('data-refraction-pixel-difference')) > 0);
+    const enabledPixels = Number(await difference.getAttribute('data-refraction-pixel-difference'));
+    await page.getByRole('button', { name: '关闭折射（对照原图）' }).click();
+    await page.waitForFunction(() => document.querySelector('[data-refraction-pixel-difference]')
+      ?.getAttribute('data-refraction-pixel-difference') === '0');
+    await page.getByRole('button', { name: '开启折射' }).click();
+    await page.waitForFunction(() =>
+      Number(document.querySelector('[data-refraction-pixel-difference]')
+        ?.getAttribute('data-refraction-pixel-difference')) > 0);
+    await page.getByRole('combobox', { name: 'Friday 玻璃主题' }).selectOption('dark');
+    await page.waitForFunction(() => document.documentElement.dataset.fridayTheme === 'dark');
+    await page.getByRole('combobox', { name: 'Friday 玻璃主题' }).selectOption('light');
+    await page.waitForFunction(() => document.documentElement.dataset.fridayTheme === 'light');
+    await page.getByRole('combobox', { name: 'Friday 玻璃主题' }).selectOption('system');
+    results.push({ route: '/ipad-edition/glass-lab', materials, enabledPixels, controlPixels: 0 });
+  } finally {
+    await page.close();
+  }
+}
+
 try {
   for (const viewport of settings) {
     for (const scheme of ['light', 'dark']) {
@@ -229,6 +274,7 @@ try {
     }
   }
   await checkMotion();
+  await checkV12GlassLab();
   if (mediaPath) {
     const body = await fs.readFile(mediaPath);
     const test = await checkPlayback(candidate, body, true);
