@@ -52,7 +52,7 @@ function validT35Payload() {
   writeBits(bits, 1, 1);
   writeVariableBits(bits, rpu.length, 8);
   for (const byte of rpu) writeBits(bits, byte, 8);
-  return { bytes: Buffer.concat([header, packBits(bits)]), rpu };
+  return { bytes: Buffer.concat([Buffer.from([0xb5]), packBits(bits)]), rpu };
 }
 
 function leb(value) {
