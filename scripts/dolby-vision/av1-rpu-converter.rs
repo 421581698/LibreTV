@@ -32,7 +32,7 @@ fn run() -> anyhow::Result<()> {
     let profile = parsed.dovi_profile;
     let nalu = parsed.write_hevc_unspec62_nalu()?;
     let last_nonzero = nalu.iter().rposition(|byte| *byte != 0);
-    if nalu.len() < 27 || nalu.get(..2) != Some(&[0x7c, 0x01]) ||
+    if nalu.len() < 27 || !nalu.starts_with(&[0x7c, 0x01]) ||
         last_nonzero.map(|index| nalu[index]) != Some(0x80) {
         anyhow::bail!("libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit");
     }
