@@ -343,6 +343,55 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+
+  it('keeps generic CMS episode labels, order and playback URLs aligned', async () => {
+    const playUrl = [
+      '第01集$https://media-fixture.example/series/ep01.m3u8',
+      '第02集$https://media-fixture.example/series/ep02.m3u8',
+      '特别篇$https://media-fixture.example/series/special.m3u8',
+    ].join('#');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const requested = new URL(String(input));
+      expect(requested.searchParams.get('ac')).toBe('videolist');
+      expect(requested.searchParams.get('ids')).toBe('series-fixture-01');
+      return new Response(JSON.stringify({
+        code: 1,
+        list: [{
+          vod_id: 'series-fixture-01',
+          vod_name: '通用测试剧集',
+          vod_play_url: playUrl,
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'series-fixture-01',
+      source: source('https://cms-series-fixture.example/api.php/provide/vod', 'cms-series-fixture'),
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as {
+      episodes: string[];
+      episodeItems: Array<{ title: string; url: string }>;
+      videoInfo: { title?: string; sourceKey?: string };
+    };
+    expect(data.episodes).toEqual([
+      'https://media-fixture.example/series/ep01.m3u8',
+      'https://media-fixture.example/series/ep02.m3u8',
+      'https://media-fixture.example/series/special.m3u8',
+    ]);
+    expect(data.episodeItems).toEqual([
+      { title: '第01集', url: data.episodes[0] },
+      { title: '第02集', url: data.episodes[1] },
+      { title: '特别篇', url: data.episodes[2] },
+    ]);
+    expect(data.videoInfo).toMatchObject({
+      title: '通用测试剧集',
+      sourceKey: 'cms-series-fixture',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 502 when the upstream request fails unexpectedly', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('upstream connection failed');
