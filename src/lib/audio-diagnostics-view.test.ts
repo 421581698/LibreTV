@@ -85,6 +85,10 @@ describe('audio diagnostics read-only view', () => {
     };
     expect(hasAtmosSignal(plain)).toBe(false);
     const view = buildDiagnosticsView(plain);
+    const format = view.groups.find((group) => group.title === '媒体格式');
+    expect(format?.rows.find((item) => item.label === '音频编码')?.value)
+      .toBe('非 Dolby 音频编码（仅识别）');
+    expect(view.plainText).not.toContain('AAC');
     expect(view.plainText).not.toContain('JOC 标记: 检测到');
   });
 
