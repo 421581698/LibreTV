@@ -132,6 +132,11 @@ export interface PlayerSkipApi {
 interface PlayerShellProps {
   url: string;
   title: string;
+  /** iPad-only, page-owned cinema controls; other routes retain ArtPlayer's controls. */
+  cinemaMode?: boolean;
+  cinemaPanel?: 'audio' | 'subtitles' | 'quality' | 'diagnostics' | null;
+  onCloseCinemaPanel?: () => void;
+  onCinemaPanelChange?: (panel: 'audio' | 'subtitles') => void;
   /** Validated format hint for extensionless direct-media URLs. */
   mediaType?: 'hls' | 'mp4' | 'webm';
   /** Called once per episode, only after the video element advances during a sustained playing window. */
@@ -197,6 +202,10 @@ interface PlayerShellProps {
 export function PlayerShell({
   url,
   title,
+  cinemaMode = false,
+  cinemaPanel = null,
+  onCloseCinemaPanel,
+  onCinemaPanelChange,
   mediaType,
   onPlaybackConfirmed,
   adFilter,
@@ -247,6 +256,27 @@ export function PlayerShell({
   const [audioTrackOptions, setAudioTrackOptions] = useState<Array<{ id: number; label: string; isDefault: boolean }>>([]);
   const [selectedAudioTrack, setSelectedAudioTrack] = useState(-1);
   const [audioTrackPanelOpen, setAudioTrackPanelOpen] = useState(false);
+  const [cinemaSubtitleTracks, setCinemaSubtitleTracks] = useState<Array<{ index: number; label: string; mode: TextTrackMode }>>([]);
+  useEffect(() => {
+    if (!cinemaMode || cinemaPanel !== 'subtitles') return;
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    const tracks = video?.textTracks;
+    if (!tracks) { setCinemaSubtitleTracks([]); return; }
+    const syncTracks = () => {
+      setCinemaSubtitleTracks(Array.from(tracks, (track, index) => ({
+        index, label: track.label || track.language || `字幕 ${index + 1}`, mode: track.mode,
+      })));
+    };
+    syncTracks();
+    tracks.addEventListener?.('addtrack', syncTracks);
+    tracks.addEventListener?.('removetrack', syncTracks);
+    tracks.addEventListener?.('change', syncTracks);
+    return () => {
+      tracks.removeEventListener?.('addtrack', syncTracks);
+      tracks.removeEventListener?.('removetrack', syncTracks);
+      tracks.removeEventListener?.('change', syncTracks);
+    };
+  }, [cinemaMode, cinemaPanel, url]);
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -894,7 +924,7 @@ export function PlayerShell({
     const observeAudioTracks = () => {
       if (hlsRef.current !== hls || loadGeneration !== mediaLoadGenerationRef.current) return;
       setAudioTrackOptions(hls.audioTracks.map((track, index) => ({
-        id: track.id,
+        id: index,
         label: [track.name, track.lang, track.channels ? `${track.channels} ch` : ''].filter(Boolean).join(' · ') || `音轨 ${index + 1}`,
         isDefault: Boolean(track.default),
       })));
@@ -1177,13 +1207,13 @@ export function PlayerShell({
       // PR84 mobile watch: never spawn floating PiP/mini-player windows over the page.
       pip: false,
       autoMini: false,
-      screenshot: true,
-      setting: true,
-      playbackRate: true,
-      aspectRatio: true,
+      screenshot: !cinemaMode,
+      setting: !cinemaMode,
+      playbackRate: !cinemaMode,
+      aspectRatio: !cinemaMode,
       // Touch devices use native iOS video fullscreen first, with a web fullscreen fallback.
-      fullscreen: !touchPointer,
-      fullscreenWeb: !touchPointer,
+      fullscreen: !cinemaMode && !touchPointer,
+      fullscreenWeb: !cinemaMode && !touchPointer,
       miniProgressBar: false,
       mutex: true,
       // Keep iOS Safari's video compositing stable without a frosted backdrop.
@@ -1192,13 +1222,13 @@ export function PlayerShell({
       // ArtPlayer rotates its web-fullscreen surface to match video orientation on
       // touch devices. iOS native fullscreen remains controlled by WebKit/system rotation.
       autoOrientation: touchPointer,
-      airplay: true,
+      airplay: !cinemaMode,
       hotkey: false,
       theme: '#ffffff',
       lang: navigator.language.toLowerCase().startsWith('zh') ? 'zh-cn' : 'en',
       moreVideoAttr: { crossOrigin: 'anonymous', playsInline: true, disablePictureInPicture: true },
       // 上/下集放在播放键右侧：换集是看剧最高频的动作，不该让用户滚回页面下方找按钮
-      controls: [
+      controls: cinemaMode ? [] : [
         {
           name: 'prev-episode',
           index: 11,
@@ -1897,10 +1927,49 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      <DolbyVisionDiagnosticsPanel key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} />
-      {audioTrackOptions.length > 1 && (
-        <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
-          <button
+      {(!cinemaMode || cinemaPanel === 'diagnostics') && <DolbyVisionDiagnosticsPanel cinemaExpanded={cinemaMode} key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} />}
+      {cinemaMode && (cinemaPanel === 'audio' || cinemaPanel === 'subtitles') && (
+        <div className="cinema-v4-panel-heading" role="group" aria-label="音频与字幕分类">
+          <div className="cinema-v4-panel-tabs">
+            <button type="button" aria-pressed={cinemaPanel === 'audio'} onClick={() => onCinemaPanelChange?.('audio')}>音频</button>
+            <button type="button" aria-pressed={cinemaPanel === 'subtitles'} onClick={() => onCinemaPanelChange?.('subtitles')}>字幕</button>
+          </div>
+          <button type="button" className="cinema-v4-panel-close" aria-label="关闭音频与字幕设置" onClick={onCloseCinemaPanel}>×</button>
+        </div>
+      )}
+      {cinemaMode && cinemaPanel === 'audio' && audioTrackOptions.length <= 1 && (
+        <div className="cinema-v4-empty-panel" role="status">
+          <h3>音轨</h3>
+          <p>{audioTrackOptions.length === 1 ? `当前音轨：${audioTrackOptions[0].label}` : '当前播放路径没有提供可切换的音轨列表。Safari 原生 HLS 可能由系统管理音轨。'}</p>
+          <p>音轨名称或声道数不能证明 Dolby Atmos 解码或设备输出。</p>
+        </div>
+      )}
+      {cinemaMode && cinemaPanel === 'subtitles' && (
+        <div className="cinema-v4-subtitle-panel" role="group" aria-label="字幕选择">
+          <h3>字幕</h3>
+          {cinemaSubtitleTracks.length > 0 ? (
+            <>
+              <button type="button" onClick={() => {
+                const tracks = (artRef.current?.video as HTMLVideoElement | undefined)?.textTracks;
+                if (!tracks) return;
+                for (let index = 0; index < tracks.length; index++) tracks[index].mode = 'disabled';
+                setCinemaSubtitleTracks((prev) => prev.map((track) => ({ ...track, mode: 'disabled' })));
+              }}>关闭字幕</button>
+              {cinemaSubtitleTracks.map((track) => (
+                <button type="button" key={track.index} aria-pressed={track.mode === 'showing'} onClick={() => {
+                  const tracks = (artRef.current?.video as HTMLVideoElement | undefined)?.textTracks;
+                  if (!tracks) return;
+                  for (let index = 0; index < tracks.length; index++) tracks[index].mode = index === track.index ? 'showing' : 'disabled';
+                  setCinemaSubtitleTracks((prev) => prev.map((item) => ({ ...item, mode: item.index === track.index ? 'showing' : 'disabled' })));
+                }}>{track.label}{track.mode === 'showing' ? ' ✓' : ''}</button>
+              ))}
+            </>
+          ) : <p>当前媒体没有公开可切换的原生字幕轨道。独立 ASS/SSA 字幕仍由原有播放引擎管理。</p>}
+        </div>
+      )}
+      {audioTrackOptions.length > 1 && (!cinemaMode || cinemaPanel === 'audio') && (
+        <div className={cinemaMode ? 'cinema-v4-audio-panel' : 'absolute right-3 top-14 z-20 flex flex-col items-end gap-2'} data-testid="audio-track-controls">
+          {!cinemaMode && <button
             type="button"
             className="player-quality-badge"
             aria-expanded={audioTrackPanelOpen}
@@ -1908,8 +1977,8 @@ export function PlayerShell({
             onClick={() => setAudioTrackPanelOpen((open) => !open)}
           >
             音轨 · {audioTrackOptions.find((track) => track.id === selectedAudioTrack)?.label ?? '当前'}
-          </button>
-          {audioTrackPanelOpen && (
+          </button>}
+          {(cinemaMode || audioTrackPanelOpen) && (
             <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl" role="group" aria-label="可用音轨">
               <p className="mb-2 text-sm font-semibold">选择音轨</p>
               <div className="space-y-1">
@@ -1928,6 +1997,7 @@ export function PlayerShell({
                       }
                       setSelectedAudioTrack(track.id);
                       setAudioTrackPanelOpen(false);
+                      if (cinemaMode) onCloseCinemaPanel?.();
                       showHint('已切换音轨');
                     }}
                   >
@@ -1939,8 +2009,8 @@ export function PlayerShell({
           )}
         </div>
       )}
-      <div className="player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2">
-        <button
+      {(!cinemaMode || cinemaPanel === 'quality') && <div className={cinemaMode ? 'cinema-v4-quality-panel' : 'player-quality-controls absolute right-3 top-3 z-20 flex flex-col items-end gap-2'}>
+        {!cinemaMode && <button
           type="button"
           className="player-quality-badge"
           aria-expanded={qualityPanelOpen}
@@ -1949,8 +2019,8 @@ export function PlayerShell({
         >
           画质 · {qualityPreference === 'auto' ? '自动' : qualityPreference === '1080' ? '1080P' : '4K优先'}
           <span className="ml-2 text-white/70">{actualQualityHeight > 0 ? `当前 ${actualQualityHeight}P` : '检测中'}</span>
-        </button>
-        {qualityPanelOpen && (
+        </button>}
+        {(cinemaMode || qualityPanelOpen) && (
           <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-semibold">播放画质</span>
@@ -2013,7 +2083,7 @@ export function PlayerShell({
             </div>
           </div>
         )}
-      </div>
+      </div>}
       {showPoster && !error && (
         <div
           className="absolute inset-0 bg-black pointer-events-none"
