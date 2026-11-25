@@ -232,6 +232,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
           data.resourceId !== sourceIdentity || data.variantAssetId !== variantAssetId ||
           !Number.isSafeInteger(data.segmentCount) || !Number.isSafeInteger(data.totalRpuFrameCount) ||
           data.timelineContinuity !== 'contiguous' ||
+          data.rpuProfileContinuity !== 'consistent' ||
           data.rpuSemanticContinuity !== 'not-established' ||
           typeof graph?.graphSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(graph.graphSha256) ||
           !Array.isArray(data.segments) || data.segments.length !== data.segmentCount) {
@@ -397,6 +398,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                     <p>已逐片完成 RPU 分析与 Ed25519 验签</p>
                     <p>已验分片：{currentHlsSegmentEvidence.segmentCount.toLocaleString()}</p>
                     <p>RPU 帧计数合计：{currentHlsSegmentEvidence.totalRpuFrameCount.toLocaleString()}</p>
+                    <p>Dolby Vision Profile：跨分片一致</p>
                     <p>图谱 SHA-256：{currentHlsSegmentEvidence.graphSha256.slice(0, 16)}…</p>
                     <p className="mt-1 text-white/65">视频时间轴连续；RPU 逐帧语义连续性仍未建立。</p>
                   </div>
