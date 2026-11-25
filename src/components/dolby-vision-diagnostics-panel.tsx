@@ -25,7 +25,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
   const requestRef = useRef<AbortController | null>(null);
   // Hide evidence synchronously on the render where the asset changes; the effect below
   // performs cleanup, but effects run after paint and alone permit one stale render.
-  const currentVerifiedEvidence = verifiedEvidence?.assetId === assetId
+  const currentVerifiedEvidence = verifiedEvidence && verifiedEvidence.assetId === assetId
     ? verifiedEvidence.evidence
     : null;
 
