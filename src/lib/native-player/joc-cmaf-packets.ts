@@ -5,6 +5,7 @@ import {
   type Fmp4TrackMetadata,
 } from './fmp4-fragment-parser';
 import { Fmp4StreamSession } from './fmp4-stream-session';
+import { validateCmafEac3AccessUnit } from './joc-cmaf-validation';
 
 export interface JocCmafPacket {
   readonly trackId: number;
@@ -124,6 +125,9 @@ export class JocCmafPacketExtractor {
       trackId: this.trackId,
       maxSamples: this.limits.maxSamplesPerSegment,
     });
+    if (track.timescale !== 48_000) {
+      throw new Error('OpenJOC CMAF JOC requires a 48 kHz track timescale.');
+    }
     const packets: JocCmafPacket[] = [];
     let totalPayloadBytes = 0;
 
@@ -137,8 +141,8 @@ export class JocCmafPacketExtractor {
         throw new Error('E-AC-3 CMAF sample description changed to an unsupported codec.');
       }
       for (const sample of fragmentTrack.samples) {
-        if (sample.duration === null || sample.duration <= 0 || sample.size === null || sample.size <= 0) {
-          throw new Error('E-AC-3 CMAF sample is missing a positive duration or size.');
+        if (sample.duration !== 1536 || sample.size === null || sample.size <= 0) {
+          throw new Error('OpenJOC CMAF JOC samples must have a 1536-sample duration and a positive size.');
         }
         if (sample.size > this.limits.maxSampleBytes) {
           throw new Error('E-AC-3 CMAF sample exceeds the configured byte limit.');
@@ -151,6 +155,7 @@ export class JocCmafPacketExtractor {
         if (payload.byteLength !== sample.size) {
           throw new Error('E-AC-3 CMAF sample payload length does not match its declared size.');
         }
+        validateCmafEac3AccessUnit(payload);
         packets.push({
           trackId: this.trackId,
           sampleIndex: sample.index,
