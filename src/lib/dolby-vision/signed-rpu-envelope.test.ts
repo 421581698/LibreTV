@@ -253,7 +253,8 @@ describe('signed Dolby Vision RPU envelope', () => {
         sourceMediaSha256: expectedSegments[1].assembledSegmentSha256,
       },
     };
-    const { signature: _oldSignature, ...changedPayload } = changedProfile;
+    const changedPayload: Record<string, unknown> = { ...changedProfile };
+    delete changedPayload.signature;
     const changedSignature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(changedPayload)), privateKey).toString('base64url');
     expect(verifySignedDolbyVisionRpuSegmentSet([envelopes[0], { ...changedProfile, signature: changedSignature }], trusted)).toBeNull();
   });
