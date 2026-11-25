@@ -99,6 +99,7 @@ test('extracts Dolby RPU metadata from a temporally aligned raw AV1 OBU stream',
     frameUnitCount: 1,
     dolbyRpuCount: 1,
     rpuTemporalUnitCount: 1,
+    rpuUnits: [{ ordinal: 0, temporalUnitIndex: 0, frameUnitCount: 1 }],
   });
 });
 
