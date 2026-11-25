@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bindWatchPlaybackState, toggleWatchPlayback } from './watch-playback-state';
+import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from './watch-playback-state';
 
 type TestVideo = HTMLVideoElement & {
   setPaused: (value: boolean) => void;
@@ -199,5 +199,52 @@ describe('toggleWatchPlayback', () => {
     await Promise.resolve();
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('skipWatchPlayback', () => {
+  function seekVideo(currentTime: number, ranges: [number, number][]) {
+    return {
+      currentTime,
+      seekable: { length: ranges.length, start: (i: number) => ranges[i][0], end: (i: number) => ranges[i][1] },
+    } as unknown as HTMLVideoElement;
+  }
+
+  it('clamps both directions to the seekable VOD window', () => {
+    const video = seekVideo(5, [[0, 100]]);
+    expect(skipWatchPlayback(video, -10)).toBe(true);
+    expect(video.currentTime).toBe(0);
+    video.currentTime = 95;
+    expect(skipWatchPlayback(video, 10)).toBe(true);
+    expect(video.currentTime).toBe(100);
+  });
+
+  it('respects a sliding HLS window rather than seeking to zero', () => {
+    const video = seekVideo(105, [[100, 160]]);
+    expect(skipWatchPlayback(video, -10)).toBe(true);
+    expect(video.currentTime).toBe(100);
+  });
+
+  it('resolves a gap to the nearest playable boundary', () => {
+    const video = seekVideo(15, [[0, 20], [30, 60]]);
+    expect(skipWatchPlayback(video, 10)).toBe(true);
+    expect(video.currentTime).toBe(30);
+    expect(skipWatchPlayback(video, -5)).toBe(true);
+    expect(video.currentTime).toBe(20);
+  });
+
+  it('rejects unavailable ranges and invalid time values', () => {
+    const video = seekVideo(5, []);
+    expect(skipWatchPlayback(video, 10)).toBe(false);
+    expect(video.currentTime).toBe(5);
+    expect(skipWatchPlayback(seekVideo(5, [[0, 100]]), Infinity)).toBe(false);
+    expect(skipWatchPlayback(seekVideo(NaN, [[0, 100]]), 10)).toBe(false);
+  });
+
+  it('handles a range disappearing during source replacement', () => {
+    const video = { currentTime: 5, seekable: { length: 1, start: () => { throw new DOMException('range changed', 'IndexSizeError'); } } } as unknown as HTMLVideoElement;
+    expect(skipWatchPlayback(video, 10)).toBe(false);
+    expect(video.currentTime).toBe(5);
   });
 });
