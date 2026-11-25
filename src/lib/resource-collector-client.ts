@@ -93,6 +93,31 @@ export async function fetchDolbyVisionHlsAssembly(
   );
 }
 
+/** Server-only fetch for one immutable HLS fragment parser input. */
+export async function fetchDolbyVisionHlsAssemblySegment(
+  resourceId: string,
+  variantAssetId: string,
+  fragmentOrdinal: number,
+  timeoutMs = 15 * 60 * 1000,
+): Promise<Response | null> {
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(resourceId) ||
+      !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId) ||
+      !Number.isSafeInteger(fragmentOrdinal) || fragmentOrdinal < 0 || fragmentOrdinal >= 10_000) return null;
+  const base = trustedServerRegistryBase();
+  const token = process.env.SCRAPLING_API_TOKEN?.trim();
+  if (!base || !token) return null;
+  return fetch(
+    `${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}/segments/${fragmentOrdinal}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+    },
+  );
+}
+
 /** Server-side proxy. Browser overrides are accepted only after the route's private-feature auth guard. */
 export async function collectorRequest(
   path: string,
