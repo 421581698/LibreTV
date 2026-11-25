@@ -21,7 +21,9 @@ fn run() -> anyhow::Result<()> {
     let parsed = DoviRpu::parse_itu_t35_dovi_metadata_obu(&payload)?;
     let profile = parsed.dovi_profile;
     let rpu = parsed.write_rpu()?;
-    if rpu.len() < 25 || rpu.first().copied() != Some(0x19) {
+    let last_nonzero = rpu.iter().rposition(|byte| *byte != 0);
+    if rpu.len() < 25 || rpu.first().copied() != Some(0x19) ||
+        last_nonzero.map(|index| rpu[index]) != Some(0x80) {
         anyhow::bail!("libdovi returned an invalid regular RPU buffer");
     }
     fs::write(output, &rpu)?;
