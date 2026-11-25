@@ -302,6 +302,14 @@
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch.cinema-v4-locked .cinema-v4-actions {
   opacity: 0 !important; visibility: hidden !important; pointer-events: none !important;
 }
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-touch-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 150;
+  background: transparent;
+  touch-action: none;
+  cursor: not-allowed;
+}
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-unlock {
   position: absolute; z-index: 160;
   top: max(18px,env(safe-area-inset-top,0px));
