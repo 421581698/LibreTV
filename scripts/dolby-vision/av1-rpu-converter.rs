@@ -25,22 +25,21 @@ fn run() -> anyhow::Result<()> {
         // Annex-B (4-byte start code + 2-byte HEVC NAL header), while the
         // serializer returns the HEVC NAL unit without the start code.
         let expected = fs::read(reference_path)?;
-        let serialized = parsed.write_hevc_unspec62_nalu()?;
-        if expected.get(4..) != serialized.get(2..) {
+        if expected.get(4..) != nalu.get(2..) {
             anyhow::bail!("AV1 T.35 RPU does not match the upstream HEVC RPU reference");
         }
     }
     let profile = parsed.dovi_profile;
-    let rpu = parsed.write_rpu()?;
-    let last_nonzero = rpu.iter().rposition(|byte| *byte != 0);
-    if rpu.len() < 25 || rpu.first().copied() != Some(0x19) ||
-        last_nonzero.map(|index| rpu[index]) != Some(0x80) {
-        anyhow::bail!("libdovi returned an invalid regular RPU buffer");
+    let nalu = parsed.write_hevc_unspec62_nalu()?;
+    let last_nonzero = nalu.iter().rposition(|byte| *byte != 0);
+    if nalu.len() < 27 || nalu.get(..2) != Some(&[0x7c, 0x01]) ||
+        last_nonzero.map(|index| nalu[index]) != Some(0x80) {
+        anyhow::bail!("libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit");
     }
-    fs::write(output, &rpu)?;
+    fs::write(output, &nalu)?;
     println!(
         "{{\"profile\":{profile},\"rpuByteLength\":{}}}",
-        rpu.len()
+        nalu.len()
     );
     Ok(())
 }
