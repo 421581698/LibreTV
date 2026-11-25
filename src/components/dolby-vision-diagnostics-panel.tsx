@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
+import { emptyNativePlaybackObservation, observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { probeNativeDolbyVisionCapabilities, type DolbyVisionNativeCapabilityReport } from '@/lib/dolby-vision/native-playback-capability';
 import { canAnalyzeDolbyVisionRpuAsset } from '@/lib/dolby-vision/rpu-analysis-eligibility';
 import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
 
 interface DolbyVisionDiagnosticsPanelProps {
   report: DolbyVisionFormatReport | null;
+  /** Mounted player host, not a detached probe element. */
+  playerContainerRef?: RefObject<HTMLDivElement | null>;
   sourceKind?: 'cms' | 'direct' | 'registry' | 'unknown';
   sourceIdentity?: string;
   /** Stable server-issued registry asset ID; never derive this from a playback URL. */
@@ -18,7 +21,7 @@ interface DolbyVisionDiagnosticsPanelProps {
  * Read-only Dolby Vision status. Codec declarations are not proof of RPU
  * presence, successful Dolby Vision decoding, or display output.
  */
-export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKind = 'unknown', sourceIdentity }: DolbyVisionDiagnosticsPanelProps) {
+export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef, assetId, sourceKind = 'unknown', sourceIdentity }: DolbyVisionDiagnosticsPanelProps) {
   const declared = Boolean(report?.detected);
   const canAnalyzeRpu = canAnalyzeDolbyVisionRpuAsset(assetId, report);
   const profileLabel = report?.profiles.length
@@ -26,6 +29,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     : '未检测到可验证的 Profile 声明';
   const [verifiedEvidence, setVerifiedEvidence] = useState<{ assetId: string; evidence: VerifiedDolbyVisionEvidenceResponse } | null>(null);
   const [browserCapabilityState, setBrowserCapabilityState] = useState<{ report: DolbyVisionFormatReport; capability: DolbyVisionNativeCapabilityReport } | null>(null);
+  const [nativePlaybackObservation, setNativePlaybackObservation] = useState(emptyNativePlaybackObservation);
   const browserCapability = browserCapabilityState?.report === report ? browserCapabilityState.capability : null;
 
   useEffect(() => {
@@ -40,6 +44,12 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     );
     setBrowserCapabilityState({ report, capability });
   }, [report]);
+
+  useEffect(() => {
+    const host = playerContainerRef?.current;
+    if (!host) return;
+    return observeNativeVideoPlayback(host, setNativePlaybackObservation);
+  }, [playerContainerRef]);
 
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [analysisError, setAnalysisError] = useState('');
@@ -510,8 +520,22 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-white/55">系统原生解码状态</span>
-              <span>实际解码未验证</span>
+              <span>实际 Dolby Vision 解码未验证</span>
             </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-white/55">当前视频时间推进</span>
+              <span className="text-right">{nativePlaybackObservation.status === 'progress-observed'
+                ? `已观察 ${nativePlaybackObservation.progressedSeconds.toFixed(1)} 秒（非 Dolby Vision 证明）`
+                : nativePlaybackObservation.status === 'error'
+                  ? `媒体错误 ${nativePlaybackObservation.mediaErrorCode ?? '未知'}`
+                  : '尚未观察到连续推进'}</span>
+            </div>
+            {nativePlaybackObservation.videoWidth > 0 && nativePlaybackObservation.videoHeight > 0 && (
+              <div className="flex justify-between gap-3">
+                <span className="text-white/55">当前视频画面尺寸</span>
+                <span>{nativePlaybackObservation.videoWidth} × {nativePlaybackObservation.videoHeight}</span>
+              </div>
+            )}
             <p className="text-[10px] text-white/50">
               浏览器 canPlayType 和动态范围媒体查询只提供能力提示，不能读取已选择的 HLS 变体、硬件位流、实际 RPU 消费情况或 HDR 像素输出。
             </p>
