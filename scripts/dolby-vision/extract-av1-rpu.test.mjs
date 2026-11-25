@@ -193,3 +193,18 @@ test('rejects Dolby metadata without a preceding temporal delimiter or frame', (
     obu(5, Buffer.concat([leb(4), bytes])),
   ])), /frame units/);
 });
+
+test('fails closed when AV1 temporal-unit counts do not prove one-to-one RPU alignment', () => {
+  const { bytes } = validT35Payload();
+  const metadata = obu(5, Buffer.concat([leb(4), bytes]));
+  const delimiter = obu(2, Buffer.alloc(0));
+  const frame = obu(6, Buffer.from([0]));
+  const invalidStreams = [
+    Buffer.concat([delimiter, metadata, metadata, frame]),
+    Buffer.concat([delimiter, metadata, frame, frame]),
+    Buffer.concat([delimiter, metadata, frame, delimiter, frame]),
+  ];
+  for (const stream of invalidStreams) {
+    assert.throws(() => extractDolbyRpuFromObuStream(stream), /exactly one frame and one RPU/);
+  }
+});
