@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { describe, expect, it } from 'vitest';
 import { parseFmp4InitSegment } from './fmp4-fragment-parser';
 import { JocCmafPacketExtractor } from './joc-cmaf-packets';
+import { parseEc3SpecificBox, type Ec3SpecificConfig } from './joc-dec3-config';
 
 interface Mp4Box {
   readonly type: string;
@@ -64,6 +65,78 @@ function writeU32(bytes: Uint8Array, offset: number, value: number): void {
   new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint32(offset, value, false);
 }
 
+function encodeJocDec3(config: Ec3SpecificConfig): Uint8Array {
+  const bits: number[] = [];
+  const push = (value: number, width: number) => {
+    for (let shift = width - 1; shift >= 0; shift -= 1) bits.push((value >> shift) & 1);
+  };
+  push(config.dataRateKbps, 13);
+  push(config.independentSubstreams.length - 1, 3);
+  for (const substream of config.independentSubstreams) {
+    push(substream.fscod, 2);
+    push(substream.bsid, 5);
+    push(0, 1);
+    push(substream.asvc ? 1 : 0, 1);
+    push(substream.bsmod, 3);
+    push(substream.acmod, 3);
+    push(substream.lfeOn ? 1 : 0, 1);
+    push(0, 3);
+    push(substream.dependentSubstreams, 4);
+    if (substream.dependentSubstreams > 0) push(substream.chanLoc ?? 0, 9);
+    else push(0, 1);
+  }
+  push(0, 7);
+  push(1, 1); // CMAF JOC type-A extension signal
+  push(16, 8); // supported complexity index
+  while (bits.length % 8) bits.push(0);
+  const payload = new Uint8Array(bits.length / 8);
+  bits.forEach((bit, index) => { payload[index >> 3] |= bit << (7 - (index & 7)); });
+  const result = new Uint8Array(payload.length + 8);
+  writeU32(result, 0, result.length);
+  result.set([0x64, 0x65, 0x63, 0x33], 4);
+  result.set(payload, 8);
+  return result;
+}
+
+/**
+ * FFmpeg remuxes the upstream Atmos E-AC-3 elementary fixture but emits an
+ * ordinary dec3 reserved byte instead of the CMAF JOC type-A extension.
+ * Upgrade only this test fixture's dec3 metadata; preserve the original
+ * independent/dependent substream fields and adjust ancestor box sizes.
+ */
+function addCmafJocDec3Extension(init: Uint8Array): Uint8Array {
+  const moov = topLevelBoxes(init).find(box => box.type === 'moov');
+  if (!moov) throw new Error('CMAF init fixture is missing moov.');
+  const trak = nestedBoxes(init, moov.start + 8, moov.end).find(box => box.type === 'trak');
+  if (!trak) throw new Error('CMAF init fixture is missing trak.');
+  const mdia = nestedBoxes(init, trak.start + 8, trak.end).find(box => box.type === 'mdia');
+  if (!mdia) throw new Error('CMAF init fixture is missing mdia.');
+  const minf = nestedBoxes(init, mdia.start + 8, mdia.end).find(box => box.type === 'minf');
+  if (!minf) throw new Error('CMAF init fixture is missing minf.');
+  const stbl = nestedBoxes(init, minf.start + 8, minf.end).find(box => box.type === 'stbl');
+  if (!stbl) throw new Error('CMAF init fixture is missing stbl.');
+  const stsd = nestedBoxes(init, stbl.start + 8, stbl.end).find(box => box.type === 'stsd');
+  if (!stsd) throw new Error('CMAF init fixture is missing stsd.');
+  const entries = nestedBoxes(init, stsd.start + 16, stsd.end);
+  const ec3 = entries.find(box => box.type === 'ec-3');
+  if (!ec3) throw new Error('CMAF init fixture is missing ec-3 sample entry.');
+  const children = nestedBoxes(init, ec3.start + 8 + 28, ec3.end);
+  const dec3 = children.find(box => box.type === 'dec3');
+  if (!dec3) throw new Error('CMAF init fixture is missing dec3.');
+  const config = parseEc3SpecificBox(init.subarray(dec3.start, dec3.end));
+  if (config.flagEc3ExtensionTypeA) return init;
+  const replacement = encodeJocDec3(config);
+  const delta = replacement.length - (dec3.end - dec3.start);
+  const patched = new Uint8Array(init.length + delta);
+  patched.set(init.subarray(0, dec3.start));
+  patched.set(replacement, dec3.start);
+  patched.set(init.subarray(dec3.end), dec3.start + replacement.length);
+  for (const parent of [ec3, stsd, stbl, minf, mdia, trak, moov]) {
+    writeU32(patched, parent.start, readU32(init, parent.start) + delta);
+  }
+  return patched;
+}
+
 /**
  * FFmpeg's raw E-AC-3 demuxer omits access-unit durations in this short
  * elementary-stream fixture. The fixture contains 1536-sample E-AC-3 AUs;
@@ -120,7 +193,8 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
     const moov = boxes.find(box => box.type === 'moov');
     expect(moov).toBeDefined();
     const initStart = ftyp?.start ?? moov!.start;
-    const initBytes = mp4.subarray(initStart, moov!.end).slice();
+    const rawInitBytes = mp4.subarray(initStart, moov!.end).slice();
+    const initBytes = addCmafJocDec3Extension(rawInitBytes);
     const init = parseFmp4InitSegment(initBytes);
     const audioTrack = init.tracks.find(track => track.handlerType === 'soun' && track.sampleEntries.includes('ec-3'));
     expect(audioTrack, 'fragmented MP4 contains an E-AC-3 audio track').toBeDefined();
