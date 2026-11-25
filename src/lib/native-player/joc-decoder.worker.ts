@@ -10,6 +10,7 @@ type WorkerRequest =
 type WorkerResponse =
   | { type: 'ready'; generation: number; decoder: 'OpenJOC'; renderer: 'Stereo'; sampleRate: 48000; channels: 2; nativeDolbyDecoderUsed: false }
   | { type: 'pcm'; generation: number; samples: ArrayBuffer; sampleFrames: number; ptsSamples: number | null; sampleRate: 48000; channels: 2 }
+  | { type: 'decoded'; generation: number; profile: string | null; objectCount: number | null; complexityIndex: number | null; decodedAccessUnits: number }
   | { type: 'need-input' | 'flushed' | 'reset' | 'disposed'; generation: number }
   | { type: 'error'; generation: number; message: string };
 
@@ -50,6 +51,12 @@ function drainPcm(id: number): void {
   const pts = requiredFunction<(handle: number) => bigint>('openjoc_wasm_decoder_pcm_pts_samples');
   const consume = requiredFunction<(handle: number) => number>('openjoc_wasm_decoder_consume_pcm');
 
+  const profilePointer = requiredFunction<(handle: number) => number>('openjoc_wasm_decoder_profile_ptr');
+  const profileLength = requiredFunction<(handle: number) => number>('openjoc_wasm_decoder_profile_len');
+  const objectCount = requiredFunction<(handle: number) => number>('openjoc_wasm_decoder_object_count');
+  const complexityIndex = requiredFunction<(handle: number) => number>('openjoc_wasm_decoder_complexity_index');
+  const decodedAccessUnits = requiredFunction<(handle: number) => number>('openjoc_wasm_decoder_decoded_access_units');
+  let sentDecodeEvidence = false;
   for (let count = 0; count < MAX_PCM_FRAMES_PER_PACKET; count += 1) {
     if (!current(id)) return;
     const available = receive(decoderHandle);
@@ -63,6 +70,24 @@ function drainPcm(id: number): void {
     const owned = new Float32Array(memory().buffer, pointer, floatCount).slice();
     const framePts = pts(decoderHandle);
     if (consume(decoderHandle) !== 1) throw new Error('OpenJOC PCM frame could not be released.');
+    if (!sentDecodeEvidence) {
+      const profilePtr = profilePointer(decoderHandle);
+      const profileLen = profileLength(decoderHandle);
+      const profile = profilePtr && profileLen > 0 && profileLen <= 128
+        ? new TextDecoder().decode(new Uint8Array(memory().buffer, profilePtr, profileLen).slice())
+        : null;
+      const objects = objectCount(decoderHandle);
+      const complexity = complexityIndex(decoderHandle);
+      send({
+        type: 'decoded',
+        generation: id,
+        profile,
+        objectCount: objects === 0xffffffff ? null : objects,
+        complexityIndex: complexity === 0xffffffff ? null : complexity,
+        decodedAccessUnits: decodedAccessUnits(decoderHandle),
+      });
+      sentDecodeEvidence = true;
+    }
     send({
       type: 'pcm',
       generation: id,
