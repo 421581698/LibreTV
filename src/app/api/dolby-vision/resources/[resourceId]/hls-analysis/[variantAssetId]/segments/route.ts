@@ -39,7 +39,9 @@ function publicKeyPem(): string | null {
 
 function integerHeader(headers: Headers, name: string, minimum = 0): number | null {
   const raw = headers.get(name);
-  if (raw === null || !/^(?:0|[1-9]\d*)$/.test(raw)) return null;
+  if (raw === null || raw.length === 0 || raw.length > 16 ||
+      [...raw].some((character) => character < '0' || character > '9') ||
+      (raw.length > 1 && raw[0] === '0')) return null;
   const value = Number(raw);
   return Number.isSafeInteger(value) && value >= minimum ? value : null;
 }
