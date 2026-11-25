@@ -281,7 +281,11 @@ export function PlayerShell({
   const [qualityControlMode, setQualityControlMode] = useState<'hls' | 'native' | 'single'>('single');
   // Read-only diagnostics HUD state. Never feeds back into playback decisions.
   const [diagnosticsSnapshot, setDiagnosticsSnapshot] = useState<PlaybackDiagnostics | null>(null);
-  const [dolbyVisionFormatReport, setDolbyVisionFormatReport] = useState<DolbyVisionFormatReport | null>(null);
+  const [dolbyVisionFormatReportState, setDolbyVisionFormatReportState] = useState<{ sourceUrl: string; report: DolbyVisionFormatReport } | null>(null);
+  // Never render a format report collected for the previous playback URL during a source switch.
+  const dolbyVisionFormatReport = dolbyVisionFormatReportState?.sourceUrl === url
+    ? dolbyVisionFormatReportState.report
+    : null;
   const unsustainableFragmentsRef = useRef(0);
   const sustainableFragmentsRef = useRef(0);
   const [showPlayFallback, setShowPlayFallback] = useState(false);
@@ -671,10 +675,10 @@ export function PlayerShell({
     hlsRef.current?.destroy();
     hlsRef.current = null;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    setDolbyVisionFormatReport(inspectDolbyVisionFormat({
+    setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectDolbyVisionFormat({
       url: mediaUrl,
       mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',
-    }));
+    }) });
     if (mediaKind !== 'mp4' && mediaKind !== 'webm') {
       setError('当前直链格式无效，请选择 HLS、MP4 或 WebM 资源');
       return;
@@ -753,10 +757,10 @@ export function PlayerShell({
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    setDolbyVisionFormatReport(inspectDolbyVisionFormat({
+    setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectDolbyVisionFormat({
       url: mediaUrl,
       mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',
-    }));
+    }) });
     if (mediaKind === 'mp4' || mediaKind === 'webm') {
       setupDirectMedia(video, mediaUrl);
       return;
@@ -984,7 +988,7 @@ export function PlayerShell({
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       if (!isCurrentHls()) return;
-      setDolbyVisionFormatReport(inspectHlsDolbyVisionFormat(mediaUrl, hls.levels));
+      setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectHlsDolbyVisionFormat(mediaUrl, hls.levels) });
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
@@ -1048,7 +1052,7 @@ export function PlayerShell({
     // 实际分辨率统一由 video.videoHeight 的 loadedmetadata/canplay/playing/resize 事件记录。
     hls.on(Hls.Events.LEVELS_UPDATED, () => {
       if (!isCurrentHls()) return;
-      setDolbyVisionFormatReport(inspectHlsDolbyVisionFormat(mediaUrl, hls.levels));
+      setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectHlsDolbyVisionFormat(mediaUrl, hls.levels) });
       // 部分动态清单会在初次解析后补齐档位；重新应用用户的最高画质限制。
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
@@ -1972,7 +1976,7 @@ export function PlayerShell({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
-      <DolbyVisionDiagnosticsPanel report={dolbyVisionFormatReport} assetId={dolbyVisionAssetId} />
+      <DolbyVisionDiagnosticsPanel key={`${url}:${dolbyVisionAssetId ?? 'unbound'}`} report={dolbyVisionFormatReport} assetId={dolbyVisionAssetId} />
       {audioTrackOptions.length > 1 && (
         <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
           <button
