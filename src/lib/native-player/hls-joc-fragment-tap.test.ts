@@ -6,7 +6,7 @@ function loaded(
   type: string = 'main',
   payload: Uint8Array = new Uint8Array([1, 2, 3]),
 ): HlsFragmentLoadedLike {
-  return { frag: { sn, type, level: 0 }, payload };
+  return { frag: { sn, type, level: 0, start: 12.5 }, payload };
 }
 
 describe('HlsJocFragmentTap', () => {
@@ -16,7 +16,7 @@ describe('HlsJocFragmentTap', () => {
     tap.handle('frag-loaded', loaded('initSegment'));
     tap.handle('frag-loaded', loaded(7, 'audio'));
     expect(onFragment).toHaveBeenCalledTimes(2);
-    expect(onFragment.mock.calls[0][0]).toMatchObject({ kind: 'init', trackType: 'main', sequence: 'initSegment' });
+    expect(onFragment.mock.calls[0][0]).toMatchObject({ kind: 'init', trackType: 'main', sequence: 'initSegment', start: 12.5 });
     expect(onFragment.mock.calls[1][0]).toMatchObject({ kind: 'media', trackType: 'audio', sequence: 7 });
   });
 
@@ -40,6 +40,13 @@ describe('HlsJocFragmentTap', () => {
     tap.handle('frag-loaded', loaded(3, 'main', new Uint8Array(5)));
     expect(onFragment).not.toHaveBeenCalled();
     expect(onRejected).toHaveBeenCalledTimes(4);
+  });
+
+  it('marks a missing or non-finite media timeline anchor as unavailable', () => {
+    const onFragment = vi.fn();
+    const tap = new HlsJocFragmentTap({ isCurrent: () => true, onFragment });
+    tap.handle('frag-loaded', { frag: { sn: 1, type: 'audio', level: 0, start: Number.NaN }, payload: new Uint8Array([1]) });
+    expect(onFragment.mock.calls[0][0].start).toBeNull();
   });
 
   it('copies payload bytes and stops forwarding after dispose', () => {
