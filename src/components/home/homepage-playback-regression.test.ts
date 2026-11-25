@@ -601,7 +601,7 @@ describe('首页与播放页回归契约', () => {
     expect(seedhubCollector).not.toContain('sync_seedhub_details');
     expect(seedhubCollector).not.toContain('/v1/seedhub/sync');
     expect(collectorQueue).toContain('seedhub_collection_retired');
-    expect(collectorQueue).toContain('job_type not in {"crawl", "discover"}');
+    expect(collectorQueue).toContain('job_type not in {"crawl", "discover", "dv_media_ingest"}');
   });
 
   it('首页与分类页底部导航固定在视口水平居中，并避开 iPhone 安全区域', () => {
