@@ -1217,7 +1217,7 @@ function WatchContent() {
             </div>}
             {isIpadEditionPlayback && cinemaLocked && (
               <>
-                <div className="cinema-v4-touch-shield" aria-hidden="true" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} />
+                <div className="cinema-v4-touch-shield" aria-hidden="true" onPointerDown={(event) => event.stopPropagation()} onPointerMove={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} />
                 <button type="button" className="cinema-v4-unlock" onClick={() => setCinemaLocked(false)} aria-label="解锁屏幕">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>解除触控锁定</span>
                 </button>
