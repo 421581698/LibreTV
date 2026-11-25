@@ -42,7 +42,10 @@ export function parseDoviToolInfoSummary(output) {
   return { frameCount, profiles };
 }
 
-export function parseLevelExportFiles(levelFiles) {
+export function parseLevelExportFiles(levelFiles, frameCount) {
+  if (!Number.isSafeInteger(frameCount) || frameCount <= 0) {
+    throw new Error('RPU 元数据导出必须绑定有效的完整帧数。');
+  }
   const metadataLevelFrameCounts = {};
   for (const [level, raw] of Object.entries(levelFiles)) {
     let parsed;
@@ -59,6 +62,9 @@ export function parseLevelExportFiles(levelFiles) {
     );
     if (validFrames.length !== parsed.length) {
       throw new Error(`RPU Level ${level} 导出包含无效帧记录。`);
+    }
+    if (validFrames.some((record) => record.frame >= frameCount)) {
+      throw new Error(`RPU Level ${level} 导出包含超出完整 RPU 帧范围的记录。`);
     }
     // Export files may contain multiple records for one frame; the report contract counts distinct frames.
     const distinctFrameCount = new Set(validFrames.map((record) => record.frame)).size;
@@ -158,7 +164,7 @@ export async function analyzeRpu(options) {
       if (!bytes) throw new Error(`dovi_tool 未生成 Level ${level} 导出文件。`);
       levelFiles[level] = bytes.toString('utf8');
     }
-    const levels = parseLevelExportFiles(levelFiles);
+    const levels = parseLevelExportFiles(levelFiles, summary.frameCount);
     const rpuSha256 = await sha256File(rpuPath);
 
     return {
