@@ -160,3 +160,5 @@
     pointer-events: none !important;
   }
 }
+
+/* Mobile cinema dock visibility regression is covered by the V2.3 Preview viewport smoke. */
