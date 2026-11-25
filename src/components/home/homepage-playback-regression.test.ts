@@ -335,8 +335,8 @@ describe('首页与播放页回归契约', () => {
 
   it('点播播放器保留播放、进度、音量、全屏与 HLS 恢复配置', () => {
     expect(player).toContain('volume: 0.8');
-    expect(player).toContain('fullscreen: !touchPointer');
-    expect(player).toContain('fullscreenWeb: !touchPointer');
+    expect(player).toContain('fullscreen: !cinemaMode && !touchPointer');
+    expect(player).toContain('fullscreenWeb: !cinemaMode && !touchPointer');
     expect(player).toContain('requestNativeFullscreenWithFallback');
     expect(player).toContain('onRequestFullscreen?: () => void;');
     expect(player).toContain('const requestFullscreen = propsRef.current.onRequestFullscreen');
