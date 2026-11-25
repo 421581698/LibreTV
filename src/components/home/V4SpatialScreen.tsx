@@ -458,6 +458,9 @@ function SettingsScreen() {
     <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-12 sm:px-6">
 
       <SourceManagerDrawer open embedded onClose={() => undefined} />
+      <section className="card p-4 sm:p-5" aria-label="Friday 液态玻璃设置">
+        <FridayGlassControls />
+      </section>
       <section className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -482,9 +485,6 @@ function SettingsScreen() {
         <p className="mt-3 text-xs leading-5 text-faint">
           查看下载进度与状态，暂停、继续、取消、重试或删除任务。下载完成状态以实际文件保存结果为准。
         </p>
-      </section>
-      <section className="card p-4 sm:p-5" aria-label="Friday 液态玻璃设置">
-        <FridayGlassControls />
       </section>
     </div>
   );
