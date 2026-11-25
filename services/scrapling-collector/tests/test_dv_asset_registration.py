@@ -49,9 +49,9 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
             )
         return resource
 
-    def register(self, resource, content_type="video/mp4", digest="a" * 64):
+    def register(self, resource, content_type="video/mp4", digest="a" * 64, byte_length=128):
         return registry.register_dolby_vision_media_asset(
-            resource["id"], digest, 128, content_type
+            resource["id"], digest, byte_length, content_type
         )
 
     def test_rejects_registration_for_unverified_resource(self):
@@ -104,7 +104,7 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
         payload = b"immutable-media-payload"
         digest = hashlib.sha256(payload).hexdigest()
         resource = self.make_resource("dv-registration:stream-valid")
-        asset = self.register(resource, digest=digest)
+        asset = self.register(resource, digest=digest, byte_length=len(payload))
         object_path = self.object_root / asset["object_key"]
         object_path.parent.mkdir(parents=True, exist_ok=True)
         object_path.write_bytes(payload)
@@ -125,7 +125,7 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
         tampered = b"replaced-media-bytes"
         self.assertEqual(len(expected), len(tampered))
         resource = self.make_resource("dv-registration:stream-tampered")
-        asset = self.register(resource, digest=hashlib.sha256(expected).hexdigest())
+        asset = self.register(resource, digest=hashlib.sha256(expected).hexdigest(), byte_length=len(expected))
         object_path = self.object_root / asset["object_key"]
         object_path.parent.mkdir(parents=True, exist_ok=True)
         object_path.write_bytes(tampered)
