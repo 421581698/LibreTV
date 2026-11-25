@@ -157,15 +157,13 @@ describe('POST HLS fragment-set analysis', () => {
     });
     expect(fetchDolbyVisionHlsAssemblySegment).toHaveBeenCalledTimes(2);
     expect(parserFetch).toHaveBeenCalledTimes(2);
-    expect(parserFetch.mock.calls[0][1].headers).toMatchObject({
-      'X-DV-Analysis-Scope': 'hls-fmp4-segment',
-      'X-DV-HLS-FRAGMENT-ORDINAL': '0',
-      'X-DV-HLS-DECODE-TIME': '0',
-    });
-    expect(parserFetch.mock.calls[1][1].headers).toMatchObject({
-      'X-DV-HLS-FRAGMENT-ORDINAL': '1',
-      'X-DV-HLS-DECODE-TIME': '4000',
-    });
+    const firstParserHeaders = new Headers(parserFetch.mock.calls[0][1].headers);
+    const secondParserHeaders = new Headers(parserFetch.mock.calls[1][1].headers);
+    expect(firstParserHeaders.get('X-DV-Analysis-Scope')).toBe('hls-fmp4-segment');
+    expect(firstParserHeaders.get('X-DV-HLS-Fragment-Ordinal')).toBe('0');
+    expect(firstParserHeaders.get('X-DV-HLS-Decode-Time')).toBe('0');
+    expect(secondParserHeaders.get('X-DV-HLS-Fragment-Ordinal')).toBe('1');
+    expect(secondParserHeaders.get('X-DV-HLS-Decode-Time')).toBe('4000');
   });
 
   it('rejects a fragment whose parser signature belongs to a different graph', async () => {
