@@ -242,6 +242,11 @@ def assemble_registered_hls_fmp4(
         ).fetchall()
         assets = {row["child_asset_id"]: dict(row) for row in edges}
 
+    if root_asset["content_type"] != "application/vnd.apple.mpegurl":
+        raise HlsAssemblyError("Registered HLS graph root must be a playlist asset.")
+    # Verify the root playlist bytes as well as its registry identity before
+    # including its digest in the signed-analysis provenance manifest.
+    _read_verified_bytes(root_dir, dict(root_asset), MAX_PLAYLIST_BYTES)
     playlist_bytes = _read_verified_bytes(root_dir, dict(variant), MAX_PLAYLIST_BYTES)
     try:
         playlist = playlist_bytes.decode("utf-8-sig")
