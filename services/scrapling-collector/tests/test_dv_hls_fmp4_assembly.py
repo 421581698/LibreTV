@@ -18,20 +18,20 @@ def box(kind: str, payload: bytes) -> bytes:
 
 
 def init_segment() -> bytes:
-    tkhd = box("tkhd", b"\\x00\\x00\\x00\\x00" + b"\\x00" * 8 + (1).to_bytes(4, "big") + b"\\x00" * 8)
-    mdhd = box("mdhd", b"\\x00\\x00\\x00\\x00" + b"\\x00" * 8 + (1000).to_bytes(4, "big") + b"\\x00" * 4)
-    hdlr = box("hdlr", b"\\x00" * 4 + b"\\x00" * 4 + b"vide")
+    tkhd = box("tkhd", b"\x00\x00\x00\x00" + b"\x00" * 8 + (1).to_bytes(4, "big") + b"\x00" * 8)
+    mdhd = box("mdhd", b"\x00\x00\x00\x00" + b"\x00" * 8 + (1000).to_bytes(4, "big") + b"\x00" * 4)
+    hdlr = box("hdlr", b"\x00" * 4 + b"\x00" * 4 + b"vide")
     trak = box("trak", tkhd + box("mdia", mdhd + hdlr))
-    trex = box("trex", b"\\x00" * 4 + (1).to_bytes(4, "big") + (1).to_bytes(4, "big") + (0).to_bytes(4, "big") + b"\\x00" * 8)
+    trex = box("trex", b"\x00" * 4 + (1).to_bytes(4, "big") + (1).to_bytes(4, "big") + (0).to_bytes(4, "big") + b"\x00" * 8)
     return box("ftyp", b"isom0000") + box("moov", trak + box("mvex", trex))
 
 
 def media_fragment(sequence: int, decode_time: int | None = None, sample_duration: int = 4000) -> bytes:
     decode_time = (sequence - 1) * 4000 if decode_time is None else decode_time
-    mfhd = box("mfhd", b"\\x00\\x00\\x00\\x00" + sequence.to_bytes(4, "big"))
-    tfhd = box("tfhd", b"\\x00\\x00\\x00\\x08" + (1).to_bytes(4, "big") + sample_duration.to_bytes(4, "big"))
-    tfdt = box("tfdt", b"\\x00\\x00\\x00\\x00" + decode_time.to_bytes(4, "big"))
-    trun = box("trun", b"\\x00\\x00\\x01\\x00" + (1).to_bytes(4, "big") + sample_duration.to_bytes(4, "big"))
+    mfhd = box("mfhd", b"\x00\x00\x00\x00" + sequence.to_bytes(4, "big"))
+    tfhd = box("tfhd", b"\x00\x00\x00\x08" + (1).to_bytes(4, "big") + sample_duration.to_bytes(4, "big"))
+    tfdt = box("tfdt", b"\x00\x00\x00\x00" + decode_time.to_bytes(4, "big"))
+    trun = box("trun", b"\x00\x00\x01\x00" + (1).to_bytes(4, "big") + sample_duration.to_bytes(4, "big"))
     return box("moof", mfhd + box("traf", tfhd + tfdt + trun)) + box("mdat", b"sample-data")
 
 class HlsFmp4AssemblyTests(unittest.TestCase):
