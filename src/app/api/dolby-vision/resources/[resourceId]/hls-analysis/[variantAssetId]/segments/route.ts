@@ -99,7 +99,13 @@ export async function POST(
     return NextResponse.json({ code: 'DV_HLS_ANALYSIS_NOT_CONFIGURED' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
 
+  // The endpoint is request-scoped; never keep a serverless invocation alive
+  // for an unbounded number of registered fragments.
   const timeoutMs = 16 * 60 * 1000;
+  const maxRequestMs = 15 * 60 * 1000;
+  const startedAt = Date.now();
+  const maxEnvelopeBytes = 32 * 1024 * 1024;
+  let accumulatedEnvelopeBytes = 0;
   const expectedSegments: ExpectedHlsRpuFragment[] = [];
   const envelopes: unknown[] = [];
   let graph: {
@@ -109,6 +115,10 @@ export async function POST(
 
   try {
     for (let ordinal = 0; ordinal < 10_000; ordinal += 1) {
+      if (Date.now() - startedAt > maxRequestMs) {
+        return NextResponse.json({ code: 'DV_HLS_ANALYSIS_TIME_BUDGET_EXCEEDED', analyzedCount: ordinal },
+          { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      }
       const fragment = await fetchDolbyVisionHlsAssemblySegment(resourceId, variantAssetId, ordinal, timeoutMs);
       if (!fragment) {
         return NextResponse.json({ code: 'DV_HLS_REGISTRY_NOT_CONFIGURED' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
@@ -119,7 +129,8 @@ export async function POST(
       }
       if (ordinal > 0 && fragment.status === 404) {
         await fragment.body?.cancel();
-        break;
+        return NextResponse.json({ code: 'DV_HLS_FRAGMENT_SET_INCOMPLETE', analyzedCount: ordinal },
+          { status: 409, headers: { 'Cache-Control': 'no-store' } });
       }
       if (!fragment.ok) {
         await fragment.body?.cancel();
@@ -274,6 +285,14 @@ export async function POST(
         envelope = JSON.parse(text);
       } catch {
         return NextResponse.json({ code: 'DV_HLS_FRAGMENT_PARSER_RESPONSE_INVALID', ordinal }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+      }
+      // The parser endpoint is trusted only after final Ed25519 verification.
+      // Cap retained response data independently of the per-fragment limit.
+      const envelopeBytes = Buffer.byteLength(JSON.stringify(envelope), 'utf8');
+      accumulatedEnvelopeBytes += envelopeBytes;
+      if (accumulatedEnvelopeBytes > maxEnvelopeBytes) {
+        return NextResponse.json({ code: 'DV_HLS_ANALYSIS_EVIDENCE_TOO_LARGE' },
+          { status: 413, headers: { 'Cache-Control': 'no-store' } });
       }
       expectedSegments.push(expected);
       envelopes.push(envelope);
