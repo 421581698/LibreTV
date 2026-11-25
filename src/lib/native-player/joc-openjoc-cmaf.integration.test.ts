@@ -166,6 +166,8 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
     const profileLength = fn<(handle: number) => number>(api, 'openjoc_wasm_decoder_profile_len');
     const decodedUnits = fn<(handle: number) => number>(api, 'openjoc_wasm_decoder_decoded_access_units');
     const objectCount = fn<(handle: number) => number>(api, 'openjoc_wasm_decoder_object_count');
+    const errorPointer = fn<(handle: number) => number>(api, 'openjoc_wasm_decoder_error_ptr');
+    const errorLength = fn<(handle: number) => number>(api, 'openjoc_wasm_decoder_error_len');
 
     const handle = create();
     expect(handle).toBeGreaterThan(0);
@@ -200,7 +202,13 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
           new Uint8Array(wasmMemory.buffer, pointer, packet.bytes.byteLength).set(packet.bytes);
           const ptsSamples = BigInt(Math.round(packet.presentationTime * 48_000 / packet.timescale));
           const status = push(handle, pointer, packet.bytes.byteLength, ptsSamples, 0);
-          expect(status).toBeGreaterThanOrEqual(0);
+          if (status < 0) {
+            const errorSize = errorLength(handle);
+            const detail = errorSize > 0
+              ? new TextDecoder().decode(new Uint8Array(wasmMemory.buffer, errorPointer(handle), errorSize).slice())
+              : 'No decoder detail was provided.';
+            throw new Error(`OpenJOC rejected CMAF sample ${packet.sampleIndex} (size=${packet.bytes.byteLength}, pts=${packet.presentationTime}/${packet.timescale}): ${detail}`);
+          }
         } finally {
           dealloc(pointer, packet.bytes.byteLength);
         }
