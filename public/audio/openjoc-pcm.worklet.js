@@ -27,6 +27,7 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
         this.queue = [];
         this.queuedFrames = 0;
         this.expectedPtsSamples = this.clockPtsSamples;
+        this.started = false;
         this.underrunQuanta = 0;
         this.underrunSent = false;
         this.port.postMessage({ type: 'queued', frames: 0 });
