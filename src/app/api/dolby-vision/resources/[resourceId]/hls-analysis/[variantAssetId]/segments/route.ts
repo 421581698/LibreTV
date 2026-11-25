@@ -340,6 +340,9 @@ export async function POST(
       semanticEvidenceLimitation: verified.semanticEvidenceLimitation,
       verifiedDecodeEnd: verified.verifiedDecodeEnd,
       verifiedTimescale: verified.verifiedTimescale,
+      verifiedParserVersion: verified.verifiedParserVersion,
+      verifiedMetadataLevelFrameCounts: verified.verifiedMetadataLevelFrameCounts,
+      orderedRpuEvidenceSha256: verified.orderedRpuEvidenceSha256,
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ code: 'DV_HLS_SEGMENT_ANALYSIS_UNAVAILABLE' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });

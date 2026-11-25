@@ -118,3 +118,10 @@ The following cannot be fabricated by repository code:
 ## Release acceptance
 
 A full Dolby Vision release requires all implementation gates above, passing automated regression tests, and recorded physical-device output evidence. Until then, LibreTV may describe its verified media-inspection and RPU-analysis capabilities, but must not claim end-to-end Dolby Vision decoding or presentation.
+
+## Ordered HLS evidence aggregation hardening (PR #99 development)
+
+- The HLS segment-set verifier now requires a consistent signed parser version across all fragments, sums the signed metadata-level frame counts with safe-integer bounds, and exposes `verifiedMetadataLevelFrameCounts`.
+- `orderedRpuEvidenceSha256` is a graph-bound SHA-256 over the ordered signed fragment asset identity, fragment hash, RPU hash, frame count and parser version. It is a reproducible **aggregate evidence fingerprint**, not proof that RPU units align to individual video samples.
+- The API exposes the verified parser version, per-level counts and ordered evidence fingerprint only after the complete set has passed Ed25519, graph identity, sample-count and timeline verification. Mixed parser-version evidence is rejected rather than silently aggregated.
+- These changes **do not** complete a Dolby Vision decoder, per-frame RPU semantics, hardware display rendering, or real-device output acceptance. The six release gates above remain in force.

@@ -1,4 +1,4 @@
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { canonicalizeDolbyVisionRpuPayload, verifySignedDolbyVisionRpuEnvelope, verifySignedDolbyVisionRpuSegmentSet } from './signed-rpu-envelope';
 
@@ -235,7 +235,26 @@ describe('signed Dolby Vision RPU envelope', () => {
       semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed',
       verifiedDecodeEnd: 19200,
       verifiedTimescale: 1000,
+      verifiedParserVersion: '2.3.4',
+      verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480, '5': 2, '6': 2 },
     });
+    const verifiedSet = verifySignedDolbyVisionRpuSegmentSet(envelopes, trusted);
+    expect(verifiedSet?.orderedRpuEvidenceSha256).toMatch(/^[a-f0-9]{64}$/);
+    const independentlyBoundDigest = createHash('sha256').update(canonicalizeDolbyVisionRpuPayload({
+      scope: 'hls-ordered-rpu-evidence-v1',
+      graphSha256: trusted.graphSha256,
+      resourceId: trusted.resourceId,
+      variantAssetId: trusted.variantAssetId,
+      orderedEvidence: envelopes.map((envelope, ordinal) => ({
+        ordinal,
+        fragmentAssetId: expectedSegments[ordinal].fragmentAssetId,
+        fragmentSha256: expectedSegments[ordinal].fragmentSha256,
+        rpuSha256: envelope.report.rpuSha256,
+        frameCount: envelope.report.frameCount,
+        parserVersion: envelope.report.parserVersion,
+      })),
+    })).digest('hex');
+    expect(verifiedSet?.orderedRpuEvidenceSha256).toBe(independentlyBoundDigest);
     expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
       ...trusted,
       expectedSegments: [expectedSegments[0], { ...expectedSegments[1], decodeTime: 9700 }],
@@ -261,6 +280,16 @@ describe('signed Dolby Vision RPU envelope', () => {
     delete changedPayload.signature;
     const changedSignature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(changedPayload)), privateKey).toString('base64url');
     expect(verifySignedDolbyVisionRpuSegmentSet([envelopes[0], { ...changedProfile, signature: changedSignature }], trusted)).toBeNull();
+    const differentParser = {
+      ...envelopes[1],
+      report: { ...envelopes[1].report, parserVersion: '2.3.5' },
+    };
+    const differentParserPayload: Record<string, unknown> = { ...differentParser };
+    delete differentParserPayload.signature;
+    const differentParserSignature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(differentParserPayload)), privateKey).toString('base64url');
+    expect(verifySignedDolbyVisionRpuSegmentSet([
+      envelopes[0], { ...differentParser, signature: differentParserSignature },
+    ], trusted)).toBeNull();
     const misalignedReport = {
       ...envelopes[0],
       report: {

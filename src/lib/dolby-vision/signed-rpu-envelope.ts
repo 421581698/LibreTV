@@ -1,4 +1,4 @@
-import { createPublicKey, verify as verifySignature, type KeyObject } from 'node:crypto';
+import { createHash, createPublicKey, verify as verifySignature, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
 import { DolbyVisionRpuReportSchema, validateDolbyVisionRpuReport } from './rpu-evidence-contract';
 
@@ -104,6 +104,12 @@ export interface VerifiedHlsRpuSegmentSet {
   /** Maximum verified end time in the media track's timescale units. */
   verifiedDecodeEnd: number;
   verifiedTimescale: number;
+  /** Parser version is identical across every verified segment. */
+  verifiedParserVersion: string;
+  /** Summed signed per-level metadata coverage (not a per-sample mapping). */
+  verifiedMetadataLevelFrameCounts: Record<string, number>;
+  /** SHA-256 of graph-bound, ordered signed fragment summaries; not a decoder/output attestation. */
+  orderedRpuEvidenceSha256: string;
 }
 
 /**
@@ -139,6 +145,16 @@ export function verifySignedDolbyVisionRpuSegmentSet(
   let commonTimescale: number | null = null;
   let commonProfiles: number[] | null = null;
   let totalRpuFrameCount = 0;
+  let commonParserVersion: string | null = null;
+  const metadataLevelCounts: Record<string, number> = Object.create(null);
+  const orderedEvidence: Array<{
+    ordinal: number;
+    fragmentAssetId: string;
+    fragmentSha256: string;
+    rpuSha256: string;
+    frameCount: number;
+    parserVersion: string;
+  }> = [];
 
   for (let ordinal = 0; ordinal < options.expectedFragmentCount; ordinal += 1) {
     const expected = options.expectedSegments[ordinal];
@@ -184,6 +200,21 @@ export function verifySignedDolbyVisionRpuSegmentSet(
       now: options.now,
     });
     if (!result || result.report.frameCount !== expected.sampleCount) return null;
+    if (commonParserVersion === null) commonParserVersion = result.report.parserVersion;
+    else if (result.report.parserVersion !== commonParserVersion) return null;
+    for (const [level, count] of Object.entries(result.report.metadataLevelFrameCounts)) {
+      const accumulated = (metadataLevelCounts[level] ?? 0) + count;
+      if (!Number.isSafeInteger(accumulated)) return null;
+      metadataLevelCounts[level] = accumulated;
+    }
+    orderedEvidence.push({
+      ordinal,
+      fragmentAssetId: expected.fragmentAssetId,
+      fragmentSha256: expected.fragmentSha256.toLowerCase(),
+      rpuSha256: result.report.rpuSha256.toLowerCase(),
+      frameCount: result.report.frameCount,
+      parserVersion: result.report.parserVersion,
+    });
     const profiles = result.report.profiles;
     if (commonProfiles === null) commonProfiles = profiles;
     else if (profiles.length !== commonProfiles.length ||
@@ -203,6 +234,15 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed',
     verifiedDecodeEnd: previousEnd!,
     verifiedTimescale: commonTimescale!,
+    verifiedParserVersion: commonParserVersion!,
+    verifiedMetadataLevelFrameCounts: Object.fromEntries(Object.entries(metadataLevelCounts).sort(([a], [b]) => Number(a) - Number(b))),
+    orderedRpuEvidenceSha256: createHash('sha256').update(canonicalizeDolbyVisionRpuPayload({
+      scope: 'hls-ordered-rpu-evidence-v1',
+      graphSha256: options.graphSha256.toLowerCase(),
+      resourceId: options.resourceId,
+      variantAssetId: options.variantAssetId,
+      orderedEvidence,
+    })).digest('hex'),
   };
 }
 
