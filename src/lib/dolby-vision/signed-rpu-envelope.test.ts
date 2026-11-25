@@ -74,6 +74,30 @@ describe('signed Dolby Vision RPU envelope', () => {
     expect(verifySignedDolbyVisionRpuEnvelope(envelope, { ...options, expectedAssetId: 'another-asset' })).toBeNull();
   });
 
+  it('requires exact expected HLS graph provenance for HLS-scoped signatures', () => {
+    const analysisContext = {
+      scope: 'hls-fmp4' as const,
+      resourceId: 'resource_hls_123',
+      graphId: 'graph_123',
+      graphSha256: 'c'.repeat(64),
+      rootAssetId: 'root:playlist',
+      variantAssetId: 'variant:playlist',
+      fragmentCount: 24,
+      fragmentSequenceContinuity: 'sequential' as const,
+      temporalContinuity: 'unknown' as const,
+    };
+    const envelope = makeEnvelope({ analysisContext });
+    expect(verifySignedDolbyVisionRpuEnvelope(envelope, options)).toBeNull();
+    expect(verifySignedDolbyVisionRpuEnvelope(envelope, {
+      ...options,
+      expectedAnalysisContext: analysisContext,
+    })).toMatchObject({ analysisContext });
+    expect(verifySignedDolbyVisionRpuEnvelope(envelope, {
+      ...options,
+      expectedAnalysisContext: { ...analysisContext, graphSha256: 'd'.repeat(64) },
+    })).toBeNull();
+  });
+
   it('rejects media digest mismatch, expired reports and reports issued in the future', () => {
     const envelope = makeEnvelope();
     expect(verifySignedDolbyVisionRpuEnvelope(envelope, { ...options, expectedMediaSha256: 'c'.repeat(64) })).toBeNull();
