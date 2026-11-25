@@ -49,6 +49,9 @@ export class JocSoftwareDecoderClient {
   private decodedAccessUnits = 0;
   private inFlight = false;
   private disposed = false;
+  private activeVideo: HTMLVideoElement | null = null;
+  private previousMuted = false;
+  private ownsMediaMute = false;
   private readonly listeners = new Set<(status: JocDecoderStatus) => void>();
   private readonly pcmListeners = new Set<(frame: JocDecoderPcmFrame) => void>();
   private readonly errorListeners = new Set<(error: Error) => void>();
@@ -175,6 +178,7 @@ export class JocSoftwareDecoderClient {
     this.generation += 1;
     this.ready = false;
     this.queuedFrames = 0;
+    this.node?.port.postMessage({ type: 'clear' });
     this.decodedProfile = null;
     this.reconstructedObjectCount = null;
     this.complexityIndex = null;
@@ -195,19 +199,63 @@ export class JocSoftwareDecoderClient {
     this.node?.port.postMessage({ type: 'clock', ptsSamples });
   }
 
-  /** Starts the worklet output graph. Original media audio remains untouched. */
-  connectOutput(): void {
+  /**
+   * Atomically switches from native media audio only after decoded PCM has
+   * reached the worklet and the first timestamp-aligned output quantum played.
+   * Call only from a user gesture while the video is already playing.
+   */
+  async activateOutput(video: HTMLVideoElement, minimumPrerollMs = 128): Promise<boolean> {
     this.assertActive();
-    if (!this.node) throw new Error('OpenJOC AudioWorklet is unavailable.');
-    this.node.port.postMessage({ type: 'start' });
+    if (!this.node || !this.ready || video.paused || video.ended) return false;
+    const requiredFrames = Math.ceil(48000 * Math.max(128, minimumPrerollMs) / 1000);
+    if (this.queuedFrames < requiredFrames) return false;
+    await this.resumeFromUserGesture();
+    if (this.queuedFrames < requiredFrames || video.paused || video.ended) return false;
+
+    this.activeVideo = video;
+    this.previousMuted = video.muted;
+    this.ownsMediaMute = false;
+    try {
+      await this.waitFor('output-started', () => this.node?.port.postMessage({ type: 'start' }));
+      if (this.disposed || video.paused || video.ended || this.context.state !== 'running') {
+        this.fallbackToMediaAudio();
+        return false;
+      }
+      // The software route has rendered timestamp-aligned audio; only now mute
+      // the original media element. Any subsequent worklet fault restores it.
+      video.muted = true;
+      this.ownsMediaMute = true;
+      return true;
+    } catch {
+      this.fallbackToMediaAudio();
+      return false;
+    }
+  }
+
+  pauseOutput(): void {
+    this.node?.port.postMessage({ type: 'stop' });
+  }
+
+  resumeOutput(): void {
+    if (this.activeVideo && !this.activeVideo.paused && !this.activeVideo.ended) {
+      this.node?.port.postMessage({ type: 'start' });
+    }
   }
 
   disconnectOutput(): void {
+    this.fallbackToMediaAudio();
+  }
+
+  fallbackToMediaAudio(): void {
     this.node?.port.postMessage({ type: 'stop' });
+    if (this.activeVideo && this.ownsMediaMute) this.activeVideo.muted = this.previousMuted;
+    this.activeVideo = null;
+    this.ownsMediaMute = false;
   }
 
   dispose(): void {
     if (this.disposed) return;
+    this.fallbackToMediaAudio();
     this.disposed = true;
     const oldGeneration = this.generation;
     this.generation += 1;
@@ -294,20 +342,26 @@ export class JocSoftwareDecoderClient {
   };
 
   private onWorkletMessage = (event: MessageEvent<{ type?: string; frames?: number }>): void => {
-    if (event.data?.type === 'overflow') {
-      this.fail(new Error('OpenJOC PCM queue overflowed; software output was stopped.'));
+    if (event.data?.type === 'started') {
+      this.settle('output-started');
+      return;
+    }
+    if (event.data?.type === 'underrun' || event.data?.type === 'overflow') {
+      this.fail(new Error(event.data.type === 'overflow' ? 'OpenJOC PCM queue overflowed; software output was stopped.' : 'OpenJOC PCM underrun; native media audio was restored.'));
       this.disconnectOutput();
       return;
     }
     if (event.data?.type !== 'queued' || typeof event.data.frames !== 'number') return;
     this.queuedFrames = Math.max(0, Math.min(MAX_QUEUED_FRAMES, event.data.frames));
     this.emitStatus();
+    if (this.queuedFrames < MAX_QUEUED_FRAMES / 2) this.settle('capacity');
   };
 
   private onWorkerError = (event: ErrorEvent): void => this.fail(new Error(event.message || 'OpenJOC Worker failed.'));
 
   private fail(error: Error): void {
     this.ready = false;
+    this.fallbackToMediaAudio();
     for (const listener of this.errorListeners) listener(error);
     this.emitStatus();
     for (const entries of this.pending.values()) entries.forEach(entry => entry.reject(error));
