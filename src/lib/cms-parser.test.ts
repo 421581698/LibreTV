@@ -88,11 +88,11 @@ describe('extractEpisodesFromPlayUrl', () => {
     ]);
   });
 
-  it('第一条线路为中转页时优先取 m3u8 线路（量子/非凡类源）', () => {
+  it('第一条线路为中转页时优先取 m3u8 线路（通用 CMS 源）', () => {
     const play =
-      'HD中字$https://vip.lzcdn2.com/share/abc$$$HD中字$https://vip.lzcdn2.com/20220329/1012_e9be6a92/index.m3u8';
+      'HD中字$https://media-fixture.example/share/abc$$$HD中字$https://media-fixture.example/series/index.m3u8';
     expect(extractEpisodesFromPlayUrl(play)).toEqual([
-      'https://vip.lzcdn2.com/20220329/1012_e9be6a92/index.m3u8',
+      'https://media-fixture.example/series/index.m3u8',
     ]);
   });
 
@@ -241,10 +241,10 @@ describe('parseDetailPageHtml', () => {
     expect(detail.videoInfo.desc).toBe('简介 内容');
   });
 
-  it('非凡影视特征路径兜底', () => {
-    const html = '$https://vip.ffzy.com/20231101/12345_abcdef/index.m3u8';
+  it('支持日期路径格式的通用回退', () => {
+    const html = '$https://media-fixture.example/series/fallback/index.m3u8';
     const detail = parseDetailPageHtml(html, source);
-    expect(detail.episodes).toContain('https://vip.ffzy.com/20231101/12345_abcdef/index.m3u8');
+    expect(detail.episodes).toContain('https://media-fixture.example/series/fallback/index.m3u8');
   });
 });
 
