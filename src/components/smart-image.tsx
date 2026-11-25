@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { buildImageCandidates } from '@/lib/utils';
+import { preferOriginalCinemaImage } from '@/lib/ipad-edition/cinema-artwork-policy';
 import type { PosterAsset } from '@/lib/poster';
 import { matchesArtworkOrientation, meetsMinimumImageWidth } from '@/lib/poster/poster-normalizer';
 
@@ -17,6 +18,8 @@ interface SmartImageProps {
   fallbackUrl?: string;
   /** 可选的独立 HDR / gain-map 图片地址。只有高动态范围显示设备会优先尝试 */
   hdrUrl?: string;
+  /** On iPad preserve original image bytes (gain maps / P3 ICC) before any image proxy. */
+  preferNativeImage?: boolean;
   mode: 'direct' | 'proxy' | 'custom';
   customProxy?: string;
   alt: string;
@@ -46,6 +49,7 @@ export function SmartImage({
   url,
   fallbackUrl,
   hdrUrl,
+  preferNativeImage = false,
   mode,
   customProxy = '',
   alt,
@@ -58,11 +62,11 @@ export function SmartImage({
   expectedOrientation,
 }: SmartImageProps) {
   const sourceUrl = asset?.originalUrl ?? url;
-  const primaryCandidates = [...new Set(buildImageCandidates(sourceUrl, mode, customProxy))];
+  const primaryCandidates = preferOriginalCinemaImage(buildImageCandidates(sourceUrl, mode, customProxy), sourceUrl, mode, preferNativeImage);
   const fallbackCandidates = [...new Set(buildImageCandidates(fallbackUrl, mode, customProxy))]
     .filter((candidate) => !primaryCandidates.includes(candidate));
   const candidates = [...primaryCandidates, ...fallbackCandidates];
-  const hdrCandidates = buildImageCandidates(hdrUrl, mode, customProxy);
+  const hdrCandidates = preferOriginalCinemaImage(buildImageCandidates(hdrUrl, mode, customProxy), hdrUrl, mode, preferNativeImage);
   const [supportsHdr, setSupportsHdr] = useState(false);
   const [hdrFailed, setHdrFailed] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -99,6 +103,7 @@ export function SmartImage({
       className={className}
       loading={loading}
       decoding="async"
+      data-cinema-image-tier={fallback ? 'placeholder' : useHdrSource ? 'explicit-hdr-candidate' : 'source-unverified'}
       referrerPolicy="no-referrer"
       data-natural-width={measureNaturalSize ? naturalSize?.width : undefined}
       data-natural-height={measureNaturalSize ? naturalSize?.height : undefined}

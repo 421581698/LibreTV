@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { SmartImage } from '@/components/smart-image';
 import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
+import { selectCinemaTitleLogo } from '@/lib/ipad-edition/cinema-artwork-policy';
 import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
@@ -176,15 +177,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const releaseYear = (movie?.release_date || movie?.first_air_date || '').slice(0, 4);
   const runtime = movie?.runtime || movie?.episode_run_time?.[0];
   const rating = movie?.vote_average || Number(ratingFallback) || 0;
-  const logo = (movie?.images?.logos || []).filter((item) =>
-    typeof item.file_path === 'string' && /^\/[A-Za-z0-9_-]+\.png$/i.test(item.file_path) &&
-    Number.isFinite(item.width) && Number.isFinite(item.height) &&
-    (item.width || 0) >= 180 && (item.height || 0) >= 32 &&
-    (item.iso_639_1 === 'zh' || item.iso_639_1 === 'en' || item.iso_639_1 == null),
-  ).sort((a, b) => {
-    const rank = (lang: string | null | undefined) => lang === 'zh' ? 0 : lang === 'en' ? 1 : 2;
-    return rank(a.iso_639_1) - rank(b.iso_639_1) || (b.vote_average || 0) - (a.vote_average || 0) || (b.width || 0) - (a.width || 0);
-  })[0]?.file_path;
+  const logo = selectCinemaTitleLogo(movie?.images?.logos);
   const leadingCast = cast.slice(0, 3).map((member) => member.name).filter(Boolean).join('、');
   const trailers = movie?.videos?.results || [];
   const trailer = trailers.find((item) => item.site === 'YouTube' && item.type === 'Trailer' && item.official && /^[A-Za-z0-9_-]{11}$/.test(item.key || ''))
@@ -243,10 +236,8 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
           </a>
         </section>
       ) : null}
-      <section className={`ipad-cinema-info${movie.overview ? ' has-overview' : ''}`}>
-        {movie.overview ? <div><h2>剧情简介</h2><p>{movie.overview}</p></div> : null}
+      <section className="ipad-cinema-info" aria-label="影片资料">
         <dl>
-          <div><dt>导演</dt><dd>{director || '暂无数据'}</dd></div>
           <div><dt>年份</dt><dd>{releaseYear || '暂无数据'}</dd></div>
           <div><dt>类型</dt><dd>{movie.genres?.map((genre) => genre.name).join('、') || '暂无数据'}</dd></div>
           <div><dt>片长</dt><dd>{runtime ? `${runtime} 分钟${type === 'tv' ? '/集' : ''}` : '暂无数据'}</dd></div>

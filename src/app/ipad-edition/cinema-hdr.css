@@ -1,0 +1,60 @@
+/* Cinema Media Range V3. Native image/video processing: no fake HDR tags or CSS pixel boosting.
+ * CSS dynamic-range-limit is understood by recent Safari; unsupported browsers ignore it.
+ */
+.ipad-edition {
+  --ipad-cinema-copy-shadow: 0 1px 8px rgba(0,0,0,.75);
+}
+@supports (dynamic-range-limit: no-limit) {
+  .ipad-edition img,
+  .ipad-edition video {
+    dynamic-range-limit: no-limit;
+  }
+}
+/* Poster and artwork media keep the source's natural color / gamut. */
+.ipad-edition .poster-engine--poster .poster-engine__image,
+.ipad-edition .poster-engine--anime .poster-engine__image,
+.ipad-edition .poster-engine--result .poster-engine__image,
+.ipad-edition .poster-engine--continue .poster-engine__image,
+.ipad-edition .poster-engine--hero-poster .poster-engine__image {
+  filter: none;
+  opacity: 1;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media[data-artwork-mode="landscape-backdrop"] .poster-engine__image {
+  filter: none !important;
+  opacity: 1 !important;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media::before {
+  opacity: .2;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-media::after {
+  opacity: .3;
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-shade {
+  background:
+    linear-gradient(90deg, rgba(3,5,8,.40) 0%, rgba(3,5,8,.17) 35%, transparent 67%),
+    linear-gradient(0deg, rgba(3,5,8,.28), transparent 42%);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero::before {
+  height: clamp(84px, 13vh, 140px);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy {
+  text-shadow: var(--ipad-cinema-copy-shadow);
+}
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-copy h1 {
+  font-size: clamp(28px, 3.8vw, 48px);
+}
+@media (max-width: 699px) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-shade {
+    background:
+      linear-gradient(90deg, rgba(3,5,8,.54), rgba(3,5,8,.12) 68%, transparent),
+      linear-gradient(0deg, rgba(3,5,8,.36), transparent 55%);
+  }
+}
+@media (prefers-contrast: more) {
+  .ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero-shade {
+    background: linear-gradient(90deg, rgba(3,5,8,.62), rgba(3,5,8,.23) 42%, transparent 78%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ipad-edition .poster-engine__image { animation: none !important; }
+}

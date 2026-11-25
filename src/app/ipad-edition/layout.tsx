@@ -5,6 +5,7 @@ import './ipad-edition.css';
 import './poster-engine.css';
 import './responsive-system.css';
 import './cinema-v4.css';
+import './cinema-hdr.css';
 
 export const viewport: Viewport = {
   width: 'device-width',

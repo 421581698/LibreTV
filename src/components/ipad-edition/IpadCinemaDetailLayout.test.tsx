@@ -12,13 +12,13 @@ const base = {
   onBack: () => {},
 };
 
-describe('iPad Cinema Detail V2 shell', () => {
+describe('iPad Cinema Detail V3 shell', () => {
   it('keeps the original text title and existing actions when no logo exists', () => {
     const html = renderToStaticMarkup(<IpadCinemaDetailLayout {...base} />);
     expect(html).toContain('蜘蛛侠：崭新之日');
     expect(html).toContain('开始播放');
-    expect(html).toContain('ipad-cinema-overview-toggle');
-    expect(html).toContain('aria-expanded="false"');
+    // Overflow is measured on the client; no unnecessary More button during SSR.
+    expect(html).not.toContain('ipad-cinema-overview-toggle');
     expect(html).not.toContain('ipad-cinema-title-logo');
   });
 

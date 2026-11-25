@@ -208,8 +208,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       }
       onBack={() => router.back()}
     >
-      <section className={`ipad-cinema-info${subject.summary ? ' has-overview' : ''}`}>
-        {subject.summary ? <div><h2>作品资料</h2><p>{subject.summary}</p></div> : null}
+      <section className="ipad-cinema-info" aria-label="作品资料">
         <dl>
           <div><dt>年份</dt><dd>{year || '暂无数据'}</dd></div>
           <div><dt>集数</dt><dd>{subject.total_episodes || '待定'}</dd></div>

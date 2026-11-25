@@ -1038,3 +1038,83 @@
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content { width: min(440px, 35vw); }
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-details { padding-inline: clamp(24px, 2.9vw, 48px); }
 }
+
+/* V3 shared Apple TV artwork rhythm — all providers use IpadCinemaDetailLayout. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+  bottom: clamp(28px, 4svh, 48px);
+  left: max(22px, env(safe-area-inset-left, 0px) + 2.9vw);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content .ipad-cinema-kicker {
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: .12em;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-title-logo {
+  max-width: min(200px, 100%);
+  max-height: 72px;
+  object-fit: contain;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-wrap {
+  display: flex;
+  align-items: end;
+  column-gap: 6px;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-wrap .ipad-cinema-overview {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-top: 0;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-toggle {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  min-height: 0;
+  padding: 0 2px 1px;
+  color: #fff;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1:not(.ipad-cinema-title--logo) {
+  font-size: clamp(24px, 2.5vw, 28px);
+  line-height: 1.18;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-info {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__image,
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__poster {
+  filter: none;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__shade {
+  background:
+    linear-gradient(0deg, rgba(8,9,12,.76) 0%, rgba(8,9,12,.22) 25%, transparent 60%),
+    linear-gradient(90deg, rgba(0,0,0,.30) 0%, rgba(0,0,0,.12) 30%, transparent 60%);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-bottom-fade {
+  height: 13%;
+  background: linear-gradient(to top, #08090c, transparent);
+}
+@media (orientation: landscape) and (min-width: 901px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero {
+    height: clamp(520px, 80svh, 840px);
+    min-height: 520px;
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: min(450px, 36vw);
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1:not(.ipad-cinema-title--logo) {
+    font-size: clamp(24px, 2.3vw, 28px);
+  }
+}
+@media (max-width: 900px), (orientation: portrait) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: min(540px, 78vw);
+    bottom: max(32px, 5svh);
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__shade {
+    background: linear-gradient(0deg, #08090c 0%, rgba(8,9,12,.58) 15%, transparent 64%);
+  }
+}
+@media (max-width: 600px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content { width: calc(100% - 44px); }
+}
