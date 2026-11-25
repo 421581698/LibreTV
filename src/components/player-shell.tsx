@@ -31,6 +31,7 @@ import AudioDiagnosticsPanel from '@/components/audio-diagnostics-panel';
 import DolbyVisionDiagnosticsPanel from '@/components/dolby-vision-diagnostics-panel';
 import { inspectDolbyVisionFormat, type DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
 import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspector';
+import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-hls-manifest-inspector';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -792,6 +793,18 @@ export function PlayerShell({
       // Keeping crossorigin="anonymous" here can make otherwise playable
       // cross-origin HLS streams fail when the source omits ACAO headers.
       video.removeAttribute('crossorigin');
+      // Native Safari HLS does not emit hls.js MANIFEST_PARSED. Probe the
+      // master playlist separately when CORS allows it; this is diagnostics
+      // only and must never interfere with native playback.
+      const nativeManifestController = new AbortController();
+      void inspectNativeHlsDolbyVisionManifest(mediaUrl, nativeManifestController.signal)
+        .then((report) => {
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
+          setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report });
+        })
+        .catch(() => {
+          // Source changes abort the probe; playback continues independently.
+        });
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
       setQualityNotice('当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
@@ -842,6 +855,7 @@ export function PlayerShell({
       nativeRestoreEvents.forEach((event) => video.addEventListener(event, onNativeRestoreEvent));
       restoreCleanupRef.current = () => {
         nativeRestoreEvents.forEach((event) => video.removeEventListener(event, onNativeRestoreEvent));
+        nativeManifestController.abort();
       };
       video.src = mediaUrl;
       video.load();
