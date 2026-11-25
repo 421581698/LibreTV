@@ -131,17 +131,17 @@ def _fragment_sequence(source: BinaryIO, moof: tuple[str, int, int, int]) -> int
     raise HlsAssemblyError("Fragment is missing its mfhd sequence number.")
 
 
-def _validate_init(path: Path, expected_size: int) -> None:
-    with path.open("rb") as source:
-        boxes = _top_level_boxes(source, expected_size)
+def _validate_init(object_root: Path, asset: dict) -> None:
+    with _open_asset(object_root, asset) as source:
+        boxes = _top_level_boxes(source, asset["byte_length"])
     types = [item[0] for item in boxes]
     if "ftyp" not in types or "moov" not in types:
         raise HlsAssemblyError("Initialization segment must contain ftyp and moov boxes.")
 
 
-def _validate_fragment(path: Path, expected_size: int) -> int:
-    with path.open("rb") as source:
-        boxes = _top_level_boxes(source, expected_size)
+def _validate_fragment(object_root: Path, asset: dict) -> int:
+    with _open_asset(object_root, asset) as source:
+        boxes = _top_level_boxes(source, asset["byte_length"])
         types = [item[0] for item in boxes]
         if types.count("moof") != 1 or types.count("mdat") != 1:
             raise HlsAssemblyError("Each HLS media fragment must contain exactly one moof and one mdat box.")
@@ -292,18 +292,12 @@ def assemble_registered_hls_fmp4(
         segment_assets.append(asset)
 
     init_asset = assets[map_ids[0]]
-    init_path = root_dir / init_asset["object_key"]
-    if init_path.is_symlink() or not init_path.is_file():
-        raise HlsAssemblyError("Initialization object is unavailable or unsafe.")
-    _validate_init(init_path, init_asset["byte_length"])
+    _validate_init(root_dir, init_asset)
 
     sequence_numbers = []
     previous_sequence = None
     for asset in segment_assets:
-        segment_path = root_dir / asset["object_key"]
-        if segment_path.is_symlink() or not segment_path.is_file():
-            raise HlsAssemblyError("Media fragment object is unavailable or unsafe.")
-        sequence = _validate_fragment(segment_path, asset["byte_length"])
+        sequence = _validate_fragment(root_dir, asset)
         if previous_sequence is not None and sequence != previous_sequence + 1:
             raise HlsAssemblyError("Fragment sequence numbers are not contiguous; cross-fragment continuity is unknown.")
         previous_sequence = sequence
