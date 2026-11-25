@@ -35,6 +35,65 @@ const report = {
   notes: [],
 };
 
+function writeBits(bits, value, count) {
+  for (let index = count - 1; index >= 0; index -= 1) bits.push((value >> index) & 1);
+}
+function writeVariableBits(bits, value, width) {
+  const max = 1 << width;
+  if (value < max) { writeBits(bits, value, width); bits.push(0); return; }
+  let remaining = value;
+  while (true) {
+    const tmp = remaining >> width;
+    const clipped = tmp << width;
+    remaining -= clipped;
+    writeBits(bits, (clipped - max) >> width, width);
+    bits.push(1);
+    if (remaining <= max) break;
+  }
+  writeBits(bits, remaining, width);
+  bits.push(0);
+}
+function packBits(bits) {
+  while (bits.length % 8) bits.push(0);
+  const output = Buffer.alloc(bits.length / 8);
+  bits.forEach((bit, index) => { output[index >> 3] |= bit << (7 - (index & 7)); });
+  return output;
+}
+function leb(value) {
+  const bytes = [];
+  do {
+    let byte = value & 0x7f;
+    value >>>= 7;
+    if (value) byte |= 0x80;
+    bytes.push(byte);
+  } while (value);
+  return Buffer.from(bytes);
+}
+function obu(type, payload) {
+  return Buffer.concat([Buffer.from([(type << 3) | 0x02]), leb(payload.length), payload]);
+}
+function makeAv1ObuFixture() {
+  const rpu = Buffer.alloc(22, 0x55);
+  rpu[rpu.length - 1] = 0x80;
+  const bits = [];
+  writeBits(bits, 0x003b, 16);
+  writeBits(bits, 0x00000800, 32);
+  writeBits(bits, 0, 2);
+  writeBits(bits, 6, 3);
+  writeBits(bits, 31, 5);
+  writeVariableBits(bits, 225, 5);
+  writeBits(bits, 0, 4);
+  writeBits(bits, 1, 1);
+  writeVariableBits(bits, rpu.length, 8);
+  for (const byte of rpu) writeBits(bits, byte, 8);
+  const t35 = Buffer.concat([Buffer.from([0xb5]), packBits(bits)]);
+  return Buffer.concat([
+    obu(2, Buffer.alloc(0)),
+    obu(5, Buffer.concat([leb(4), t35])),
+    obu(6, Buffer.from([0])),
+  ]);
+}
+
 describe('Dolby Vision parser service security primitives', () => {
   it('canonicalizes nested JSON with deterministic key ordering', () => {
     assert.equal(canonicalize({ z: 1, a: { y: true, b: 2 } }), '{"a":{"b":2,"y":true},"z":1}');
@@ -313,6 +372,40 @@ process.exit(2);
       }
       assert.equal(ambiguousVideoTracks.status, 415);
       assert.deepEqual(await ambiguousVideoTracks.json(), { error: 'SINGLE_HEVC_VIDEO_TRACK_REQUIRED' });
+
+      // Exercise the complete AV1 MP4 demux -> OBU/EMDF extraction -> RPU
+      // parser -> source-media-bound Ed25519 envelope path.
+      const av1ObuFixture = resolve(directory, 'av1-video.obu');
+      await writeFile(av1ObuFixture, makeAv1ObuFixture());
+      await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write('av1\\n');\n", { mode: 0o700 });
+      await chmod(fakeFfprobe, 0o700);
+      await writeFile(fakeFfmpeg, "#!/usr/bin/env node\nimport { copyFileSync } from 'node:fs';\ncopyFileSync(process.env.DV_TEST_AV1_OBU_FIXTURE, process.argv.at(-1));\n", { mode: 0o700 });
+      await chmod(fakeFfmpeg, 0o700);
+      const previousAv1Fixture = process.env.DV_TEST_AV1_OBU_FIXTURE;
+      process.env.DV_TEST_AV1_OBU_FIXTURE = av1ObuFixture;
+      try {
+        let av1Response;
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          av1Response = await fetch(endpoint, { method: 'POST', headers, body: media });
+          if (av1Response.status !== 429) break;
+          await av1Response.arrayBuffer();
+          await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
+        }
+        assert.equal(av1Response.status, 200);
+        const av1Envelope = await av1Response.json();
+        assert.equal(av1Envelope.report.inputKind, 'av1');
+        assert.deepEqual(av1Envelope.report.extractionScope, { track: null, frameLimit: null });
+        assert.equal(av1Envelope.report.sourceMediaSha256, digest);
+        assert.equal(av1Envelope.report.rpuPresent, true);
+        const { signature: av1Signature, ...av1Payload } = av1Envelope;
+        assert.equal(
+          verify(null, Buffer.from(canonicalize(av1Payload)), servicePublicPem, Buffer.from(av1Signature, 'base64url')),
+          true,
+        );
+      } finally {
+        if (previousAv1Fixture === undefined) delete process.env.DV_TEST_AV1_OBU_FIXTURE;
+        else process.env.DV_TEST_AV1_OBU_FIXTURE = previousAv1Fixture;
+      }
     } finally {
       await new Promise((resolveClose) => server.close(resolveClose));
       await rm(directory, { recursive: true, force: true });
