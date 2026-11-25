@@ -82,14 +82,12 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     if (!root) return;
     const updateLayout = () => {
       const expanded = resolveIpadNavigationLayout(root.getBoundingClientRect().width) === 'expanded';
-      const wasWide = wideLayoutRef.current;
+      // Content and artwork can change the observed height after the drawer opens.
+      // Only crossing the width breakpoint should reset navigation state.
+      if (wideLayoutRef.current === expanded) return;
       wideLayoutRef.current = expanded;
       setWideLayout(expanded);
-      if (!expanded) {
-        setSidebarOpen(false);
-      } else if (!wasWide) {
-        setSidebarOpen(false);
-      }
+      setSidebarOpen(false);
     };
     updateLayout();
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateLayout) : null;

@@ -34,8 +34,18 @@ async function checkAppearance(viewport, colorScheme) {
         }).observe({ type: 'layout-shift', buffered: true });
       }
     });
-    await page.goto(new URL(viewport.prefix + '/settings', candidate).href);
-    await page.waitForFunction(() => document.documentElement.dataset.fridayGlass);
+    const url = new URL(viewport.prefix + '/settings', candidate);
+    const response = await page.goto(url.href);
+    assert(response?.ok(), `Could not load ${url.pathname} (HTTP ${response?.status()})`);
+    try {
+      await page.waitForFunction(() => document.documentElement.dataset.fridayGlass, undefined, { timeout: 15000 });
+    } catch {
+      // Worker and asset caches can warm independently immediately after deployment.
+      url.searchParams.set('friday_audit_version', String(Date.now()));
+      const retry = await page.goto(url.href, { waitUntil: 'domcontentloaded' });
+      assert(retry?.ok(), `Could not reload ${url.pathname} (HTTP ${retry?.status()})`);
+      await page.waitForFunction(() => document.documentElement.dataset.fridayGlass);
+    }
     assert.equal(await page.locator('html').evaluate((el) => el.classList.contains('dark')), colorScheme === 'dark');
     if (viewport.prefix) {
       const capsule = page.locator('.ipad-nav__topbar-inner');
@@ -44,6 +54,17 @@ async function checkAppearance(viewport, colorScheme) {
       await button.click();
       const sidebar = page.locator('.ipad-nav__sidebar.is-open');
       await sidebar.waitFor();
+      await sidebar.evaluate(async (element) => {
+        const main = element.parentElement.querySelector('main');
+        const prior = main.style.minHeight;
+        try {
+          main.style.minHeight = `${main.offsetHeight + 400}px`;
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        } finally {
+          main.style.minHeight = prior;
+        }
+      });
+      assert.equal(await button.getAttribute('aria-expanded'), 'true', 'Content height changes must preserve the open sidebar');
       assert.equal(await capsule.locator('.friday-glass-selection').evaluate((el) => el.getAnimations().length), 0);
       await page.keyboard.press('Escape');
       await sidebar.waitFor({ state: 'hidden' });
