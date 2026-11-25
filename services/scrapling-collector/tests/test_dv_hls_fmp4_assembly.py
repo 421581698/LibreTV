@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import tempfile
 import unittest
@@ -86,6 +87,18 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(output.read_bytes(), expected)
         self.assertEqual(result["assembledByteLength"], len(expected))
         self.assertEqual(result["assembledSha256"], hashlib.sha256(expected).hexdigest())
+        self.assertEqual(
+            result["graphDigest"],
+            hashlib.sha256(json.dumps(
+                result["graphManifest"], sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+            ).encode("utf-8")).hexdigest(),
+        )
+        self.assertEqual(result["graphManifest"]["resourceId"], self.resource["id"])
+        self.assertEqual(result["graphManifest"]["graphId"], result["graphId"])
+        self.assertEqual(
+            [member["role"] for member in result["graphManifest"]["members"]],
+            ["initialization", "segment", "segment"],
+        )
         self.assertEqual(result["fragmentSequenceNumbers"], [1, 2])
         self.assertEqual(result["fragmentSequenceContinuity"], "sequential")
         self.assertEqual(result["temporalContinuity"], "unknown")
@@ -140,6 +153,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(response.media_type, "video/mp4")
         self.assertEqual(Path(response.path).read_bytes(), expected)
         self.assertEqual(response.headers["x-dv-rpu-presence"], "unknown")
+        self.assertRegex(response.headers["x-dv-hls-graph-sha256"], r"^[a-f0-9]{64}$")
         self.assertEqual(response.headers["x-dv-hls-temporal-continuity"], "unknown")
         self.assertEqual(response.headers["x-dv-hls-fragment-sequence-continuity"], "sequential")
         Path(response.path).unlink(missing_ok=True)
