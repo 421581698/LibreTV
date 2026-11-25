@@ -56,6 +56,19 @@ AV1 is a separate bitstream path and must not enter the HEVC NAL parser.
 
 Required AV1 tests: OBU size overflow/truncation, invalid metadata type, wrong T.35 country/provider, malformed EMDF, empty/invalid RPU, multiple metadata OBUs, missing temporal delimiter, frame/temporal-unit alignment, unsupported container, and source-hash mismatch.
 
+### A2. AV1 parser candidate review
+
+A public MIT-licensed fork of quietvoid/dovi_tool was inspected as a research candidate (reviewed commit 024c15877d88dc662ac45e86dfba297f50256921). It contains an AV1 OBU reader, an IVF reader, Dolby T.35/EMDF recognition, and AV1 RPU fixtures. It is not adopted as a production dependency in this PR.
+
+The inspected parser code needs hardening before reuse:
+
+- Its general LEB128 helper does not report unterminated or overlong encodings as errors; metadata-type parsing must use a strict bounded decoder.
+- The OBU reader allocates according to the declared payload length without an application-level per-OBU cap; enforce a configured maximum before allocation.
+- The IVF frame-header reader treats any UnexpectedEof as clean EOF, including a partially truncated header; distinguish zero-byte EOF from partial-header truncation.
+- Container parsing, OBU parsing, metadata identification, and RPU validation must remain separate stages with independent negative tests.
+
+The fork is therefore a source of implementation ideas and fixtures only. Any reuse requires a reviewed, pinned commit, strict parser fixes, license attribution, fuzz/property tests, and CI evidence before production integration.
+
 ### B. Decoder integration gate
 
 - Do not implement a pretend decoder or infer decoding from `canPlayType()`, MediaCapabilities, codec strings, or successful HTML video playback.
