@@ -695,8 +695,8 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
 .ipad-edition {
   --ipad-z-content: 0;
   --ipad-z-navigation: 80;
-  --ipad-z-scrim: 90;
-  --ipad-z-floating: 100;
+  --ipad-z-scrim: 131;
+  --ipad-z-floating: 132;
   --ipad-motion-fast: 140ms;
   --ipad-motion-panel: 240ms;
   --ipad-motion-ease: cubic-bezier(.2, .8, .2, 1);
