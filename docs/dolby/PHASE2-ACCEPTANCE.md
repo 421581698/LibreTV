@@ -1,3 +1,5 @@
+> **Historical acceptance snapshot (2026-11-25):** The environment results and UI descriptions below are evidence from the earlier read-only diagnostics phase, not a current-head acceptance report. The current audio scope is Dolby-only; non-Dolby codec strings may be classified internally but must not be presented as product audio/rendering features. Use [DOLBY-ONLY-ARCHITECTURE-RESET.md](./DOLBY-ONLY-ARCHITECTURE-RESET.md) and [ENGINE-2.0-STATUS.md](./ENGINE-2.0-STATUS.md) for current scope and status. Physical iPad/Safari and Dolby output acceptance remain separate gates.
+
 # Phase 2 Acceptance — Read-Only Playback Diagnostics
 
 > Scope: PR #99 (`feature/libretv-ipad-edition-product`), Draft only.
