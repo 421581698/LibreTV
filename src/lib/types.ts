@@ -7,6 +7,14 @@ export interface SourceConfig {
   url: string;
   /** 可选：详情页根地址（部分源需要爬详情页提取 m3u8） */
   detail?: string;
+  /** 上游 Apple CMS 原始 API 字段；url 是本站实际请求地址，二者保持一致。 */
+  api?: string;
+  /** 资源站原始播放线路标识，仅作来源元数据保留，不用于猜测影片资产身份。 */
+  from?: string;
+  /** TVBox / CMS 来源类型；当前内置直连 CMS 源为 1。 */
+  type?: number;
+  /** 来源优先级权重，数值越小越优先；健康排序仍可覆盖静态优先级。 */
+  weight?: number;
   isAdult?: boolean;
 }
 
