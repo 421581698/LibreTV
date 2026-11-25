@@ -61,7 +61,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.db_patch.stop()
         self.tmp.cleanup()
 
-    def prepare_graph(self, second_sequence=2, segment_extension=".m4s", extra_playlist_lines=""):
+    def prepare_graph(self, second_sequence=2, segment_extension=".m4s", extra_playlist_lines="", second_decode_time=None):
         (self.stage / "master.m3u8").write_text(
             '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100000,CODECS="dvhe.05.06"\nvariant.m3u8\n',
             encoding="utf-8",
@@ -75,7 +75,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         (self.stage / "init.mp4").write_bytes(init_segment())
         if segment_extension == ".m4s":
             (self.stage / "seg1.m4s").write_bytes(media_fragment(1))
-            (self.stage / "seg2.m4s").write_bytes(media_fragment(second_sequence))
+            (self.stage / "seg2.m4s").write_bytes(media_fragment(second_sequence, decode_time=second_decode_time))
         else:
             (self.stage / "seg1.ts").write_bytes(b"not-an-fmp4-fragment-one")
             (self.stage / "seg2.ts").write_bytes(b"not-an-fmp4-fragment-two")
@@ -118,14 +118,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(result["rpuPresence"], "unknown")
 
     def test_rejects_non_contiguous_tfdt_timestamps_even_when_mfhd_is_sequential(self):
-        variant_id, _ = self.prepare_graph()
-        segment = self.stage / "seg2.m4s"
-        segment.write_bytes(media_fragment(2, decode_time=4500))
-        # Re-ingest as a new immutable graph so the test reaches timeline validation.
-        ingested = ingest_hls_directory(
-            self.resource["id"], self.stage, "master.m3u8", self.object_root,
-        )
-        variant_id = ingested["assets"]["variant.m3u8"]["asset_id"]
+        variant_id, _ = self.prepare_graph(second_decode_time=4500)
         with self.assertRaisesRegex(HlsAssemblyError, "tfdt timestamps"):
             assemble_registered_hls_fmp4(
                 self.resource["id"], variant_id, self.root / "bad-timeline.mp4", self.object_root,
