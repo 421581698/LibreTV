@@ -125,3 +125,123 @@ html[data-friday-ambient="on"] [data-friday-ambient="light"] {
 @media (forced-colors: active) {
   .friday-glass-selection { display: none; }
 }
+
+
+/* Friday Global Liquid Glass V1.2 — shared material optics.
+   Preserve semantic layout and underlying media. Safari shows translucent
+   background sampling, not an unsupported claim of arbitrary DOM refraction. */
+html[data-friday-theme="light"] [data-friday-material] {
+  --friday-fill: 236 245 255;
+  --friday-ink: 19 30 43;
+  --friday-rim: 255 255 255;
+}
+html[data-friday-theme="dark"] [data-friday-material] {
+  --friday-fill: 17 27 40;
+  --friday-ink: 248 251 255;
+  --friday-rim: 224 242 255;
+}
+html [data-friday-material="regular"] {
+  --friday-alpha: .28;
+  --friday-blur: 14px;
+  --friday-reflect: .3;
+}
+html [data-friday-material="clear"] {
+  --friday-alpha: .095;
+  --friday-blur: 3px;
+  --friday-reflect: .58;
+}
+html [data-friday-material="frosted"] {
+  --friday-alpha: .59;
+  --friday-blur: 28px;
+  --friday-reflect: .16;
+}
+html [data-friday-material="cinema"] {
+  --friday-alpha: .73;
+  --friday-blur: 8px;
+  --friday-reflect: .16;
+  --friday-fill: 8 12 21;
+  --friday-ink: 255 255 255;
+}
+html [data-friday-material="ambient"] {
+  --friday-alpha: .2;
+  --friday-blur: 11px;
+  --friday-reflect: .42;
+}
+html [data-friday-material="solid"] {
+  --friday-alpha: 1;
+  --friday-blur: 0px;
+  --friday-reflect: 0;
+}
+html[data-friday-cinema-dark="false"][data-friday-theme="light"] [data-friday-material="cinema"] {
+  --friday-fill: 237 240 246;
+  --friday-ink: 24 30 41;
+}
+html[data-friday-ambient="on"] [data-friday-ambient="dark"][data-friday-material="ambient"] {
+  --friday-fill: 12 28 52;
+}
+html[data-friday-ambient="on"] [data-friday-ambient="light"][data-friday-material="ambient"] {
+  --friday-fill: 235 246 255;
+}
+html[data-friday-glass="webkit"] .liquid-glass[data-friday-material],
+html[data-friday-glass="native"] .liquid-glass[data-friday-material],
+html[data-friday-glass="optical"] .liquid-glass[data-friday-material][data-liquid-glass-engine="fallback"],
+html[data-friday-glass="webkit"] .friday-glass-surface[data-friday-material],
+html[data-friday-glass="native"] .friday-glass-surface[data-friday-material] {
+  background-color: rgb(var(--friday-fill) / var(--friday-alpha)) !important;
+  -webkit-backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(165%) !important;
+  backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(165%) !important;
+  border-color: rgb(var(--friday-rim, 255 255 255) / .32);
+  box-shadow: inset 0 1px 0 rgb(var(--friday-rim, 255 255 255) / .44),
+    inset 0 -1px 0 rgb(0 0 0 / .10), 0 10px 34px rgb(0 0 0 / .11);
+}
+html[data-friday-glass="webkit"] .liquid-glass[data-friday-material="clear"],
+html[data-friday-glass="native"] .liquid-glass[data-friday-material="clear"] {
+  background-color: rgb(var(--friday-fill) / .095) !important;
+}
+html[data-friday-glass="safe"] [data-friday-material],
+html [data-friday-material="solid"] {
+  background: rgb(var(--friday-fill)) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html[data-friday-glass="safe"] [data-friday-material]::before,
+html[data-friday-glass="safe"] [data-friday-material]::after,
+html [data-friday-material="solid"]::before,
+html [data-friday-material="solid"]::after {
+  animation: none !important;
+}
+html[data-friday-motion="full"] [data-friday-material]:not([data-friday-material="solid"])::before {
+  background: linear-gradient(116deg, transparent 19%, rgb(255 255 255 / .08) 36%,
+    rgb(255 255 255 / .38) 49%, rgb(255 255 255 / .06) 62%, transparent 79%);
+  background-size: 240% 100%;
+  animation: friday-v12-sheen 8s ease-in-out infinite alternate;
+  opacity: calc(var(--friday-reflect, .3) * var(--friday-intensity, .65));
+  pointer-events: none;
+}
+@keyframes friday-v12-sheen {
+  from { background-position: 100% 50%; }
+  to { background-position: 0% 50%; }
+}
+html[data-friday-motion="full"] .liquid-glass--interactive:not([data-friday-material="solid"]):active {
+  animation: friday-v12-elastic 260ms cubic-bezier(.15, 1.5, .35, 1);
+}
+@keyframes friday-v12-elastic {
+  0% { transform: scale(.975); }
+  60% { transform: scale(1.012); }
+  100% { transform: scale(1); }
+}
+html[data-friday-playback="protected"] [data-friday-material]::before,
+html[data-friday-motion="reduced"] [data-friday-material]::before {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-friday-material]::before { animation: none !important; }
+}
+@media (prefers-contrast: more), (forced-colors: active), (prefers-reduced-transparency: reduce) {
+  html [data-friday-material] {
+    background: rgb(var(--friday-fill)) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html [data-friday-material]::before { animation: none !important; }
+}
