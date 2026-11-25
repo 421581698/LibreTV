@@ -2,7 +2,7 @@
 
 Updated: 2026-11-24  
 Branch: `feature/libretv-ipad-edition-product`  
-Status: read-only UI, opt-in signed-evidence analysis action, server-side transport, and strict client response-shape guard are implemented; selected-playback-to-asset mapping remains blocked.
+Status: read-only UI, opt-in signed-evidence analysis action, server-side transport, strict client response-shape guard, and registry-player asset mapping are implemented. Generic external-source `/watch` playback remains intentionally unmapped unless it receives a trusted registry resource ID.
 
 ## Implemented
 
@@ -12,7 +12,8 @@ Status: read-only UI, opt-in signed-evidence analysis action, server-side transp
 - For direct-file and native-HLS paths, the current integration reports only information actually available from the URL/path and leaves codec/RPU status unknown when no trustworthy declaration is exposed.
 - The panel distinguishes declared format/Profile from RPU presence, dynamic metadata, browser decoding and display output.
 - Added `POST /api/dolby-vision/assets/{assetId}/analyze`: it reads the registered object through the authenticated collector endpoint, streams it to the private parser, and verifies the signed envelope against the registry-provided digest before returning evidence. Server-only tokens and the pinned public key are never sent to the browser.
-- The diagnostics panel now offers an explicit analysis action only when `PlayerShell` receives a stable `dolbyVisionAssetId`. It aborts stale requests when the asset identity changes, rejects malformed/mismatched responses, and displays only the verified RPU report. It keeps browser decoding and display output marked unverified.
+- `RegistryInlinePlayer` resolves the selected registry resource through `/api/dolby-vision/resources/{resourceId}/asset`, validates the returned asset ID/digest/MIME/length, switches playback to the immutable asset content route, and passes that exact server-issued `assetId` to `PlayerShell`. It never derives the ID from a URL or episode key.
+- The diagnostics panel offers an explicit analysis action only when `PlayerShell` receives a stable `dolbyVisionAssetId`. It aborts stale requests when the asset identity changes, rejects malformed/mismatched responses, and displays only the verified RPU report. It keeps browser decoding and display output marked unverified.
 - Added a strict response-shape parser and tests for matching asset ID, signature-binding status, parser version, frame count, and expiry ordering. The client parser is a display guard only; cryptographic verification remains server-side.
 
 ## Deliberate non-claims
@@ -29,8 +30,8 @@ Status: read-only UI, opt-in signed-evidence analysis action, server-side transp
 2. Run TypeScript, ESLint, unit tests, production build and browser playback smoke tests on the latest branch head.
 3. Execute the physical-device acceptance matrix in [IPADOS-DEVICE-ACCEPTANCE.md](./IPADOS-DEVICE-ACCEPTANCE.md); desktop WebKit automation is not a substitute.
 4. Add controlled, licensed HEVC samples for full-stream RPU analysis and compare the analyzer output with the corresponding manifest declarations.
-5. Pass the actual registry-issued `assetId` from the selected resource record into `PlayerShell` as `dolbyVisionAssetId`. Do not derive it from a URL, episode key, or `resourceKey`. Until that source mapping exists, the panel correctly explains that RPU analysis is unavailable.
-6. The evidence transport trust boundary and server-side forwarding route are documented in [RPU-EVIDENCE-TRANSPORT.md](./RPU-EVIDENCE-TRANSPORT.md). The player panel must not call the route until the selected playback episode can be mapped to a registered `assetId` whose bytes are the exact media being played. The current `sourceKey` / `resourceKey` episode labels are not registry asset IDs and must not be substituted. The trusted source-staging gateway and this stable mapping are still missing. Do not embed parser claims or synthetic fixtures as runtime evidence.
+5. Extend the same trusted resource-to-asset handoff to the generic `/watch` page only when navigation carries a server-issued registry resource ID. Ordinary CMS URLs, `sourceKey`, `resourceKey`, episode keys, and URL hashes must never be treated as asset IDs.
+6. Keep external sources and native HLS paths in an explicit `unknown/unverified` state until they are ingested and the exact selected immutable asset is known. HLS currently resolves its explicit graph root for playback, but RPU analysis remains MP4 + HEVC only. Do not infer a segment-level RPU report as proof for a complete HLS presentation.
 
 ## Release boundary
 
