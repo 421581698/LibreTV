@@ -395,6 +395,42 @@
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-diagnostics-close {
   position: sticky; top: 0; margin-left: auto; z-index: 2;
 }
+/* The iPad cinema drawer must remain dark even when the global website is in light mode. */
+html:not(.dark) .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-watch-utility-panel,
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-watch-utility-panel {
+  color: #f5f5f7 !important;
+  color-scheme: dark !important;
+  background: rgba(18,19,22,.97) !important;
+  border-color: rgba(255,255,255,.13) !important;
+}
+html:not(.dark) .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-watch-utility-panel :is(.text-content,h3,strong),
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-watch-utility-panel :is(.text-content,h3,strong) {
+  color: #f5f5f7 !important;
+}
+html:not(.dark) .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-watch-utility-panel :is(.text-muted,.text-faint),
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-watch-utility-panel :is(.text-muted,.text-faint) {
+  color: rgba(245,245,247,.64) !important;
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-advanced-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,.14);
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-advanced-actions h4 {
+  margin-bottom: 2px; color: #fff; font-size: 13px; font-weight: 700;
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-advanced-actions > button,
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-advanced-actions > label {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 44px; padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.09); border-radius: 8px;
+  color: #fff; background: rgba(255,255,255,.06); font-size: 13px;
+  text-align: left;
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-advanced-actions input { width: 16px; height: 16px; accent-color: #fff; }
+
 @media (orientation: portrait) {
   .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-actions { justify-content: flex-start; }
   .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-info { left: 16px; right: 16px; }
