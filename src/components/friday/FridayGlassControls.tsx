@@ -32,6 +32,18 @@ export function FridayGlassControls() {
           <option value="regular">标准玻璃</option>
           <option value="clear">晶透玻璃</option>
           <option value="frosted">磨砂玻璃</option>
+          <option value="cinema">影院玻璃</option>
+          <option value="ambient">环境玻璃</option>
+          <option value="solid">实色玻璃</option>
+        </select>
+      </label>
+      <label className="grid gap-1">
+        玻璃主题
+        <select className="rounded-lg border border-line bg-surface p-2" value={preferences.theme}
+          onChange={(event) => update({ theme: event.target.value as typeof preferences.theme })}>
+          <option value="system">跟随系统</option>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
         </select>
       </label>
       <label className="grid gap-1">
@@ -73,6 +85,7 @@ export function FridayGlassControls() {
           </div>
         </div>
       </details>
+      <a className="underline text-sm" href="/ipad-edition/glass-lab">打开六材质与折射验证实验室</a>
       <details className="text-muted">
         <summary>渲染诊断</summary>
         <output>{({ optical: '高级折射', webkit: 'WebKit 玻璃', native: '基础玻璃', safe: '实色' })[backend]}</output>
