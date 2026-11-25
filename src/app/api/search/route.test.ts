@@ -100,6 +100,12 @@ describe('validateSources', () => {
     expect(sources[1]).not.toHaveProperty('api');
     expect(sources[1]).not.toHaveProperty('from');
     expect(sources[1]).toMatchObject({ type: 1, weight: 2 });
+
+    const reversed = validateSources([
+      { key: 'later', name: '后置', url: 'https://cms-later.example/api.php', weight: 6 },
+      { key: 'first', name: '优先', url: 'https://cms-first.example/api.php', weight: 1 },
+    ]);
+    expect(reversed.map((source) => source.key)).toEqual(['first', 'later']);
   });
 });
 
