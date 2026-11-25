@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-11-25):** This was a planning snapshot for the earlier Cinema Engine P0 integration and is not the current implementation or acceptance record. The player integration described below has since been implemented and its scope has been narrowed to Dolby-only, read-only diagnostics. Do not use the old HEAD, line numbers, or statements such as “尚未修改任何播放代码” as current facts. Current audio product scope is defined by [DOLBY-ONLY-ARCHITECTURE-RESET.md](./DOLBY-ONLY-ARCHITECTURE-RESET.md) and current status by [ENGINE-2.0-STATUS.md](./ENGINE-2.0-STATUS.md). Non-Dolby codec recognition, where retained for safe classification, is not a product playback/rendering feature.
+
 # Cinema Engine P0 — 播放器接入分析（PR #99）
 
 > 状态：分析与设计方案，**尚未修改任何播放代码**。目标是把已写入的四个 P0 模块
