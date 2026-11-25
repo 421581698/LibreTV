@@ -363,7 +363,7 @@ process.exit(2);
       // upload, its immutable graph member, and its decode-time interval.
       const segmentContextHeaders = {
         ...hlsContextHeaders,
-        'X-DV-Asset-ID': 'segment:0001',
+        'X-DV-Asset-Id': 'segment:0001',
         'X-DV-Analysis-Scope': 'hls-fmp4-segment',
         'X-DV-HLS-Fragment-Ordinal': '0',
         'X-DV-HLS-Fragment-Asset-ID': 'segment:0001',
