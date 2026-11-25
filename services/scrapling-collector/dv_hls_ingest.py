@@ -251,7 +251,11 @@ def ingest_hls_directory(
         # Freeze only complete VOD/event media playlists. A live playlist with
         # EXTINF entries but no ENDLIST would become a misleading immutable asset.
         upper_playlist = playlist.upper()
-        if "#EXTINF:" in upper_playlist and "#EXT-X-ENDLIST" not in upper_playlist:
+        live_media_markers = (
+            "#EXTINF:", "#EXT-X-PART:", "#EXT-X-PRELOAD-HINT:",
+            "#EXT-X-SKIP:", "#EXT-X-RENDITION-REPORT:", "#EXT-X-SERVER-CONTROL:",
+        )
+        if any(marker in upper_playlist for marker in live_media_markers) and "#EXT-X-ENDLIST" not in upper_playlist:
             raise HlsIngestionError("Only finalized HLS media playlists with EXT-X-ENDLIST can be ingested.")
         if re.search(r"(?im)^#EXT-X-SESSION-KEY:", playlist):
             raise HlsIngestionError("Encrypted or DRM HLS playlists are not ingested.")
