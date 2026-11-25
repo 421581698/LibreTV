@@ -66,7 +66,7 @@ export interface CapabilityDiagnostics {
   outputMaxChannels?: number | null;
   outputLatencyMs?: number | null;
   outputDeviceName?: 'not-exposed';
-  spatialRendering?: 'not-integrated';
+  dolbyAtmosRendering?: 'not-integrated';
 }
 
 export interface StabilityDiagnostics {
@@ -247,7 +247,7 @@ export function buildPlaybackDiagnostics(
       outputMaxChannels: profile.outputMaxChannels,
       outputLatencyMs: profile.outputLatencyMs,
       outputDeviceName: 'not-exposed',
-      spatialRendering: 'not-integrated',
+      dolbyAtmosRendering: 'not-integrated',
     };
   }
 
@@ -326,7 +326,7 @@ export function sanitizePlaybackDiagnostics(value: PlaybackDiagnostics | undefin
       outputMaxChannels: typeof value.capability.outputMaxChannels === 'number' && Number.isFinite(value.capability.outputMaxChannels) && value.capability.outputMaxChannels > 0 ? Math.min(64, Math.floor(value.capability.outputMaxChannels)) : null,
       outputLatencyMs: typeof value.capability.outputLatencyMs === 'number' && Number.isFinite(value.capability.outputLatencyMs) && value.capability.outputLatencyMs >= 0 ? Math.min(60000, Math.floor(value.capability.outputLatencyMs)) : null,
       outputDeviceName: 'not-exposed',
-      spatialRendering: 'not-integrated',
+      dolbyAtmosRendering: 'not-integrated',
     };
   }
   if (value.stability && typeof value.stability === 'object') {
