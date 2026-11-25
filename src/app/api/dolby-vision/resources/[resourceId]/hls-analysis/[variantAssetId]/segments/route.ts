@@ -203,7 +203,7 @@ export async function POST(
         return NextResponse.json({ code: 'DV_HLS_SEGMENT_GRAPH_CHANGED' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
       }
       if (fragmentCount !== ordinal + 1 && fragmentCount <= ordinal) {
-        await fragment.body.cancel();
+        await fragmentBody.cancel();
         return NextResponse.json({ code: 'DV_HLS_SEGMENT_COUNT_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
       }
 
