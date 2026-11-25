@@ -10,6 +10,17 @@ const signedPayloadShape = {
   issuedAt: z.number().int().positive(),
   expiresAt: z.number().int().positive(),
   report: DolbyVisionRpuReportSchema,
+  analysisContext: z.object({
+    scope: z.literal('hls-fmp4'),
+    resourceId: z.string().regex(/^[A-Za-z0-9_-]{1,200}$/),
+    graphId: z.string().min(1).max(200),
+    graphSha256: sha256Schema,
+    rootAssetId: z.string().regex(/^[A-Za-z0-9:_-]{1,200}$/),
+    variantAssetId: z.string().regex(/^[A-Za-z0-9:_-]{1,200}$/),
+    fragmentCount: z.number().int().positive().max(10000),
+    fragmentSequenceContinuity: z.literal('sequential'),
+    temporalContinuity: z.literal('unknown'),
+  }).strict().optional(),
 };
 
 function addPayloadIssues(payload: z.infer<z.ZodObject<typeof signedPayloadShape>>, context: z.RefinementCtx) {
@@ -39,6 +50,7 @@ export interface VerifiedDolbyVisionRpuEnvelope {
   expiresAt: number;
   evidence: NonNullable<ReturnType<typeof validateDolbyVisionRpuReport>>['evidence'];
   report: z.infer<typeof DolbyVisionRpuReportSchema>;
+  analysisContext?: z.infer<typeof signedPayloadShape.analysisContext>;
   sourceHashBinding: 'matched';
 }
 
@@ -70,6 +82,7 @@ export function verifySignedDolbyVisionRpuEnvelope(
     expectedKeyId: string;
     expectedAssetId: string;
     expectedMediaSha256: string;
+    expectedAnalysisContext?: z.infer<typeof signedPayloadShape.analysisContext> | null;
     now?: number;
   },
 ): VerifiedDolbyVisionRpuEnvelope | null {
@@ -81,6 +94,13 @@ export function verifySignedDolbyVisionRpuEnvelope(
   if (!options.publicKeyPem || !options.expectedKeyId || !options.expectedAssetId ||
       !sha256Schema.safeParse(options.expectedMediaSha256).success) return null;
   if (envelope.keyId !== options.expectedKeyId || envelope.assetId !== options.expectedAssetId) return null;
+  if (options.expectedAnalysisContext === undefined || options.expectedAnalysisContext === null) {
+    if (envelope.analysisContext !== undefined) return null;
+  } else if (!envelope.analysisContext ||
+      canonicalizeDolbyVisionRpuPayload(envelope.analysisContext) !==
+      canonicalizeDolbyVisionRpuPayload(options.expectedAnalysisContext)) {
+    return null;
+  }
   if (envelope.issuedAt > now + 60 || envelope.expiresAt <= now) return null;
   if (envelope.expiresAt - envelope.issuedAt > 24 * 60 * 60) return null;
 
@@ -107,6 +127,7 @@ export function verifySignedDolbyVisionRpuEnvelope(
     issuedAt: envelope.issuedAt,
     expiresAt: envelope.expiresAt,
     report: validated.report,
+    ...(envelope.analysisContext ? { analysisContext: envelope.analysisContext } : {}),
     evidence: validated.evidence,
     sourceHashBinding: 'matched',
   };
