@@ -183,9 +183,9 @@ describe('signed Dolby Vision RPU envelope', () => {
       initializationSha256: 'a'.repeat(64),
       assembledSegmentSha256: (ordinal === 0 ? 'f' : '9').repeat(64),
       fragmentSequenceNumber: ordinal + 1,
-      decodeTime: ordinal * 4000,
-      sampleDuration: 4000,
-      sampleCount: 100,
+      decodeTime: ordinal * 9600,
+      sampleDuration: 9600,
+      sampleCount: 240,
       timescale: 1000,
     }));
     const envelopes = expectedSegments.map((segment, ordinal) => {
@@ -230,11 +230,12 @@ describe('signed Dolby Vision RPU envelope', () => {
       totalRpuFrameCount: 480,
       timelineContinuity: 'contiguous',
       rpuProfileContinuity: 'consistent',
+      rpuFrameAlignment: 'one-rpu-per-video-sample',
       rpuSemanticContinuity: 'not-established',
     });
     expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
       ...trusted,
-      expectedSegments: [expectedSegments[0], { ...expectedSegments[1], decodeTime: 4100 }],
+      expectedSegments: [expectedSegments[0], { ...expectedSegments[1], decodeTime: 9700 }],
     })).toBeNull();
     expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
       ...trusted,
