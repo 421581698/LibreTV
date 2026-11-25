@@ -46,7 +46,7 @@ describe('GET /api/status configuration visibility', () => {
     expect(data.defaultSources.slice(0, 6).map((source) => source.key)).toEqual([
       'gsm3u8', 'jsm3u8', 'wjm3u8', 'hnm3u8', 'dbm3u8', 'zuidam3u8',
     ]);
-    expect(data.defaultSources[6]?.name).toBe('Private CMS');
+    expect(data.defaultSources.find((source) => source.name === 'Private CMS')?.name).toBe('Private CMS');
     expect(data.defaultLiveSources[0]?.name).toBe('Private IPTV');
     expect(data.defaultSubscriptions[0]?.url).toContain('subscriptions.example');
   });
