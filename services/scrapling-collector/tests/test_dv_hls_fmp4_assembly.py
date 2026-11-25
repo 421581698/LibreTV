@@ -29,7 +29,7 @@ def init_segment() -> bytes:
 def media_fragment(sequence: int, decode_time: int | None = None, sample_duration: int = 4000) -> bytes:
     decode_time = (sequence - 1) * 4000 if decode_time is None else decode_time
     mfhd = box("mfhd", b"\\x00\\x00\\x00\\x00" + sequence.to_bytes(4, "big"))
-    tfhd = box("tfhd", b"\\x00\\x00\\x08\\x00" + (1).to_bytes(4, "big") + sample_duration.to_bytes(4, "big"))
+    tfhd = box("tfhd", b"\\x00\\x00\\x00\\x08" + (1).to_bytes(4, "big") + sample_duration.to_bytes(4, "big"))
     tfdt = box("tfdt", b"\\x00\\x00\\x00\\x00" + decode_time.to_bytes(4, "big"))
     trun = box("trun", b"\\x00\\x00\\x01\\x00" + (1).to_bytes(4, "big") + sample_duration.to_bytes(4, "big"))
     return box("moof", mfhd + box("traf", tfhd + tfdt + trun)) + box("mdat", b"sample-data")
