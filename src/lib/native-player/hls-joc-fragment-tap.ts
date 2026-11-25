@@ -7,6 +7,8 @@ export interface JocHlsFragmentDescriptor {
   readonly trackType: 'main' | 'audio';
   readonly level: number;
   readonly sequence: number | string;
+  /** hls.js media timeline start, used only as a timeline anchor (not codec evidence). */
+  readonly start: number | null;
   readonly bytes: Uint8Array;
 }
 
@@ -23,6 +25,7 @@ export interface HlsFragmentLoadedLike {
     readonly type?: string;
     readonly level?: number;
     readonly sn?: number | string;
+    readonly start?: number;
   };
   readonly payload?: ArrayBuffer | Uint8Array;
 }
@@ -80,6 +83,7 @@ export class HlsJocFragmentTap {
       trackType: frag.type,
       level: frag.level,
       sequence: frag.sn,
+      start: Number.isFinite(frag.start) ? frag.start! : null,
       // Copy the view so downstream parsing cannot observe buffer reuse/mutation
       // by a future loader implementation.
       bytes: bytes.slice(),
