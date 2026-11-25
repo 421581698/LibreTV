@@ -101,12 +101,27 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         )
         self.assertEqual(result["fragmentSequenceNumbers"], [1, 2])
         self.assertEqual(result["fragmentSequenceContinuity"], "sequential")
-        self.assertEqual(result["temporalContinuity"], "unknown")
+        self.assertEqual(result["temporalContinuity"], "contiguous")
+        self.assertEqual([entry["decodeTime"] for entry in result["videoTimeline"]], [0, 4000])
         self.assertEqual(result["segmentAssetIds"], [
             ingested["assets"]["seg1.m4s"]["asset_id"],
             ingested["assets"]["seg2.m4s"]["asset_id"],
         ])
         self.assertEqual(result["rpuPresence"], "unknown")
+
+    def test_rejects_non_contiguous_tfdt_timestamps_even_when_mfhd_is_sequential(self):
+        variant_id, _ = self.prepare_graph()
+        segment = self.stage / "seg2.m4s"
+        segment.write_bytes(media_fragment(2, decode_time=4500))
+        # Re-ingest as a new immutable graph so the test reaches timeline validation.
+        ingested = ingest_hls_directory(
+            self.resource["id"], self.stage, "master.m3u8", self.object_root,
+        )
+        variant_id = ingested["assets"]["variant.m3u8"]["asset_id"]
+        with self.assertRaisesRegex(HlsAssemblyError, "tfdt timestamps"):
+            assemble_registered_hls_fmp4(
+                self.resource["id"], variant_id, self.root / "bad-timeline.mp4", self.object_root,
+            )
 
     def test_rejects_non_contiguous_fragment_sequence_numbers(self):
         variant_id, _ = self.prepare_graph(second_sequence=4)
@@ -163,7 +178,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(Path(response.path).read_bytes(), expected)
         self.assertEqual(response.headers["x-dv-rpu-presence"], "unknown")
         self.assertRegex(response.headers["x-dv-hls-graph-sha256"], r"^[a-f0-9]{64}$")
-        self.assertEqual(response.headers["x-dv-hls-temporal-continuity"], "unknown")
+        self.assertEqual(response.headers["x-dv-hls-temporal-continuity"], "contiguous")
         self.assertEqual(response.headers["x-dv-hls-fragment-sequence-continuity"], "sequential")
         Path(response.path).unlink(missing_ok=True)
 
