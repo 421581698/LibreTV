@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { FridayGlassSelection } from '@/components/friday/FridayGlassSelection';
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 import { attachEnvironmentEngine } from '@/lib/ipad-edition/environment-engine';
 import { resolveIpadNavigationLayout } from '@/lib/ipad-edition/container';
@@ -270,7 +271,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       <main className="ipad-edition__main">
         {!isChromeHidden && (
           <header className="ipad-nav__topbar">
-            <LiquidGlassSurface as="div" disableEngine variant="panel" cornerRadius={999} className="ipad-nav__topbar-inner">
+            <LiquidGlassSurface as="div" disableEngine variant="dock" cornerRadius={999} className="ipad-nav__topbar-inner">
+              <FridayGlassSelection selection={sidebarOpen ? 'sidebar' : activeHref} />
               <button
                 ref={menuButtonRef}
                 className={`ipad-nav__capsule-action ipad-nav__menu-button${sidebarOpen ? ' is-active' : ''}`}

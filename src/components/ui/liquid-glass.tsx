@@ -4,6 +4,7 @@ import {
   createElement,
   forwardRef,
   useEffect,
+  useRef,
   useState,
   type ComponentType,
   type CSSProperties,
@@ -12,6 +13,10 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+
+import { FridayOpticalBoundary } from '@/components/friday/FridayOpticalBoundary';
+import { useFridayGlass } from '@/components/friday/FridayGlassProvider';
+import type { GlassMaterial } from '@/lib/friday-glass/runtime';
 
 type Point = { x: number; y: number };
 type GlassMode = 'standard' | 'polar' | 'prominent' | 'shader';
@@ -42,6 +47,8 @@ type SurfaceProps = Omit<HTMLAttributes<HTMLElement>, 'color'> & {
   /** Disable the optional optical renderer when a stable CSS-only surface is required. */
   disableEngine?: boolean;
   variant?: SurfaceVariant;
+  material?: GlassMaterial;
+  ambientTone?: 'light' | 'dark';
   displacementScale?: number;
   blurAmount?: number;
   saturation?: number;
@@ -63,6 +70,17 @@ type SurfaceProps = Omit<HTMLAttributes<HTMLElement>, 'color'> & {
 };
 
 type EngineComponent = ComponentType<EngineProps>;
+let opticalModule: Promise<EngineComponent> | undefined;
+
+function loadOpticalRenderer() {
+  opticalModule ??= import('liquid-glass-react')
+    .then((module) => module.default as EngineComponent)
+    .catch((error: unknown) => {
+      opticalModule = undefined;
+      throw error;
+    });
+  return opticalModule;
+}
 
 const presets: Record<SurfaceVariant, Omit<EngineProps, 'children' | 'className' | 'style'>> = {
   dock: {
@@ -106,6 +124,8 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
     interactive = false,
     disableEngine = false,
     variant = 'control',
+    material,
+    ambientTone,
     displacementScale,
     blurAmount,
     saturation,
@@ -123,39 +143,63 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
   }: SurfaceProps,
   ref,
 ) {
+  const { backend, preferences, reducedMotion, reportFailure } = useFridayGlass();
+  const activeMaterial = material ?? (variant === 'panel' ? 'frosted' : preferences.material);
+  const canHostEngine = backend === 'optical' && activeMaterial !== 'solid' &&
+    activeMaterial !== 'cinema' && preferences.intensity > 0 && !disableEngine &&
+    variant !== 'control' &&
+    as !== 'button' && as !== 'a' && as !== 'span';
+  const intensity = preferences.intensity / 100;
   const [Engine, setEngine] = useState<EngineComponent | null>(null);
+  const [shortEdge, setShortEdge] = useState<number | null>(null);
+  const opticalSlot = useRef<HTMLSpanElement>(null);
+  const engineReady = Boolean(Engine && canHostEngine);
 
   useEffect(() => {
-    if (disableEngine) return;
+    const slot = opticalSlot.current;
+    if (!engineReady || !slot || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setShortEdge(Math.min(width, height));
+    });
+    observer.observe(slot);
+    return () => observer.disconnect();
+  }, [engineReady]);
+
+  useEffect(() => {
+    if (!canHostEngine) return;
     let mounted = true;
-    import('liquid-glass-react')
-      .then((module) => {
-        if (mounted) setEngine(() => module.default as EngineComponent);
+    loadOpticalRenderer()
+      .then((component) => {
+        if (mounted) setEngine(() => component);
       })
       .catch(() => {
-        // Keep the semantic surface usable if the optical engine cannot load.
+        if (mounted) reportFailure();
       });
     return () => {
       mounted = false;
     };
-  }, [disableEngine]);
+  }, [canHostEngine, reportFailure]);
 
   const preset = presets[variant];
-  const canHostEngine = !disableEngine && as !== 'button' && as !== 'a' && as !== 'span';
+  const radius = cornerRadius ?? preset.cornerRadius ?? 0;
+  const effectiveRadius = shortEdge === null ? radius : Math.min(radius, shortEdge / 2);
+  const geometryScale = shortEdge === null ? 1 : Math.min(1, shortEdge / 48);
   const engineProps: EngineProps = {
     children: createElement('span', {
       className: 'liquid-glass-engine-fill',
       'aria-hidden': true,
     }),
     ...preset,
-    displacementScale: displacementScale ?? preset.displacementScale,
+    displacementScale: (displacementScale ?? preset.displacementScale ?? 0) * intensity * geometryScale,
     blurAmount: blurAmount ?? preset.blurAmount,
     saturation: saturation ?? preset.saturation,
-    aberrationIntensity: aberrationIntensity ?? preset.aberrationIntensity,
-    elasticity: elasticity ?? preset.elasticity,
-    cornerRadius: cornerRadius ?? preset.cornerRadius,
+    aberrationIntensity: (aberrationIntensity ?? preset.aberrationIntensity ?? 0) * intensity,
+    elasticity: reducedMotion ? 0 : elasticity ?? preset.elasticity,
+    cornerRadius: effectiveRadius,
     padding: padding ?? preset.padding,
-    overLight: overLight ?? false,
+    overLight: overLight ?? (preferences.ambient && ambientTone === 'light'),
     mode: mode ?? preset.mode,
     globalMousePos,
     mouseOffset,
@@ -183,10 +227,18 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
         className,
       ].filter(Boolean).join(' '),
       'data-liquid-glass': 'true',
-      'data-liquid-glass-engine': Engine && canHostEngine ? 'ready' : 'fallback',
+      'data-friday-material': activeMaterial,
+      'data-friday-ambient': preferences.ambient ? ambientTone : undefined,
+      'data-liquid-glass-engine': engineReady ? 'ready' : 'fallback',
     },
     Engine && canHostEngine
-      ? createElement('span', { className: 'liquid-glass-engine-slot', 'aria-hidden': true }, createElement(Engine, engineProps))
+      ? (
+        <span ref={opticalSlot} className="liquid-glass-engine-slot" aria-hidden="true">
+          <FridayOpticalBoundary onFailure={reportFailure}>
+            <Engine {...engineProps} />
+          </FridayOpticalBoundary>
+        </span>
+      )
       : null,
     children,
   );

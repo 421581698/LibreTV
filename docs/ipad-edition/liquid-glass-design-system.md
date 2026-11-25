@@ -44,3 +44,49 @@ The six-pillar system is defined in [IPAD-DESIGN-ENGINE-ROADMAP.md](./IPAD-DESIG
 Safari baseline: translucent fill, backdrop blur where available, edge contrast, highlight and shadow. SVG displacement/refraction and chromatic aberration are optional progressive enhancements only. A missing displacement filter must never make the navigation or controls unreadable.
 
 Preview rollout: [deploy-ipad-edition-preview]
+
+## Friday Global Liquid Glass V1.1
+
+The root provider reuses the existing light, dark and system theme settings.
+Friday rendering preferences have their own storage key. The environment examples
+in appearance settings keep their selection in the current view only.
+
+| Surface | Material |
+| --- | --- |
+| Shared navigation and controls | Regular |
+| Actions over artwork | Clear |
+| Panels, dialogs and appearance settings | Frosted |
+| Watch controls | Cinema |
+| Surfaces with a known background tone | Ambient |
+| Reduced transparency, explicit solid mode or renderer failure | Solid |
+
+On supported Chromium clients, larger shared surfaces can use the locked
+`liquid-glass-react@1.1.1` adapter. WebKit uses bounded CSS blur and an
+inset edge highlight. Other browsers use native CSS or solid fill based on
+capability. Chromium Auto quality backs off after clustered long tasks and
+recovers after a quiet period. A renderer error affects the decorative
+layer and selects solid fallback. Friday attempts one recovery after 30 seconds
+before retaining solid fallback for the session.
+
+Watch controls read existing playback state. Protected playback and hidden
+controls suppress control backdrop filtering. Player input handlers, video
+frames and decoding are outside the appearance pipeline. Local ambient tones
+come from known backgrounds or explicit surface metadata.
+
+The iPad navigation capsule uses one decorative highlight that moves between
+native navigation targets. Reduced Motion disables the transition. The same
+material tokens cover shared dialogs, menus, dock, desktop search, iPad search
+and collection controls, artwork actions, and the cinema toolbars.
+
+The Preview workflow runs `scripts/friday-glass-browser-audit.mjs` against the
+isolated Worker. It checks light and dark settings at four viewport sizes,
+settings CLS, solid ambient text contrast, persistence, and capsule animation.
+For a local playback comparison, supply `FRIDAY_MEDIA_FIXTURE` (an at least
+four-second WebM clip) and `FRIDAY_BASELINE_URL`; the audit plays the same bytes
+through the standard watch route and compares decoded and dropped frames.
+
+Release acceptance still requires TestSprite service credentials and physical
+iPhone/iPad Safari. The controlled WebM exercise measures Chromium playback
+independently of external sources. Device checks should include dragging the
+seek bar in both orientations, playing and pausing, opening the quality menu,
+reduced motion, and the visible glass fallback on Safari.

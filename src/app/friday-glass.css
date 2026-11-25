@@ -1,0 +1,127 @@
+[data-friday-material] {
+  --friday-fill: 250 251 254;
+  --friday-ink: 20 24 32;
+  --friday-alpha: .78;
+  --friday-blur: 14px;
+}
+
+.dark [data-friday-material] {
+  --friday-fill: 21 24 32;
+  --friday-ink: 248 249 252;
+}
+
+[data-friday-material="clear"] {
+  --friday-alpha: .68;
+  --friday-blur: 8px;
+}
+
+[data-friday-material="frosted"] {
+  --friday-alpha: .9;
+  --friday-blur: 22px;
+}
+
+[data-friday-material="ambient"] {
+  --friday-alpha: .82;
+  --friday-blur: 18px;
+}
+
+[data-friday-material="cinema"] {
+  --friday-alpha: .92;
+  --friday-blur: 8px;
+}
+
+html[data-friday-ambient="on"] [data-friday-ambient="dark"],
+[data-friday-cinema-dark="true"] [data-friday-material="cinema"] {
+  --friday-fill: 21 24 32;
+  --friday-ink: 248 249 252;
+}
+
+html[data-friday-ambient="on"] [data-friday-ambient="light"] {
+  --friday-fill: 250 251 254;
+  --friday-ink: 20 24 32;
+}
+
+[data-friday-material="frosted"]:not(.liquid-glass),
+.friday-glass-surface[data-friday-material],
+.liquid-glass[data-friday-material][data-liquid-glass-engine="fallback"],
+.ipad-edition :is(button, form)[data-friday-material]:not([aria-pressed="true"]),
+.netflix-watch-shell button[data-friday-material="cinema"]:not([aria-pressed="true"]) {
+  background-color: rgb(var(--friday-fill) / var(--friday-alpha));
+  color: rgb(var(--friday-ink));
+  -webkit-backdrop-filter: blur(calc(min(var(--friday-blur), var(--friday-blur-cap, 24px)) * var(--friday-intensity, .65))) saturate(125%);
+  backdrop-filter: blur(calc(min(var(--friday-blur), var(--friday-blur-cap, 24px)) * var(--friday-intensity, .65))) saturate(125%);
+}
+
+[data-friday-glass="safe"] :is(.friday-glass-surface[data-friday-material], .liquid-glass[data-friday-material], .netflix-watch-shell button[data-friday-material="cinema"], .ipad-edition :is(button, form)[data-friday-material]),
+.liquid-glass[data-friday-material="solid"] {
+  background: rgb(var(--friday-fill)) !important;
+  color: rgb(var(--friday-ink));
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-friday-glass="webkit"] [data-friday-material] {
+  --friday-blur-cap: 12px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .24);
+}
+
+[data-friday-playback="protected"] .netflix-watch-shell :is(.cinema-glass-control, .cinema-v4-tool),
+.cinema-controls-hidden :is(.cinema-glass-control, .cinema-v4-tool) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-friday-material]:focus-visible,
+[data-friday-material] :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+[data-friday-motion="reduced"] :is(.liquid-glass--interactive, .liquid-glass .glass-button) {
+  animation: none !important;
+  transition: none !important;
+}
+
+[data-friday-motion="full"] .liquid-glass--interactive:active {
+  animation: friday-glass-press 220ms cubic-bezier(.2, 1.45, .45, 1);
+}
+
+@keyframes friday-glass-press {
+  from { scale: .985; }
+  to { scale: 1; }
+}
+
+@media (forced-colors: active) {
+  .liquid-glass[data-friday-material] {
+    background: Canvas !important;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+}
+
+/* The optical renderer stays behind a contrast tint and the semantic content. */
+.liquid-glass[data-friday-material][data-liquid-glass-engine="ready"]::after {
+  display: block !important;
+  z-index: 0;
+  border: 0;
+  background: rgb(var(--friday-fill) / .72);
+  opacity: 1;
+}
+
+.liquid-glass[data-friday-material][data-liquid-glass-engine="ready"] {
+  color: rgb(var(--friday-ink));
+}
+
+.liquid-glass > .friday-glass-selection {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: 0;
+  border-radius: 15px;
+  background: rgb(var(--friday-ink) / .09);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22);
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .friday-glass-selection { display: none; }
+}

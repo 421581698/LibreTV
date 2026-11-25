@@ -8,6 +8,7 @@ import { Dropdown, type DropdownOption } from './dropdown';
 import { Icon, type IconName } from './icon';
 import { LiveSourceManager } from './live-source-manager';
 import { ThemeToggle } from './theme';
+import { FridayGlassControls } from './friday/FridayGlassControls';
 import {
   HealthBadge,
   SearchInput,
@@ -195,12 +196,13 @@ export function SourceManagerDrawer({ open, onClose, embedded = false }: { open:
             <p className="text-sm text-muted">{SETTINGS_PAGE_META[activePage].description}</p>
           </div>
           {activePage === 'appearance' && (
-            <section className="rounded-2xl border border-line bg-card p-4">
+            <section className="rounded-2xl border border-line bg-card p-4" data-friday-material="frosted">
               <div className="mb-3">
                 <h3 className="text-sm font-semibold text-content">外观模式</h3>
                 <p className="mt-1 text-xs text-muted">选择浅色、深色，或跟随设备系统设置。</p>
               </div>
               <ThemeToggle />
+              <FridayGlassControls />
             </section>
           )}
           {activePage === 'vod' && <VodSourcesPanel />}

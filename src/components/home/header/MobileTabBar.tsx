@@ -42,6 +42,7 @@ export function MobileTabBar() {
       as="nav"
       interactive
       variant="dock"
+      ambientTone={isHomepage ? 'dark' : undefined}
       className="v4-mobile-tabbar"
       aria-label="底部导航"
     >

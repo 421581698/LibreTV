@@ -30,6 +30,7 @@ import { resolveSource, useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import { bindWatchPlaybackState, toggleWatchPlayback } from '@/lib/watch-playback-state';
+import { useFridayGlassPlayback } from '@/components/friday/FridayGlassProvider';
 import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } from '@/lib/cinema-v4-controls';
 import {
   clearProgress,
@@ -92,6 +93,7 @@ function WatchContent() {
   watchClockRef.current = watchClock;
   const [watchRate, setWatchRate] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
+  useFridayGlassPlayback(isPlaying);
   const [showPlayerPanel, setShowPlayerPanel] = useState(false);
   const [cinemaPanel, setCinemaPanel] = useState<'audio' | 'subtitles' | 'quality' | 'diagnostics' | null>(null);
   const [cinemaLocked, setCinemaLocked] = useState(false);
@@ -102,6 +104,11 @@ function WatchContent() {
   const autoNextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fullscreenFallbackCleanupRef = useRef<(() => void) | null>(null);
   const playerFrameRef = useRef<HTMLDivElement | null>(null);
+  const [frame, setPlayerFrame] = useState<HTMLDivElement | null>(null);
+  const attachPlayerFrame = useCallback((element: HTMLDivElement | null) => {
+    playerFrameRef.current = element;
+    setPlayerFrame(element);
+  }, []);
   const watchShellRef = useRef<HTMLDivElement | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
   const scrubResetTimerRef = useRef<number | null>(null);
@@ -528,13 +535,12 @@ function WatchContent() {
   }, [episodes, indexParam, directUrl]);  // Keep the cinema transport synchronized with the currently mounted media element.
   // The helper owns native listeners and rebinds safely when PlayerShell replaces video.
   useEffect(() => {
-    const frame = playerFrameRef.current;
     if (!frame) return;
     return bindWatchPlaybackState(frame, ({ isPlaying, playbackRate }) => {
       setIsPlaying(isPlaying);
       if (playbackRate !== null && playbackRate > 0) setWatchRate(playbackRate);
     });
-  }, [sourceKey, vodId, indexParam, directUrl]);
+  }, [frame]);
 
   const currentIndex = useMemo(() => {
     if (episodes.length > 0) {
@@ -951,16 +957,16 @@ function WatchContent() {
       <header className="watch-topbar netflix-watch-overlay-topbar">
         <div className="watch-topbar-inner">
           <div className="watch-topbar-left">
-            <button type="button" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push(isIpadEditionPlayback ? '/ipad-edition' : '/'); }}>
+            <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-close-control" aria-label="关闭播放器" onClick={() => { if (window.history.length > 1) router.back(); else router.push(isIpadEditionPlayback ? '/ipad-edition' : '/'); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
             </button>
             {isIpadEditionPlayback && <span className="cinema-v4-heading" title={videoTitle}>{videoTitle}</span>}
           </div>
           <div className="watch-topbar-right">
-            {!isIpadEditionPlayback && <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={requestWatchFullscreen}>
+            {!isIpadEditionPlayback && <button type="button" data-friday-material="cinema" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={requestWatchFullscreen}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
             </button>}
-            <button type="button" className={`cinema-glass-control${isIpadEditionPlayback ? " cinema-connect" : ""}`} aria-label="投屏" title={isIpadEditionPlayback ? "Cinema Connect · AirPlay / 投屏" : "投屏 / AirPlay"} onClick={() => {
+            <button type="button" data-friday-material="cinema" className={`cinema-glass-control${isIpadEditionPlayback ? " cinema-connect" : ""}`} aria-label="投屏" title={isIpadEditionPlayback ? "Cinema Connect · AirPlay / 投屏" : "投屏 / AirPlay"} onClick={() => {
               const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & {
                 webkitShowPlaybackTargetPicker?: () => void;
                 remote?: { prompt?: () => Promise<void> };
@@ -985,7 +991,7 @@ function WatchContent() {
             }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12h-5M8 16H3V4M8 20l4-5 4 5z" /></svg>
             </button>
-            {!isIpadEditionPlayback && <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => { setCinemaPanel(null); setShowPlayerPanel((value) => !value); }}>
+            {!isIpadEditionPlayback && <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => { setCinemaPanel(null); setShowPlayerPanel((value) => !value); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
             </button>}
           </div>
@@ -995,7 +1001,7 @@ function WatchContent() {
         <div className="netflix-watch-grid">
           <section className="netflix-watch-primary min-w-0">
             <div
-              ref={playerFrameRef}
+              ref={attachPlayerFrame}
               className="netflix-player-frame aspect-video bg-black overflow-hidden"
             >
               {currentUrl ? (
@@ -1104,7 +1110,7 @@ function WatchContent() {
               )}
             </div>
             <div className="cinema-center-controls" aria-label="播放控制">
-              <button type="button" className="cinema-glass-control cinema-skip-control" aria-label="后退 10 秒" onClick={() => {
+              <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-skip-control" aria-label="后退 10 秒" onClick={() => {
                 const video = playerFrameRef.current?.querySelector('video');
                 if (video) video.currentTime = Math.max(0, video.currentTime - 10);
               }}>
@@ -1112,7 +1118,7 @@ function WatchContent() {
               </button>
               <button
                 type="button"
-                className="cinema-glass-control cinema-play-control"
+                data-friday-material="cinema" className="cinema-glass-control cinema-play-control"
                 aria-label={isPlaying ? '暂停' : '播放'}
                 aria-pressed={isPlaying}
                 title={isPlaying ? '暂停' : '播放'}
@@ -1131,7 +1137,7 @@ function WatchContent() {
                   ? <svg className="cinema-play-icon cinema-play-icon--pause" viewBox="0 0 48 48" aria-hidden="true"><path d="M16 11v26M32 11v26" /></svg>
                   : <svg className="cinema-play-icon cinema-play-icon--play" viewBox="0 0 48 48" aria-hidden="true"><path d="M17 10.8c0-1.2 1.3-1.9 2.3-1.2l17.2 11.7a1.5 1.5 0 0 1 0 2.5L19.3 35.5c-1 .7-2.3 0-2.3-1.2V10.8Z" /></svg>}
               </button>
-              <button type="button" className="cinema-glass-control cinema-skip-control" aria-label="前进 10 秒" onClick={() => {
+              <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-skip-control" aria-label="前进 10 秒" onClick={() => {
                 const video = playerFrameRef.current?.querySelector('video');
                 if (video) video.currentTime = Math.min(video.duration || Infinity, video.currentTime + 10);
               }}>
@@ -1338,30 +1344,30 @@ function WatchContent() {
             </section>
 
             {isIpadEditionPlayback && <div className="cinema-v4-actions" role="toolbar" aria-label="影院播放功能">
-              <button type="button" className="cinema-v4-tool" aria-label={`播放速度 ${watchRate} 倍`} onClick={() => {
+              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-label={`播放速度 ${watchRate} 倍`} onClick={() => {
                 const next = nextCinemaPlaybackRate(playerApiRef.current?.getPlaybackRate() ?? watchRate);
                 playerApiRef.current?.setPlaybackRate(next);
                 if (playerApiRef.current) setWatchRate(playerApiRef.current.getPlaybackRate());
               }}><span aria-hidden="true" className="cinema-v4-tool-symbol">{watchRate}×</span><span>倍速</span></button>
-              <button type="button" className="cinema-v4-tool" aria-pressed={cinemaLocked} onClick={() => { setCinemaPanel(null); setCinemaLocked((locked) => !locked); }}>
+              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-pressed={cinemaLocked} onClick={() => { setCinemaPanel(null); setCinemaLocked((locked) => !locked); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>{cinemaLocked ? '解锁' : '锁定'}</span>
               </button>
-              {hasEpisodeNavigation && <button type="button" className="cinema-v4-tool" onClick={() => { setCinemaPanel(null); setSidebarTab('episodes'); setShowPlayerPanel(true); }}>
+              {hasEpisodeNavigation && <button type="button" data-friday-material="cinema" className="cinema-v4-tool" onClick={() => { setCinemaPanel(null); setSidebarTab('episodes'); setShowPlayerPanel(true); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>选集</span>
               </button>}
-              <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'audio' || cinemaPanel === 'subtitles'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => panel === 'audio' || panel === 'subtitles' ? null : toggleCinemaPanel(panel, 'audio')); }}>
+              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'audio' || cinemaPanel === 'subtitles'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => panel === 'audio' || panel === 'subtitles' ? null : toggleCinemaPanel(panel, 'audio')); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v12H9l-5 3v-3H3z"/><path d="M7 10h10M7 13h6"/></svg><span>音频与字幕</span>
               </button>
-              <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'quality'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'quality')); }}>
+              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'quality'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'quality')); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l4-4 3 3 3-4"/></svg><span>画质</span>
               </button>
-              <button type="button" className="cinema-v4-tool cinema-v4-source-control" aria-expanded={showPlayerPanel && sidebarTab === 'sources'} aria-controls="netflix-watch-utility-panel" onClick={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}>
+              <button type="button" data-friday-material="cinema" className="cinema-v4-tool cinema-v4-source-control" aria-expanded={showPlayerPanel && sidebarTab === 'sources'} aria-controls="netflix-watch-utility-panel" onClick={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="5" rx="1"/><rect x="3" y="14" width="18" height="5" rx="1"/></svg><span>播放源</span>
               </button>
-              <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'diagnostics'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'diagnostics')); }}>
+              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'diagnostics'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'diagnostics')); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg><span>诊断</span>
               </button>
-              <button type="button" className="cinema-v4-tool" onClick={requestWatchFullscreen}>
+              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" onClick={requestWatchFullscreen}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>全屏</span>
               </button>
             </div>}

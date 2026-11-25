@@ -69,7 +69,7 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
             <span aria-hidden="true">▶</span>
             查看详情
           </button>
-          <button type="button" className="ipad-edition__cinema-hero-more" aria-label={'查看 ' + item.title + ' 的更多信息'} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
+          <button type="button" className="ipad-edition__cinema-hero-more" data-friday-material="clear" data-friday-ambient="dark" aria-label={'查看 ' + item.title + ' 的更多信息'} disabled={Boolean(pendingTitle)} onClick={() => onOpen(item)}>
             <span aria-hidden="true">＋</span>
           </button>
         </div>

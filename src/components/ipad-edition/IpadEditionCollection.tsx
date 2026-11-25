@@ -48,7 +48,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
         <p>{kind === 'anime' ? '来自 Bangumi 的真实每日放送日历。' : '默认展示中国影视作品，元数据与海报来自 TMDB。'}</p>
 
       </header>
-      {kind !== 'anime' ? <div className="ipad-edition__collection-tabs" role="group" aria-label="内容排序">{tabs.map((item) => <button type="button" key={item} className={tag === item ? 'is-active' : ''} aria-pressed={tag === item} onClick={() => { setTag(item); setPage(0); }}>{item}</button>)}</div> : null}
+      {kind !== 'anime' ? <div className="ipad-edition__collection-tabs" role="group" aria-label="内容排序">{tabs.map((item) => <button type="button" data-friday-material="regular" key={item} className={tag === item ? 'is-active' : ''} aria-pressed={tag === item} onClick={() => { setTag(item); setPage(0); }}>{item}</button>)}</div> : null}
       {error ? <div className="ipad-edition__rail-message" role="alert">{error}</div> : null}
       {query.isLoading ? <div className="ipad-edition__poster-grid">{Array.from({ length: 10 }).map((_, index) => <div className="ipad-edition__poster-skeleton" key={index} />)}</div> : null}
       {query.isError ? <div className="ipad-edition__rail-message" role="alert">暂时无法获取{title}，请稍后重试。<button type="button" onClick={() => void query.refetch()}>重试</button></div> : null}
@@ -62,7 +62,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
               <strong title={item.title}>{item.title}</strong><small>{item.rating ? '★ ' + item.rating : '查看详情'}</small>
             </button>)}
           </div>
-          {kind !== 'anime' ? <div className="ipad-edition__pagination"><button type="button" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><span>第 {page + 1} 页</span><button type="button" disabled={uniqueItems.length < 20} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
+          {kind !== 'anime' ? <div className="ipad-edition__pagination"><button type="button" data-friday-material="regular" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><span>第 {page + 1} 页</span><button type="button" data-friday-material="regular" disabled={uniqueItems.length < 20} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
         </>
       ) : null}
     </div>

@@ -194,8 +194,18 @@ jobs:
           PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
         run: |
           "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright" install chromium
-      # [deploy-ipad-edition-preview] Re-run after edge-swipe touch handling fix.
+      - name: Audit Friday glass appearance and capsule motion
+        shell: bash
+        timeout-minutes: 7
+        env:
+          FRIDAY_AUDIT_URL: https://libretv-ipad-edition-preview.bggdbh.workers.dev
+        run: |
+          mkdir -p artifacts/ipad-visual-audit
+          FRIDAY_PLAYWRIGHT_PACKAGE="$RUNNER_TEMP/ipad-audit/package.json" \
+            node scripts/friday-glass-browser-audit.mjs | tee artifacts/ipad-visual-audit/friday-glass.json
+      # [deploy-ipad-edition-preview] Verify the current closed-by-default capsule.
       - name: Run iPad viewport and theme visual audit
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_playwright.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
         timeout-minutes: 18
         run: |
           mkdir -p artifacts/ipad-visual-audit
@@ -350,152 +360,67 @@ jobs:
             // Wait for React to attach client event props before clicking: domcontentloaded
             // can occur before hydration, which otherwise creates a false timeout.
             let sidebarInteractionPassed = false;
-            const sidebarInteraction = { opened: false, escapeClosed: false, scrimClosed: false, edgeSwipeOpened: false, edgeSwipeClosed: false };
-            if (layoutMode === 'expanded') {
+            const sidebarInteraction = {};
+            try {
+              const menuButton = page.locator('.ipad-nav__menu-button');
+              const sidebar = page.locator('.ipad-nav__sidebar');
+              const openSidebar = page.locator('.ipad-nav__sidebar.is-open');
+              await page.waitForFunction(() => {
+                const button = document.querySelector('.ipad-nav__menu-button');
+                return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
+              }, undefined, { timeout: 20000 });
+              sidebarInteraction.initialClosed = await sidebar.getAttribute('inert') !== null &&
+                await menuButton.getAttribute('aria-expanded') === 'false';
+              const touch = await context.newCDPSession(page);
               try {
-                const menuButton = page.locator('.ipad-nav__menu-button');
-                await page.waitForFunction(() => {
-                  const button = document.querySelector('.ipad-nav__menu-button');
-                  return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
-                }, undefined, { timeout: 20000 });
-                sidebarInteraction.initialClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                await menuButton.click();
-                await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
-                sidebarInteraction.opened = await page.locator('.ipad-nav__sidebar a').evaluateAll(links =>
-                  links.length > 0 && links.every(link => link.tabIndex >= 0)
-                );
-                await page.keyboard.press('Escape');
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open') === false);
-                sidebarInteraction.escapeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                await menuButton.click();
-                await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
-                const closeButton = page.getByRole('button', { name: '关闭侧边栏' });
-                await closeButton.waitFor({ state: 'visible', timeout: 10000 });
-                await closeButton.click();
-                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 10000 });
-                sidebarInteraction.explicitClosePassed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                sidebarInteraction.scrimNotApplicable = true;
-                sidebarInteraction.edgeSwipeNotApplicable = true;
-                sidebarInteraction.diagnostics = await page.evaluate(() => {
-                  const sidebar = document.querySelector('.ipad-nav__sidebar');
-                  return {
-                    finalState: { computedStyle: { position: sidebar ? getComputedStyle(sidebar).position : null } },
-                    mode: 'expanded-sidebar-collapsed-by-default',
-                  };
-                });
-                sidebarInteractionPassed = sidebarInteraction.initialClosed &&
-                  sidebarInteraction.opened &&
-                  sidebarInteraction.escapeClosed &&
-                  sidebarInteraction.explicitClosePassed;
-              } catch (error) {
-                sidebarInteraction.error = String(error);
-                sidebarInteractionPassed = false;
-                console.error('Expanded sidebar interaction audit failed for ' + viewport.name + '-' + colorScheme + ': ' + String(error));
+                await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260 }] });
+                await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260 }] });
+                await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+              } finally {
+                await touch.detach();
               }
-            } else {
-              try {
-                await page.waitForFunction(() => {
-                  const button = document.querySelector('.ipad-nav__menu-button');
-                  return Boolean(button && Object.keys(button).some(key => key.startsWith('__reactProps$')));
-                }, undefined, { timeout: 20000 });
-                const menuButton = page.locator('.ipad-nav__menu-button');
+              sidebarInteraction.edgeStayedClosed = await menuButton.getAttribute('aria-expanded') === 'false';
+
+              await menuButton.click();
+              await openSidebar.waitFor({ state: 'visible' });
+              sidebarInteraction.opened = await sidebar.getAttribute('inert') === null &&
+                await menuButton.getAttribute('aria-expanded') === 'true';
+              await page.keyboard.press('Escape');
+              await openSidebar.waitFor({ state: 'hidden' });
+              sidebarInteraction.escapeClosed = await menuButton.getAttribute('aria-expanded') === 'false';
+
+              await menuButton.click();
+              await openSidebar.waitFor({ state: 'visible' });
+              await sidebar.getByRole('button', { name: '收起侧边栏' }).click();
+              await openSidebar.waitFor({ state: 'hidden' });
+              sidebarInteraction.explicitClosePassed = await menuButton.getAttribute('aria-expanded') === 'false';
+
+              if (layoutMode !== 'expanded') {
                 await menuButton.click();
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', undefined, { timeout: 10000 });
-                await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 10000 });
-                sidebarInteraction.opened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
-                await page.keyboard.press('Escape');
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
-                await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
-                sidebarInteraction.escapeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                await menuButton.click();
+                await openSidebar.waitFor({ state: 'visible' });
                 const scrim = page.locator('.ipad-nav__scrim');
-                await scrim.waitFor({ state: 'visible', timeout: 10000 });
-                await scrim.click({ position: { x: Math.max(300, viewport.width - 32), y: Math.floor(viewport.height / 2) } });
-                await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
-                await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
-                sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                // Verify the accepted capsule-only navigation: edge gestures must not open the sidebar.
-                const touchSession = await context.newCDPSession(page);
-                sidebarInteraction.diagnostics = await page.evaluate(() => {
-                  const edge = document.querySelector('.ipad-nav__edge-swipe-zone');
-                  const root = document.querySelector('.ipad-edition');
-                  const hit = document.elementFromPoint(8, 260);
-                  const rect = element => {
-                    if (!element) return null;
-                    const r = element.getBoundingClientRect();
-                    return { x:r.x, y:r.y, width:r.width, height:r.height };
-                  };
-                  return {
-                    edgeRect: rect(edge),
-                    hitAtEdge: hit?.className ?? hit?.tagName ?? null,
-                    hitIsEdge: Boolean(edge && hit && (hit === edge || edge.contains(hit))),
-                    edgeTouchAction: edge ? getComputedStyle(edge).touchAction : null,
-                    rootTouchAction: root ? getComputedStyle(root).touchAction : null,
-                    rootPresent: Boolean(root),
-                  };
-                });
-                try {
-                  await touchSession.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
-                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 260, id: 1, force: 1 }] });
-                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260, id: 1, force: 1 }] });
-                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260, id: 1, force: 1 }] });
-                  await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-                  await page.waitForTimeout(350);
-                  sidebarInteraction.edgeSwipeStayedClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0 &&
-                    await menuButton.getAttribute('aria-expanded') === 'false' &&
-                    await page.locator('.ipad-nav__edge-swipe-zone').count() === 0;
-                } finally {
-                  await touchSession.detach();
-                  sidebarInteraction.diagnostics.trace = await page.evaluate(() => window.__ipadTouchTrace ?? []);
-                  sidebarInteraction.diagnostics.finalState = await page.evaluate(() => ({
-                    expanded: document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') ?? null,
-                    sidebarClass: document.querySelector('.ipad-nav__sidebar')?.className ?? null,
-                    sidebarVisible: Boolean(document.querySelector('.ipad-nav__sidebar')?.getBoundingClientRect().width &&
-                      getComputedStyle(document.querySelector('.ipad-nav__sidebar')).visibility === 'visible' &&
-                      getComputedStyle(document.querySelector('.ipad-nav__sidebar')).display !== 'none'),
-                    computedStyle: (() => {
-                      const sidebar = document.querySelector('.ipad-nav__sidebar');
-                      if (!sidebar) return null;
-                      const style = getComputedStyle(sidebar);
-                      const rect = sidebar.getBoundingClientRect();
-                      return {
-                        position: style.position,
-                        display: style.display,
-                        visibility: style.visibility,
-                        width: style.width,
-                        rectWidth: rect.width,
-                        transform: style.transform,
-                        transitionProperty: style.transitionProperty,
-                        transitionDuration: style.transitionDuration,
-                      };
-                    })(),
-                    dragging: document.querySelector('.ipad-edition')?.getAttribute('data-ipad-sidebar-dragging') ?? null,
-                  }));
-                }
-                sidebarInteractionPassed = sidebarInteraction.opened && sidebarInteraction.escapeClosed &&
-                  sidebarInteraction.scrimClosed && sidebarInteraction.edgeSwipeStayedClosed;
-              } catch (error) {
-                sidebarInteraction.error = String(error);
-                sidebarInteractionPassed = false;
-                console.error('Sidebar interaction audit failed for ' + viewport.name + '-' + colorScheme + ': ' + String(error));
+                const scrimBox = await scrim.boundingBox();
+                if (!scrimBox) throw new Error('Compact sidebar scrim is missing');
+                await scrim.click({ position: { x: scrimBox.width - 24, y: scrimBox.height / 2 } });
+                await openSidebar.waitFor({ state: 'hidden' });
+                sidebarInteraction.scrimClosed = await menuButton.getAttribute('aria-expanded') === 'false';
               }
-  
+              sidebarInteraction.diagnostics = await sidebar.evaluate(element => ({
+                finalState: { computedStyle: { position: getComputedStyle(element).position } },
+              }));
+              sidebarInteractionPassed = sidebarInteraction.initialClosed && sidebarInteraction.edgeStayedClosed &&
+                sidebarInteraction.opened && sidebarInteraction.escapeClosed && sidebarInteraction.explicitClosePassed &&
+                (layoutMode === 'expanded' || sidebarInteraction.scrimClosed);
+            } catch (error) {
+              sidebarInteraction.error = String(error);
+              console.error('Sidebar interaction audit failed for ' + viewport.name + '-' + colorScheme + ': ' + String(error));
             }
-            // Always restore the page to its neutral state before capturing the visual baseline.
-            // A failed gesture must not leave the sidebar/scrim covering the screenshot.
-            await page.evaluate(() => {
-              const root = document.querySelector('.ipad-edition');
-              const button = document.querySelector('.ipad-nav__menu-button');
-              if (root?.getAttribute('data-ipad-layout') !== 'expanded' && button?.getAttribute('aria-expanded') === 'true') button.click();
-            });
-            await page.waitForFunction(() => {
-              const root = document.querySelector('.ipad-edition');
-              if (root?.getAttribute('data-ipad-layout') === 'expanded') {
-                const sidebar = document.querySelector('.ipad-nav__sidebar');
-                return Boolean(sidebar?.classList.contains('is-open') && getComputedStyle(sidebar).visibility === 'visible');
-              }
-              return document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false';
-            }, undefined, { timeout: 5000 });
+            // Restore the default closed state before measuring homepage geometry.
+            const menuButton = page.locator('.ipad-nav__menu-button');
+            if (await menuButton.getAttribute('aria-expanded') === 'true') {
+              await page.keyboard.press('Escape');
+            }
+            await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'hidden', timeout: 5000 });
             await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
             await page.waitForTimeout(180);
             // Wait for real homepage content before inspecting all poster-bearing cards.
@@ -713,7 +638,7 @@ jobs:
                   const root = document.querySelector('[data-ipad-edition="true"]');
                   const layoutMode = root?.getAttribute('data-ipad-layout') ?? 'compact';
                   const main = document.querySelector('.ipad-edition__main');
-                  const topbar = layoutMode === 'expanded' ? document.querySelector('.ipad-nav__sidebar.is-open') : document.querySelector('.ipad-nav__topbar');
+                  const topbar = document.querySelector('.ipad-nav__topbar');
                   const hero = document.querySelector('.ipad-edition__cinema-hero');
                   const heroCopy = document.querySelector('.ipad-edition__cinema-hero-copy');
                   const rect = element => {
@@ -736,9 +661,7 @@ jobs:
                   const wordmark = document.querySelector('.ipad-nav__capsule-action') || document.querySelector('.ipad-nav__brand');
                   const navigationStyle = navigationSurface ? getComputedStyle(navigationSurface) : null;
                   const wordmarkStyle = wordmark ? getComputedStyle(wordmark) : null;
-                  const navigationBackground = layoutMode === 'expanded'
-                    ? (navigationStyle?.getPropertyValue('--ipad-nav-panel').trim() || navigationStyle?.backgroundColor || '')
-                    : (navigationStyle?.backgroundColor ?? '');
+                  const navigationBackground = navigationStyle?.backgroundColor ?? '';
                   const navColor = wordmarkStyle?.color ?? '';
                   const navigationBackgroundLuminance = luminance(navigationBackground);
                   const navTextLuminance = luminance(navColor);
@@ -761,9 +684,7 @@ jobs:
                       : navigationBackgroundLuminance !== null && navigationBackgroundLuminance < 0.08 &&
                         navTextLuminance !== null && navTextLuminance > 0.7,
                     navigationBlurValid: navigationBackdropFilter.includes('blur(') || navigationWebkitBackdropFilter.includes('blur('),
-                    navigationGeometryValid: layoutMode === 'expanded'
-                      ? Boolean(navigationSurface && navigationSurface.getBoundingClientRect().width >= 220 && navigationStyle?.borderRightColor)
-                      : navigationRadius >= 14 && Boolean(navigationStyle?.borderTopColor),
+                    navigationGeometryValid: navigationRadius >= 14 && Boolean(navigationStyle?.borderTopColor),
                   };
                   const slots = Array.from(document.querySelectorAll('[data-ipad-poster-slot]'));
                   const posterChecks = slots.map(slot => {
@@ -859,10 +780,7 @@ jobs:
                   // clipping boundary. Do not use elementFromPoint here: decorative
                   // gradients/overlays may sit above the backdrop, and pointer-events:none
                   // layers are intentionally omitted from hit testing while still painting.
-                  const sidebarRight = document.querySelector('.ipad-nav__sidebar')?.getBoundingClientRect().right ?? 0;
-                  const heroArtworkSampleXs = layoutMode === 'expanded'
-                    ? [Math.ceil(sidebarRight + 1), Math.max(Math.ceil(sidebarRight + 1), window.innerWidth - 2)]
-                    : [1, Math.max(1, window.innerWidth - 2)];
+                  const heroArtworkSampleXs = [1, Math.max(1, window.innerWidth - 2)];
                   const heroArtworkEdgeCoverage = heroArtworkSampleXs.map(x => {
                     if (!heroMedia || !heroRect) return false;
                     const mediaRect = heroMedia.getBoundingClientRect();
@@ -1189,20 +1107,14 @@ jobs:
                 await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
                 const scrollAudit = await page.evaluate(() => {
                   const layoutMode = document.querySelector('.ipad-edition')?.getAttribute('data-ipad-layout') ?? 'compact';
-                  const navElement = layoutMode === 'expanded'
-                    ? document.querySelector('.ipad-nav__sidebar.is-open')
-                    : (document.querySelector('.ipad-nav__topbar-inner') || document.querySelector('.ipad-nav__topbar'));
+                  const navElement = document.querySelector('.ipad-nav__topbar-inner') || document.querySelector('.ipad-nav__topbar');
                   const nav = navElement?.getBoundingClientRect();
                   const main = document.querySelector('.ipad-edition__main')?.getBoundingClientRect();
-                  const expandedLayout = layoutMode === 'expanded';
                   const labels = Array.from(document.querySelectorAll("#ipad-popular-series .ipad-edition__poster-card strong, #ipad-popular-series .ipad-edition__poster-card small"));
                   const visibleLabels = labels.map((element) => {
                     const rect = element.getBoundingClientRect();
                     const visible = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
-                    // In expanded mode the sidebar is a permanent layout column, not an
-                    // overlay. The main content must begin at/after its right edge; only
-                    // compact mode has a floating navigation surface that can cover cards.
-                    const overlapsNavigation = Boolean(!expandedLayout && nav && visible &&
+                    const overlapsNavigation = Boolean(nav && visible &&
                       nav.left < rect.right && nav.right > rect.left && nav.top < rect.bottom && nav.bottom > rect.top);
                     return {
                       text: element.textContent?.trim() ?? "",
@@ -1225,7 +1137,7 @@ jobs:
                     mainRight: main ? Math.round(main.right) : null,
                     visiblePosterLabels: visibleLabels.filter(item => item.visible).length,
                     overlappingPosterLabels: visibleLabels.filter(item => item.overlapsNavigation),
-                    contentClearsSidebar: !expandedLayout || Boolean(nav && main && main.left >= nav.right - 1),
+                    contentClearsSidebar: Boolean(main && !document.querySelector('.ipad-nav__sidebar.is-open')),
                     navigationViewportValid: Boolean(nav && nav.top >= 0 && nav.bottom <= window.innerHeight),
                   };
                 });
@@ -1289,12 +1201,8 @@ jobs:
               const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
               await page.locator('[data-ipad-edition="true"]').waitFor({ state: "attached", timeout: 30000 });
               await page.locator(".ipad-edition__cinema-hero").waitFor({ state: "visible", timeout: 30000 });
-              const layoutMode = await page.locator('.ipad-edition').getAttribute('data-ipad-layout');
-              if (layoutMode === 'expanded') {
-                await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'visible', timeout: 30000 });
-              } else {
-                await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
-              }
+              await page.locator('.ipad-nav__topbar').waitFor({ state: 'visible', timeout: 30000 });
+              await page.locator('.ipad-nav__sidebar.is-open').waitFor({ state: 'hidden', timeout: 30000 });
               // The environment engine attaches its data attributes in a client effect.
               // Wait for the requested scheme before asserting clean-URL theme readiness.
               await page.waitForFunction(
