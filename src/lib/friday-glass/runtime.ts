@@ -1,8 +1,14 @@
 export type GlassMaterial = 'regular' | 'clear' | 'frosted' | 'cinema' | 'ambient' | 'solid';
 export type GlassBackend = 'optical' | 'webkit' | 'native' | 'safe';
+export type GlassTheme = 'system' | 'light' | 'dark';
+
+export const GLASS_MATERIALS: readonly GlassMaterial[] = [
+  'regular', 'clear', 'frosted', 'cinema', 'ambient', 'solid',
+];
 
 export const GLASS_DEFAULTS = {
-  material: 'regular' as 'regular' | 'clear' | 'frosted',
+  material: 'regular' as GlassMaterial,
+  theme: 'system' as GlassTheme,
   quality: 'auto' as 'auto' | 'optical' | 'native' | 'safe',
   intensity: 65,
   motion: true,
@@ -13,12 +19,14 @@ export const GLASS_DEFAULTS = {
 
 export type GlassPreferences = typeof GLASS_DEFAULTS;
 
+/** Old V1.1 records lack theme and the three additional materials. Keep them compatible. */
 export function readGlassPreferences(raw: string | null): GlassPreferences {
   try {
     const value = JSON.parse(raw ?? 'null');
-    if (!value || typeof value !== 'object') return GLASS_DEFAULTS;
+    if (!value || typeof value !== 'object') return { ...GLASS_DEFAULTS };
     return {
-      material: ['regular', 'clear', 'frosted'].includes(value.material) ? value.material : GLASS_DEFAULTS.material,
+      material: GLASS_MATERIALS.includes(value.material) ? value.material : GLASS_DEFAULTS.material,
+      theme: ['system', 'light', 'dark'].includes(value.theme) ? value.theme : GLASS_DEFAULTS.theme,
       quality: ['auto', 'optical', 'native', 'safe'].includes(value.quality) ? value.quality : GLASS_DEFAULTS.quality,
       intensity: Number.isFinite(value.intensity) ? Math.max(0, Math.min(100, value.intensity)) : GLASS_DEFAULTS.intensity,
       motion: typeof value.motion === 'boolean' ? value.motion : GLASS_DEFAULTS.motion,
@@ -27,10 +35,11 @@ export function readGlassPreferences(raw: string | null): GlassPreferences {
       playbackProtection: typeof value.playbackProtection === 'boolean' ? value.playbackProtection : GLASS_DEFAULTS.playbackProtection,
     };
   } catch {
-    return GLASS_DEFAULTS;
+    return { ...GLASS_DEFAULTS };
   }
 }
 
+/** Safari uses a transparent native-backdrop material, not an unverified DOM displacement claim. */
 export function selectGlassBackend({
   preferences, contrast, transparency, forcedColors, backdrop, webkit, optical,
   playing, underPressure, failed,
@@ -47,8 +56,9 @@ export function selectGlassBackend({
   failed: boolean;
 }): GlassBackend {
   if (contrast || transparency || forcedColors || failed || preferences.quality === 'safe' || !backdrop) return 'safe';
-  if (webkit) return 'webkit';
-  if (!optical || underPressure || preferences.quality === 'native' ||
+  if (underPressure || preferences.quality === 'native' ||
       (playing && preferences.playbackProtection)) return 'native';
+  if (webkit) return 'webkit';
+  if (!optical) return 'native';
   return 'optical';
 }
