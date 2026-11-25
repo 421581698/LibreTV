@@ -162,10 +162,10 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
                 onClick={analyzeRegisteredAsset}
                 className="w-full rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/20 disabled:cursor-wait disabled:opacity-60"
               >
-                {analysisState === 'loading' ? '正在进行可信 RPU 分析…' : verifiedEvidence ? '重新验证媒体 RPU' : '验证此媒体的 RPU'}
+                {analysisState === 'loading' ? '正在进行可信 RPU 分析…' : currentVerifiedEvidence ? '重新验证媒体 RPU' : '验证此媒体的 RPU'}
               </button>
               {analysisError && <p role="alert" className="mt-2 text-[10px] text-amber-200">{analysisError}</p>}
-              {verifiedEvidence && <p className="mt-2 text-[10px] text-emerald-200">服务端签名和媒体 SHA-256 均已验证。</p>}
+              {currentVerifiedEvidence && <p className="mt-2 text-[10px] text-emerald-200">服务端签名和媒体 SHA-256 均已验证。</p>}
             </div>
           )}
           {!assetId && (
