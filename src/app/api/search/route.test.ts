@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { POST } from './route';
+import { POST, validateSources } from './route';
 import { NextRequest } from 'next/server';
 import { SESSION_COOKIE, signSession } from '@/lib/auth';
 import type { SearchResponse, SearchStreamEvent, SourceConfig } from '@/lib/types';
@@ -69,6 +69,38 @@ beforeAll(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('validateSources', () => {
+  it('preserves validated CMS provider metadata without accepting cross-origin metadata URLs', () => {
+    const sources = validateSources([{
+      key: 'gsm3u8',
+      name: '光速资源',
+      url: 'https://api.guangsuapi.com/api.php/provide/vod',
+      api: 'https://api.guangsuapi.com/api.php/provide/vod/?ac=list',
+      from: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/',
+      type: 1,
+      weight: 1,
+    }, {
+      key: 'untrusted',
+      name: '外部元数据',
+      url: 'https://cms.example.com/api.php/provide/vod',
+      api: 'https://attacker.example/api.php/provide/vod/?ac=list',
+      from: 'https://attacker.example/from/',
+      type: 1,
+      weight: 2,
+    }]);
+    expect(sources[0]).toMatchObject({
+      key: 'gsm3u8',
+      api: 'https://api.guangsuapi.com/api.php/provide/vod/?ac=list',
+      from: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/',
+      type: 1,
+      weight: 1,
+    });
+    expect(sources[1]).not.toHaveProperty('api');
+    expect(sources[1]).not.toHaveProperty('from');
+    expect(sources[1]).toMatchObject({ type: 1, weight: 2 });
+  });
 });
 
 describe('POST /api/search', () => {
