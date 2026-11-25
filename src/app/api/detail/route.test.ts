@@ -339,6 +339,32 @@ describe('GET /api/detail', () => {
   });
 
 
+
+  it('filters unsafe URLs from the HTML detail fallback before returning episodes', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('ac=videolist')) {
+        return new Response(JSON.stringify(cmsDetail('')), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(
+        '<html><h1>Fallback fixture</h1><script>const a="$https://user:pass@media.example/blocked.m3u8"; const b="$https://media.example/fallback-safe.m3u8";</script></html>',
+        { status: 200, headers: { 'content-type': 'text/html' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'movie-1',
+      source: source('https://cms-html-fixture.example/api.php'),
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as { episodes: string[] };
+    expect(data.episodes).toEqual(['https://media.example/fallback-safe.m3u8']);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects a source marked as not safety-reviewed before fetching details', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
