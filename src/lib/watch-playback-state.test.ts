@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from './watch-playback-state';
+import { bindWatchPlaybackState, seekWatchPlayback, skipWatchPlayback, toggleWatchPlayback } from './watch-playback-state';
 
 type TestVideo = HTMLVideoElement & {
   setPaused: (value: boolean) => void;
@@ -210,6 +210,16 @@ describe('skipWatchPlayback', () => {
       seekable: { length: ranges.length, start: (i: number) => ranges[i][0], end: (i: number) => ranges[i][1] },
     } as unknown as HTMLVideoElement;
   }
+
+  it('shares absolute seek bounds with relative transport controls', () => {
+    const video = seekVideo(110, [[100, 160]]);
+    expect(seekWatchPlayback(video, 20)).toBe(true);
+    expect(video.currentTime).toBe(100);
+    expect(seekWatchPlayback(video, 200)).toBe(true);
+    expect(video.currentTime).toBe(160);
+    expect(seekWatchPlayback(video, NaN)).toBe(false);
+    expect(video.currentTime).toBe(160);
+  });
 
   it('clamps both directions to the seekable VOD window', () => {
     const video = seekVideo(5, [[0, 100]]);
