@@ -2230,7 +2230,7 @@ def record_playback_evidence(
                 "dv-source-ingest:" + candidate_id + ":" + source_version,
                 max_attempts=3,
             )
-            media_ingestion = {"status": "queued", "job_id": job["id"]}
+            media_ingestion = {"status": job["status"], "job_id": job["id"]}
     return {
         "candidate_id": candidate_id,
         "playback_verification": evidence,
