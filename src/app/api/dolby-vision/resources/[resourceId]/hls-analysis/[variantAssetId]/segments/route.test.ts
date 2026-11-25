@@ -142,7 +142,7 @@ describe('POST HLS fragment-set analysis', () => {
     });
     const body = await response.json();
 
-    expect(response.status).toBe(200);
+    expect(response.status, JSON.stringify(body)).toBe(200);
     expect(body).toMatchObject({
       verified: true,
       analysisScope: 'hls-fmp4-segment-set',
@@ -179,7 +179,8 @@ describe('POST HLS fragment-set analysis', () => {
     const response = await POST(new Request('https://libretv.example/segments', { method: 'POST' }), {
       params: Promise.resolve({ resourceId, variantAssetId }),
     });
-    expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(502);
+    expect(body).toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
   });
 });
