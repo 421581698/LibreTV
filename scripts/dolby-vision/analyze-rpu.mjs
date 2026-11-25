@@ -8,7 +8,7 @@
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { access, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, resolve } from 'node:path';
@@ -25,7 +25,7 @@ async function sha256File(filePath) {
 
 export function normalizeRpuInput(value) {
   const input = Buffer.from(value);
-  if (input[0] === 0x19) return input;
+  if (input[0] === 0x19) return Buffer.concat([startCode, input]);
   const startCode = Buffer.from([0x00, 0x00, 0x00, 0x01]);
   const units = [];
   let offset = 0;
@@ -60,7 +60,7 @@ export function normalizeRpuInput(value) {
     if (regular[0] !== 0x19 || lastNonZero < 0 || regular[lastNonZero] !== 0x80) {
       throw new Error('Decoded AV1 RPU NAL does not contain a valid regular RPU unit.');
     }
-    units.push(regular);
+    units.push(Buffer.concat([startCode, regular]));
     offset = next;
   }
   if (units.length === 0) throw new Error('AV1 RPU NAL stream contains no RPU units.');
