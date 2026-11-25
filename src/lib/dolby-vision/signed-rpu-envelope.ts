@@ -78,6 +78,116 @@ export interface VerifiedDolbyVisionRpuEnvelope {
   sourceHashBinding: 'matched';
 }
 
+export interface ExpectedHlsRpuFragment {
+  fragmentAssetId: string;
+  fragmentSha256: string;
+  initializationAssetId: string;
+  initializationSha256: string;
+  assembledSegmentSha256: string;
+  fragmentSequenceNumber: number;
+  decodeTime: number;
+  sampleDuration: number;
+  sampleCount: number;
+  timescale: number;
+}
+
+export interface VerifiedHlsRpuSegmentSet {
+  segments: VerifiedDolbyVisionRpuEnvelope[];
+  totalRpuFrameCount: number;
+  timelineContinuity: 'contiguous';
+  rpuSemanticContinuity: 'not-established';
+}
+
+/**
+ * Verify every fragment signature against trusted graph metadata and prove
+ * container-timeline continuity. This deliberately does not claim semantic
+ * frame-to-frame RPU continuity, which requires parser-level per-frame data.
+ */
+export function verifySignedDolbyVisionRpuSegmentSet(
+  values: unknown[],
+  options: {
+    publicKeyPem: string;
+    expectedKeyId: string;
+    resourceId: string;
+    graphId: string;
+    graphSha256: string;
+    rootAssetId: string;
+    variantAssetId: string;
+    expectedFragmentCount: number;
+    expectedSegments: ExpectedHlsRpuFragment[];
+    now?: number;
+  },
+): VerifiedHlsRpuSegmentSet | null {
+  if (!Array.isArray(values) || !Number.isSafeInteger(options.expectedFragmentCount) ||
+      options.expectedFragmentCount < 1 || options.expectedFragmentCount > 10_000 ||
+      values.length !== options.expectedFragmentCount ||
+      options.expectedSegments.length !== options.expectedFragmentCount ||
+      !sha256Schema.safeParse(options.graphSha256).success) return null;
+
+  const verified: VerifiedDolbyVisionRpuEnvelope[] = [];
+  const seenAssetIds = new Set<string>();
+  let previousEnd: number | null = null;
+  let previousSequence: number | null = null;
+  let commonTimescale: number | null = null;
+  let totalRpuFrameCount = 0;
+
+  for (let ordinal = 0; ordinal < options.expectedFragmentCount; ordinal += 1) {
+    const expected = options.expectedSegments[ordinal];
+    if (!expected || seenAssetIds.has(expected.fragmentAssetId) ||
+        !sha256Schema.safeParse(expected.fragmentSha256).success ||
+        !sha256Schema.safeParse(expected.initializationSha256).success ||
+        !sha256Schema.safeParse(expected.assembledSegmentSha256).success ||
+        !Number.isSafeInteger(expected.fragmentSequenceNumber) || expected.fragmentSequenceNumber <= 0 ||
+        !Number.isSafeInteger(expected.decodeTime) || expected.decodeTime < 0 ||
+        !Number.isSafeInteger(expected.sampleDuration) || expected.sampleDuration <= 0 ||
+        !Number.isSafeInteger(expected.sampleCount) || expected.sampleCount <= 0 ||
+        !Number.isSafeInteger(expected.timescale) || expected.timescale <= 0) return null;
+    seenAssetIds.add(expected.fragmentAssetId);
+
+    if (previousEnd !== null && expected.decodeTime !== previousEnd) return null;
+    if (previousSequence !== null && expected.fragmentSequenceNumber !== previousSequence + 1) return null;
+    if (commonTimescale !== null && expected.timescale !== commonTimescale) return null;
+    const end = expected.decodeTime + expected.sampleDuration;
+    if (!Number.isSafeInteger(end)) return null;
+    previousEnd = end;
+    previousSequence = expected.fragmentSequenceNumber;
+    commonTimescale = expected.timescale;
+
+    const analysisContext = {
+      scope: 'hls-fmp4-segment' as const,
+      resourceId: options.resourceId,
+      graphId: options.graphId,
+      graphSha256: options.graphSha256,
+      rootAssetId: options.rootAssetId,
+      variantAssetId: options.variantAssetId,
+      fragmentCount: options.expectedFragmentCount,
+      fragmentSequenceContinuity: 'sequential' as const,
+      temporalContinuity: 'contiguous' as const,
+      fragmentOrdinal: ordinal,
+      ...expected,
+    };
+    const result = verifySignedDolbyVisionRpuEnvelope(values[ordinal], {
+      publicKeyPem: options.publicKeyPem,
+      expectedKeyId: options.expectedKeyId,
+      expectedAssetId: expected.fragmentAssetId,
+      expectedMediaSha256: expected.assembledSegmentSha256,
+      expectedAnalysisContext: analysisContext,
+      now: options.now,
+    });
+    if (!result) return null;
+    totalRpuFrameCount += result.report.frameCount;
+    if (!Number.isSafeInteger(totalRpuFrameCount)) return null;
+    verified.push(result);
+  }
+
+  return {
+    segments: verified,
+    totalRpuFrameCount,
+    timelineContinuity: 'contiguous',
+    rpuSemanticContinuity: 'not-established',
+  };
+}
+
 export function canonicalizeDolbyVisionRpuPayload(value: unknown): string {
   if (value === null) return 'null';
   if (typeof value !== 'object') {
