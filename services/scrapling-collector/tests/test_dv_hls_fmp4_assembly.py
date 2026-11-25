@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from fastapi import HTTPException
+
 import registry_queue as queue
 from dv_hls_ingest import ingest_hls_directory
 from dv_hls_fmp4_assembly import HlsAssemblyError, assemble_registered_hls_fmp4
@@ -123,6 +125,32 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
             assemble_registered_hls_fmp4(
                 self.resource["id"], variant_id, self.root / "bad.mp4", self.object_root,
             )
+
+    def test_authenticated_api_streams_assembled_mp4_with_explicit_unknown_rpu_state(self):
+        variant_id, _ = self.prepare_graph()
+        staging_root = self.root / "api-staging"
+        with patch.object(queue, "DV_MEDIA_OBJECT_ROOT", self.object_root), \
+                patch.object(queue, "DV_MEDIA_STAGING_ROOT", staging_root), \
+                patch.object(queue, "require_auth") as require_auth:
+            response = queue.api_assemble_hls_fmp4(
+                self.resource["id"], variant_id, authorization="Bearer collector",
+            )
+        require_auth.assert_called_once_with("Bearer collector")
+        expected = init_segment() + media_fragment(1) + media_fragment(2)
+        self.assertEqual(response.media_type, "video/mp4")
+        self.assertEqual(Path(response.path).read_bytes(), expected)
+        self.assertEqual(response.headers["x-dv-rpu-presence"], "unknown")
+        self.assertEqual(response.headers["x-dv-hls-temporal-continuity"], "unknown")
+        self.assertEqual(response.headers["x-dv-hls-fragment-sequence-continuity"], "sequential")
+        Path(response.path).unlink(missing_ok=True)
+
+    def test_assembly_api_rejects_missing_collector_auth(self):
+        from fastapi import HTTPException
+        with patch.object(queue, "require_auth", side_effect=HTTPException(status_code=401)):
+            with self.assertRaises(HTTPException):
+                queue.api_assemble_hls_fmp4(
+                    "resource-missing", "variant-missing", authorization=None,
+                )
 
     def test_rejects_playlist_not_bound_to_selected_resource(self):
         variant_id, _ = self.prepare_graph()
