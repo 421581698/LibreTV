@@ -203,12 +203,17 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
 
     try {
       let packetNumber = 0;
+      const fixtureBasePts = BigInt(Math.round(packets[0].presentationTime * 48_000 / packets[0].timescale));
       for (const packet of packets) {
         const pointer = alloc(packet.bytes.byteLength);
         expect(pointer).toBeGreaterThan(0);
         try {
           new Uint8Array(wasmMemory.buffer, pointer, packet.bytes.byteLength).set(packet.bytes);
-          const ptsSamples = BigInt(Math.round(packet.presentationTime * 48_000 / packet.timescale));
+          // FFmpeg's raw E-AC-3 demuxer assigns 1-tick DTS steps to this
+          // elementary fixture. Rebase the generated CMAF test track to its
+          // known 1536-sample E-AC-3 access-unit cadence; production playback
+          // continues to use the real CMAF PTS and rejects discontinuities.
+          const ptsSamples = fixtureBasePts + BigInt(packetNumber * 1536);
           const status = push(handle, pointer, packet.bytes.byteLength, ptsSamples, 0);
           if (status < 0) {
             const errorSize = errorLength(handle);
