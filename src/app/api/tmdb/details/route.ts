@@ -38,6 +38,8 @@ export async function GET(req: Request) {
     const payload = await fetchTmdbJson<Record<string, unknown> & { poster_path?: string | null; backdrop_path?: string | null; images?: { posters?: TmdbPosterImage[]; backdrops?: TmdbPosterImage[] } }>(`/${type}/${id}`, {
       language,
       append_to_response: 'images,credits,videos,release_dates,content_ratings',
+      // Include transparent title art for the cinematic detail page; server-only TMDB request.
+      // TMDB returns localized and language-neutral logo variants in the appended images response.
       include_image_language: 'zh,null,en',
     });
     const preferredPoster = selectPreferredTmdbPoster(payload.images?.posters, payload.poster_path);
