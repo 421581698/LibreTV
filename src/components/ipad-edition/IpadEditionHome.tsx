@@ -26,10 +26,16 @@ function mergeLatestRegionalReleases(usItems: DoubanItem[], cnItems: DoubanItem[
   for (const item of [...usItems, ...cnItems]) {
     if (!item.id || !item.title?.trim() || !item.cover?.trim() || !item.releaseDate) continue;
     const existing = byId.get(item.id);
-    if (!existing || item.releaseDate > (existing.releaseDate ?? '')) {
+    if (!existing) {
       byId.set(item.id, item);
-    } else if (item.releaseDate === existing.releaseDate && item.releaseRegion !== existing.releaseRegion) {
-      byId.set(item.id, { ...existing, releaseRegion: 'BOTH' });
+    } else {
+      // The same movie can have different US/CN release dates. Do not
+      // mislabel the later date as if it were identical in both countries.
+      const preferred = item.releaseDate > (existing.releaseDate ?? '') ? item : existing;
+      const combinedRegion = existing.releaseRegion === item.releaseRegion
+        ? existing.releaseRegion
+        : 'BOTH';
+      byId.set(item.id, { ...preferred, releaseRegion: combinedRegion });
     }
   }
   return [...byId.values()].sort((a, b) =>
