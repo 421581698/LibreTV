@@ -305,6 +305,44 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ['gsm3u8', 'https://api.guangsuapi.com/api.php/provide/vod'],
+    ['jsm3u8', 'https://jszyapi.com/api.php/provide/vod'],
+    ['wjm3u8', 'https://api.wujinapi.com/api.php/provide/vod'],
+    ['hnm3u8', 'https://www.hongniuzy2.com/api.php/provide/vod'],
+    ['dbm3u8', 'https://api.apibdzy.com/api.php/provide/vod'],
+    ['zuidam3u8', 'https://api.zuidapi.com/api.php/provide/vod'],
+  ])('loads CMS detail and playback episodes for built-in source %s', async (key, endpoint) => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const requested = new URL(String(input));
+      expect(requested.origin + requested.pathname).toBe(endpoint);
+      expect(requested.searchParams.get('ac')).toBe('videolist');
+      expect(requested.searchParams.get('ids')).toBe('movie-1');
+      return new Response(JSON.stringify(cmsDetail('第1集$https://media.example.com/episode-1.m3u8')), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await GET(makeRequest({
+      id: 'movie-1',
+      source: {
+        ...source(endpoint, key),
+        api: endpoint + '/?ac=list',
+        from: endpoint + '/from/' + key + '/',
+        type: 1,
+        weight: 1,
+      },
+    }));
+
+    expect(response.status).toBe(200);
+    const data = await response.json() as { episodes: string[]; videoInfo: { title?: string } };
+    expect(data.episodes).toEqual(['https://media.example.com/episode-1.m3u8']);
+    expect(data.videoInfo.title).toBe('测试影片');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 502 when the upstream request fails unexpectedly', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('upstream connection failed');
