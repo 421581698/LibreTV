@@ -82,17 +82,17 @@ No JOC WASM dependency is shipped by this upgrade slice.
 
 | Gate | Required evidence | Current status |
 |---|---|---|
-| Browser API inventory | deterministic feature-probe tests | Added; CI pending |
+| Browser API inventory | deterministic feature-probe tests | Passed on commit `8f531c8`; rerun required for newer head |
 | Audio metadata | HLS parser tests; JOC marker remains a hint | Existing tests |
 | HRTF route | route-selection and CORS regression tests | Existing tests |
-| Player integration | browser playback, source switch and teardown | Existing Preview evidence; repeat on this branch |
+| Player integration | browser playback, source switch and teardown | CI verification passed on `8f531c8`; isolated Preview deployment/acceptance not yet confirmed |
 | Native iOS Dolby | native app build + device output evidence | Not implemented |
 | Native Android Dolby | native app build + device output evidence | Not implemented |
 | JOC decode/object render | licensed decoder + reference fixtures + output evidence | Not implemented |
 | Physical devices | real iPhone/iPad/Android device records | Not run |
 | Performance | CPU/memory/latency/thermal measurements | Not run |
 
-## Required device matrix
+## Follow-up hardening in this branch\n\n- Missing HLS audio metadata now disables the spatial graph and resets the UI mode to off instead of leaving a stale enabled indicator.\n- Unsupported channel declarations take the same fail-open path.\n- Spatial-engine initialization or processing errors explicitly disable the engine before reporting fallback.\n- Added regression coverage proving E-AC-3/multichannel metadata alone cannot establish native Dolby output.\n\n## Required device matrix
 
 - iPhone Safari: portrait, landscape, rotation, background/foreground, headphones and Bluetooth route changes.
 - iPad Safari: landscape, split view, Stage Manager, rotation, long playback and audio route changes.
