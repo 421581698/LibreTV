@@ -1,3 +1,5 @@
+import asyncio
+import hashlib
 import os
 import tempfile
 import unittest
@@ -18,9 +20,13 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.db_patch = patch.object(registry, "DB_PATH", Path(self.temp.name) / "registry.sqlite3")
         self.db_patch.start()
+        self.object_root = Path(self.temp.name) / "objects"
+        self.object_root_patch = patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root)
+        self.object_root_patch.start()
         registry.initialize()
 
     def tearDown(self):
+        self.object_root_patch.stop()
         self.db_patch.stop()
         self.temp.cleanup()
 
@@ -92,6 +98,48 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "DIRECT_MEDIA"):
             self.register(resource)
+
+
+    def test_media_content_endpoint_verifies_full_object_digest_before_streaming(self):
+        payload = b"immutable-media-payload"
+        digest = hashlib.sha256(payload).hexdigest()
+        resource = self.make_resource("dv-registration:stream-valid")
+        asset = self.register(resource, digest=digest)
+        object_path = self.object_root / asset["object_key"]
+        object_path.parent.mkdir(parents=True, exist_ok=True)
+        object_path.write_bytes(payload)
+
+        response = registry.api_get_dolby_vision_media_asset_content(
+            asset["asset_id"], "Bearer collector-registration-test-token"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["ETag"], f'"{digest}"')
+
+        async def collect_body():
+            return b"".join([chunk async for chunk in response.body_iterator])
+
+        self.assertEqual(asyncio.run(collect_body()), payload)
+
+    def test_media_content_endpoint_rejects_same_length_digest_mismatch_for_full_and_range_reads(self):
+        expected = b"original-media-bytes"
+        tampered = b"replaced-media-bytes"
+        self.assertEqual(len(expected), len(tampered))
+        resource = self.make_resource("dv-registration:stream-tampered")
+        asset = self.register(resource, digest=hashlib.sha256(expected).hexdigest())
+        object_path = self.object_root / asset["object_key"]
+        object_path.parent.mkdir(parents=True, exist_ok=True)
+        object_path.write_bytes(tampered)
+
+        for range_header in (None, "bytes=0-3"):
+            with self.subTest(range_header=range_header):
+                with self.assertRaises(registry.HTTPException) as error:
+                    registry.api_get_dolby_vision_media_asset_content(
+                        asset["asset_id"],
+                        "Bearer collector-registration-test-token",
+                        range_header,
+                    )
+                self.assertEqual(error.exception.status_code, 409)
+                self.assertIn("digest", error.exception.detail)
 
     def test_accepts_confirmed_mp4_and_webm_assets(self):
         mp4 = self.make_resource("dv-registration:mp4", media_format="mp4")
