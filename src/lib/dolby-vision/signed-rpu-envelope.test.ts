@@ -258,6 +258,22 @@ describe('signed Dolby Vision RPU envelope', () => {
     delete changedPayload.signature;
     const changedSignature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(changedPayload)), privateKey).toString('base64url');
     expect(verifySignedDolbyVisionRpuSegmentSet([envelopes[0], { ...changedProfile, signature: changedSignature }], trusted)).toBeNull();
+    const misalignedReport = {
+      ...envelopes[0],
+      report: {
+        ...report,
+        frameCount: 239,
+        metadataLevelFrameCounts: { '1': 239, '2': 239, '5': 1, '6': 1 },
+        sourceMediaSha256: expectedSegments[0].assembledSegmentSha256,
+      },
+    };
+    const misalignedPayload: Record<string, unknown> = { ...misalignedReport };
+    delete misalignedPayload.signature;
+    const misalignedSignature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(misalignedPayload)), privateKey).toString('base64url');
+    expect(verifySignedDolbyVisionRpuSegmentSet([
+      { ...misalignedReport, signature: misalignedSignature },
+      envelopes[1],
+    ], trusted)).toBeNull();
   });
 
   it('rejects media digest mismatch, expired reports and reports issued in the future', () => {
