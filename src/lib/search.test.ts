@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildSearchUrl, searchSources } from './search';
 
 describe('buildSearchUrl', () => {
@@ -21,6 +21,24 @@ describe('buildSearchUrl', () => {
     expect(url.searchParams.get('wd')).toBe('沙丘');
   });
 });
+
+
+  it('does not schedule a source explicitly marked as restricted even when filtering is disabled', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    try {
+      const outcomes = await searchSources('普通影片', [{
+        key: 'restricted-fixture',
+        name: 'Restricted fixture',
+        url: 'https://restricted-fixture.example/api.php',
+        isAdult: true,
+      }], { filterAdult: false });
+      expect(outcomes).toEqual([]);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 
 describe('disabled BFZY source', () => {
   it('does not schedule the Storm source even when supplied in user configuration', async () => {
