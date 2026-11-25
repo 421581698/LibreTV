@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDoviToolInfoSummary, parseLevelExportFiles } from './analyze-rpu.mjs';
+import { normalizeRpuInput, parseDoviToolInfoSummary, parseLevelExportFiles } from './analyze-rpu.mjs';
 
 describe('dovi_tool RPU report parsing', () => {
   it('parses a single Profile summary and positive RPU frame count', () => {
@@ -53,4 +53,27 @@ describe('dovi_tool RPU report parsing', () => {
       1: '[{"frame":0},{"frame":2}]',
     }, 2)).toThrow(/超出完整 RPU 帧范围/);
   });
+  it('normalizes Annex-B UNSPEC62 RPU NAL units into dovi_tool regular RPU bytes', () => {
+    const regular = Buffer.from([0x19, 0x00, 0x00, 0x01, 0x80, 0x55, 0x66, 0x80]);
+    const nalu = Buffer.from([0x7c, 0x01, 0x19, 0x00, 0x00, 0x03, 0x01, 0x80, 0x55, 0x66, 0x80]);
+    const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), nalu]);
+    expect(normalizeRpuInput(annexB)).toEqual(regular);
+    expect(normalizeRpuInput(regular)).toEqual(regular);
+  });
+
+  it('normalizes multiple Annex-B RPU NAL units without losing unit boundaries', () => {
+    const first = Buffer.from([0x7c, 0x01, 0x19, 0x11, 0x80]);
+    const second = Buffer.from([0x7c, 0x01, 0x19, 0x22, 0x80]);
+    const annexB = Buffer.concat([
+      Buffer.from([0, 0, 0, 1]), first,
+      Buffer.from([0, 0, 0, 1]), second,
+    ]);
+    expect(normalizeRpuInput(annexB)).toEqual(Buffer.from([0x19, 0x11, 0x80, 0x19, 0x22, 0x80]));
+  });
+
+  it('rejects malformed AV1 NAL headers and invalid emulation-prevention bytes', () => {
+    expect(() => normalizeRpuInput(Buffer.from([0, 0, 0, 1, 0x40, 0x01, 0x19, 0x80]))).toThrow(/UNSPEC62/);
+    expect(() => normalizeRpuInput(Buffer.from([0, 0, 0, 1, 0x7c, 0x01, 0x19, 0, 0, 3, 4, 0x80]))).toThrow(/emulation-prevention/);
+  });
+
 });
