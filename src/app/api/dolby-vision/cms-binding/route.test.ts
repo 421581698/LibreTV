@@ -20,10 +20,15 @@ const payload = {
   rpuPresence: 'unknown',
 };
 
-function request(overrides = '') {
-  return new Request(
-    `https://libretv.example/api/dolby-vision/cms-binding?sourceKey=custom_1&vodId=167277&episodeIndex=0&providerUrlSha256=${hash}&playbackUrlSha256=${hash}${overrides}`,
-  );
+function request(episodeIndex = '0') {
+  const params = new URLSearchParams({
+    sourceKey: 'custom_1',
+    vodId: '167277',
+    episodeIndex,
+    providerUrlSha256: hash,
+    playbackUrlSha256: hash,
+  });
+  return new Request(`https://libretv.example/api/dolby-vision/cms-binding?${params.toString()}`);
 }
 
 beforeEach(() => {
@@ -43,7 +48,7 @@ describe('GET /api/dolby-vision/cms-binding', () => {
   });
 
   it('rejects malformed or incomplete episode identities', async () => {
-    const response = await GET(request('&episodeIndex=-1'));
+    const response = await GET(request('-1'));
     expect(response.status).toBe(400);
     expect(collectorRequest).not.toHaveBeenCalled();
   });
