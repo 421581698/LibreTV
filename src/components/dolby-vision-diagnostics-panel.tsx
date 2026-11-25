@@ -365,6 +365,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                 {hlsGraph?.resourceId === sourceIdentity && (hlsGraph?.variantAssetIds.length ?? 0) > 0 && (
                   <div className="mt-2 space-y-1.5">
                     {(hlsGraph?.variantAssetIds ?? []).map((variantId) => (
+                      <div key={variantId} className="space-y-1.5">
                       <button
                         key={variantId}
                         type="button"
@@ -388,6 +389,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                             ? '重新验证全部分片 RPU'
                             : `逐片解析并验签 · ${variantId}`}
                       </button>
+                      </div>
                     ))}
                   </div>
                 )}
