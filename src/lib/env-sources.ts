@@ -84,7 +84,7 @@ export function getEnvSources(): SourceConfig[] {
       if (typeof name !== 'string' || !name.trim()) {
         throw new Error(`第 ${i + 1} 项缺少 name`);
       }
-      if (typeof url !== 'string' || !/^https?:\\/\\//.test(url.trim())) {
+      if (typeof url !== 'string' || !/^https?:\/\//.test(url.trim())) {
         throw new Error(`第 ${i + 1} 项的 url 必须以 http:// 或 https:// 开头`);
       }
       return {
