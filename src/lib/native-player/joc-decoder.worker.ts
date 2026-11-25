@@ -17,6 +17,7 @@ type WorkerResponse =
 const scope = self as DedicatedWorkerGlobalScope;
 const NO_PTS = -(1n << 63n);
 const MAX_PACKET_BYTES = 1024 * 1024;
+const MAX_WASM_MEMORY_BYTES = 256 * 1024 * 1024;
 const MAX_PCM_FRAMES_PER_PACKET = 8;
 
 let generation = -1;
@@ -41,6 +42,9 @@ function requiredFunction<T extends (...args: never[]) => unknown>(name: string)
 function memory(): WebAssembly.Memory {
   const value = exportsRef?.memory;
   if (!(value instanceof WebAssembly.Memory)) throw new Error('OpenJOC WASM memory export is unavailable.');
+  if (value.buffer.byteLength > MAX_WASM_MEMORY_BYTES) {
+    throw new Error('OpenJOC WASM memory exceeded the 256 MiB runtime budget.');
+  }
   return value;
 }
 
@@ -113,6 +117,7 @@ async function initialize(request: Extract<WorkerRequest, { type: 'init' }>): Pr
     const instantiated = await WebAssembly.instantiate(bytes, imports);
     if (!current(request.generation)) return;
     exportsRef = instantiated.instance.exports;
+    memory();
     decoderHandle = requiredFunction<() => number>('openjoc_wasm_decoder_create')();
     if (!decoderHandle) throw new Error('OpenJOC decoder initialization failed.');
     send({ type: 'ready', generation: request.generation, decoder: 'OpenJOC', renderer: 'Stereo', sampleRate: 48000, channels: 2, nativeDolbyDecoderUsed: false });
@@ -171,12 +176,14 @@ scope.onmessage = (event: MessageEvent<WorkerRequest>): void => {
       const dealloc = requiredFunction<(pointer: number, length: number) => void>('openjoc_wasm_dealloc');
       const push = requiredFunction<(handle: number, pointer: number, length: number, pts: bigint, flags: number) => number>('openjoc_wasm_decoder_push_packet');
       const pointer = alloc(request.bytes.byteLength);
+      memory();
       if (!pointer) throw new Error('OpenJOC could not allocate bounded input memory.');
       try {
         new Uint8Array(memory().buffer, pointer, request.bytes.byteLength).set(new Uint8Array(request.bytes));
         const ptsSamples = BigInt(Math.round(request.pts * 48000 / request.timescale));
         const flags = (request.discontinuity ? 1 : 0) | (request.preroll ? 2 : 0);
         const status = push(decoderHandle, pointer, request.bytes.byteLength, ptsSamples, flags);
+        memory();
         if (status < 0) throw new Error('OpenJOC rejected the E-AC-3 access unit.');
       } finally {
         dealloc(pointer, request.bytes.byteLength);
