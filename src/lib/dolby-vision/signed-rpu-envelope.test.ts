@@ -230,7 +230,7 @@ describe('signed Dolby Vision RPU envelope', () => {
       totalRpuFrameCount: 480,
       timelineContinuity: 'contiguous',
       rpuProfileContinuity: 'consistent',
-      rpuFrameAlignment: 'one-rpu-per-video-sample',
+      rpuFrameAlignment: 'frame-count-matches-video-samples',
       rpuSemanticContinuity: 'not-established',
       semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed',
       verifiedDecodeEnd: 19200,
