@@ -162,6 +162,8 @@ async function analyzeUpload(request, response, env) {
   const directory = await mkdtemp(resolve(tmpdir(), 'libretv-dv-job-'));
   const inputPath = resolve(directory, 'input-media');
   const hevcPath = resolve(directory, 'video-track.hevc');
+  const av1ObuPath = resolve(directory, 'video-track.obu');
+  const av1RpuPath = resolve(directory, 'video-track.rpu');
   const digest = createHash('sha256');
   let received = 0;
   const meter = new Transform({
@@ -189,6 +191,7 @@ async function analyzeUpload(request, response, env) {
     }
 
     let analysisInputPath = inputPath;
+    let analyzedCodec = sourceContentType === 'video/hevc' ? 'hevc' : null;
     if (sourceContentType === 'video/mp4') {
       const { stdout: codecOutput } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
         '-v', 'error',
@@ -203,38 +206,55 @@ async function analyzeUpload(request, response, env) {
         windowsHide: true,
       });
       const videoCodecs = codecOutput.trim().split(/\r?\n/).filter(Boolean);
-      // The current evidence contract analyzes one complete HEVC video bitstream.
-      // Reject multi-video-track containers rather than silently analyzing only v:0.
-      if (videoCodecs.length !== 1 || videoCodecs[0] !== 'hevc') {
-        sendJson(response, 415, { error: 'SINGLE_HEVC_VIDEO_TRACK_REQUIRED' });
+      // Accept one unambiguous HEVC or AV1 video track. Audio and subtitles
+      // remain bound to the original container digest but are not parsed as video.
+      if (videoCodecs.length !== 1 || !['hevc', 'av1'].includes(videoCodecs[0])) {
+        sendJson(response, 415, { error: 'SINGLE_HEVC_OR_AV1_VIDEO_TRACK_REQUIRED' });
         return;
       }
-      await execFileAsync(env.FFMPEG_BIN || 'ffmpeg', [
-        '-nostdin', '-v', 'error',
-        '-i', inputPath,
-        '-map', '0:v:0',
-        '-c:v', 'copy',
-        '-bsf:v', 'hevc_mp4toannexb',
-        '-f', 'hevc',
-        hevcPath,
-      ], {
-        encoding: 'utf8',
-        timeout: ANALYSIS_TIMEOUT_MS,
-        maxBuffer: 1024 * 1024,
-        windowsHide: true,
-      });
-      const extracted = await stat(hevcPath).catch(() => null);
-      if (!extracted?.isFile() || extracted.size <= 0 || extracted.size > MAX_UPLOAD_BYTES) {
-        sendJson(response, extracted?.size > MAX_UPLOAD_BYTES ? 413 : 422, {
-          error: extracted?.size > MAX_UPLOAD_BYTES ? 'EXTRACTED_TRACK_TOO_LARGE' : 'HEVC_TRACK_EXTRACTION_FAILED',
-        });
-        return;
+      analyzedCodec = videoCodecs[0];
+      if (analyzedCodec === 'hevc') {
+        await execFileAsync(env.FFMPEG_BIN || 'ffmpeg', [
+          '-nostdin', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
+          '-c:v', 'copy', '-bsf:v', 'hevc_mp4toannexb', '-f', 'hevc', hevcPath,
+        ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true });
+        const extracted = await stat(hevcPath).catch(() => null);
+        if (!extracted?.isFile() || extracted.size <= 0 || extracted.size > MAX_UPLOAD_BYTES) {
+          sendJson(response, extracted?.size > MAX_UPLOAD_BYTES ? 413 : 422, {
+            error: extracted?.size > MAX_UPLOAD_BYTES ? 'EXTRACTED_TRACK_TOO_LARGE' : 'HEVC_TRACK_EXTRACTION_FAILED',
+          });
+          return;
+        }
+        analysisInputPath = hevcPath;
+      } else {
+        await execFileAsync(env.FFMPEG_BIN || 'ffmpeg', [
+          '-nostdin', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
+          '-c:v', 'copy', '-f', 'obu', av1ObuPath,
+        ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true });
+        const obu = await stat(av1ObuPath).catch(() => null);
+        if (!obu?.isFile() || obu.size <= 0 || obu.size > MAX_UPLOAD_BYTES) {
+          sendJson(response, obu?.size > MAX_UPLOAD_BYTES ? 413 : 422, {
+            error: obu?.size > MAX_UPLOAD_BYTES ? 'EXTRACTED_TRACK_TOO_LARGE' : 'AV1_TRACK_EXTRACTION_FAILED',
+          });
+          return;
+        }
+        await execFileAsync(process.execPath, [
+          resolve(HERE, '../../scripts/dolby-vision/extract-av1-rpu.mjs'),
+          '--input', av1ObuPath, '--output', av1RpuPath, '--kind', 'obu',
+        ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true });
+        const rpu = await stat(av1RpuPath).catch(() => null);
+        if (!rpu?.isFile() || rpu.size <= 0 || rpu.size > MAX_UPLOAD_BYTES) {
+          sendJson(response, rpu?.size > MAX_UPLOAD_BYTES ? 413 : 422, {
+            error: rpu?.size > MAX_UPLOAD_BYTES ? 'EXTRACTED_RPU_TOO_LARGE' : 'AV1_DOLBY_RPU_NOT_FOUND',
+          });
+          return;
+        }
+        analysisInputPath = av1RpuPath;
       }
-      analysisInputPath = hevcPath;
     }
 
     const { stdout } = await execFileAsync(process.execPath, [
-      ANALYZER, '--input', analysisInputPath, '--kind', 'hevc',
+      ANALYZER, '--input', analysisInputPath, '--kind', analyzedCodec === 'av1' ? 'rpu' : 'hevc',
       '--dovi-tool', env.DOVI_TOOL_BIN || '/usr/local/bin/dovi_tool',
     ], {
       encoding: 'utf8',
@@ -244,14 +264,18 @@ async function analyzeUpload(request, response, env) {
     });
     const report = JSON.parse(stdout);
     if ((sourceContentType === 'video/hevc' && report.inputSha256 !== actualSha256) ||
-        report.inputKind !== 'hevc' || report.extractionScope?.frameLimit !== null ||
+        !['hevc', 'rpu'].includes(report.inputKind) || report.extractionScope?.frameLimit !== null ||
         !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
         !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '')) {
       sendJson(response, 422, { error: 'PARSER_REPORT_REJECTED' });
       return;
     }
-    // inputSha256 binds the extracted HEVC bitstream; sourceMediaSha256 binds
-    // the original MP4 object that the player actually consumes.
+    // inputSha256 binds the extracted video/RPU bytes; sourceMediaSha256 binds
+    // the original container object that the player actually consumes.
+    if (analyzedCodec === 'av1') {
+      report.inputKind = 'av1';
+      report.extractionScope = { track: null, frameLimit: null };
+    }
     report.sourceMediaSha256 = actualSha256;
     const hlsContextHeader = request.headers['x-dv-analysis-scope'];
     let analysisContext = null;
