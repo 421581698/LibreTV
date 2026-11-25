@@ -283,6 +283,7 @@ function WatchContent() {
       showControls();
     };
     const onMediaReset = (event: Event) => {
+      lastProgressTime = null;
       const reason = `media-${event.type}`;
       // Source/episode changes can reuse the same HTMLVideoElement. In that
       // case MutationObserver sees no replacement, so reset the scrub lifecycle
@@ -309,7 +310,24 @@ function WatchContent() {
       autoNextTimer.current = null;
       setShowAutoNext(false);
     };
+    let lastProgressTime: number | null = null;
+    const onTimeUpdateForControlVisibility = () => {
+      if (!video || video.paused || video.ended || video.seeking || !Number.isFinite(video.currentTime)) return;
+      const previous = lastProgressTime;
+      lastProgressTime = video.currentTime;
+      // Only resume a timer after a real timeline advance, never on repeated
+      // timeupdate events with a frozen media clock. Do not reset the timer on
+      // every frame or controls could remain visible indefinitely.
+      if (previous !== null && video.currentTime > previous &&
+          controlsHideTimerRef.current === null &&
+          !shell.classList.contains('cinema-controls-hidden') &&
+          !shell.classList.contains('cinema-panel-open') &&
+          !scrubbingRef.current) {
+        scheduleHide();
+      }
+    };
     const onPlay = () => {
+      lastProgressTime = null;
       cancelPendingAutoNext();
       showControls();
       scheduleHide();
@@ -327,12 +345,18 @@ function WatchContent() {
     const onEnded = () => { resetScrubbing(); keepControlsVisible(); };
     const onSeeked = cancelPendingAutoNext;
     const onLoadStart = onMediaReset;
-    const onWaiting = (event: Event) => keepControlsVisible(`media-${event.type}`);
+    const onWaiting = (event: Event) => {
+      // Buffering can fire many times without a resumed "playing" event.
+      // Do not permanently suspend auto-hide: when media progresses again,
+      // scheduleHide will re-arm the normal three-second deadline.
+      keepControlsVisible(`media-${event.type}`);
+    };
     const onError = () => { resetScrubbing(); keepControlsVisible('media-error'); };
     const detachVideo = () => {
       if (!video) return;
       video.removeEventListener('play', onPlay);
       video.removeEventListener('playing', scheduleHide);
+      video.removeEventListener('timeupdate', onTimeUpdateForControlVisibility);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEnded);
       video.removeEventListener('seeked', onSeeked);
@@ -343,6 +367,7 @@ function WatchContent() {
       video.removeEventListener('stalled', onWaiting);
       video.removeEventListener('error', onError);
       video = null;
+      lastProgressTime = null;
     };
     const attachVideo = () => {
       const next = frame.querySelector('video');
@@ -368,6 +393,7 @@ function WatchContent() {
       video = next;
       video.addEventListener('play', onPlay);
       video.addEventListener('playing', scheduleHide);
+      video.addEventListener('timeupdate', onTimeUpdateForControlVisibility);
       video.addEventListener('pause', onPause);
       video.addEventListener('ended', onEnded);
       video.addEventListener('seeked', onSeeked);
