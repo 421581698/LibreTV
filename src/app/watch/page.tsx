@@ -255,6 +255,9 @@ function WatchContent() {
         controlsWereHiddenAtPointerStart = controlsWereHiddenAtPointerStart || wereHiddenBeforeInteraction;
       }
       if (startsScrubbing && target instanceof Element && target.closest('.watch-cinema-progress')) {
+        // iPad owns its pointer stream on the custom seek surface. Never enter
+        // the native-input/global touch lifecycle for the same physical gesture.
+        if (target.closest('.cinema-seek-surface')) return;
         // A new drag supersedes the delayed cleanup from the previous drag.
         // Otherwise an old 1.2s timer can clear the preview during this gesture.
         if (scrubResetTimerRef.current !== null) {
@@ -429,7 +432,7 @@ function WatchContent() {
       // Buttons, tabs, links and form controls keep their normal click behavior.
       // A tap on the empty video surface is an explicit, immediate dismiss action.
       const clickedControl = target.closest(
-        'button, a, input, select, textarea, [role="button"], [role="tab"], label'
+        'button, a, input, select, textarea, [role="button"], [role="tab"], [role="slider"], label'
       );
       if (clickedControl) {
         controlsWereHiddenAtPointerStart = false;
@@ -455,13 +458,13 @@ function WatchContent() {
       setControlsVisible(false);
     };
     const cancelScrubbing = () => {
-      if (!scrubbingRef.current) return;
+      if (isIpadEditionPlayback || !scrubbingRef.current) return;
       resetScrubbing();
       if (video && !video.paused && !video.ended) scheduleHide();
       else keepControlsVisible();
     };
     const endScrubbing = () => {
-      if (!scrubbingRef.current) return;
+      if (isIpadEditionPlayback || !scrubbingRef.current) return;
       // Commit at the window-level release, so lifting a finger outside the
       // slider still seeks and pointerup/touchend cannot issue duplicate seeks.
       const progressInput = shell.querySelector<HTMLInputElement>('.watch-cinema-progress');
@@ -1153,38 +1156,86 @@ function WatchContent() {
                   <span>{watchClock.duration > 0 ? `-${formatWatchTime(Math.max(0, watchClock.duration - displayedPosition))}` : '--:--'}</span>
                 </div>
                 {isIpadEditionPlayback ? (
-                  <div className="watch-cinema-progress cinema-seek-surface" role="slider" tabIndex={hasFiniteDuration ? 0 : -1}
-                    aria-label="播放进度" aria-disabled={!hasFiniteDuration} aria-valuemin={0}
-                    aria-valuemax={hasFiniteDuration ? watchClock.duration : 1} aria-valuenow={safeDisplayedPosition}
-                    style={{ '--watch-progress': `${progressPercent}%`, touchAction: 'none', pointerEvents: 'auto', position: 'relative', height: 48, cursor: 'pointer' } as CSSProperties}
+                  <div
+                    className="watch-cinema-progress cinema-seek-surface"
+                    role="slider"
+                    tabIndex={hasFiniteDuration ? 0 : -1}
+                    aria-label="播放进度"
+                    aria-disabled={!hasFiniteDuration}
+                    aria-valuemin={0}
+                    aria-valuemax={hasFiniteDuration ? watchClock.duration : 1}
+                    aria-valuenow={Math.min(safeDisplayedPosition, hasFiniteDuration ? watchClock.duration : 1)}
+                    aria-valuetext={`${formatWatchTime(displayedPosition)} / ${formatWatchTime(watchClock.duration)}`}
+                    style={{ '--watch-progress': `${progressPercent}%` } as CSSProperties}
                     onPointerDown={(event) => {
                       if (!hasFiniteDuration || !event.isPrimary || event.button !== 0) return;
                       event.preventDefault();
-                      event.currentTarget.setPointerCapture(event.pointerId);
+                      event.stopPropagation();
+                      const surface = event.currentTarget;
+                      if (scrubResetTimerRef.current !== null) {
+                        window.clearTimeout(scrubResetTimerRef.current);
+                        scrubResetTimerRef.current = null;
+                      }
+                      const rect = surface.getBoundingClientRect();
+                      const position = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * watchClock.duration;
+                      // Capture explicitly on the seek surface, never on the
+                      // HTML video or a native range thumb.
+                      surface.setPointerCapture(event.pointerId);
                       scrubbingRef.current = true;
                       setIsScrubbing(true);
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      const position = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * watchClock.duration;
                       scrubbingPositionRef.current = position;
                       setScrubbingPosition(position);
                     }}
                     onPointerMove={(event) => {
-                      if (!event.currentTarget.hasPointerCapture(event.pointerId) || !scrubbingRef.current) return;
+                      if (!scrubbingRef.current || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
                       const rect = event.currentTarget.getBoundingClientRect();
                       const position = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * watchClock.duration;
                       scrubbingPositionRef.current = position;
                       setScrubbingPosition(position);
                     }}
+                    onPointerUp={(event) => {
+                      if (!scrubbingRef.current || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                      event.stopPropagation();
+                      const surface = event.currentTarget;
+                      const rect = surface.getBoundingClientRect();
+                      const target = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * watchClock.duration;
+                      scrubbingRef.current = false;
+                      setIsScrubbing(false);
+                      scrubbingPositionRef.current = target;
+                      setScrubbingPosition(target);
+                      surface.releasePointerCapture(event.pointerId);
+                      // One seek on release; native seeked/timeupdate resumes
+                      // normal clock updates. No second touchend seek is allowed.
+                      playerApiRef.current?.seek(target);
+                      if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
+                      scrubResetTimerRef.current = window.setTimeout(() => {
+                        setScrubbingPosition(null);
+                        scrubbingPositionRef.current = null;
+                        scrubResetTimerRef.current = null;
+                      }, 1200);
+                    }}
+                    onPointerCancel={(event) => {
+                      if (!scrubbingRef.current) return;
+                      event.stopPropagation();
+                      scrubbingRef.current = false;
+                      setIsScrubbing(false);
+                      setScrubbingPosition(null);
+                      scrubbingPositionRef.current = null;
+                      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+                    }}
                     onKeyDown={(event) => {
-                      if (!hasFiniteDuration || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+                      if (!hasFiniteDuration || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
                       event.preventDefault();
                       event.stopPropagation();
-                      const position = Math.max(0, Math.min(watchClock.duration, event.key === 'Home' ? 0 : event.key === 'End' ? watchClock.duration : safeDisplayedPosition + (event.key === 'ArrowLeft' ? -5 : 5)));
+                      const position = Math.max(0, Math.min(watchClock.duration,
+                        event.key === 'Home' ? 0 : event.key === 'End' ? watchClock.duration :
+                          safeDisplayedPosition + (event.key === 'ArrowLeft' ? -5 : 5)));
                       playerApiRef.current?.seek(position);
                       setWatchClock(current => ({ ...current, position }));
-                    }}>
-                    <span aria-hidden="true" style={{position:'absolute',left:0,right:0,top:'50%',height:3,transform:'translateY(-50%)',borderRadius:3,background:'linear-gradient(to right,#f5f5f7 var(--watch-progress),rgba(255,255,255,.36) var(--watch-progress))',pointerEvents:'none'}} />
-                    <span aria-hidden="true" style={{position:'absolute',left:`${progressPercent}%`,top:'50%',width:13,height:13,borderRadius:'50%',background:'#fff',transform:'translate(-50%,-50%)',pointerEvents:'none'}} />
+                    }}
+                  >
+                    <span className="cinema-seek-track" aria-hidden="true" />
+                    <span className="cinema-seek-thumb" aria-hidden="true" />
                   </div>
                 ) : (
                 <input
@@ -1250,7 +1301,8 @@ function WatchContent() {
                   disabled={!hasFiniteDuration}
                 />
 
-                )}                {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
+                )}
+                {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
                 <button
                   type="button"
                   className="watch-cinema-rate"

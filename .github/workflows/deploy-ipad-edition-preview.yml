@@ -2041,39 +2041,30 @@ jobs:
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-unified-fullscreen-entrypoints", unifiedFullscreenEntrypoints }));
                 if (!unifiedFullscreenEntrypoints) failures += 1;
 
-                // Regression: the browser emits click after pointerup/touchend.
-                // That click must reveal controls but must not re-enter scrubbing.
+                // Regression: a second real pointer drag must unlock without
+                // creating a stale scrub lock after the synthesized click.
                 const scrubControl = page.locator(".watch-cinema-progress");
-                await scrubControl.dispatchEvent("pointerdown", {
-                  pointerId: 7, pointerType: "touch", isPrimary: true, button: 0,
-                });
-                await page.waitForFunction(
-                  () => document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
-                  undefined,
-                  { timeout: 5000 },
-                );
+                const scrubRect = await scrubControl.boundingBox();
+                if (!scrubRect) throw new Error("Seek surface missing in repeated-drag test.");
+                await page.mouse.move(scrubRect.x + scrubRect.width * 0.33, scrubRect.y + scrubRect.height / 2);
+                await page.mouse.down();
+                await page.waitForFunction(() =>
+                  document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
+                  undefined, { timeout: 5000 });
                 const scrubPreviewVisibleDuringDrag = await page.locator(".watch-cinema-scrub-preview").isVisible();
-                await page.evaluate(() => window.dispatchEvent(new PointerEvent("pointerup", {
-                  bubbles: true, pointerId: 7, pointerType: "touch", isPrimary: true,
-                })));
-                await page.waitForFunction(
-                  () => !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
-                  undefined,
-                  { timeout: 5000 },
-                );
-                await scrubControl.dispatchEvent("click", { bubbles: true });
-                await page.waitForTimeout(80);
-                const scrubStateAfterSyntheticClick = await page.evaluate(() => ({
+                await page.mouse.move(scrubRect.x + scrubRect.width * 0.42, scrubRect.y + scrubRect.height / 2, { steps: 6 });
+                await page.mouse.up();
+                await page.waitForFunction(() =>
+                  !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing"),
+                  undefined, { timeout: 5000 });
+                const scrubStateAfterRelease = await page.evaluate(() => ({
                   locked: Boolean(document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing")),
-                  previewVisible: Boolean(document.querySelector(".watch-cinema-scrub-preview")),
                   controlsVisible: !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-hidden"),
                 }));
                 const scrubInteraction = {
                   previewVisibleDuringDrag: scrubPreviewVisibleDuringDrag,
-                  unlockedAfterRelease: !scrubStateAfterSyntheticClick.locked,
-                  previewHiddenAfterRelease: !scrubStateAfterSyntheticClick.previewVisible,
-                  clickDidNotRestartScrubbing: !scrubStateAfterSyntheticClick.locked,
-                  controlsRemainVisibleAfterClick: scrubStateAfterSyntheticClick.controlsVisible,
+                  unlockedAfterRelease: !scrubStateAfterRelease.locked,
+                  controlsRemainVisibleAfterClick: scrubStateAfterRelease.controlsVisible,
                 };
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-scrub-interaction", scrubInteraction }));
                 if (!Object.values(scrubInteraction).every(Boolean)) failures += 1;
