@@ -338,6 +338,36 @@ describe('GET /api/detail', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+
+  it('rejects a source marked as not safety-reviewed before fetching details', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const response = await GET(makeRequest({
+      id: 'movie-1',
+      source: { ...source('https://review-required.example/api.php'), isAdult: true },
+    }));
+    expect(response.status).toBe(403);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('never returns credential-bearing playback URLs from a CMS detail response', async () => {
+    const playUrl = [
+      '不安全$https://user:pass@media.example/blocked.m3u8',
+      '正片$https://media.example/safe.m3u8',
+    ].join('#');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify(cmsDetail(playUrl)),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )));
+    const response = await GET(makeRequest({
+      id: 'movie-1',
+      source: source('https://cms-playback-fixture.example/api.php'),
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as { episodes: string[] };
+    expect(data.episodes).toEqual(['https://media.example/safe.m3u8']);
+  });
+
   it('returns 502 when the upstream request fails unexpectedly', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('upstream connection failed');
