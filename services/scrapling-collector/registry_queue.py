@@ -960,11 +960,12 @@ def api_assemble_hls_fmp4_segment(
     segment_dir = temporary_path.with_name(temporary_path.name + ".segments")
     try:
         result = assemble_registered_hls_fmp4(
-            resource_id, variant_asset_id, temporary_path, DV_MEDIA_OBJECT_ROOT
+            resource_id, variant_asset_id, temporary_path, DV_MEDIA_OBJECT_ROOT,
+            fragment_ordinal=fragment_ordinal,
         )
-        if fragment_ordinal >= len(result["segmentInputs"]):
+        if not result["segmentInputs"]:
             raise HTTPException(status_code=404, detail="HLS fragment ordinal not found")
-        segment = result["segmentInputs"][fragment_ordinal]
+        segment = result["segmentInputs"][0]
         segment_path = Path(segment["outputPath"])
         headers = {
             "Cache-Control": "no-store",
