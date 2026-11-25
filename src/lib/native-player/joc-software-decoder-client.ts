@@ -220,7 +220,7 @@ export class JocSoftwareDecoderClient {
    */
   async activateOutput(video: HTMLVideoElement, minimumPrerollMs = 128): Promise<boolean> {
     this.assertActive();
-    if (!this.outputEnabled || !this.node || !this.ready || video.paused || video.ended) return false;
+    if (!this.outputEnabled || !this.node || !this.ready || !this.decodedProfile || this.decodedAccessUnits <= 0 || video.paused || video.ended) return false;
     const requiredFrames = Math.ceil(48000 * Math.max(128, minimumPrerollMs) / 1000);
     if (this.queuedFrames < requiredFrames) return false;
     await this.resumeFromUserGesture();
@@ -281,6 +281,8 @@ export class JocSoftwareDecoderClient {
     this.disposed = true;
     const oldGeneration = this.generation;
     this.generation += 1;
+    for (const entries of this.pending.values()) entries.forEach(entry => entry.reject(new Error('OpenJOC decoder client was disposed.')));
+    this.pending.clear();
     this.worker.postMessage({ type: 'dispose', generation: oldGeneration });
     this.worker.removeEventListener('message', this.onWorkerMessage);
     this.worker.removeEventListener('error', this.onWorkerError);
