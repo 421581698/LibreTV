@@ -61,7 +61,7 @@ fn run() -> anyhow::Result<()> {
     fs::write(output, &output_bytes)?;
     println!(
         "{{\"profile\":{profile},\"rpuByteLength\":{}}}",
-        nalu.len()
+        output_bytes.len()
     );
     Ok(())
 }
