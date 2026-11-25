@@ -1,4 +1,5 @@
 'use client';
+import { PlaybackErrorBoundary } from '@/components/playback-error-boundary';
 
 import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
@@ -1927,7 +1928,7 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      {(!cinemaMode || cinemaPanel === 'diagnostics') && <div className={cinemaMode ? 'cinema-v4-diagnostics-sheet' : 'contents'}>{cinemaMode && <button type="button" className="cinema-v4-panel-close cinema-v4-diagnostics-close" onClick={onCloseCinemaPanel} aria-label="关闭视频诊断">×</button>}<DolbyVisionDiagnosticsPanel cinemaExpanded={cinemaMode} key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} /></div>}
+      {(!cinemaMode || cinemaPanel === 'diagnostics') && <div className={cinemaMode ? 'cinema-v4-diagnostics-sheet' : 'contents'}>{cinemaMode && <button type="button" className="cinema-v4-panel-close cinema-v4-diagnostics-close" onClick={onCloseCinemaPanel} aria-label="关闭视频诊断">×</button>}<PlaybackErrorBoundary key={url} label="Dolby Vision" optional><DolbyVisionDiagnosticsPanel cinemaExpanded={cinemaMode} key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} /></PlaybackErrorBoundary></div>}
       {cinemaMode && (cinemaPanel === 'audio' || cinemaPanel === 'subtitles') && (
         <div className="cinema-v4-panel-heading" role="group" aria-label="音频与字幕分类">
           <div className="cinema-v4-panel-tabs">

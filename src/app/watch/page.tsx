@@ -1,6 +1,7 @@
 'use client';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
+import { PlaybackErrorBoundary } from '@/components/playback-error-boundary';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -547,7 +548,7 @@ function WatchContent() {
     setCmsAssetBinding(null);
     const isCmsSource = sourceKey.startsWith('custom_') || sourceKey === 'friday-cms';
     if (!isCmsSource || !sourceKey || !vodId || !source?.url || !currentUrl ||
-        !Number.isSafeInteger(currentIndex) || currentIndex < 0 || !crypto?.subtle) return;
+        !Number.isSafeInteger(currentIndex) || currentIndex < 0 || !globalThis.crypto?.subtle) return;
 
     const controller = new AbortController();
     const lookup = async () => {
@@ -985,6 +986,7 @@ function WatchContent() {
               className="netflix-player-frame aspect-video bg-black overflow-hidden"
             >
               {currentUrl ? (
+                <PlaybackErrorBoundary key={playerUrl} label="player">
                 <PlayerShell
                   url={playerUrl}
                   title={videoTitle}
@@ -1071,6 +1073,7 @@ function WatchContent() {
                     }));
                   }}
                 />
+                </PlaybackErrorBoundary>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   {detailQuery.isLoading ? <Spinner size="lg" /> : (
