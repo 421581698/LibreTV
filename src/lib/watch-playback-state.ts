@@ -85,3 +85,34 @@ export function toggleWatchPlayback(
   video.pause();
   if (isLatest()) onChange(false);
 }
+
+
+/** Seek within the actual playable window, including sliding HLS windows. */
+export function skipWatchPlayback(video: HTMLVideoElement, delta: number): boolean {
+  if (!Number.isFinite(delta) || !Number.isFinite(video.currentTime)) return false;
+  const target = video.currentTime + delta;
+  if (!Number.isFinite(target)) return false;
+  try {
+    const ranges = video.seekable;
+    if (!ranges.length) return false;
+    let nearest = NaN;
+    let distance = Infinity;
+    for (let i = 0; i < ranges.length; i++) {
+      const start = ranges.start(i);
+      const end = ranges.end(i);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
+      const candidate = Math.max(start, Math.min(end, target));
+      const difference = Math.abs(candidate - target);
+      if (difference < distance || (difference === distance && (delta > 0 ? candidate > nearest : candidate < nearest))) {
+        nearest = candidate;
+        distance = difference;
+      }
+    }
+    if (!Number.isFinite(nearest)) return false;
+    video.currentTime = nearest;
+    return true;
+  } catch {
+    // A source can be replaced while its seekable ranges are being read.
+    return false;
+  }
+}
