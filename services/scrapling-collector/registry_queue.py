@@ -146,6 +146,19 @@ def initialize() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_registry_media_assets_resource
           ON registry_media_assets(resource_id,created_at DESC);
+        CREATE TABLE IF NOT EXISTS registry_cms_asset_bindings (
+          source_key TEXT NOT NULL,
+          vod_id TEXT NOT NULL,
+          episode_index INTEGER NOT NULL CHECK(episode_index >= 0),
+          provider_url_sha256 TEXT NOT NULL,
+          playback_url_sha256 TEXT NOT NULL,
+          resource_id TEXT NOT NULL REFERENCES registry_resources(id),
+          asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY(source_key,vod_id,episode_index,provider_url_sha256,playback_url_sha256)
+        );
+        CREATE INDEX IF NOT EXISTS idx_registry_cms_asset_bindings_asset
+          ON registry_cms_asset_bindings(resource_id,asset_id);
         CREATE TABLE IF NOT EXISTS registry_hls_asset_edges (
           parent_asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
           child_asset_id TEXT NOT NULL REFERENCES registry_media_assets(asset_id),
@@ -218,6 +231,16 @@ class DolbyVisionMediaAssetRegistration(BaseModel):
     sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
     byte_length: int = Field(gt=0, le=2 * 1024 * 1024 * 1024)
     content_type: Literal["video/mp4", "video/webm"]
+
+class CmsAssetBindingRegistration(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    source_key: str = Field(pattern=r"^[A-Za-z0-9_-]{1,128}$")
+    vod_id: str = Field(min_length=1, max_length=256)
+    episode_index: int = Field(ge=0, le=9999)
+    provider_url_sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    playback_url_sha256: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+    resource_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,200}$")
+    asset_id: str = Field(pattern=r"^[A-Za-z0-9:_-]{1,200}$")
 
 
 def require_dv_ingestion_auth(token: str | None) -> None:
@@ -769,6 +792,99 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
         hls_graphs=c.execute("SELECT graph_id,resource_id,root_asset_id,created_at FROM registry_hls_asset_graphs WHERE resource_id=? ORDER BY created_at DESC",(resource_id,)).fetchall()
     if not row: raise HTTPException(status_code=404,detail="Resource not found")
     return {"resource":dict(row),"media_assets":[dict(a) for a in media_assets],"hls_graphs":[dict(g) for g in hls_graphs],"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
+
+
+@router.post("/v1/registry/cms-asset-bindings")
+def api_register_cms_asset_binding(
+    payload: CmsAssetBindingRegistration,
+    x_dv_ingestion_token: str | None = Header(default=None),
+):
+    """Create an explicit operator-attested mapping for one exact CMS episode URL."""
+    require_dv_ingestion_auth(x_dv_ingestion_token)
+    with connect() as c:
+        resource = c.execute(
+            """SELECT id,resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (payload.resource_id,),
+        ).fetchone()
+        asset = c.execute(
+            """SELECT asset_id,resource_id,sha256,byte_length,content_type
+               FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
+            (payload.asset_id, payload.resource_id),
+        ).fetchone()
+        if not resource or not asset:
+            raise HTTPException(status_code=404, detail="Registered resource or asset not found")
+        if (resource["resource_type"] != "DIRECT_MEDIA" or resource["access_state"] != "PUBLIC" or
+                resource["validation_state"] != "validated" or resource["playback_state"] != "PLAYER_CONFIRMED" or
+                resource["media_format"] != "mp4" or asset["content_type"] != "video/mp4"):
+            raise HTTPException(status_code=409, detail="CMS binding requires a validated PUBLIC player-confirmed MP4 asset")
+        key = (
+            payload.source_key, payload.vod_id, payload.episode_index,
+            payload.provider_url_sha256.lower(), payload.playback_url_sha256.lower(),
+        )
+        existing = c.execute(
+            """SELECT resource_id,asset_id FROM registry_cms_asset_bindings
+               WHERE source_key=? AND vod_id=? AND episode_index=? AND provider_url_sha256=? AND playback_url_sha256=?""",
+            key,
+        ).fetchone()
+        if existing and (existing["resource_id"], existing["asset_id"]) != (payload.resource_id, payload.asset_id):
+            raise HTTPException(status_code=409, detail="CMS episode identity is already bound to another immutable asset")
+        if not existing:
+            c.execute(
+                """INSERT INTO registry_cms_asset_bindings
+                   (source_key,vod_id,episode_index,provider_url_sha256,playback_url_sha256,resource_id,asset_id,created_at)
+                   VALUES(?,?,?,?,?,?,?,?)""",
+                (*key, payload.resource_id, payload.asset_id, int(time.time())),
+            )
+    return {
+        "source_key": payload.source_key,
+        "vod_id": payload.vod_id,
+        "episode_index": payload.episode_index,
+        "resource_id": payload.resource_id,
+        "asset_id": payload.asset_id,
+        "status": "bound",
+    }
+
+
+@router.get("/v1/registry/cms-asset-bindings")
+def api_get_cms_asset_binding(
+    source_key: str = Query(..., min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$"),
+    vod_id: str = Query(..., min_length=1, max_length=256),
+    episode_index: int = Query(..., ge=0, le=9999),
+    provider_url_sha256: str = Query(..., min_length=64, max_length=64, pattern=r"^[a-fA-F0-9]{64}$"),
+    playback_url_sha256: str = Query(..., min_length=64, max_length=64, pattern=r"^[a-fA-F0-9]{64}$"),
+    authorization: str | None = Header(default=None),
+):
+    require_auth(authorization)
+    with connect() as c:
+        row = c.execute(
+            """SELECT binding.resource_id,binding.asset_id,asset.sha256,asset.byte_length,asset.content_type,
+                      resource.resource_type,resource.access_state,resource.validation_state,
+                      resource.playback_state,resource.media_format
+               FROM registry_cms_asset_bindings binding
+               JOIN registry_resources resource ON resource.id=binding.resource_id
+               JOIN registry_media_assets asset ON asset.asset_id=binding.asset_id
+                    AND asset.resource_id=binding.resource_id
+               WHERE binding.source_key=? AND binding.vod_id=? AND binding.episode_index=?
+                 AND binding.provider_url_sha256=? AND binding.playback_url_sha256=?""",
+            (source_key, vod_id, episode_index, provider_url_sha256.lower(), playback_url_sha256.lower()),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Exact CMS episode binding not found")
+    if (row["resource_type"] != "DIRECT_MEDIA" or row["access_state"] != "PUBLIC" or
+            row["validation_state"] != "validated" or row["playback_state"] != "PLAYER_CONFIRMED" or
+            row["media_format"] != "mp4" or row["content_type"] != "video/mp4"):
+        raise HTTPException(status_code=409, detail="CMS binding is no longer eligible")
+    return {
+        "resourceId": row["resource_id"],
+        "assetId": row["asset_id"],
+        "sha256": row["sha256"],
+        "byteLength": row["byte_length"],
+        "contentType": row["content_type"],
+        "mediaType": "mp4",
+        "rpuPresence": "unknown",
+    }
+
 
 @router.get("/v1/registry/resources/{resource_id}/hls-graph")
 def api_get_hls_asset_graph(resource_id: str, authorization: str | None = Header(default=None)):
