@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * Strict Dolby Vision AV1 T.35 / EMDF extractor.
- * Accepts one AV1 T.35 metadata payload or a raw low-overhead AV1 OBU stream.
- * This is not an AV1 container demuxer or a video decoder.
+ * Accepts a T.35 payload, raw low-overhead AV1 OBU stream, or AV1 MP4/IVF
+ * container. This is a metadata extractor, not an AV1 video decoder.
  */
-import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
@@ -193,10 +193,15 @@ async function main() {
     return;
   }
   const inputPath = resolve(options.input);
-  const input = await readFile(inputPath);
+  const inputStat = await stat(inputPath);
+  if (!inputStat.isFile() || inputStat.size <= 0 || inputStat.size > 512 * 1024 * 1024) {
+    throw new Error('AV1 input file is empty or exceeds the 512 MiB limit.');
+  }
+  let input = null;
+  if (options.kind === 't35' || options.kind === 'obu') input = await readFile(inputPath);
   let rpuBytes, report;
   if (options.kind === 't35') {
-    rpuBytes = extractDolbyRpuFromT35(input);
+    rpuBytes = Buffer.concat([ANNEX_B_START_CODE, extractDolbyRpuFromT35(input)]);
     report = { source: basename(inputPath), extractedRpuCount: 1, inputKind: 'av1-t35-payload' };
   } else if (options.kind === 'obu') {
     const result = extractDolbyRpuFromObuStream(input);
@@ -208,7 +213,7 @@ async function main() {
       const obuBytes = await demuxAv1Container(inputPath, directory, options);
       const result = extractDolbyRpuFromObuStream(obuBytes);
       rpuBytes = result.rpuBytes;
-      report = { ...result.report, inputKind: options.kind, containerDemux: 'ffmpeg-copy', sourceByteLength: input.length };
+      report = { ...result.report, inputKind: options.kind, containerDemux: 'ffmpeg-copy', sourceByteLength: inputStat.size };
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
