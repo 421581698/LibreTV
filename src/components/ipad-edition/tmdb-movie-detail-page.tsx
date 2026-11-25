@@ -16,7 +16,7 @@ type TmdbPerson = { id: number; name: string; character?: string; profile_path?:
 type TmdbTitle = {
   id: number; title?: string; name?: string; original_title?: string; original_name?: string;
   overview?: string; poster_path?: string | null; backdrop_path?: string | null; vote_average?: number;
-  images?: { logos?: { file_path?: string | null; iso_639_1?: string | null; width?: number; height?: number }[] };
+  images?: { backdrops?: { file_path?: string | null; iso_639_1?: string | null; width?: number; height?: number; vote_average?: number }[] };
   videos?: { results?: { key?: string; site?: string; type?: string; official?: boolean; name?: string }[] };
   release_date?: string; first_air_date?: string; runtime?: number; episode_run_time?: number[];
   genres?: { id: number; name: string }[];
@@ -161,7 +161,15 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   };
 
   const title = movie?.title || movie?.name || titleFallback;
-  const backdrop = imageUrl(movie?.backdrop_path || backdropFallback, 'original');
+  // Language-neutral artwork is a useful signal for text-free backdrops, not a guarantee.
+  const neutralBackdrop = (movie?.images?.backdrops || [])
+    .filter((item) => item.iso_639_1 === null &&
+      typeof item.file_path === 'string' && /^\/[A-Za-z0-9_-]+\.(?:jpg|jpeg|png|webp)$/i.test(item.file_path) &&
+      (item.width || 0) >= 1280 && (item.height || 0) >= 720 &&
+      (item.width || 0) / (item.height || 1) >= 1.5)
+    .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0) ||
+      (b.width || 0) * (b.height || 0) - (a.width || 0) * (a.height || 0))[0]?.file_path;
+  const backdrop = imageUrl(neutralBackdrop || movie?.backdrop_path || backdropFallback, 'original');
   const poster = imageUrl(movie?.poster_path, 'original') || posterFallback;
   const cast = movie?.credits?.cast?.slice(0, 18) || [];
   const director = movie?.credits?.crew?.find((member) => member.job === 'Director')?.name;
@@ -183,7 +191,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       eyebrow={type === 'tv' ? 'SERIES' : 'FEATURE FILM'}
       backdropUrl={backdrop}
       posterUrl={poster || undefined}
-      backdropFallbackUrl={movie?.backdrop_path ? backdropFallback : undefined}
+      backdropFallbackUrl={neutralBackdrop ? imageUrl(movie?.backdrop_path || backdropFallback, 'original') : movie?.backdrop_path ? backdropFallback : undefined}
       imageMode={imageProxyMode}
       customImageProxy={customImageProxy}
       originalTitle={movie.original_title || movie.original_name || undefined}
