@@ -21,6 +21,7 @@ import DolbyVisionDiagnosticsPanel from '@/components/dolby-vision-diagnostics-p
 import { inspectDolbyVisionFormat, type DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
 import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspector';
 import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-hls-manifest-inspector';
+import { shouldPreferNativeDolbyVisionHls } from '@/lib/dolby-vision/native-hls-playback-policy';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -233,6 +234,8 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  /** Prevent an unsupported native path from looping with hls.js fallback. */
+  const nativeDolbyHlsAttemptedRef = useRef<string | null>(null);
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
@@ -649,7 +652,7 @@ export function PlayerShell({
    * 自动改走同源 cookie 鉴权的 /api/proxy 重试一次。
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
-  const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean) => {
+  const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean, forceNativeDolby = false) => {
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
     // remains browser-managed and intentionally exposes no hls.js selector.
     setAudioTrackOptions([]);
@@ -689,7 +692,7 @@ export function PlayerShell({
       setError('当前媒体格式尚未接入播放器，请选择 HLS、MP4 或 WebM 资源');
       return;
     }
-    if (!Hls.isSupported()) {
+    if (forceNativeDolby || !Hls.isSupported()) {
       if (!video.canPlayType('application/vnd.apple.mpegurl') && !video.canPlayType('application/x-mpegURL')) {
         hlsRef.current = null;
         stopPreviousMedia();
@@ -697,6 +700,7 @@ export function PlayerShell({
         return;
       }
       hlsRef.current = null;
+      if (forceNativeDolby) nativeDolbyHlsAttemptedRef.current = mediaUrl;
       armMetadataWatchdog(video, mediaUrl);
       // Safari's native HLS pipeline does not need CORS-readable media bytes.
       // Keeping crossorigin="anonymous" here can make otherwise playable
@@ -716,7 +720,9 @@ export function PlayerShell({
         });
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
-      setQualityNotice('当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
+      setQualityNotice(forceNativeDolby
+        ? 'Dolby Vision 变体声明已触发 Safari 原生 HLS 优先路径；这不是实际 Dolby Vision 解码或 HDR 输出证明。原生加载失败会尝试回退 hls.js。'
+        : '当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
       let nativeRestoreInFlight = false;
       const restoreNativePosition = async () => {
         if (restoredRef.current || nativeRestoreInFlight) return;
@@ -762,8 +768,16 @@ export function PlayerShell({
       const nativeRestoreEvents = ['loadedmetadata', 'durationchange', 'canplay'] as const;
       const onNativeRestoreEvent = () => { void restoreNativePosition(); };
       nativeRestoreEvents.forEach((event) => video.addEventListener(event, onNativeRestoreEvent));
+      const onNativeDolbyError = () => {
+        if (!forceNativeDolby || loadGeneration !== mediaLoadGenerationRef.current || !Hls.isSupported()) return;
+        // Retain the attempted URL so a failing native path cannot repeatedly
+        // re-enter itself when hls.js fetches the same manifest on fallback.
+        setupHls(video, mediaUrl, allowProxyFallback);
+      };
+      if (forceNativeDolby) video.addEventListener('error', onNativeDolbyError, { once: true });
       restoreCleanupRef.current = () => {
         nativeRestoreEvents.forEach((event) => video.removeEventListener(event, onNativeRestoreEvent));
+        video.removeEventListener('error', onNativeDolbyError);
         nativeManifestController.abort();
       };
       video.src = mediaUrl;
@@ -875,7 +889,20 @@ export function PlayerShell({
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       if (!isCurrentHls()) return;
-      setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectHlsDolbyVisionFormat(mediaUrl, hls.levels) });
+      const manifestFormat = inspectHlsDolbyVisionFormat(mediaUrl, hls.levels);
+      setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: manifestFormat });
+      if (shouldPreferNativeDolbyVisionHls(manifestFormat, {
+        userAgent: navigator.userAgent,
+        nativeHlsTypeSupport: video.canPlayType('application/vnd.apple.mpegurl') ||
+          video.canPlayType('application/x-mpegURL'),
+        qualityPreference: readQualityPreference(),
+        playbackStarted: playbackStartedRef.current,
+        alreadyAttemptedNative: nativeDolbyHlsAttemptedRef.current === mediaUrl,
+      })) {
+        nativeDolbyHlsAttemptedRef.current = mediaUrl;
+        setupHls(video, mediaUrl, allowProxyFallback, true);
+        return;
+      }
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
       setAvailableQualityHeights(qualityResult.heights);
       setAvailableQualityLevelCount(hls.levels.length);
@@ -1037,6 +1064,7 @@ export function PlayerShell({
   /** 换集：重置每集状态并切换到新 HLS 源（不重建 ArtPlayer）。 */
   const loadEpisode = (targetUrl: string) => {
     if (!targetUrl) return;
+    if (nativeDolbyHlsAttemptedRef.current !== targetUrl) nativeDolbyHlsAttemptedRef.current = null;
     mediaLoadGenerationRef.current += 1;
     lastProgressSaveAtRef.current = 0;
     flushPlaybackMetrics();
