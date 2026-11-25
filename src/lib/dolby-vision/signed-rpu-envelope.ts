@@ -168,6 +168,10 @@ export function verifySignedDolbyVisionRpuSegmentSet(
         !Number.isSafeInteger(expected.sampleDuration) || expected.sampleDuration <= 0 ||
         !Number.isSafeInteger(expected.sampleCount) || expected.sampleCount <= 0 ||
         !Number.isSafeInteger(expected.timescale) || expected.timescale <= 0) return null;
+    // The registered clear VOD assembly contract permits exactly one init asset.
+    const first = options.expectedSegments[0];
+    if (expected.initializationAssetId !== first.initializationAssetId ||
+        expected.initializationSha256.toLowerCase() !== first.initializationSha256.toLowerCase()) return null;
     seenAssetIds.add(expected.fragmentAssetId);
 
     if (previousEnd !== null && expected.decodeTime !== previousEnd) return null;
