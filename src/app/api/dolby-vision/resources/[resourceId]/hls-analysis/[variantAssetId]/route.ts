@@ -123,7 +123,8 @@ export async function POST(
     const contentLength = Number(assembly.headers.get('content-length'));
     const contentType = (assembly.headers.get('content-type') ?? '').split(';', 1)[0].trim().toLowerCase();
 
-    if (!graphId || graphId.length > 200 || !/^[a-f0-9]{64}$/.test(graphSha256) ||
+    if (!/^[A-Za-z0-9:_-]{1,200}$/.test(graphId) || graphId !== rootAssetId ||
+        !/^[a-f0-9]{64}$/.test(graphSha256) ||
         !/^[A-Za-z0-9:_-]{1,200}$/.test(rootAssetId) || returnedVariantId !== variantAssetId ||
         !/^[a-f0-9]{64}$/.test(assembledSha256) ||
         !Number.isSafeInteger(fragmentCount) || fragmentCount < 1 || fragmentCount > 10_000 ||
