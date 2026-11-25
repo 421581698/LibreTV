@@ -60,8 +60,8 @@ export function parseSearchList(
 
 /**
  * 从 vod_play_url 中提取分集地址：格式 源1$$$源2，集1$URL1#集2$URL2。
- * 部分源（如量子 lziapi、非凡 ffzy）第一条线路是网页中转页（…/share/xxx，不可播），
- * 真实 m3u8 在后面的线路里，因此优先取包含 m3u8 直链的线路；均无 m3u8 时回退第一条。
+ * Some CMS providers place a web redirect before the direct media URL.
+ * Prefer a line containing a direct m3u8 URL; if none exists, retain the first valid HTTP(S) line.
  */
 export function extractEpisodeItemsFromPlayUrl(playUrl: string): { title: string; url: string }[] {
   if (!playUrl) return [];
