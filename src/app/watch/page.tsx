@@ -54,6 +54,12 @@ export default function WatchPage() {
     </Suspense>
   );
 }
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function formatWatchTime(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return '--:--';
   const total = Math.floor(seconds);
@@ -496,6 +502,84 @@ function WatchContent() {
     }
     return indexParam;
   }, [episodes, indexParam]);
+
+  const [cmsAssetBinding, setCmsAssetBinding] = useState<{
+    sourceKey: string;
+    vodId: string;
+    episodeIndex: number;
+    providerUrl: string;
+    playbackUrl: string;
+    resourceId: string;
+    assetId: string;
+    sha256: string;
+  } | null>(null);
+
+  useEffect(() => {
+    setCmsAssetBinding(null);
+    const isCmsSource = sourceKey.startsWith('custom_') || sourceKey === 'friday-cms';
+    if (!isCmsSource || !sourceKey || !vodId || !source?.url || !currentUrl ||
+        !Number.isSafeInteger(currentIndex) || currentIndex < 0 || !crypto?.subtle) return;
+
+    const controller = new AbortController();
+    const lookup = async () => {
+      try {
+        const [providerUrlSha256, playbackUrlSha256] = await Promise.all([
+          sha256Hex(source.url),
+          sha256Hex(currentUrl),
+        ]);
+        if (controller.signal.aborted) return;
+        const params = new URLSearchParams({
+          sourceKey,
+          vodId,
+          episodeIndex: String(currentIndex),
+          providerUrlSha256,
+          playbackUrlSha256,
+        });
+        const response = await fetch(`/api/dolby-vision/cms-binding?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const payload: unknown = await response.json().catch(() => null);
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+        const data = payload as Record<string, unknown>;
+        if (typeof data.resourceId !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(data.resourceId) ||
+            typeof data.assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(data.assetId) ||
+            typeof data.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
+            data.contentType !== 'video/mp4' || data.mediaType !== 'mp4') return;
+        if (!controller.signal.aborted) {
+          setCmsAssetBinding({
+            sourceKey,
+            vodId,
+            episodeIndex: currentIndex,
+            providerUrl: source.url,
+            playbackUrl: currentUrl,
+            resourceId: data.resourceId,
+            assetId: data.assetId,
+            sha256: data.sha256,
+          });
+        }
+      } catch {
+        // Ordinary CMS playback remains available when no exact trusted binding exists.
+      }
+    };
+    void lookup();
+    return () => controller.abort();
+  }, [sourceKey, vodId, currentIndex, source?.url, currentUrl]);
+
+  const activeCmsAssetBinding = cmsAssetBinding &&
+    cmsAssetBinding.sourceKey === sourceKey &&
+    cmsAssetBinding.vodId === vodId &&
+    cmsAssetBinding.episodeIndex === currentIndex &&
+    cmsAssetBinding.providerUrl === source?.url &&
+    cmsAssetBinding.playbackUrl === currentUrl
+    ? cmsAssetBinding
+    : null;
+  const playerUrl = activeCmsAssetBinding
+    ? `/api/dolby-vision/assets/${encodeURIComponent(activeCmsAssetBinding.assetId)}/content`
+    : currentUrl;
   const currentEpisodeKey = `${sourceKey}:${vodId || currentUrl}:${currentIndex}`;
   const pendingEpisodeKeyRef = useRef<string | null>(null);
   const isCurrentPlaybackEvent = useCallback((eventEpisodeKey?: string) => {
@@ -867,7 +951,7 @@ function WatchContent() {
             >
               {currentUrl ? (
                 <PlayerShell
-                  url={currentUrl}
+                  url={playerUrl}
                   title={videoTitle}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
@@ -880,8 +964,9 @@ function WatchContent() {
                   episodeKey={currentEpisodeKey}
                   sourceKey={sourceKey}
                   resourceKey={currentEpisodeKey}
-                  dolbyVisionSourceKind={directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown'}
-                  dolbyVisionSourceIdentity={sourceKey || undefined}
+                  dolbyVisionAssetId={activeCmsAssetBinding?.assetId}
+                  dolbyVisionSourceKind={activeCmsAssetBinding ? 'registry' : directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown'}
+                  dolbyVisionSourceIdentity={activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined)}
                   onPlaybackSample={(sample) => useAppStore.getState().recordPlaybackSample(sample)}
                   onRequestFullscreen={requestWatchFullscreen}
                   onRequestSwitchSource={() => {
