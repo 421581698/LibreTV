@@ -52,7 +52,7 @@ The browser-side contract is defined in `src/lib/dolby-vision/rpu-evidence-contr
 - A report generated from a standalone `RPU.bin` is always `detached`; its hash identifies the RPU input, not the media file from which it may have originated.
 - Unknown fields, inconsistent Profile/metadata-level summaries, and invalid extraction scope are rejected.
 
-This contract is currently a validation boundary and testable integration primitive. The player does **not** load arbitrary report JSON, compute a whole-media digest, or display imported RPU evidence yet. A future transport must authenticate who produced the report and bind it to the exact selected media bytes; a self-reported `verified: true` field alone is not authentication.
+This contract remains a strict validation boundary, not an authentication mechanism by itself. The player does **not** trust or import arbitrary report JSON, and it does not independently compute the complete media digest in the browser. For immutable registry-backed MP4 playback, the diagnostics panel can explicitly request server-verified evidence: the backend resolves the stable asset ID and registry digest, streams the exact registered MP4 to the private parser, and verifies the Ed25519-signed envelope against that asset ID and original-media SHA-256 before returning positive evidence. This authenticated path is covered by route and parser-service tests; live Compose deployment, a user-provided feature-length asset, and physical-device Dolby Vision output remain separate acceptance gates. A self-reported `verified: true` field alone is never authentication.
 
 ## HEVC/Matroska integration fixtures
 
