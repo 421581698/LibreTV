@@ -20,6 +20,13 @@ fn run() -> anyhow::Result<()> {
 
     let payload = fs::read(input)?;
     let parsed = DoviRpu::parse_itu_t35_dovi_metadata_obu(&payload)?;
+    let profile = parsed.dovi_profile;
+    let nalu = parsed.write_hevc_unspec62_nalu()?;
+    let last_nonzero = nalu.iter().rposition(|byte| *byte != 0);
+    if nalu.len() < 27 || !nalu.starts_with(&[0x7c, 0x01]) ||
+        last_nonzero.map(|index| nalu[index]) != Some(0x80) {
+        anyhow::bail!("libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit");
+    }
     if let Some(reference_path) = reference {
         // Match dovi_tool's own AV1 fixture contract: upstream reference is
         // Annex-B (4-byte start code + 2-byte HEVC NAL header), while the
@@ -28,13 +35,6 @@ fn run() -> anyhow::Result<()> {
         if expected.get(4..) != nalu.get(2..) {
             anyhow::bail!("AV1 T.35 RPU does not match the upstream HEVC RPU reference");
         }
-    }
-    let profile = parsed.dovi_profile;
-    let nalu = parsed.write_hevc_unspec62_nalu()?;
-    let last_nonzero = nalu.iter().rposition(|byte| *byte != 0);
-    if nalu.len() < 27 || !nalu.starts_with(&[0x7c, 0x01]) ||
-        last_nonzero.map(|index| nalu[index]) != Some(0x80) {
-        anyhow::bail!("libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit");
     }
     fs::write(output, &nalu)?;
     println!(
