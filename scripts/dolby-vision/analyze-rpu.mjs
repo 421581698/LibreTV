@@ -37,6 +37,16 @@ export function normalizeRpuInput(value) {
     let next = input.indexOf(startCode, payloadStart);
     if (next < 0) next = input.length;
     const nalu = input.subarray(payloadStart, next);
+    if (nalu[0] === 0x19) {
+      let lastNonZero = nalu.length - 1;
+      while (lastNonZero >= 0 && nalu[lastNonZero] === 0) lastNonZero -= 1;
+      if (nalu.length < 7 || lastNonZero < 0 || nalu[lastNonZero] !== 0x80) {
+        throw new Error('Annex-B regular RPU chunk is malformed.');
+      }
+      units.push(Buffer.concat([startCode, nalu]));
+      offset = next;
+      continue;
+    }
     if (nalu.length < 9 || nalu[0] !== 0x7c || nalu[1] !== 0x01) {
       throw new Error('AV1 RPU stream contains a non-UNSPEC62 HEVC NAL unit.');
     }
