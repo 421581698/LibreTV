@@ -144,7 +144,8 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
   ref,
 ) {
   const { backend, preferences, reducedMotion, reportFailure } = useFridayGlass();
-  const activeMaterial = material ?? (variant === 'panel' ? 'frosted' : preferences.material);
+  // Global material selection must also affect panels and the iPad drawer.
+  const activeMaterial = material ?? preferences.material;
   const canHostEngine = backend === 'optical' && activeMaterial !== 'solid' &&
     activeMaterial !== 'cinema' && preferences.intensity > 0 && !disableEngine &&
     variant !== 'control' &&
