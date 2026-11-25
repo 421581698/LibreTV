@@ -31,7 +31,9 @@ const MAX_INPUT = 256 * 1024;
 const MAX_PCM = 262144;
 export class OpenJocExperimentalDecoder {
   private handle: number;
-  constructor(private readonly abi: OpenJocAbi) {
+  private readonly abi: OpenJocAbi;
+  constructor(abi: OpenJocAbi) {
+    this.abi = abi;
     this.handle = abi.openjoc_wasm_decoder_create();
     if (!this.handle) throw new Error('OpenJOC decoder creation failed');
   }
