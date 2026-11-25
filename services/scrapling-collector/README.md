@@ -191,3 +191,16 @@ DV_SOURCE_GATEWAY_TOTAL_TIMEOUT_SECONDS=3600
 In Compose, these variables are passed to both the collector API and durable worker containers, with identical database and media-storage paths. The gateway remains disabled by default and will not download from the discovery allowlist automatically. A host being public, or a candidate being playable, is not proof of redistribution rights; the explicit source-host list is the operator's authorization boundary and must be maintained accordingly. Confirmed progressive MP4/WebM and clear-HLS sources are both routed through the durable worker. HLS graph members are fetched only from exact allowlisted hosts; a child CDN hostname must be added explicitly before it can be used.
 
 **Remaining boundary:** the gateway code and opt-in wiring are implemented, but it has not yet been run against a real operator-authorized origin or a live Compose deployment. The local Docker volume is not an external WORM/object-lock store.
+
+
+### HLS fragment parser-input endpoint
+
+The assembly module now also emits one independently parseable `init + single media fragment` MP4 for each verified fragment. Each sidecar record binds the fragment ordinal and immutable asset ID, original fragment SHA-256, initialization asset ID/SHA-256, assembled init+fragment SHA-256, `mfhd` sequence number, `tfdt`, summed `trun` sample duration/count, and media timescale. The existing full-rendition endpoint removes these sidecar files after its response; it does not expose them.
+
+An authenticated backend can request one fragment through:
+
+`POST /v1/registry/resources/{resourceId}/hls-assembly/{variantAssetId}/segments/{fragmentOrdinal}`
+
+The response is a bounded `video/mp4` stream and carries the graph identity plus the exact fragment/init/assembled-input digests and timing fields in `X-DV-HLS-*` headers. The fragment asset ID is also the parser evidence asset ID; the parser verifies the uploaded init+fragment SHA-256 before signing. Temporary full-rendition and sidecar files are removed after the response completes.
+
+This endpoint prepares and serves one fragment input. It does not independently claim that RPU exists; the private parser must return a valid full-scope RPU report, and the application must verify every fragment signature against the trusted graph before a segment set can be accepted.
