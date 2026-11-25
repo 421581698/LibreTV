@@ -151,7 +151,9 @@ export const LiquidGlassSurface = forwardRef<HTMLElement, SurfaceProps>(function
     activeMaterial !== 'cinema' && preferences.intensity > 0 && !disableEngine &&
     variant !== 'control' &&
     as !== 'button' && as !== 'a' && as !== 'span';
-  const canHostNativeOptics = (variant === 'dock' || variant === 'panel') &&
+  // Expensive continuously animated Canvas is reserved for the compact navigation dock.
+  // Other surfaces retain GPU-backed CSS rim highlights and transparency.
+  const canHostNativeOptics = variant === 'dock' &&
     as !== 'button' && as !== 'a' && as !== 'span';
   const intensity = preferences.intensity / 100;
   const [Engine, setEngine] = useState<EngineComponent | null>(null);
