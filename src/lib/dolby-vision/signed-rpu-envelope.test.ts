@@ -1,6 +1,6 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { canonicalizeDolbyVisionRpuPayload, verifySignedDolbyVisionRpuEnvelope } from './signed-rpu-envelope';
+import { canonicalizeDolbyVisionRpuPayload, verifySignedDolbyVisionRpuEnvelope, verifySignedDolbyVisionRpuSegmentSet } from './signed-rpu-envelope';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 const { publicKey: wrongPublicKey } = generateKeyPairSync('ed25519');
@@ -172,6 +172,76 @@ describe('signed Dolby Vision RPU envelope', () => {
       expectedAssetId: segmentContext.fragmentAssetId,
       expectedMediaSha256: hash,
       expectedAnalysisContext: segmentContext,
+    })).toBeNull();
+  });
+
+  it('verifies every signed HLS fragment and rejects sequence or tfdt gaps', () => {
+    const expectedSegments = [0, 1].map((ordinal) => ({
+      fragmentAssetId: `segment:${ordinal + 1}`,
+      fragmentSha256: (ordinal === 0 ? 'd' : 'e').repeat(64),
+      initializationAssetId: 'init:001',
+      initializationSha256: 'a'.repeat(64),
+      assembledSegmentSha256: (ordinal === 0 ? 'f' : '9').repeat(64),
+      fragmentSequenceNumber: ordinal + 1,
+      decodeTime: ordinal * 4000,
+      sampleDuration: 4000,
+      sampleCount: 100,
+      timescale: 1000,
+    }));
+    const envelopes = expectedSegments.map((segment, ordinal) => {
+      const analysisContext = {
+        scope: 'hls-fmp4-segment' as const,
+        resourceId: 'resource_hls_123',
+        graphId: 'graph_123',
+        graphSha256: 'c'.repeat(64),
+        rootAssetId: 'root:playlist',
+        variantAssetId: 'variant:playlist',
+        fragmentCount: 2,
+        fragmentSequenceContinuity: 'sequential' as const,
+        temporalContinuity: 'contiguous' as const,
+        fragmentOrdinal: ordinal,
+        ...segment,
+      };
+      const payload = {
+        version: 1,
+        keyId: options.expectedKeyId,
+        assetId: segment.fragmentAssetId,
+        issuedAt: now - 10,
+        expiresAt: now + 3600,
+        report: { ...report, sourceMediaSha256: segment.assembledSegmentSha256 },
+        analysisContext,
+      };
+      const signature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(payload)), privateKey).toString('base64url');
+      return { ...payload, signature };
+    });
+    const trusted = {
+      publicKeyPem,
+      expectedKeyId: options.expectedKeyId,
+      resourceId: 'resource_hls_123',
+      graphId: 'graph_123',
+      graphSha256: 'c'.repeat(64),
+      rootAssetId: 'root:playlist',
+      variantAssetId: 'variant:playlist',
+      expectedFragmentCount: 2,
+      expectedSegments,
+      now,
+    };
+    expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, trusted)).toMatchObject({
+      totalRpuFrameCount: 480,
+      timelineContinuity: 'contiguous',
+      rpuSemanticContinuity: 'not-established',
+    });
+    expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
+      ...trusted,
+      expectedSegments: [expectedSegments[0], { ...expectedSegments[1], decodeTime: 4100 }],
+    })).toBeNull();
+    expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
+      ...trusted,
+      expectedSegments: [expectedSegments[0], { ...expectedSegments[1], fragmentSequenceNumber: 4 }],
+    })).toBeNull();
+    expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
+      ...trusted,
+      expectedSegments: [expectedSegments[0], { ...expectedSegments[1], fragmentAssetId: expectedSegments[0].fragmentAssetId }],
     })).toBeNull();
   });
 
