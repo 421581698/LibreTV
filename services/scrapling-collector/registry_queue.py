@@ -979,7 +979,7 @@ def api_assemble_hls_fmp4_segment(
             "X-DV-HLS-GRAPH-SHA256": result["graphDigest"],
             "X-DV-HLS-ROOT-ASSET-ID": result["rootAssetId"],
             "X-DV-HLS-VARIANT-ASSET-ID": result["variantAssetId"],
-            "X-DV-HLS-FRAGMENT-COUNT": str(len(result["segmentInputs"])),
+            "X-DV-HLS-FRAGMENT-COUNT": str(len(result["segmentAssetIds"])),
             "X-DV-HLS-FRAGMENT-SEQUENCE-CONTINUITY": result["fragmentSequenceContinuity"],
             "X-DV-HLS-TEMPORAL-CONTINUITY": result["temporalContinuity"],
             "X-DV-HLS-FRAGMENT-ORDINAL": str(segment["ordinal"]),
