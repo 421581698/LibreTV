@@ -339,18 +339,18 @@ export class JocSoftwareDecoderClient {
       this.decodedAccessUnits = message.decodedAccessUnits;
       this.emitStatus();
     } else if (message.type === 'pcm') {
+      const samples = new Float32Array(message.samples);
+      if (samples.length !== message.sampleFrames * 2 || samples.length === 0 ||
+          samples.some(sample => !Number.isFinite(sample))) {
+        this.fail(new Error('OpenJOC PCM frame length is invalid.'));
+        return;
+      }
       if (!this.outputEnabled) {
         for (const listener of this.pcmListeners) listener({ samples, sampleFrames: message.sampleFrames, ptsSamples: message.ptsSamples });
         return;
       }
       if (!this.node || message.sampleRate !== 48000 || message.channels !== 2) {
         this.fail(new Error('OpenJOC PCM format is unsupported.'));
-        return;
-      }
-      const samples = new Float32Array(message.samples);
-      if (samples.length !== message.sampleFrames * 2 || samples.length === 0 ||
-          samples.some(sample => !Number.isFinite(sample))) {
-        this.fail(new Error('OpenJOC PCM frame length is invalid.'));
         return;
       }
       this.queuedFrames = Math.min(MAX_QUEUED_FRAMES, this.queuedFrames + message.sampleFrames);
