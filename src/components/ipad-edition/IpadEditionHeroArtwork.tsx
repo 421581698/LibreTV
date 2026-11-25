@@ -1,5 +1,6 @@
 'use client';
 
+import { useAppStore } from '@/lib/store';
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
 import { fromTmdbItem } from '@/lib/poster';
 import type { DoubanItem } from '@/lib/types';
@@ -15,6 +16,8 @@ interface IpadEditionHeroArtworkProps {
  * the original portrait poster contained at its native aspect ratio.
  */
 export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
+  const customImageProxy = useAppStore((s) => s.customImageProxy);
   const backdrop = item.backdrop?.trim();
   const posterAsset = fromTmdbItem(item);
 
@@ -30,7 +33,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
           frameClassName="ipad-edition__cinema-hero-backdrop"
           url={backdrop}
           fallbackUrl={item.cover}
-          mode="proxy"
+          mode={imageProxyMode} customProxy={customImageProxy}
           alt=""
           loading="eager"
         />
@@ -41,7 +44,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
             frameClassName="ipad-edition__cinema-hero-atmosphere"
             asset={posterAsset}
             url={item.cover}
-            mode="proxy"
+            mode={imageProxyMode} customProxy={customImageProxy}
             alt=""
             loading="eager"
           />
@@ -50,7 +53,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
             frameClassName="ipad-edition__cinema-hero-fallback-poster"
             asset={posterAsset}
             url={item.cover}
-            mode="proxy"
+            mode={imageProxyMode} customProxy={customImageProxy}
             alt={item.title + ' 海报'}
             loading="eager"
             measureNaturalSize

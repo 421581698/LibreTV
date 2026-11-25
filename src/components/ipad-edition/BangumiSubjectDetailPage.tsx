@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
@@ -47,6 +47,9 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
   const [status, setStatus] = useState('');
+  const [retry, setRetry] = useState(0);
+  const playbackRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => playbackRequest.current?.abort(), []);
   const [tmdbArtwork, setTmdbArtwork] = useState<{
     id: number;
     poster: string;
@@ -64,16 +67,17 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setError(''); setSubject(null);
     fetch('/api/bangumi/subject?' + new URLSearchParams({ id }), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error((await response.json()).error || '无法获取新番资料');
         return response.json() as Promise<BangumiSubject>;
       })
-      .then(setSubject)
+      .then((value) => { if (!controller.signal.aborted) setSubject(value); })
       .catch((reason) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : '无法获取新番资料'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [id]);
+  }, [id, retry]);
 
   // Bangumi subject ID remains the authoritative anime identity. TMDB is only
   // used as a high-resolution artwork enhancement after an exact title/year match.
@@ -120,6 +124,8 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       setStatus('尚未启用可用点播源，请先在设置中启用点播源。');
       return;
     }
+    const controller = new AbortController();
+    playbackRequest.current?.abort(); playbackRequest.current = controller;
     setStarting(true);
     setStatus('正在查找资源并评估历史播放流畅度…');
     try {
@@ -128,7 +134,8 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       const matches: Array<{ item: SearchResultItem; source: SourceConfig }> = [];
       const seen = new Set<string>();
       for (const title of titles) {
-        const response = await api.search(title, sources, yellowFilter);
+        const response = await api.search(title, sources, yellowFilter, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         response.failures.forEach((failure) => failures.add(failure.sourceKey));
         for (const item of response.list) {
           if (!findMovieMatch(title, [item])) continue;
@@ -158,7 +165,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       const match = matches.find(({ item }) => item.sourceKey === best.sourceKey && item.vodId === best.vodId);
       if (!match) throw new Error('无法确定可用播放线路，请重试。');
       setStatus(`已比较 ${matches.length} 条候选线路，按历史播放稳定性优先排序；无历史记录的线路保留为后备。`);
-      router.push(buildWatchUrl({
+      if (!controller.signal.aborted) router.push(buildWatchUrl({
         sourceKey: match.source.key,
         vodId: match.item.vodId,
         index: 0,
@@ -167,9 +174,9 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
       }).replace('/watch?', '/ipad-edition/watch?'));
       return;
     } catch (reason) {
-      setStatus(reason instanceof Error ? reason.message : '播放资源查询失败，请稍后重试。');
+      if (!controller.signal.aborted) setStatus(reason instanceof Error ? reason.message : '播放资源查询失败，请稍后重试。');
     } finally {
-      setStarting(false);
+      if (!controller.signal.aborted) setStarting(false);
     }
   };
 
@@ -179,7 +186,7 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   const tags = (subject?.tags || []).slice(0, 16).map((tag) => tag.name).filter((tag): tag is string => Boolean(tag));
 
   if (loading) return <main className="ipad-detail-state">正在加载新番资料…</main>;
-  if (!subject) return <main className="ipad-detail-state"><button onClick={() => router.back()}>‹ 返回</button><p className="mt-8">{error || '新番资料暂时不可用'}</p></main>;
+  if (!subject) return <main className="ipad-detail-state"><button onClick={() => router.back()}>‹ 返回</button><p className="mt-8">{error || '新番资料暂时不可用'}</p><button type="button" onClick={() => setRetry((n) => n + 1)}>重试</button></main>;
 
   return (
     <IpadCinemaDetailLayout

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { IpadEditionHero } from '@/components/ipad-edition/IpadEditionHero';
 import { PosterRenderer } from '@/components/ipad-edition/PosterRenderer';
+import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/client-api';
 import type { DoubanItem } from '@/lib/types';
 import { fromBangumiItem, fromTmdbItem } from '@/lib/poster';
@@ -46,6 +47,8 @@ function mergeLatestRegionalReleases(usItems: DoubanItem[], cnItems: DoubanItem[
 
 export function IpadEditionHome() {
   const [activeHero, setActiveHero] = useState(0);
+  const imageProxyMode = useAppStore((s) => s.imageProxyMode);
+  const customImageProxy = useAppStore((s) => s.customImageProxy);
   const { openPoster, pendingTitle, error } = useIpadEditionPosterNavigation();
 
   const featured = useQuery({
@@ -169,7 +172,7 @@ export function IpadEditionHome() {
         <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title} role="region" tabIndex={0}>
           {items.slice(0, maxItems).map((item, index) => (
             <button type="button" className="ipad-edition__poster-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot={id === 'ipad-popular-series' ? 'series' : id === 'ipad-new-releases' ? 'new-release' : 'movie'} data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id || item.title}>
-              <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromTmdbItem(item)} url={item.cover} mode="proxy" alt={item.title}>
+              <PosterRenderer variant="poster" frameClassName="ipad-edition__poster-art" asset={fromTmdbItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title}>
                 <span className="ipad-edition__poster-rank">{index + 1}</span>
               </PosterRenderer>
               <strong title={item.title}>{item.title}</strong>
@@ -226,7 +229,7 @@ export function IpadEditionHome() {
           <div className="ipad-edition__anime-grid">
             {todayItems.slice(0, 5).map((item) => (
               <button type="button" className="ipad-edition__anime-card appearance-none border-0 bg-transparent p-0 text-left font-[inherit] text-inherit" data-ipad-poster-slot="anime" data-poster-url={item.cover ?? ''} aria-label={'查看 ' + item.title + ' 的详情'} aria-busy={pendingTitle === item.title} disabled={Boolean(pendingTitle)} onClick={() => void openPoster(item)} key={item.id}>
-                <PosterRenderer variant="anime" asset={fromBangumiItem(item)} url={item.cover} mode="proxy" alt={item.title} />
+                <PosterRenderer variant="anime" asset={fromBangumiItem(item)} url={item.cover} mode={imageProxyMode} customProxy={customImageProxy} alt={item.title} />
                 <strong>{item.title}</strong>
               </button>
             ))}
