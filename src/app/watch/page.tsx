@@ -1204,9 +1204,18 @@ function WatchContent() {
                       scrubbingPositionRef.current = target;
                       setScrubbingPosition(target);
                       surface.releasePointerCapture(event.pointerId);
-                      // One seek on release; native seeked/timeupdate resumes
-                      // normal clock updates. No second touchend seek is allowed.
-                      playerApiRef.current?.seek(target);
+                      // One seek on release; keep the displayed clock at the target
+                      // after the 1.2s drag preview expires. Native seeked/timeupdate
+                      // can subsequently correct it to the actual media position.
+                      // Without this the slider snaps back to the pre-drag clock.
+                      const playerApi = playerApiRef.current;
+                      if (!playerApi) {
+                        setScrubbingPosition(null);
+                        scrubbingPositionRef.current = null;
+                        return;
+                      }
+                      playerApi.seek(target);
+                      setWatchClock(current => ({ ...current, position: target }));
                       if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
                       scrubResetTimerRef.current = window.setTimeout(() => {
                         setScrubbingPosition(null);
@@ -1222,6 +1231,15 @@ function WatchContent() {
                       setScrubbingPosition(null);
                       scrubbingPositionRef.current = null;
                       if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+                    }}
+                    onLostPointerCapture={() => {
+                      if (!scrubbingRef.current) return;
+                      // Safari may revoke capture without a pointercancel. Never
+                      // leave the controls permanently locked in drag mode.
+                      scrubbingRef.current = false;
+                      setIsScrubbing(false);
+                      setScrubbingPosition(null);
+                      scrubbingPositionRef.current = null;
                     }}
                     onKeyDown={(event) => {
                       if (!hasFiniteDuration || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
