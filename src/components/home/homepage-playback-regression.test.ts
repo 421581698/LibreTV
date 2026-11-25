@@ -315,7 +315,8 @@ describe('首页与播放页回归契约', () => {
     expect(customSeek).toContain('setPointerCapture(event.pointerId)');
     expect(customSeek).toContain('hasPointerCapture(event.pointerId)');
     expect(customSeek).toContain('role="slider"');
-    expect(customSeek).toContain("touchAction: 'none'");
+    expect(watchStyles).toContain('.cinema-seek-surface');
+    expect(watchStyles).toContain('touch-action: none;');
     expect(watch.slice(watch.indexOf('className="watch-cinema-progress"'))).not.toContain('setPointerCapture(event.pointerId)');
     expect(watch).toContain('onPointerDown={() => {');
     expect(watchStyles).toContain('touch-action: none !important;');
