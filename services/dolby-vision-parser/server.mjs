@@ -109,7 +109,7 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expe
         !Number.isSafeInteger(analysisContext.fragmentCount) ||
         analysisContext.fragmentCount < 1 || analysisContext.fragmentCount > 10_000 ||
         analysisContext.fragmentSequenceContinuity !== 'sequential' ||
-        analysisContext.temporalContinuity !== 'unknown') {
+        analysisContext.temporalContinuity !== 'contiguous') {
       throw new Error('Invalid HLS fMP4 provenance context.');
     }
   }
