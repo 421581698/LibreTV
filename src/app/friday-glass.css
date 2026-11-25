@@ -178,9 +178,11 @@ html[data-friday-cinema-dark="false"][data-friday-theme="light"] [data-friday-ma
 }
 html[data-friday-ambient="on"] [data-friday-ambient="dark"][data-friday-material="ambient"] {
   --friday-fill: 12 28 52;
+  --friday-ink: 248 251 255;
 }
 html[data-friday-ambient="on"] [data-friday-ambient="light"][data-friday-material="ambient"] {
   --friday-fill: 235 246 255;
+  --friday-ink: 19 30 43;
 }
 html[data-friday-glass="webkit"] .liquid-glass[data-friday-material],
 html[data-friday-glass="native"] .liquid-glass[data-friday-material],
