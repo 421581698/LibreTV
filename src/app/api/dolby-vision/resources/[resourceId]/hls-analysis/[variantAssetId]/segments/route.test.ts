@@ -153,7 +153,7 @@ describe('POST HLS fragment-set analysis', () => {
       totalRpuFrameCount: 480,
       timelineContinuity: 'contiguous',
       rpuProfileContinuity: 'consistent',
-      rpuFrameAlignment: 'one-rpu-per-video-sample',
+      rpuFrameAlignment: 'frame-count-matches-video-samples',
       rpuSemanticContinuity: 'not-established',
     });
     expect(fetchDolbyVisionHlsAssemblySegment).toHaveBeenCalledTimes(2);
