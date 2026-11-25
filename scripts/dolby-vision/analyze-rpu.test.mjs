@@ -63,8 +63,8 @@ describe('dovi_tool RPU report parsing', () => {
   });
 
   it('normalizes multiple UNSPEC62 NAL units without losing regular RPU boundaries', () => {
-    const first = Buffer.from([0x7c, 0x01, 0x19, 0x11, 0x80]);
-    const second = Buffer.from([0x7c, 0x01, 0x19, 0x22, 0x80]);
+    const first = Buffer.from([0x7c, 0x01, 0x19, 0x11, 0x22, 0x33, 0x44, 0x55, 0x80]);
+    const second = Buffer.from([0x7c, 0x01, 0x19, 0x22, 0x33, 0x44, 0x55, 0x66, 0x80]);
     const annexB = Buffer.concat([
       Buffer.from([0, 0, 0, 1]), first,
       Buffer.from([0, 0, 0, 1]), second,
