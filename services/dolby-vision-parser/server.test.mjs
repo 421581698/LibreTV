@@ -212,6 +212,12 @@ process.exit(2);
         verify(null, Buffer.from(canonicalize(payload)), servicePublicPem, Buffer.from(signature, 'base64url')),
         true,
       );
+
+      await writeFile(fakeFfprobe, "#!/usr/bin/env node\\nprocess.stdout.write('hevc\\\\nhevc\\\\n');\\n", { mode: 0o700 });
+      await chmod(fakeFfprobe, 0o700);
+      const ambiguousVideoTracks = await fetch(endpoint, { method: 'POST', headers, body: media });
+      assert.equal(ambiguousVideoTracks.status, 415);
+      assert.deepEqual(await ambiguousVideoTracks.json(), { error: 'SINGLE_HEVC_VIDEO_TRACK_REQUIRED' });
     } finally {
       await new Promise((resolveClose) => server.close(resolveClose));
       await rm(directory, { recursive: true, force: true });
