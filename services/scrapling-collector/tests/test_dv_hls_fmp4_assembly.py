@@ -116,7 +116,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         variant_id, ingested = self.prepare_graph()
         segment = ingested["assets"]["seg1.m4s"]
         object_path = self.object_root / segment["object_key"]
-        object_path.write_bytes(b"tampered")
+        object_path.write_bytes(media_fragment(1)[:-1] + b"x")
         with self.assertRaises(HlsAssemblyError):
             assemble_registered_hls_fmp4(
                 self.resource["id"], variant_id, self.root / "bad.mp4", self.object_root,
