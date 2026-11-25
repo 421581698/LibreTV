@@ -233,7 +233,8 @@ export class JocSoftwareDecoderClient {
   async activateOutput(video: HTMLVideoElement, minimumPrerollMs = 128): Promise<boolean> {
     this.assertActive();
     const context = this.context;
-    if (!this.outputEnabled || !this.node || !this.gainNode || !context || !this.ready ||
+    const gainNode = this.gainNode;
+    if (!this.outputEnabled || !this.node || !gainNode || !context || !this.ready ||
         !this.decodedProfile || this.decodedAccessUnits <= 0 || video.paused || video.ended || video.muted ||
         this.ownsMediaMute || this.activationInFlight) return false;
     const requiredFrames = Math.ceil(48000 * Math.max(128, minimumPrerollMs) / 1000);
@@ -256,7 +257,7 @@ export class JocSoftwareDecoderClient {
         this.fallbackToMediaAudio();
         return false;
       }
-      this.gainNode.gain.setValueAtTime(this.previousMuted ? 0 : video.volume, context.currentTime);
+      gainNode.gain.setValueAtTime(this.previousMuted ? 0 : video.volume, context.currentTime);
       // The software route has rendered timestamp-aligned audio; only now mute
       // the original media element. Any subsequent worklet fault restores it.
       video.muted = true;
