@@ -91,7 +91,7 @@ test('extracts Dolby RPU metadata from a temporally aligned raw AV1 OBU stream',
     obu(6, Buffer.from([0])),
   ]);
   const result = extractDolbyRpuFromObuStream(stream);
-  assert.deepEqual(result.rpuBytes, Buffer.concat([Buffer.from([0x19]), rpu]));
+  assert.deepEqual(result.rpuBytes, Buffer.concat([Buffer.from([0, 0, 0, 1, 0x19]), rpu]));
   assert.deepEqual(result.report, {
     obuCount: 3,
     temporalDelimiterCount: 1,
