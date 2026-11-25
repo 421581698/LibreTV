@@ -209,7 +209,14 @@ async function convertT35PayloadWithLibdovi(payload, directory, ordinal, options
   const { stdout } = await execFileAsync(converter, [inputPath, outputPath], {
     encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024, windowsHide: true,
   });
+  const outputStat = await stat(outputPath);
+  if (!outputStat.isFile() || outputStat.size < 27 || outputStat.size > 1024 * 1024) {
+    throw new Error('libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit.');
+  }
   const rpu = await readFile(outputPath);
+  if (rpu.length !== outputStat.size) throw new Error('libdovi RPU output size changed during reading.');
+  await rm(inputPath, { force: true });
+  await rm(outputPath, { force: true });
   let lastNonZero = rpu.length - 1;
   while (lastNonZero >= 0 && rpu[lastNonZero] === 0) lastNonZero -= 1;
   if (rpu.length < 27 || rpu.length > 1024 * 1024 || rpu[0] !== 0x7c ||
