@@ -858,7 +858,7 @@ def api_get_cms_asset_binding(
     require_auth(authorization)
     with connect() as c:
         row = c.execute(
-            """SELECT binding.resource_id,binding.asset_id,asset.sha256,asset.byte_length,asset.content_type,
+            """SELECT binding.resource_id,binding.asset_id,asset.sha256,asset.byte_length,asset.content_type,asset.object_key,
                       resource.resource_type,resource.access_state,resource.validation_state,
                       resource.playback_state,resource.media_format
                FROM registry_cms_asset_bindings binding
@@ -875,6 +875,9 @@ def api_get_cms_asset_binding(
             row["validation_state"] != "validated" or row["playback_state"] != "PLAYER_CONFIRMED" or
             row["media_format"] != "mp4" or row["content_type"] != "video/mp4"):
         raise HTTPException(status_code=409, detail="CMS binding is no longer eligible")
+    expected_object_key = f"sha256/{row['sha256'][:2]}/{row['sha256']}"
+    if row["object_key"] != expected_object_key:
+        raise HTTPException(status_code=409, detail="CMS binding immutable object key is invalid")
     return {
         "resourceId": row["resource_id"],
         "assetId": row["asset_id"],
