@@ -186,7 +186,7 @@ async function analyzeUpload(request, response, env) {
         maxBuffer: 64 * 1024,
         windowsHide: true,
       });
-      const videoCodecs = codecOutput.trim().split(/\\r?\\n/).filter(Boolean);
+      const videoCodecs = codecOutput.trim().split(/\r?\n/).filter(Boolean);
       // The current evidence contract analyzes one complete HEVC video bitstream.
       // Reject multi-video-track containers rather than silently analyzing only v:0.
       if (videoCodecs.length !== 1 || videoCodecs[0] !== 'hevc') {
