@@ -128,8 +128,7 @@ jobs:
           AV1_RPU_CONVERTER_BIN=/usr/local/bin/av1-rpu-converter node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p8-t35.bin --output /tmp/dolby-av1-p8.rpu
           /usr/local/bin/av1-rpu-converter /tmp/dolby-av1-p5-t35.bin /tmp/dolby-av1-p5-reference-checked.rpu /tmp/dolby-av1-p5-reference.rpu
           /usr/local/bin/av1-rpu-converter /tmp/dolby-av1-p8-t35.bin /tmp/dolby-av1-p8-reference-checked.rpu /tmp/dolby-av1-p8-reference.rpu
-          cmp /tmp/dolby-av1-p5.rpu /tmp/dolby-av1-p5-reference-checked.rpu
-          cmp /tmp/dolby-av1-p8.rpu /tmp/dolby-av1-p8-reference-checked.rpu
+          node --input-type=module -e "import fs from 'node:fs'; for (const [actual,expected] of [['/tmp/dolby-av1-p5.rpu','/tmp/dolby-av1-p5-reference-checked.rpu'],['/tmp/dolby-av1-p8.rpu','/tmp/dolby-av1-p8-reference-checked.rpu']]) { const a=fs.readFileSync(actual), b=fs.readFileSync(expected); if(!a.subarray(4).equals(b)) throw new Error('Annex-B AV1 extractor output differs from libdovi regular RPU: '+actual); }"
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p5.rpu > /tmp/dolby-av1-p5-report.json
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p8.rpu > /tmp/dolby-av1-p8-report.json
           node --input-type=module -e "import fs from 'node:fs'; for (const [p,expected] of [['/tmp/dolby-av1-p5-report.json',5],['/tmp/dolby-av1-p8-report.json',8]]) { const r=JSON.parse(fs.readFileSync(p,'utf8')); if(r.source!=='dovi_tool'||r.rpuPresent!==true||!r.profiles.includes(expected)||r.frameCount<1) throw new Error('AV1 RPU acceptance failed: '+JSON.stringify(r)); console.log(JSON.stringify({profile:expected,parsedProfiles:r.profiles,frames:r.frameCount,rpuSha256:r.rpuSha256})); }"
