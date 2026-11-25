@@ -98,6 +98,11 @@ export interface VerifiedHlsRpuSegmentSet {
   rpuProfileContinuity: 'consistent';
   rpuFrameAlignment: 'one-rpu-per-video-sample';
   rpuSemanticContinuity: 'not-established';
+  /** End-to-end RPU order/semantics cannot be proved from aggregate signed summaries. */
+  semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed';
+  /** Maximum verified end time in the media track's timescale units. */
+  verifiedDecodeEnd: number;
+  verifiedTimescale: number;
 }
 
 /**
@@ -194,6 +199,9 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     rpuProfileContinuity: 'consistent',
     rpuFrameAlignment: 'one-rpu-per-video-sample',
     rpuSemanticContinuity: 'not-established',
+    semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed',
+    verifiedDecodeEnd: previousEnd!,
+    verifiedTimescale: commonTimescale!,
   };
 }
 
