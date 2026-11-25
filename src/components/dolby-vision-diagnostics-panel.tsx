@@ -26,6 +26,10 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
   const [verifiedEvidence, setVerifiedEvidence] = useState<{ assetId: string; evidence: VerifiedDolbyVisionEvidenceResponse } | null>(null);
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [analysisError, setAnalysisError] = useState('');
+  const [hlsGraph, setHlsGraph] = useState<{ resourceId: string; memberCount: number; playlistCount: number; initializationCount: number; segmentCount: number } | null>(null);
+  const [hlsGraphState, setHlsGraphState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [hlsGraphError, setHlsGraphError] = useState('');
+  const hlsGraphRequestRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   // Hide evidence synchronously on the render where the asset changes; the effect below
   // performs cleanup, but effects run after paint and alone permit one stale render.
@@ -41,6 +45,54 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     setAnalysisError('');
     return () => requestRef.current?.abort();
   }, [assetId]);
+
+  useEffect(() => {
+    hlsGraphRequestRef.current?.abort();
+    hlsGraphRequestRef.current = null;
+    setHlsGraph(null);
+    setHlsGraphError('');
+    if (sourceKind !== 'registry' || report?.container !== 'hls' ||
+        !sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity)) {
+      setHlsGraphState('idle');
+      return;
+    }
+    const controller = new AbortController();
+    hlsGraphRequestRef.current = controller;
+    setHlsGraphState('loading');
+    void fetch(`/api/dolby-vision/resources/${encodeURIComponent(sourceIdentity)}/hls-graph`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: controller.signal,
+    }).then(async (response) => {
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        throw new Error(response.status === 404
+          ? '该资源尚未建立完整的 HLS 资产图'
+          : '可信 HLS 资产图暂不可用');
+      }
+      const data = payload as Record<string, unknown>;
+      if (data.resourceId !== sourceIdentity || !Array.isArray(data.members) || !Array.isArray(data.edges)) {
+        throw new Error('HLS 资产图响应与当前资源不匹配');
+      }
+      const edges = data.edges.filter((edge): edge is Record<string, unknown> =>
+        Boolean(edge) && typeof edge === 'object' && !Array.isArray(edge));
+      if (!controller.signal.aborted) {
+        setHlsGraph({
+          resourceId: sourceIdentity,
+          memberCount: data.members.length,
+          playlistCount: edges.filter((edge) => edge.role === 'playlist').length,
+          initializationCount: edges.filter((edge) => edge.role === 'initialization').length,
+          segmentCount: edges.filter((edge) => edge.role === 'segment').length,
+        });
+        setHlsGraphState('idle');
+      }
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setHlsGraphError(error instanceof Error ? error.message : 'HLS 资产图读取失败');
+      setHlsGraphState('error');
+    });
+    return () => controller.abort();
+  }, [sourceKind, sourceIdentity, report?.container]);
 
   async function analyzeRegisteredAsset() {
     if (!assetId || !/^[A-Za-z0-9:_-]{1,200}$/.test(assetId) || analysisState === 'loading') return;
@@ -135,6 +187,26 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
               <span className="text-white/55">RPU 存在性</span>
               <span>{currentVerifiedEvidence ? '已验证存在' : '未验证'}</span>
             </div>
+            {sourceKind === 'registry' && report?.container === 'hls' && (
+              <div className="mt-2 rounded-lg border border-white/10 bg-white/5 p-2">
+                <div className="flex justify-between gap-3">
+                  <span className="font-semibold text-white/80">可信 HLS 资产图</span>
+                  <span>{hlsGraphState === 'loading' ? '读取中…' : hlsGraph ? '已读取' : '未验证'}</span>
+                </div>
+                {hlsGraph && hlsGraph.resourceId === sourceIdentity && (
+                  <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-white/65">
+                    <span>资产成员：{hlsGraph.memberCount}</span>
+                    <span>媒体分片：{hlsGraph.segmentCount}</span>
+                    <span>初始化段：{hlsGraph.initializationCount}</span>
+                    <span>嵌套清单：{hlsGraph.playlistCount}</span>
+                  </div>
+                )}
+                {hlsGraphError && <p role="alert" className="mt-1 text-amber-200">{hlsGraphError}</p>}
+                <p className="mt-1 text-[10px] leading-snug text-white/45">
+                  这里只核对不可变资产身份与分片关系；分片级 RPU、帧数和跨分片连续性仍未分析。
+                </p>
+              </div>
+            )}
             {currentVerifiedEvidence && (
               <>
                 <div className="flex justify-between gap-3">
