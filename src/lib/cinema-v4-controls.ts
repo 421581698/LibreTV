@@ -11,7 +11,6 @@ export function nextCinemaPlaybackRate(current: number): number {
 }
 
 export function toggleCinemaPanel(current: CinemaPanel | null, requested: CinemaPanel): CinemaPanel | null {
-  if (requested === 'audio' && current === 'subtitles') return null;
   return current === requested ? null : requested;
 }
 
