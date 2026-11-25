@@ -14,6 +14,7 @@ import os
 import re
 import stat
 import tempfile
+import time
 from pathlib import Path
 from typing import BinaryIO
 
@@ -401,6 +402,149 @@ def _copy_verified_asset(object_root: Path, asset: dict, target: BinaryIO, total
     return copied, actual
 
 
+
+_VALIDATED_GRAPH_CACHE: dict[tuple[str, str, str], dict] = {}
+_VALIDATED_GRAPH_CACHE_TTL_SECONDS = 20 * 60
+_VALIDATED_GRAPH_CACHE_MAX_ENTRIES = 16
+
+
+def _cached_graph_entry(
+    resource_id: str,
+    variant_asset_id: str,
+    object_root: Path,
+) -> dict | None:
+    key = (resource_id, variant_asset_id, str(object_root))
+    entry = _VALIDATED_GRAPH_CACHE.get(key)
+    if entry is None:
+        return None
+    if time.monotonic() - entry["cachedAt"] > _VALIDATED_GRAPH_CACHE_TTL_SECONDS:
+        _VALIDATED_GRAPH_CACHE.pop(key, None)
+        return None
+
+    # Re-check live registry state and the small playlist objects on every hit.
+    # Media members remain content-addressed and are SHA-256 checked when copied.
+    with registry.connect() as connection:
+        resource = connection.execute(
+            """SELECT id,resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
+        graph = connection.execute(
+            """SELECT graph_id,root_asset_id FROM registry_hls_asset_graphs
+               WHERE resource_id=? ORDER BY created_at DESC,graph_id DESC LIMIT 1""",
+            (resource_id,),
+        ).fetchone()
+        root_asset = connection.execute(
+            """SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key
+               FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
+            (entry["rootAssetId"], resource_id),
+        ).fetchone()
+        variant = connection.execute(
+            """SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key
+               FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
+            (variant_asset_id, resource_id),
+        ).fetchone()
+
+    if (not resource or not graph or not root_asset or not variant or
+            graph["graph_id"] != entry["graphId"] or
+            graph["root_asset_id"] != entry["rootAssetId"] or
+            resource["resource_type"] != "DIRECT_MEDIA" or
+            resource["access_state"] != "PUBLIC" or
+            resource["validation_state"] != "validated" or
+            resource["playback_state"] != "PLAYER_CONFIRMED" or
+            resource["media_format"] != "hls" or
+            variant["content_type"] != "application/vnd.apple.mpegurl"):
+        _VALIDATED_GRAPH_CACHE.pop(key, None)
+        return None
+
+    for current, cached in ((root_asset, entry["rootAsset"]), (variant, entry["variant"])):
+        if any(current[field] != cached[field] for field in ("asset_id", "sha256", "byte_length", "content_type", "object_key")):
+            _VALIDATED_GRAPH_CACHE.pop(key, None)
+            return None
+    try:
+        _read_verified_bytes(object_root, dict(root_asset), MAX_PLAYLIST_BYTES)
+        _read_verified_bytes(object_root, dict(variant), MAX_PLAYLIST_BYTES)
+    except HlsAssemblyError:
+        _VALIDATED_GRAPH_CACHE.pop(key, None)
+        return None
+    return entry
+
+
+def _assemble_cached_fragment(
+    entry: dict,
+    fragment_ordinal: int,
+    output_path: str | Path,
+    object_root: Path,
+) -> dict:
+    segment_assets = entry["segmentAssets"]
+    if fragment_ordinal < 0 or fragment_ordinal >= len(segment_assets):
+        raise HlsAssemblyError("Requested HLS fragment ordinal is outside the registered rendition.")
+    asset = segment_assets[fragment_ordinal]
+    init_asset = entry["initAsset"]
+    timing = entry["timeline"][fragment_ordinal]
+    destination = Path(output_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary_segment = None
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", prefix=".dv-hls-segment-", suffix=".mp4",
+            dir=destination.parent, delete=False,
+        ) as target:
+            temporary_segment = Path(target.name)
+            for member in (init_asset, asset):
+                copied, _ = _copy_verified_asset(object_root, member, target, total)
+                total += copied
+            target.flush()
+            os.fsync(target.fileno())
+        with temporary_segment.open("rb") as assembled:
+            for chunk in iter(lambda: assembled.read(CHUNK_SIZE), b""):
+                digest.update(chunk)
+        os.replace(temporary_segment, destination)
+    except Exception:
+        if temporary_segment is not None:
+            temporary_segment.unlink(missing_ok=True)
+        raise
+
+    segment = {
+        **timing,
+        "fragmentSequenceNumber": entry["sequenceNumbers"][fragment_ordinal],
+        "fragmentAssetId": asset["child_asset_id"],
+        "fragmentSha256": asset["sha256"],
+        "fragmentByteLength": asset["byte_length"],
+        "initializationAssetId": init_asset["child_asset_id"],
+        "initializationSha256": init_asset["sha256"],
+        "assembledSegmentByteLength": total,
+        "assembledSegmentSha256": digest.hexdigest(),
+        "outputPath": str(destination),
+    }
+    return {
+        "resourceId": entry["resourceId"],
+        "graphId": entry["graphId"],
+        "graphDigest": entry["graphDigest"],
+        "graphManifest": entry["graphManifest"],
+        "rootAssetId": entry["rootAssetId"],
+        "variantAssetId": entry["variantAssetId"],
+        "initializationAssetId": entry["mapIds"][0],
+        "segmentAssetIds": entry["segmentIds"],
+        "fragmentSequenceNumbers": entry["sequenceNumbers"],
+        "fragmentSequenceContinuity": "sequential",
+        "temporalContinuity": "contiguous",
+        "videoTimeline": entry["timeline"],
+        "segmentInputs": [segment],
+        "assembledByteLength": total,
+        "assembledSha256": digest.hexdigest(),
+        "outputPath": str(destination),
+        "rpuPresence": "unknown",
+        "notes": [
+            "Assembled from SHA-256-verified registered clear fMP4 HLS members.",
+            "Video tfdt decode timestamps exactly follow the preceding fragment's summed sample durations.",
+            "Cached graph metadata is re-bound to live registry state; initialization and requested fragment bytes are SHA-256 verified for each response.",
+        ],
+    }
+
+
 def assemble_registered_hls_fmp4(
     resource_id: str,
     variant_asset_id: str,
@@ -414,6 +558,11 @@ def assemble_registered_hls_fmp4(
     if not re.fullmatch(r"[A-Za-z0-9:_-]{1,200}", variant_asset_id):
         raise HlsAssemblyError("Invalid HLS variant asset ID.")
     root_dir = Path(object_root) if object_root is not None else registry.DV_MEDIA_OBJECT_ROOT
+
+    if isinstance(fragment_ordinal, int) and not isinstance(fragment_ordinal, bool):
+        cached = _cached_graph_entry(resource_id, variant_asset_id, root_dir)
+        if cached is not None:
+            return _assemble_cached_fragment(cached, fragment_ordinal, output_path, root_dir)
 
     with registry.connect() as connection:
         resource = connection.execute(
@@ -588,6 +737,28 @@ def assemble_registered_hls_fmp4(
         not isinstance(fragment_ordinal, int) or fragment_ordinal < 0 or fragment_ordinal >= len(segment_assets)
     ):
         raise HlsAssemblyError("Requested HLS fragment ordinal is outside the registered rendition.")
+
+    cache_key = (resource_id, variant_asset_id, str(root_dir))
+    _VALIDATED_GRAPH_CACHE[cache_key] = {
+        "cachedAt": time.monotonic(),
+        "resourceId": resource_id,
+        "graphId": graph["graph_id"],
+        "graphDigest": graph_digest,
+        "graphManifest": graph_manifest,
+        "rootAssetId": root_asset["asset_id"],
+        "rootAsset": dict(root_asset),
+        "variant": dict(variant),
+        "variantAssetId": variant_asset_id,
+        "initAsset": dict(init_asset),
+        "segmentAssets": [dict(asset) for asset in segment_assets],
+        "segmentIds": segment_ids,
+        "mapIds": map_ids,
+        "sequenceNumbers": sequence_numbers,
+        "timeline": timeline,
+    }
+    if len(_VALIDATED_GRAPH_CACHE) > _VALIDATED_GRAPH_CACHE_MAX_ENTRIES:
+        oldest = min(_VALIDATED_GRAPH_CACHE, key=lambda cache_key: _VALIDATED_GRAPH_CACHE[cache_key]["cachedAt"])
+        _VALIDATED_GRAPH_CACHE.pop(oldest, None)
     destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = None
