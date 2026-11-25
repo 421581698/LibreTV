@@ -215,7 +215,15 @@ process.exit(2);
 
       await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write(['hevc', 'hevc'].join(String.fromCharCode(10)));\n", { mode: 0o700 });
       await chmod(fakeFfprobe, 0o700);
-      const ambiguousVideoTracks = await fetch(endpoint, { method: 'POST', headers, body: media });
+      let ambiguousVideoTracks;
+      // The preceding successful response can reach the client just before the
+      // service finishes its finally cleanup and releases the single-job slot.
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        ambiguousVideoTracks = await fetch(endpoint, { method: 'POST', headers, body: media });
+        if (ambiguousVideoTracks.status !== 429) break;
+        await ambiguousVideoTracks.arrayBuffer();
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
+      }
       assert.equal(ambiguousVideoTracks.status, 415);
       assert.deepEqual(await ambiguousVideoTracks.json(), { error: 'SINGLE_HEVC_VIDEO_TRACK_REQUIRED' });
     } finally {
