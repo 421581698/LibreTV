@@ -111,6 +111,16 @@ jobs:
           test -s /tmp/dolby-vision-profile8.rpu
       - name: Install project dependencies for report-contract validation
         run: npm ci
+      - name: Verify bounded AV1 Dolby T.35 and EMDF extraction
+        run: |
+          node --test scripts/dolby-vision/extract-av1-rpu.test.mjs
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p5-01.bin -o /tmp/dolby-av1-p5-t35.bin
+          curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p84-01.bin -o /tmp/dolby-av1-p8-t35.bin
+          node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p5-t35.bin --output /tmp/dolby-av1-p5.rpu
+          node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p8-t35.bin --output /tmp/dolby-av1-p8.rpu
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p5.rpu > /tmp/dolby-av1-p5-report.json
+          DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p8.rpu > /tmp/dolby-av1-p8-report.json
+          node --input-type=module -e "import fs from 'node:fs'; for (const [p,expected] of [['/tmp/dolby-av1-p5-report.json',5],['/tmp/dolby-av1-p8-report.json',8]]) { const r=JSON.parse(fs.readFileSync(p,'utf8')); if(r.source!=='dovi_tool'||r.rpuPresent!==true||!r.profiles.includes(expected)||r.frameCount<1) throw new Error('AV1 RPU acceptance failed: '+JSON.stringify(r)); console.log(JSON.stringify({profile:expected,parsedProfiles:r.profiles,frames:r.frameCount,rpuSha256:r.rpuSha256})); }"
       - name: Verify private parser service signing and request primitives
         run: node --test services/dolby-vision-parser/server.test.mjs
       - name: Build private parser service container
