@@ -44,8 +44,8 @@ export function IpadCinemaDetailLayout({
 }: IpadCinemaDetailLayoutProps) {
   const displayTitle = title.replace(/([：:])\s+/g, '$1');
   const [overviewExpanded, setOverviewExpanded] = useState(false);
-  const [logoUnavailable, setLogoUnavailable] = useState(false);
-  const showLogo = Boolean(titleLogoUrl && !logoUnavailable);
+  const [unavailableLogoUrl, setUnavailableLogoUrl] = useState('');
+  const showLogo = Boolean(titleLogoUrl && unavailableLogoUrl !== titleLogoUrl);
 
   return (
     <main className="ipad-cinema-detail" data-ipad-detail-page="true">
@@ -88,9 +88,17 @@ export function IpadCinemaDetailLayout({
           <div className="ipad-cinema-kicker">{eyebrow}</div>
           <h1 className={showLogo ? 'ipad-cinema-title--logo' : undefined}>
             {showLogo ? (
-              // TMDB logos are already transparent artwork; a native image element preserves alpha.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="ipad-cinema-title-logo" src={titleLogoUrl} alt={displayTitle} loading="eager" decoding="async" referrerPolicy="no-referrer" onError={() => setLogoUnavailable(true)} />
+              <SmartImage
+                url={titleLogoUrl}
+                mode={imageMode}
+                customProxy={customImageProxy}
+                className="ipad-cinema-title-logo"
+                alt={displayTitle}
+                loading="eager"
+                showDefaultFallback={false}
+                minimumWidth={180}
+                onExhausted={() => setUnavailableLogoUrl(titleLogoUrl || '')}
+              />
             ) : displayTitle}
           </h1>
           {originalTitle && originalTitle !== title ? <p className="ipad-cinema-original">{originalTitle}</p> : null}
