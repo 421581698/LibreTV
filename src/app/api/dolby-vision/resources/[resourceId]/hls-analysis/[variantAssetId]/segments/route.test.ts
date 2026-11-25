@@ -142,7 +142,8 @@ describe('POST HLS fragment-set analysis', () => {
     });
     const body = await response.json();
 
-    expect(response.status, JSON.stringify(body)).toBe(200);
+    if (response.status !== 200) throw new Error(`HLS segment route returned ${response.status}: ${JSON.stringify(body)}`);
+    expect(response.status).toBe(200);
     expect(body).toMatchObject({
       verified: true,
       analysisScope: 'hls-fmp4-segment-set',
@@ -180,7 +181,8 @@ describe('POST HLS fragment-set analysis', () => {
       params: Promise.resolve({ resourceId, variantAssetId }),
     });
     const body = await response.json();
-    expect(response.status, JSON.stringify(body)).toBe(502);
+    if (response.status !== 502) throw new Error(`HLS segment signature route returned ${response.status}: ${JSON.stringify(body)}`);
+    expect(response.status).toBe(502);
     expect(body).toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
   });
 });
