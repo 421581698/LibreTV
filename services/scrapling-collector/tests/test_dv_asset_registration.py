@@ -110,7 +110,7 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
         object_path.write_bytes(payload)
 
         response = registry.api_get_dolby_vision_media_asset_content(
-            asset["asset_id"], "Bearer collector-registration-test-token"
+            asset["asset_id"], f"Bearer {registry.TOKEN}"
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["ETag"], f'"{digest}"')
@@ -135,7 +135,7 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
                 with self.assertRaises(registry.HTTPException) as error:
                     registry.api_get_dolby_vision_media_asset_content(
                         asset["asset_id"],
-                        "Bearer collector-registration-test-token",
+                        f"Bearer {registry.TOKEN}",
                         range_header,
                     )
                 self.assertEqual(error.exception.status_code, 409)
