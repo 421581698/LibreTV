@@ -1860,6 +1860,47 @@ jobs:
                 }, undefined, { timeout: 3000 });
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-drag-seek", seekPosition: 64, seekCalls: 1 }));
 
+                // Simulate a real touch stream, not synthetic pointer dispatch or
+                // input.value assignment. This exercises touch-action:none and
+                // pointer capture on iPad-like mobile Chromium.
+                const touchControlBounds = await seekControl.boundingBox();
+                if (!touchControlBounds) throw new Error("Missing seek surface for touch stream.");
+                const touchY = touchControlBounds.y + touchControlBounds.height / 2;
+                const touchXStart = touchControlBounds.x + touchControlBounds.width * 0.25;
+                const touchXEnd = touchControlBounds.x + touchControlBounds.width * 0.65;
+                const expectedTouchTime = duration * 0.65;
+                await page.evaluate(() => { window.__mockSeekCount = 0; });
+                const touchSession = await context.newCDPSession(page);
+                try {
+                  await touchSession.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+                  await touchSession.send("Input.dispatchTouchEvent", {
+                    type: "touchStart", touchPoints: [{ x: touchXStart, y: touchY, id: 1, force: 1 }],
+                  });
+                  for (let step = 1; step <= 6; step += 1) {
+                    await touchSession.send("Input.dispatchTouchEvent", {
+                      type: "touchMove",
+                      touchPoints: [{ x: touchXStart + (touchXEnd - touchXStart) * step / 6, y: touchY, id: 1, force: 1 }],
+                    });
+                  }
+                  await page.waitForFunction(({ expected }) => {
+                    const value = Number(document.querySelector(".cinema-seek-surface")?.getAttribute("aria-valuenow"));
+                    return Math.abs(value - expected) < 2 && window.__mockSeekCount === 0;
+                  }, { expected: expectedTouchTime }, { timeout: 4000 });
+                  await touchSession.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+                  await page.waitForFunction(({ expected }) => {
+                    const video = document.querySelector(".netflix-player-frame video");
+                    const slider = document.querySelector(".cinema-seek-surface");
+                    return video && slider && Math.abs(video.currentTime - expected) < 2 &&
+                      Math.abs(Number(slider.getAttribute("aria-valuenow")) - expected) < 2 &&
+                      window.__mockSeekCount === 1 &&
+                      !document.querySelector(".netflix-watch-shell")?.classList.contains("cinema-controls-scrubbing");
+                  }, { expected: expectedTouchTime }, { timeout: 4000 });
+                } finally {
+                  await touchSession.detach();
+                }
+                console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-touch-drag-seek",
+                  position: expectedTouchTime, seekCalls: 1 }));
+
                 // A blank-surface tap while paused must not hide the controls.
                 const pausedFrame = await page.locator(".netflix-player-frame").boundingBox();
                 if (!pausedFrame) throw new Error("Player frame has no bounds for paused-tap test.");
