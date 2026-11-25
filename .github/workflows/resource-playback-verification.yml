@@ -147,10 +147,32 @@ jobs:
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-regular.mkv > /tmp/dolby-vision-mkv-report.json
           node scripts/dolby-vision/assert-full-rpu-report.mjs --report /tmp/dolby-vision-mkv-report.json --input /tmp/dolby-vision-regular.mkv --expected-frames 259
           DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-mkv-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
-      - name: Verify real MP4 upload, HEVC demux, full RPU scan and signed evidence
+      - name: Verify Docker parser container HTTP upload, HEVC demux, full RPU scan and signed evidence
         env:
-          DOVI_TOOL_BIN: /usr/local/bin/dovi_tool
-        run: node scripts/dolby-vision/verify-parser-service-fixture.mjs /tmp/dolby-vision-regular.mp4
+          DV_CI_SERVICE_TOKEN: ci-real-fixture-token
+          DV_CI_KEY_ID: ci-real-fixture-key
+          DV_PARSER_BASE_URL: http://127.0.0.1:8788
+          DV_CI_PUBLIC_KEY_FILE: /tmp/dv-signing-public-key.pem
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm ED25519 -out /tmp/dv-signing-private-key.pem
+          openssl pkey -in /tmp/dv-signing-private-key.pem -pubout -out /tmp/dv-signing-public-key.pem
+          chmod 0444 /tmp/dv-signing-private-key.pem
+          docker run --detach --name libretv-dv-parser-ci             --publish 127.0.0.1:8788:8788             --env DV_SERVICE_TOKEN="$DV_CI_SERVICE_TOKEN"             --env DV_SIGNING_KEY_ID="$DV_CI_KEY_ID"             --env DV_SIGNING_PRIVATE_KEY_FILE=/run/secrets/dv-signing-private-key.pem             --mount type=bind,src=/tmp/dv-signing-private-key.pem,dst=/run/secrets/dv-signing-private-key.pem,readonly             libretv-dolby-vision-parser:ci
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then docker logs libretv-dv-parser-ci || true; fi
+            docker rm -f libretv-dv-parser-ci >/dev/null 2>&1 || true
+            exit "$status"
+          }
+          trap cleanup EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8788/health >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" -eq 1
+          node scripts/dolby-vision/verify-parser-service-fixture.mjs /tmp/dolby-vision-regular.mp4
 
   collector-verification:
     runs-on: ubuntu-latest
