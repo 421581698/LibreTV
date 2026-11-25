@@ -1174,6 +1174,26 @@ function WatchContent() {
                       setWatchClock((current) => ({ ...current, position }));
                     }
                   }}
+                  onTouchStart={(event) => {
+                    if (!isIpadEditionPlayback || !hasFiniteDuration) return;
+                    const touch = event.touches[0];
+                    if (!touch) return;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    if (rect.width <= 0) return;
+                    const position = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width)) * watchClock.duration;
+                    scrubbingPositionRef.current = position;
+                    setScrubbingPosition(position);
+                  }}
+                  onTouchMove={(event) => {
+                    if (!isIpadEditionPlayback || !hasFiniteDuration || !scrubbingRef.current) return;
+                    const touch = event.touches[0];
+                    if (!touch) return;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    if (rect.width <= 0) return;
+                    const position = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width)) * watchClock.duration;
+                    scrubbingPositionRef.current = position;
+                    setScrubbingPosition(position);
+                  }}
                   onPointerDown={() => {
                     // The shell capture listener starts the scrub lifecycle.
                     // Do not call setPointerCapture here: iOS Safari's native
