@@ -96,14 +96,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Install pinned dovi_tool 2.3.4
+      - name: Set up pinned Rust toolchain for dovi_tool
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+      - name: Build pinned AV1-capable dovi_tool 2.3.4
         run: |
-          curl -fsSL https://github.com/quietvoid/dovi_tool/releases/download/2.3.4/dovi_tool-2.3.4-x86_64-unknown-linux-musl.tar.gz -o /tmp/dovi_tool.tar.gz
-          mkdir -p /tmp/dovi_tool
-          tar -xzf /tmp/dovi_tool.tar.gz -C /tmp/dovi_tool
-          binary="$(find /tmp/dovi_tool -type f -name dovi_tool -print -quit)"
-          test -n "$binary"
-          install -m 0755 "$binary" /usr/local/bin/dovi_tool
+          git clone https://github.com/quietvoid/dovi_tool.git /tmp/dovi_tool-src
+          git -C /tmp/dovi_tool-src checkout --detach 41dae646193c12de152333ff5dbc33579cb9ef4a
+          cd /tmp/dovi_tool-src
+          cargo build --locked --release --no-default-features --features internal-font --bin dovi_tool
+          install -m 0755 target/release/dovi_tool /usr/local/bin/dovi_tool
           dovi_tool --version
       - name: Fetch upstream parser RPU fixture
         run: |
