@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import re
 import stat
@@ -207,12 +208,17 @@ def assemble_registered_hls_fmp4(
                WHERE resource_id=? ORDER BY created_at DESC,graph_id DESC LIMIT 1""",
             (resource_id,),
         ).fetchone()
+        root_asset = connection.execute(
+            """SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key
+               FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
+            (graph["root_asset_id"], resource_id),
+        ).fetchone() if graph else None
         variant = connection.execute(
             """SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key
                FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
             (variant_asset_id, resource_id),
         ).fetchone()
-        if not resource or not graph or not variant:
+        if not resource or not graph or not root_asset or not variant:
             raise HlsAssemblyError("Verified HLS resource, graph, or selected variant was not found.")
         if (resource["resource_type"] != "DIRECT_MEDIA" or resource["access_state"] != "PUBLIC" or
                 resource["validation_state"] != "validated" or resource["playback_state"] != "PLAYER_CONFIRMED" or
@@ -315,6 +321,44 @@ def assemble_registered_hls_fmp4(
         previous_sequence = sequence
         sequence_numbers.append(sequence)
 
+    # Bind the analysis input to a deterministic digest of the exact registered
+    # root/variant/init/segment identities and their order. This is provenance,
+    # not a substitute for the later Ed25519 parser signature.
+    graph_manifest = {
+        "version": 1,
+        "resourceId": resource_id,
+        "graphId": graph["graph_id"],
+        "root": {
+            "assetId": root_asset["asset_id"],
+            "sha256": root_asset["sha256"],
+            "byteLength": root_asset["byte_length"],
+            "contentType": root_asset["content_type"],
+        },
+        "variant": {
+            "assetId": variant["asset_id"],
+            "sha256": variant["sha256"],
+            "byteLength": variant["byte_length"],
+            "contentType": variant["content_type"],
+        },
+        "members": [
+            {
+                "role": role,
+                "ordinal": ordinal,
+                "assetId": asset["asset_id"],
+                "sha256": asset["sha256"],
+                "byteLength": asset["byte_length"],
+                "contentType": asset["content_type"],
+            }
+            for ordinal, (role, asset) in enumerate(
+                [("initialization", init_asset), *(("segment", item) for item in segment_assets)]
+            )
+        ],
+        "fragmentSequenceNumbers": sequence_numbers,
+    }
+    graph_digest = hashlib.sha256(
+        json.dumps(graph_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    ).hexdigest()
+
     destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = None
@@ -343,6 +387,9 @@ def assemble_registered_hls_fmp4(
     return {
         "resourceId": resource_id,
         "graphId": graph["graph_id"],
+        "graphDigest": graph_digest,
+        "graphManifest": graph_manifest,
+        "rootAssetId": root_asset["asset_id"],
         "variantAssetId": variant_asset_id,
         "initializationAssetId": map_ids[0],
         "segmentAssetIds": segment_ids,
