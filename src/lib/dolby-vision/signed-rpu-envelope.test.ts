@@ -229,6 +229,7 @@ describe('signed Dolby Vision RPU envelope', () => {
     expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, trusted)).toMatchObject({
       totalRpuFrameCount: 480,
       timelineContinuity: 'contiguous',
+      rpuProfileContinuity: 'consistent',
       rpuSemanticContinuity: 'not-established',
     });
     expect(verifySignedDolbyVisionRpuSegmentSet(envelopes, {
@@ -243,6 +244,18 @@ describe('signed Dolby Vision RPU envelope', () => {
       ...trusted,
       expectedSegments: [expectedSegments[0], { ...expectedSegments[1], fragmentAssetId: expectedSegments[0].fragmentAssetId }],
     })).toBeNull();
+    const changedProfile = {
+      ...envelopes[1],
+      report: {
+        ...report,
+        profile: 7,
+        profiles: [7],
+        sourceMediaSha256: expectedSegments[1].assembledSegmentSha256,
+      },
+    };
+    const { signature: _oldSignature, ...changedPayload } = changedProfile;
+    const changedSignature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(changedPayload)), privateKey).toString('base64url');
+    expect(verifySignedDolbyVisionRpuSegmentSet([envelopes[0], { ...changedProfile, signature: changedSignature }], trusted)).toBeNull();
   });
 
   it('rejects media digest mismatch, expired reports and reports issued in the future', () => {
