@@ -269,9 +269,11 @@ def ingest_hls_directory(
                 rewritten.append(line)
                 continue
             if stripped.startswith("#"):
-                if "URI=" in line:
-                    if not URI_ATTRIBUTE.search(line):
-                        raise HlsIngestionError("HLS URI attributes must use the quoted RFC format.")
+                if re.search(r"\\bURI\\s*=", line, re.IGNORECASE):
+                    matches = list(URI_ATTRIBUTE.finditer(line))
+                    uri_attribute_count = len(re.findall(r"\\bURI\\s*=", line, re.IGNORECASE))
+                    if not matches or len(matches) != uri_attribute_count:
+                        raise HlsIngestionError("HLS URI attributes must use the exact quoted RFC format.")
                     def replace_uri(match):
                         nonlocal member_ordinal
                         uri = _safe_relative_uri(match.group(1))
