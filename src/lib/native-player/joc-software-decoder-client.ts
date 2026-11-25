@@ -43,7 +43,7 @@ export class JocSoftwareDecoderClient {
   private readonly listeners = new Set<(status: JocDecoderStatus) => void>();
   private readonly pcmListeners = new Set<(frame: JocDecoderPcmFrame) => void>();
   private readonly errorListeners = new Set<(error: Error) => void>();
-  private readonly pending = new Map<string, Array<() => void>>();
+  private readonly pending = new Map<string, Array<{ resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>>();
 
   private constructor(context: AudioContext, worker: Worker) {
     this.context = context;
@@ -213,33 +213,27 @@ export class JocSoftwareDecoderClient {
 
   private waitFor(type: string, send: () => void): Promise<void> {
     return new Promise((resolve, reject) => {
-      const timeout = window.setTimeout(() => {
-        this.pending.delete(type);
-        reject(new Error(`Timed out waiting for OpenJOC ${type}.`));
-      }, 10000);
-      const finish = (): void => {
-        window.clearTimeout(timeout);
-        this.pending.delete(type);
-        resolve();
+      const entry = {
+        resolve: () => { clearTimeout(entry.timer); resolve(); },
+        reject: (error: Error) => { clearTimeout(entry.timer); reject(error); },
+        timer: setTimeout(() => {
+          const entries = this.pending.get(type) ?? [];
+          this.pending.set(type, entries.filter(candidate => candidate !== entry));
+          reject(new Error(`Timed out waiting for OpenJOC ${type}.`));
+        }, 10000),
       };
-      const rejectPending = (error: Error): void => {
-        window.clearTimeout(timeout);
-        this.pending.delete(type);
-        reject(error);
-      };
-      const previous = this.pending.get(type) ?? [];
-      previous.push(finish);
-      this.pending.set(type, previous);
-      this.errorListeners.add(rejectPending);
+      const entries = this.pending.get(type) ?? [];
+      entries.push(entry);
+      this.pending.set(type, entries);
       send();
     });
   }
 
   private settle(type: string): void {
-    const callbacks = this.pending.get(type);
-    if (!callbacks) return;
-    callbacks.forEach(callback => callback());
+    const entries = this.pending.get(type);
+    if (!entries) return;
     this.pending.delete(type);
+    entries.forEach(entry => entry.resolve());
   }
 
   private onWorkerMessage = (event: MessageEvent<WorkerReply>): void => {
@@ -286,7 +280,7 @@ export class JocSoftwareDecoderClient {
     this.ready = false;
     for (const listener of this.errorListeners) listener(error);
     this.emitStatus();
-    for (const callbacks of this.pending.values()) callbacks.forEach(callback => callback());
+    for (const entries of this.pending.values()) entries.forEach(entry => entry.reject(error));
     this.pending.clear();
   }
 
