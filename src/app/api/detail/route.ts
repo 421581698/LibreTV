@@ -42,6 +42,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: '无效的点播源配置' }, { status: 400 });
   }
 
+  // Disabled providers must be rejected by detail as well as search; otherwise a direct ID request bypasses the source policy.
+  try {
+    const parsedSourceUrl = new URL(source.url);
+    const host = parsedSourceUrl.hostname.toLowerCase();
+    if (source.key.trim().toLowerCase() === 'bfzy' || host === 'bfzyapi.com' || host.endsWith('.bfzyapi.com')) {
+      return NextResponse.json({ error: '该点播源已停用' }, { status: 403 });
+    }
+  } catch {
+    return NextResponse.json({ error: '无效的点播源配置' }, { status: 400 });
+  }
+
   try {
     // 详情页根地址：显式 detail 优先，其次 baseUrl 参数，最后用接口地址的 origin 推导
     // （Apple CMS 的详情页通常与接口同域）。脏 URL 会让 new URL 抛错，由外层 catch 兜底
