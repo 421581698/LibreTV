@@ -20,7 +20,7 @@ describe('built-in CMS sources', () => {
       { key: 'dbm3u8', name: '百度资源', type: 1, weight: 5 },
       { key: 'zuidam3u8', name: '最大资源', type: 1, weight: 6 },
     ]);
-    expect(BUILTIN_SOURCES.every((source) => source.api === source.url && source.from?.startsWith('https://'))).toBe(true);
+    expect(BUILTIN_SOURCES.every((source) => source.api === `${source.url}/?ac=list` && source.from?.startsWith('https://'))).toBe(true);
   });
 
   it('returns built-ins by default so the status API exposes them without deployment env', () => {
