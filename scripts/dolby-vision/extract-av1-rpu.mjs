@@ -92,9 +92,9 @@ function readLeb128(data, offset) {
   throw new Error('AV1 OBU size LEB128 is truncated or overlong.');
 }
 
-export function extractDolbyRpuFromObuStream(inputValue) {
+function parseDolbyRpuObuStream(inputValue) {
   const data = Buffer.from(inputValue);
-  const rpus = [];
+  const t35Payloads = [];
   const rpuTemporalUnits = new Set();
   let offset = 0, obuCount = 0, temporalUnit = -1, temporalDelimiterCount = 0, frameUnitCount = 0;
   const framesByTemporalUnit = new Map();
@@ -126,23 +126,75 @@ export function extractDolbyRpuFromObuStream(inputValue) {
       const metadataType = readLeb128(payload, 0);
       if (metadataType.value === 4) {
         if (temporalUnit < 0) throw new Error('Dolby T.35 metadata appeared before a temporal delimiter.');
-        if (rpus.length >= MAX_RPU_UNITS) throw new Error('AV1 Dolby RPU count exceeds configured limit.');
-        const rpu = extractDolbyRpuFromT35(payload.subarray(metadataType.next));
-        rpus.push(rpu);
+        if (t35Payloads.length >= MAX_RPU_UNITS) throw new Error('AV1 Dolby RPU count exceeds configured limit.');
+        t35Payloads.push(payload.subarray(metadataType.next));
         rpuTemporalUnits.add(temporalUnit);
         rpuUnits.push({ ordinal: rpuUnits.length, temporalUnitIndex: temporalUnit });
       }
     }
   }
-  if (offset !== data.length || temporalDelimiterCount === 0 || frameUnitCount === 0 || rpus.length === 0) {
+  if (offset !== data.length || temporalDelimiterCount === 0 || frameUnitCount === 0 || t35Payloads.length === 0) {
     throw new Error('AV1 stream lacks complete temporal delimiters, frame units, or Dolby RPU metadata.');
   }
   for (const unit of rpuTemporalUnits) {
     if ((framesByTemporalUnit.get(unit) || 0) === 0) throw new Error('Dolby RPU metadata is not aligned with a frame in its temporal unit.');
   }
   return {
+    t35Payloads,
+    report: {
+      obuCount,
+      temporalDelimiterCount,
+      temporalUnitCount: temporalDelimiterCount,
+      frameUnitCount,
+      dolbyRpuCount: t35Payloads.length,
+      rpuTemporalUnitCount: rpuTemporalUnits.size,
+      rpuUnits: rpuUnits.map((unit) => ({ ...unit, frameUnitCount: framesByTemporalUnit.get(unit.temporalUnitIndex) || 0 })),
+    },
+  };
+}
+
+export function extractDolbyRpuFromObuStream(inputValue) {
+  const parsed = parseDolbyRpuObuStream(inputValue);
+  const rpus = parsed.t35Payloads.map((payload) => extractDolbyRpuFromT35(payload));
+  return {
     rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
-    report: { obuCount, temporalDelimiterCount, temporalUnitCount: temporalDelimiterCount, frameUnitCount, dolbyRpuCount: rpus.length, rpuTemporalUnitCount: rpuTemporalUnits.size, rpuUnits: rpuUnits.map((unit) => ({ ...unit, frameUnitCount: framesByTemporalUnit.get(unit.temporalUnitIndex) || 0 })) },
+    report: parsed.report,
+  };
+}
+
+async function convertT35PayloadWithLibdovi(payload, directory, ordinal, options = {}) {
+  const converter = options.converter || process.env.AV1_RPU_CONVERTER_BIN;
+  if (!converter) return extractDolbyRpuFromT35(payload);
+  const inputPath = resolve(directory, `t35-${ordinal.toString().padStart(6, '0')}.bin`);
+  const outputPath = resolve(directory, `rpu-${ordinal.toString().padStart(6, '0')}.bin`);
+  await writeFile(inputPath, payload, { flag: 'wx', mode: 0o600 });
+  const { stdout } = await execFileAsync(converter, [inputPath, outputPath], {
+    encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024, windowsHide: true,
+  });
+  const rpu = await readFile(outputPath);
+  if (rpu.length < 25 || rpu.length > 1024 * 1024 || rpu[0] !== 0x19 || rpu[rpu.length - 1] !== 0x80) {
+    throw new Error('libdovi returned an invalid regular RPU payload.');
+  }
+  let converterReport;
+  try { converterReport = JSON.parse(stdout); } catch {
+    throw new Error('libdovi converter returned an invalid report.');
+  }
+  if (!Number.isInteger(converterReport.profile) || converterReport.profile < 0 ||
+      converterReport.profile > 20 || converterReport.rpuByteLength !== rpu.length) {
+    throw new Error('libdovi converter report does not match its RPU output.');
+  }
+  return rpu;
+}
+
+async function extractDolbyRpuFromObuStreamWithLibdovi(inputValue, directory, options = {}) {
+  const parsed = parseDolbyRpuObuStream(inputValue);
+  const rpus = [];
+  for (let ordinal = 0; ordinal < parsed.t35Payloads.length; ordinal += 1) {
+    rpus.push(await convertT35PayloadWithLibdovi(parsed.t35Payloads[ordinal], directory, ordinal, options));
+  }
+  return {
+    rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
+    report: parsed.report,
   };
 }
 
