@@ -74,11 +74,11 @@ afterEach(() => {
 describe('validateSources', () => {
   it('preserves validated CMS provider metadata without accepting cross-origin metadata URLs', () => {
     const sources = validateSources([{
-      key: 'gsm3u8',
-      name: '光速资源',
-      url: 'https://api.guangsuapi.com/api.php/provide/vod',
-      api: 'https://api.guangsuapi.com/api.php/provide/vod/?ac=list',
-      from: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/',
+      key: 'cms-fixture',
+      name: '通用测试源',
+      url: 'https://cms-fixture.example/api.php/provide/vod',
+      api: 'https://cms-fixture.example/api.php/provide/vod/?ac=list',
+      from: 'https://cms-fixture.example/api.php/provide/vod/from/cms-fixture/',
       type: 1,
       weight: 1,
     }, {
@@ -91,9 +91,9 @@ describe('validateSources', () => {
       weight: 2,
     }]);
     expect(sources[0]).toMatchObject({
-      key: 'gsm3u8',
-      api: 'https://api.guangsuapi.com/api.php/provide/vod/?ac=list',
-      from: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/',
+      key: 'cms-fixture',
+      api: 'https://cms-fixture.example/api.php/provide/vod/?ac=list',
+      from: 'https://cms-fixture.example/api.php/provide/vod/from/cms-fixture/',
       type: 1,
       weight: 1,
     });
