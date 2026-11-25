@@ -157,6 +157,17 @@ function parseDolbyRpuObuStream(inputValue) {
   for (const unit of rpuTemporalUnits) {
     if ((framesByTemporalUnit.get(unit) || 0) === 0) throw new Error('Dolby RPU metadata is not aligned with a frame in its temporal unit.');
   }
+  // A temporal-unit match alone does not prove per-frame alignment. Fail closed
+  // when there are multiple frames, multiple RPUs, or frames without metadata.
+  // Frame-header (OBU type 3) and complete-frame (type 6) combinations require
+  // deeper frame assembly and must not be treated as signed one-to-one proof.
+  for (let unit = 0; unit < temporalDelimiterCount; unit += 1) {
+    const frameCount = framesByTemporalUnit.get(unit) || 0;
+    const rpuCount = rpuUnits.filter((rpu) => rpu.temporalUnitIndex === unit).length;
+    if (frameCount !== 1 || rpuCount !== 1) {
+      throw new Error('AV1 Dolby RPU alignment requires exactly one frame and one RPU per temporal unit.');
+    }
+  }
   return {
     t35Payloads,
     report: {
