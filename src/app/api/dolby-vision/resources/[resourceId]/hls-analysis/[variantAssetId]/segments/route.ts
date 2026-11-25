@@ -154,6 +154,7 @@ export async function POST(
         !/^[A-Za-z0-9:_-]{1,200}$/.test(currentGraph.graphId) ? 'graph-id' : null,
         !/^[a-f0-9]{64}$/.test(currentGraph.graphSha256) ? 'graph-sha256' : null,
         !/^[A-Za-z0-9:_-]{1,200}$/.test(currentGraph.rootAssetId) ? 'root-asset-id' : null,
+        (fragment.headers.get('x-dv-hls-resource-id') ?? '') !== resourceId ? 'resource-id' : null,
         currentGraph.variantAssetId !== variantAssetId ? 'variant-asset-id' : null,
         currentGraph.fragmentCount === null || currentGraph.fragmentCount > 10_000 ? 'fragment-count' : null,
         fragmentOrdinal !== ordinal ? 'fragment-ordinal' : null,
