@@ -306,6 +306,8 @@ export class JocSoftwareDecoderClient {
       pendingStart.forEach(entry => entry.reject(new Error('Software output activation was cancelled.')));
     }
     this.node?.port.postMessage({ type: 'stop' });
+    this.node?.port.postMessage({ type: 'clear' });
+    this.queuedFrames = 0;
     if (this.clockRaf) cancelAnimationFrame(this.clockRaf);
     this.clockRaf = 0;
     if (this.activeVideo && this.ownsMediaMute) this.activeVideo.muted = this.previousMuted;
