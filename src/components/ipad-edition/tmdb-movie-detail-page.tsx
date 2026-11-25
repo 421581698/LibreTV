@@ -168,16 +168,6 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const releaseYear = (movie?.release_date || movie?.first_air_date || '').slice(0, 4);
   const runtime = movie?.runtime || movie?.episode_run_time?.[0];
   const rating = movie?.vote_average || Number(ratingFallback) || 0;
-  const logos = (movie?.images?.logos || []).filter((item) =>
-    typeof item.file_path === 'string' && /^\/[A-Za-z0-9_-]+\.(?:png|svg)$/i.test(item.file_path) &&
-    Number.isFinite(item.width) && Number.isFinite(item.height) &&
-    (item.width || 0) >= 180 && (item.height || 0) >= 32,
-  );
-  const logo = [...logos].sort((a, b) => {
-    const languageRank = (value: string | null | undefined) => value === 'zh' ? 0 : value === 'en' ? 1 : value == null ? 2 : 3;
-    return languageRank(a.iso_639_1) - languageRank(b.iso_639_1)
-      || (b.width || 0) * (b.height || 0) - (a.width || 0) * (a.height || 0);
-  })[0]?.file_path;
   const trailers = movie?.videos?.results || [];
   const trailer = trailers.find((item) => item.site === 'YouTube' && item.type === 'Trailer' && item.official && /^[A-Za-z0-9_-]{11}$/.test(item.key || ''))
     || trailers.find((item) => item.site === 'YouTube' && item.type === 'Trailer' && /^[A-Za-z0-9_-]{11}$/.test(item.key || ''));
@@ -197,7 +187,6 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       imageMode={imageProxyMode}
       customImageProxy={customImageProxy}
       originalTitle={movie.original_title || movie.original_name || undefined}
-      titleLogoUrl={logo ? imageUrl(logo, 'w500') : undefined}
       metadata={
         <>
           {movie.genres?.slice(0, 3).map((genre) => <span key={genre.id}>{genre.name}</span>)}
