@@ -33,6 +33,31 @@ export interface JocCmafExtractionResult {
   readonly totalPayloadBytes: number;
 }
 
+/**
+ * Maps an access-unit PTS onto the hls.js media timeline using the HLS
+ * fragment start as the anchor for the first access unit in that fragment.
+ * This is a timeline transform only; callers must still validate it against
+ * real media/device playback before enabling software output.
+ */
+export function mapJocPresentationTimeToMediaSamples(
+  presentationTime: number,
+  timescale: number,
+  fragmentStartSeconds: number,
+  anchorPresentationTime: number,
+): number {
+  if (![presentationTime, timescale, fragmentStartSeconds, anchorPresentationTime].every(Number.isFinite) ||
+      timescale <= 0) {
+    throw new Error('JOC media timeline mapping requires finite timestamps and a positive timescale.');
+  }
+  const mapped = fragmentStartSeconds * 48_000 +
+    (presentationTime - anchorPresentationTime) * 48_000 / timescale;
+  const rounded = Math.round(mapped);
+  if (!Number.isSafeInteger(rounded)) {
+    throw new Error('JOC media timeline mapping exceeds the safe sample clock range.');
+  }
+  return rounded;
+}
+
 const DEFAULT_MAX_SAMPLES = 4096;
 const DEFAULT_MAX_SAMPLE_BYTES = 1024 * 1024;
 const DEFAULT_MAX_SEGMENT_PAYLOAD_BYTES = 8 * 1024 * 1024;
