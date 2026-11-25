@@ -1118,7 +1118,7 @@ export function PlayerShell({
       };
 
       const onOutputGesture = () => {
-        if (!jocOutputEnabled || !decoderClient || !video || video.paused || video.ended) return;
+        if (!jocOutputEnabled || !decoderClient || decoderClient.isOutputActive || decoderClient.isActivationPending || !video || video.paused || video.ended) return;
         decoderClient.setMediaClock(video.currentTime * 48000);
         void decoderClient.activateOutput(video).then(active => {
           if (!active) emitJocEvent('software-output-not-ready', {
@@ -1129,6 +1129,7 @@ export function PlayerShell({
       };
 
       const onVideoPause = () => decoderClient?.pauseOutput();
+      const onVideoVolumeChange = () => decoderClient?.updateOutputVolume(video.volume);
       const onVideoPlay = () => decoderClient?.resumeOutput();
       const onVideoSeeking = () => {
         decoderClient?.fallbackToMediaAudio();
@@ -1152,6 +1153,7 @@ export function PlayerShell({
         containerRef.current?.addEventListener('pointerdown', onOutputGesture, true);
       }
       video.addEventListener('pause', onVideoPause);
+      video.addEventListener('volumechange', onVideoVolumeChange);
       video.addEventListener('play', onVideoPlay);
       video.addEventListener('seeking', onVideoSeeking);
       video.addEventListener('ratechange', onVideoRateChange);
@@ -1201,8 +1203,15 @@ export function PlayerShell({
               if (decodeFailed || hlsRef.current !== hls || packetGeneration !== decodeGeneration) return;
               const client = await ensureDecoder();
               if (result.discontinuities.length > 0) {
+                // Discontinuity records do not identify a precise sample offset.
+                // Reset and skip this segment rather than guessing packet order.
                 client.fallbackToMediaAudio();
                 await client.reset();
+                emitJocEvent('timeline-discontinuity-reset', {
+                  count: result.discontinuities.length,
+                  skippedPackets: result.packets.length,
+                });
+                return;
               }
               for (let index = 0; index < result.packets.length; index += 1) {
                 if (packetGeneration !== decodeGeneration) return;
@@ -1217,7 +1226,7 @@ export function PlayerShell({
                   bytes: packet.bytes,
                   presentationTime: mappedPts,
                   timescale: 48000,
-                  discontinuity: index === 0 && result.discontinuities.length > 0,
+                  discontinuity: false,
                 });
                 if (!accepted) throw new Error('OpenJOC PCM backpressure did not clear before the next CMAF sample.');
               }
@@ -1241,7 +1250,9 @@ export function PlayerShell({
         jocTap.dispose();
         hls.off(Hls.Events.FRAG_LOADED, jocTap.handle);
         containerRef.current?.removeEventListener('pointerdown', onOutputGesture, true);
+        decodeGeneration += 1;
         video.removeEventListener('pause', onVideoPause);
+        video.removeEventListener('volumechange', onVideoVolumeChange);
         video.removeEventListener('play', onVideoPlay);
         video.removeEventListener('seeking', onVideoSeeking);
         video.removeEventListener('ratechange', onVideoRateChange);
