@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 
 WORKDIR /app
 COPY scripts/dolby-vision/analyze-rpu.mjs /app/scripts/dolby-vision/analyze-rpu.mjs
+COPY scripts/dolby-vision/extract-av1-rpu.mjs /app/scripts/dolby-vision/extract-av1-rpu.mjs
 COPY services/dolby-vision-parser/server.mjs /app/services/dolby-vision-parser/server.mjs
+RUN node --check /app/scripts/dolby-vision/extract-av1-rpu.mjs
 USER node
 ENV NODE_ENV=production
 EXPOSE 8788
