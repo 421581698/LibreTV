@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { guardPrivateFeatureRequest } from '@/lib/api-guard';
 import { isAuthDisabled } from '@/lib/auth';
@@ -128,7 +129,8 @@ export async function POST(
         !Number.isSafeInteger(fragmentCount) || fragmentCount < 1 || fragmentCount > 10_000 ||
         sequenceContinuity !== 'sequential' || temporalContinuity !== 'unknown' ||
         rpuPresence !== 'unknown' || contentType !== 'video/mp4' ||
-        !Number.isSafeInteger(contentLength) || contentLength <= 0 || !assembly.body) {
+        !Number.isSafeInteger(contentLength) || contentLength <= 0 ||
+        contentLength > 512 * 1024 * 1024 || !assembly.body) {
       await assembly.body?.cancel();
       return NextResponse.json({ code: 'DV_HLS_ASSEMBLY_BINDING_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
     }
@@ -144,7 +146,7 @@ export async function POST(
       fragmentSequenceContinuity: 'sequential' as const,
       temporalContinuity: 'unknown' as const,
     };
-    const syntheticAssetId = `hls:${resourceId}:${variantAssetId}`;
+    const syntheticAssetId = `hls:${createHash('sha256').update(`${resourceId}\\0${variantAssetId}`).digest('hex')}`;
     const parserResponse = await fetch(`${parserUrl}/v1/analyze`, {
       method: 'POST',
       headers: {
@@ -159,7 +161,7 @@ export async function POST(
         'X-DV-HLS-Graph-ID': graphId,
         'X-DV-HLS-Graph-SHA256': graphSha256,
         'X-DV-HLS-Root-Asset-ID': rootAssetId,
-        'X-DV-HLS-Variant-ASSET-ID': variantAssetId,
+        'X-DV-HLS-Variant-Asset-ID': variantAssetId,
         'X-DV-HLS-Fragment-Count': String(fragmentCount),
         'X-DV-HLS-Fragment-Sequence-Continuity': 'sequential',
         'X-DV-HLS-Temporal-Continuity': 'unknown',
