@@ -1,7 +1,7 @@
 # OpenJOC / HRTF Feasibility — Atmos Render Path (Research Only)
 
 > Scope: PR #99 (`feature/libretv-ipad-edition-product`), Draft only.
-> **Status: RESEARCH. Nothing in this document is implemented or enabled in the player.**
+> **Status: RESEARCH / ISOLATED VALIDATION. No Atmos renderer is enabled in LibreTV playback.**
 > This document exists to keep the "Atmos is done" claim honest and to record a
 > concrete decision path. It does **not** authorize shipping an Atmos renderer.
 
@@ -16,7 +16,7 @@ A UI badge or a `hasJocMarker: true` value is **not** proof of Atmos playback.
 
 An open-source research path (OpenJOC) exists and is technically interesting,
 but it is **carrier-local reconstruction**, not recovery of the original authored
-Atmos master, and it has no browser/WASM build. Shipping it into a web player
+Atmos master, and its upstream now includes a browser-facing WASM bridge. Shipping it into LibreTV
 would be a research experiment, not an "Atmos support" feature.
 
 ---
@@ -70,24 +70,17 @@ Verbatim from the project README:
 - The decoded-vs-authored objects page keeps `SemanticBindingState = Unresolved`.
 - The renderer-equivalence note states a generic ADM renderer is **not guaranteed
   to localize exactly like native JOC playback**.
-- No WASM / browser build is offered — embedding surfaces are Rust and C ABI.
+- **Update (2026-11-25):** Upstream now includes `crates/openjoc-wasm` and `.github/workflows/wasm.yml`. The `wasm32-unknown-unknown` bridge exposes decoding and PCM rendering APIs. This is not proof of LibreTV or iPad Safari integration.
 
 ### 3.3 Implication for LibreTV
 
-OpenJOC cannot be dropped into the browser as-is. Any browser path would require
-compiling the C ABI to WASM (e.g. emscripten), shipping a large binary, feeding it
-raw E-AC-3/JOC elementary audio (which hls.js/Media Source does not expose in the
-web playback path), and rendering the result back into the audio graph. Each of
-those steps is a research project with unresolved equivalence and licensing
-questions. It is **not** a near-term feature.
+The existing upstream WASM bridge removes the need to invent a new C-to-WASM compilation route. It accepts bounded raw E-AC-3 elementary bytes and CMAF audio samples with PTS. LibreTV still needs a pinned validated binary, correct HLS/TS or CMAF demuxing and timestamps, playback clock integration, worker/output isolation, licensing review and physical iPad Safari validation. A successful upstream smoke is not certified Atmos output.
 
 ---
 
 ## 4. Other referenced projects (scoping notes)
 
-- **OpenJOC-Browser**: no authoritative upstream browser build was found in this
-  review. Treat any such claim as unverified until a repo, build artifacts and a
-  license statement are produced.
+- **OpenJOC browser bridge**: the authoritative upstream package is now `crates/openjoc-wasm` in `chyinan/OpenJOC`. Its existence and upstream tests do not establish that LibreTV has shipped or verified browser playback.
 - **KSPlayer** (iOS/macOS, Swift): a native player built on Apple/FFmpeg
   decoders. Relevant only as a *native* reference for how a platform player
   handles E-AC-3; it does not provide a web Atmos path and does not change the
@@ -122,7 +115,7 @@ questions. It is **not** a near-term feature.
 | C. OpenJOC → WASM experimental renderer | Very high | Carrier-local reconstruction only | Research spike only; do not label "Atmos support" |
 | D. UI Atmos badge from JOC marker | Trivial | **False** | **Reject** — this is the exact bug we are avoiding |
 
-No option B/C/D work is performed in this PR. This document is the record of why.
+The owner has now authorized an isolated option-C investigation on PR #99. A raw EC-3 frame candidate scanner and pinned-upstream WASM CI workflow have been added. Browser player integration, genuine output verification and licensing approval remain outstanding. Option D stays rejected.
 
 ---
 
