@@ -21,6 +21,7 @@ import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
 import { parseFmp4InitSegment } from '@/lib/native-player/fmp4-fragment-parser';
 import { JocCmafPacketExtractor } from '@/lib/native-player/joc-cmaf-packets';
 import { HlsJocFragmentTap } from '@/lib/native-player/hls-joc-fragment-tap';
+import { JocSoftwareDecoderClient } from '@/lib/native-player/joc-software-decoder-client';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
@@ -1084,16 +1085,92 @@ export function PlayerShell({
 
     // Explicit diagnostics opt-in only. This read-only tap observes hls.js's
     // already-loaded CMAF payloads; it does not replace the loader or MSE path.
-    const jocTapEnabled = new URLSearchParams(window.location.search).get('jocTap') === '1';
+    const jocParams = new URLSearchParams(window.location.search);
+    const jocOutputEnabled = jocParams.get('jocOutput') === '1';
+    const jocDecodeEnabled = jocOutputEnabled || jocParams.get('jocDecode') === '1';
+    const jocTapEnabled = jocParams.get('jocTap') === '1' || jocDecodeEnabled;
     if (jocTapEnabled) {
       let jocExtractor: JocCmafPacketExtractor | null = null;
+      let decoderClient: JocSoftwareDecoderClient | null = null;
+      let decoderInit: Promise<JocSoftwareDecoderClient> | null = null;
+      let decodeQueue: Promise<void> = Promise.resolve();
+      let decodeFailed = false;
+      let clockFrame = 0;
+
+      const emitJocEvent = (type: string, detail: Record<string, unknown> = {}) => {
+        window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', { detail: { type, ...detail } }));
+      };
+
+      const ensureDecoder = (): Promise<JocSoftwareDecoderClient> => {
+        if (!decoderInit) {
+          decoderInit = JocSoftwareDecoderClient.create().then(client => {
+            decoderClient = client;
+            client.onStatus(status => emitJocEvent('software-decoder-status', status as unknown as Record<string, unknown>));
+            client.onError(error => {
+              decodeFailed = true;
+              client.fallbackToMediaAudio();
+              emitJocEvent('software-decoder-error', { reason: error.message });
+            });
+            return client;
+          });
+        }
+        return decoderInit;
+      };
+
+      const updateVideoClock = () => {
+        if (!decoderClient?.isOutputActive) {
+          clockFrame = 0;
+          return;
+        }
+        decoderClient.setMediaClock(video.currentTime * 48000);
+        clockFrame = window.requestAnimationFrame(updateVideoClock);
+      };
+
+      const onOutputGesture = () => {
+        if (!jocOutputEnabled || !decoderClient || !video || video.paused || video.ended) return;
+        decoderClient.setMediaClock(video.currentTime * 48000);
+        void decoderClient.activateOutput(video).then(active => {
+          if (active) updateVideoClock();
+          else emitJocEvent('software-output-not-ready', {
+            reason: 'Need at least 128 ms of timestamped PCM and a running AudioContext; native audio remains active.',
+            queuedFrames: decoderClient?.getStatus().queuedFrames ?? 0,
+          });
+        });
+      };
+
+      const onVideoPause = () => decoderClient?.pauseOutput();
+      const onVideoPlay = () => decoderClient?.resumeOutput();
+      const onVideoSeeking = () => {
+        decoderClient?.fallbackToMediaAudio();
+        if (clockFrame) window.cancelAnimationFrame(clockFrame);
+        clockFrame = 0;
+        jocExtractor?.resetTimeline();
+        decodeQueue = decodeQueue.then(async () => {
+          if (decoderClient) await decoderClient.reset();
+        }).catch(error => emitJocEvent('software-decoder-error', {
+          reason: error instanceof Error ? error.message : 'Decoder seek reset failed.',
+        }));
+      };
+      const onVideoRateChange = () => {
+        if (video.playbackRate !== 1) {
+          decoderClient?.fallbackToMediaAudio();
+          emitJocEvent('software-output-disabled', { reason: 'Software JOC output currently requires 1x playback speed.' });
+        }
+      };
+      const onVideoEnded = () => decoderClient?.fallbackToMediaAudio();
+
+      if (jocOutputEnabled) {
+        containerRef.current?.addEventListener('pointerdown', onOutputGesture, true);
+      }
+      video.addEventListener('pause', onVideoPause);
+      video.addEventListener('play', onVideoPlay);
+      video.addEventListener('seeking', onVideoSeeking);
+      video.addEventListener('ratechange', onVideoRateChange);
+      video.addEventListener('ended', onVideoEnded);
+
       const jocTap = new HlsJocFragmentTap({
         isCurrent: () => hlsRef.current === hls,
-        onRejected: (reason) => {
-          window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
-            detail: { type: 'rejected', reason },
-          }));
-        },
+        onRejected: (reason) => emitJocEvent('rejected', { reason }),
         onFragment: (fragment) => {
           try {
             if (fragment.kind === 'init') {
@@ -1108,31 +1185,55 @@ export function PlayerShell({
               const extractor = new JocCmafPacketExtractor(audioTrack.trackId);
               extractor.updateInitSegment(fragment.bytes);
               jocExtractor = extractor;
-              window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
-                detail: { type: 'eac3-init', trackId: audioTrack.trackId, timescale: audioTrack.timescale },
-              }));
+              emitJocEvent('eac3-init', { trackId: audioTrack.trackId, timescale: audioTrack.timescale });
               return;
             }
             if (!jocExtractor) return;
             const result = jocExtractor.extractMediaSegment(fragment.bytes);
-            window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
-              detail: {
-                type: 'eac3-samples-extracted',
-                trackId: result.trackId,
-                packetCount: result.packets.length,
-                totalPayloadBytes: result.totalPayloadBytes,
-                discontinuityCount: result.discontinuities.length,
-                codecHint: result.codecHint,
-              },
-            }));
+            emitJocEvent('eac3-samples-extracted', {
+              trackId: result.trackId,
+              packetCount: result.packets.length,
+              totalPayloadBytes: result.totalPayloadBytes,
+              discontinuityCount: result.discontinuities.length,
+              codecHint: result.codecHint,
+            });
+
+            if (!jocDecodeEnabled || decodeFailed || result.packets.length === 0) return;
+            if (fragment.start === null) {
+              emitJocEvent('rejected', { reason: 'HLS fragment media start is unavailable; timestamp mapping is not safe.' });
+              return;
+            }
+
+            // Map CMAF track PTS onto hls.js media time using the fragment start
+            // as an anchor. Do not compare raw track ticks with video.currentTime.
+            const firstPts = result.packets[0].presentationTime;
+            const anchorOffset = fragment.start * 48000 - firstPts * 48000 / result.timescale;
+            decodeQueue = decodeQueue.then(async () => {
+              if (decodeFailed || hlsRef.current !== hls) return;
+              const client = await ensureDecoder();
+              for (let index = 0; index < result.packets.length; index += 1) {
+                const packet = result.packets[index];
+                const mappedPts = Math.round(packet.presentationTime * 48000 / packet.timescale + anchorOffset);
+                const accepted = await client.pushPacket({
+                  bytes: packet.bytes,
+                  presentationTime: mappedPts,
+                  timescale: 48000,
+                  discontinuity: index === 0 && result.discontinuities.length > 0,
+                });
+                if (!accepted) throw new Error('OpenJOC PCM backpressure did not clear before the next CMAF sample.');
+              }
+            }).catch(error => {
+              decodeFailed = true;
+              decoderClient?.fallbackToMediaAudio();
+              emitJocEvent('software-decoder-error', {
+                reason: error instanceof Error ? error.message : 'OpenJOC CMAF decode queue failed.',
+              });
+            });
           } catch (error) {
             jocExtractor = null;
-            window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
-              detail: {
-                type: 'rejected',
-                reason: error instanceof Error ? error.message : 'CMAF extraction failed.',
-              },
-            }));
+            emitJocEvent('rejected', {
+              reason: error instanceof Error ? error.message : 'CMAF extraction failed.',
+            });
           }
         },
       });
@@ -1140,6 +1241,15 @@ export function PlayerShell({
       const disposeJocTap = () => {
         jocTap.dispose();
         hls.off(Hls.Events.FRAG_LOADED, jocTap.handle);
+        if (clockFrame) window.cancelAnimationFrame(clockFrame);
+        containerRef.current?.removeEventListener('pointerdown', onOutputGesture, true);
+        video.removeEventListener('pause', onVideoPause);
+        video.removeEventListener('play', onVideoPlay);
+        video.removeEventListener('seeking', onVideoSeeking);
+        video.removeEventListener('ratechange', onVideoRateChange);
+        video.removeEventListener('ended', onVideoEnded);
+        decoderClient?.dispose();
+        decoderClient = null;
         jocExtractor = null;
       };
       hls.on(Hls.Events.DESTROYING, disposeJocTap);
