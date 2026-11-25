@@ -336,7 +336,7 @@ describe('POST /api/search', () => {
     const good = events.find((event) => event.type === 'source' && event.sourceKey === 'good');
     const failed = events.find((event) => event.type === 'source' && event.sourceKey === 'bad');
     const done = events.find((event) => event.type === 'done');
-    const ids = filterAdult ? ['1'] : ['1', '4'];
+    const ids = ['1'];
     expect(good?.list.map((item) => item.vodId)).toEqual(ids);
     expect(good).toMatchObject({ type: 'source', sourceKey: 'good', ok: true, ms: expect.any(Number) });
     expect(failed).toMatchObject({ type: 'source', sourceKey: 'bad', ok: false, list: [], error: 'HTTP 500' });
