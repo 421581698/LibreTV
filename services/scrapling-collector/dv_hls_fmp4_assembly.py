@@ -406,6 +406,7 @@ def assemble_registered_hls_fmp4(
     variant_asset_id: str,
     output_path: str | Path,
     object_root: str | Path | None = None,
+    fragment_ordinal: int | None = None,
 ) -> dict:
     """Assemble a single clear VOD fMP4 rendition from its verified immutable graph."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,200}", resource_id):
@@ -583,46 +584,62 @@ def assemble_registered_hls_fmp4(
         json.dumps(graph_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     ).hexdigest()
 
+    if fragment_ordinal is not None and (
+        not isinstance(fragment_ordinal, int) or fragment_ordinal < 0 or fragment_ordinal >= len(segment_assets)
+    ):
+        raise HlsAssemblyError("Requested HLS fragment ordinal is outside the registered rendition.")
     destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = None
     total = 0
     digest = hashlib.sha256()
-    members = [init_asset, *segment_assets]
-    try:
-        with tempfile.NamedTemporaryFile(mode="wb", prefix=".dv-hls-", suffix=".mp4", dir=destination.parent, delete=False) as target:
-            temporary_path = Path(target.name)
-            for asset in members:
-                before = target.tell()
-                copied, _ = _copy_verified_asset(root_dir, asset, target, total)
-                total += copied
-                target.flush()
-                if target.tell() - before != copied:
-                    raise HlsAssemblyError("Assembled HLS byte count mismatch.")
-        with temporary_path.open("rb") as assembled:
-            for chunk in iter(lambda: assembled.read(CHUNK_SIZE), b""):
-                digest.update(chunk)
-        os.replace(temporary_path, destination)
-    except Exception:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-        raise
-
-    # Produce independently parseable init+one-fragment inputs. These are
-    # deliberately separate from the full-rendition file: each digest and
-    # timeline tuple can be bound to a fragment-scoped parser signature.
-    segment_output_dir = destination.with_name(destination.name + ".segments")
-    segment_output_dir.mkdir(parents=True, exist_ok=True)
     segment_inputs = []
-    for ordinal, (asset, timing) in enumerate(zip(segment_assets, timeline, strict=True)):
-        segment_path = segment_output_dir / f"segment-{ordinal:06d}.mp4"
+
+    if fragment_ordinal is None:
+        members = [init_asset, *segment_assets]
+        try:
+            with tempfile.NamedTemporaryFile(mode="wb", prefix=".dv-hls-", suffix=".mp4", dir=destination.parent, delete=False) as target:
+                temporary_path = Path(target.name)
+                for asset in members:
+                    before = target.tell()
+                    copied, _ = _copy_verified_asset(root_dir, asset, target, total)
+                    total += copied
+                    target.flush()
+                    if target.tell() - before != copied:
+                        raise HlsAssemblyError("Assembled HLS byte count mismatch.")
+            with temporary_path.open("rb") as assembled:
+                for chunk in iter(lambda: assembled.read(CHUNK_SIZE), b""):
+                    digest.update(chunk)
+            os.replace(temporary_path, destination)
+        except Exception:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+            raise
+
+        # Full-rendition callers also receive one parser input per fragment.
+        segment_output_dir = destination.with_name(destination.name + ".segments")
+        segment_output_dir.mkdir(parents=True, exist_ok=True)
+        selected_ordinals = range(len(segment_assets))
+    else:
+        # Fragment-only API calls avoid rebuilding the full rendition and
+        # avoid materializing every sidecar on each individual fragment fetch.
+        segment_output_dir = None
+        selected_ordinals = (fragment_ordinal,)
+
+    for ordinal in selected_ordinals:
+        asset = segment_assets[ordinal]
+        timing = timeline[ordinal]
+        segment_path = (
+            segment_output_dir / f"segment-{ordinal:06d}.mp4"
+            if segment_output_dir is not None else destination
+        )
         temporary_segment = None
         segment_digest = hashlib.sha256()
         segment_bytes = 0
         try:
             with tempfile.NamedTemporaryFile(
                 mode="wb", prefix=".dv-hls-segment-", suffix=".mp4",
-                dir=segment_output_dir, delete=False,
+                dir=segment_output_dir or destination.parent, delete=False,
             ) as target:
                 temporary_segment = Path(target.name)
                 for member in (init_asset, asset):
@@ -650,6 +667,9 @@ def assemble_registered_hls_fmp4(
             "assembledSegmentSha256": segment_digest.hexdigest(),
             "outputPath": str(segment_path),
         })
+        if fragment_ordinal is not None:
+            total = segment_bytes
+            digest = segment_digest
 
     return {
         "resourceId": resource_id,
