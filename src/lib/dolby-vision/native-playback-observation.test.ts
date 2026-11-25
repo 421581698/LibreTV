@@ -55,6 +55,41 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(advanceNativePlaybackObservation(beforeSeek, 'reset')).toEqual(emptyNativePlaybackObservation());
   });
 
+  it('clears old playback success when a video pauses or stops being decodable', () => {
+    const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing);
+    const progressed = advanceNativePlaybackObservation(start, 'sample', { ...playing, currentTime: 2 });
+    expect(progressed.status).toBe('progress-observed');
+
+    const paused = advanceNativePlaybackObservation(progressed, 'sample', { ...playing, currentTime: 2, paused: true });
+    expect(paused.status).toBe('waiting');
+    expect(paused.progressedSeconds).toBe(0);
+    expect(paused.baselineTime).toBeNull();
+
+    const resume = advanceNativePlaybackObservation(paused, 'sample', { ...playing, currentTime: 2 });
+    expect(resume.status).toBe('waiting');
+    const stalled = advanceNativePlaybackObservation(progressed, 'sample', { ...playing, currentTime: 2, readyState: 1 });
+    expect(stalled.status).toBe('waiting');
+    expect(stalled.progressedSeconds).toBe(0);
+  });
+
+  it('does not retain progress from duplicate timeline samples', () => {
+    const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing);
+    const progressed = advanceNativePlaybackObservation(start, 'sample', { ...playing, currentTime: 2 });
+    const duplicate = advanceNativePlaybackObservation(progressed, 'sample', { ...playing, currentTime: 2 });
+    expect(duplicate.status).toBe('waiting');
+  });
+
+  it('fails closed when the video reports an error during sampling', () => {
+    const progressed = advanceNativePlaybackObservation(
+      advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing),
+      'sample',
+      { ...playing, currentTime: 2 },
+    );
+    const failed = advanceNativePlaybackObservation(progressed, 'sample', { ...playing, currentTime: 3, mediaErrorCode: 3 });
+    expect(failed.status).toBe('error');
+    expect(failed.mediaErrorCode).toBe(3);
+  });
+
   it('fails closed on native media errors until a new source is loaded', () => {
     const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing);
     const error = advanceNativePlaybackObservation(start, 'error', { ...playing, mediaErrorCode: 4 });
