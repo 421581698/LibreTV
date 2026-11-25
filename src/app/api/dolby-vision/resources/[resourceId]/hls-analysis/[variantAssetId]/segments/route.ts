@@ -316,6 +316,7 @@ export async function POST(
       })),
       timelineContinuity: verified.timelineContinuity,
       rpuProfileContinuity: verified.rpuProfileContinuity,
+      rpuFrameAlignment: verified.rpuFrameAlignment,
       rpuSemanticContinuity: verified.rpuSemanticContinuity,
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
