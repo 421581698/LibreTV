@@ -129,13 +129,15 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/hevc_tests/regular.mkv -o /tmp/dolby-vision-regular.mkv
           test "$(git hash-object /tmp/dolby-vision-regular.hevc)" = "0435ca7d75348ed3fe5362b7188fd59849413721"
           test "$(git hash-object /tmp/dolby-vision-regular.mkv)" = "4e7c735e42dcfddb5232d5b44acb1f2fff56ab5b"
-      - name: Verify complete HEVC elementary-stream extraction and report contract
+      - name: Verify full RPU extraction from pinned real HEVC fixture
         run: |
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-regular.hevc > /tmp/dolby-vision-hevc-report.json
+          node scripts/dolby-vision/assert-full-rpu-report.mjs --report /tmp/dolby-vision-hevc-report.json --input /tmp/dolby-vision-regular.hevc --expected-frames 259
           DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-hevc-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
-      - name: Verify complete Matroska HEVC-track extraction and report contract
+      - name: Verify full RPU extraction from pinned real Matroska fixture
         run: |
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --input /tmp/dolby-vision-regular.mkv > /tmp/dolby-vision-mkv-report.json
+          node scripts/dolby-vision/assert-full-rpu-report.mjs --report /tmp/dolby-vision-mkv-report.json --input /tmp/dolby-vision-regular.mkv --expected-frames 259
           DOLBY_VISION_REPORT_PATH=/tmp/dolby-vision-mkv-report.json npx vitest run src/lib/dolby-vision/rpu-evidence-contract.test.ts
 
   collector-verification:
