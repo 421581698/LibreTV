@@ -290,6 +290,14 @@ describe('signed Dolby Vision RPU envelope', () => {
     expect(verifySignedDolbyVisionRpuSegmentSet([
       envelopes[0], { ...differentParser, signature: differentParserSignature },
     ], trusted)).toBeNull();
+    const av1Envelopes = envelopes.map(({ signature: _signature, ...payload }) => {
+      const av1Payload = { ...payload, report: { ...payload.report, inputKind: 'av1', input: 'video-track.rpu' } };
+      return { ...av1Payload, signature: sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(av1Payload)), privateKey).toString('base64url') };
+    });
+    // Both codec-specific sets are valid independently; a mixed set is not.
+    expect(verifySignedDolbyVisionRpuSegmentSet(av1Envelopes, trusted)).not.toBeNull();
+    expect(verifySignedDolbyVisionRpuSegmentSet([envelopes[0], av1Envelopes[1]], trusted)).toBeNull();
+    expect(verifySignedDolbyVisionRpuSegmentSet([av1Envelopes[0], envelopes[1]], trusted)).toBeNull();
     const misalignedReport = {
       ...envelopes[0],
       report: {
