@@ -27,8 +27,8 @@ function addPayloadIssues(payload: z.infer<z.ZodObject<typeof signedPayloadShape
   if (payload.expiresAt <= payload.issuedAt) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['expiresAt'], message: '过期时间必须晚于签发时间。' });
   }
-  if (payload.report.inputKind !== 'hevc') {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['report', 'inputKind'], message: '签名证据必须绑定原始 HEVC 媒体输入，不能使用脱离媒体的 RPU 文件。' });
+  if (!['hevc', 'av1'].includes(payload.report.inputKind)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['report', 'inputKind'], message: '签名证据必须绑定原始 HEVC/AV1 媒体输入，不能使用脱离媒体的 RPU 文件。' });
   }
   if (typeof payload.report.extractionScope !== 'object' ||
       payload.report.extractionScope.frameLimit !== null) {
