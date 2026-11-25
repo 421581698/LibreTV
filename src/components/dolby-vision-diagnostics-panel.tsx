@@ -74,7 +74,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
     variantAssetId: string;
     segmentCount: number;
     totalRpuFrameCount: number;
-    rpuFrameAlignment: 'one-rpu-per-video-sample';
+    rpuFrameAlignment: 'frame-count-matches-video-samples';
     metadataLevels: number[];
     graphSha256: string;
   } | null>(null);
@@ -263,7 +263,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
           !Number.isSafeInteger(data.segmentCount) || !Number.isSafeInteger(data.totalRpuFrameCount) ||
           data.timelineContinuity !== 'contiguous' ||
           data.rpuProfileContinuity !== 'consistent' ||
-          data.rpuFrameAlignment !== 'one-rpu-per-video-sample' ||
+          data.rpuFrameAlignment !== 'frame-count-matches-video-samples' ||
           data.rpuSemanticContinuity !== 'not-established' ||
           typeof graph?.graphSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(graph.graphSha256) ||
           !Array.isArray(data.segments) || data.segments.length !== data.segmentCount ||
@@ -281,7 +281,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
           variantAssetId,
           segmentCount: Number(data.segmentCount),
           totalRpuFrameCount: Number(data.totalRpuFrameCount),
-          rpuFrameAlignment: 'one-rpu-per-video-sample',
+          rpuFrameAlignment: 'frame-count-matches-video-samples',
           metadataLevels: segmentMetadataLevels,
           graphSha256: graph.graphSha256,
         });
@@ -439,10 +439,10 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
                     <p>已逐片完成 RPU 分析与 Ed25519 验签</p>
                     <p>已验分片：{currentHlsSegmentEvidence.segmentCount.toLocaleString()}</p>
                     <p>RPU 帧计数合计：{currentHlsSegmentEvidence.totalRpuFrameCount.toLocaleString()}</p>
-                    <p>RPU 帧对齐：每个视频样本 1 帧 RPU</p>
+                    <p>RPU 帧数：与视频样本数一致（逐帧对应未验证）</p>
                     <p>Dolby Vision Profile：跨分片一致</p>
                     <p>图谱 SHA-256：{currentHlsSegmentEvidence.graphSha256.slice(0, 16)}…</p>
-                    <p className="mt-1 text-white/65">视频时间轴连续，RPU 与视频样本逐帧对齐；RPU 内容的跨片语义连续性仍未建立。</p>
+                    <p className="mt-1 text-white/65">视频时间轴连续，RPU 总帧数与视频样本总数相等；逐帧对应及跨片语义连续性尚未验证。</p>
                   </div>
                 )}
                 {currentHlsEvidence && (
@@ -457,7 +457,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
                 {hlsGraphError && <p role="alert" className="mt-1 text-amber-200">{hlsGraphError}</p>}
                 <p className="mt-1 text-[10px] leading-snug text-white/45">
                   {currentHlsSegmentEvidence
-                    ? '全部分片已分别完成 RPU 解析和签名验真；视频时间轴连续且每个视频样本均有对应 RPU。RPU 内容的跨片语义连续性仍需逐帧数据验证。'
+                    ? '全部分片已分别完成 RPU 解析和签名验真；视频时间轴连续且 RPU 总帧数与视频样本总数相等，但逐帧对应及跨片语义连续性仍需逐帧证据。'
                     : currentHlsEvidence
                       ? '已完成此变体的整段签名 RPU 分析；视频时间戳连续性已通过校验；分片级 RPU 尚未逐片验真。'
                       : '这里只核对不可变资产身份与分片关系；分片级 RPU 尚未分析。'}
