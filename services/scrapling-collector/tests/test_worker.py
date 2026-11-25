@@ -40,7 +40,7 @@ class WorkerPipelineTests(unittest.TestCase):
         old_url = "https://media.example/old.mp4"
         old_validation = json.dumps({"media_format": "progressive", "content_type": "video/mp4"})
         expected_version = hashlib.sha256(
-            (old_url + "\\0" + old_validation).encode("utf-8")
+            (old_url + "\0" + old_validation).encode("utf-8")
         ).hexdigest()[:24]
         changed_candidate = {
             "url": "https://media.example/new.mp4",
