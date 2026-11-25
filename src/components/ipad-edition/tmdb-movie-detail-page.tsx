@@ -169,7 +169,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const runtime = movie?.runtime || movie?.episode_run_time?.[0];
   const rating = movie?.vote_average || Number(ratingFallback) || 0;
   const logos = (movie?.images?.logos || []).filter((item) =>
-    typeof item.file_path === 'string' && /^\\/[^?#\\s]+$/.test(item.file_path) &&
+    typeof item.file_path === 'string' && /^\/[A-Za-z0-9_-]+\.(?:png|svg)$/i.test(item.file_path) &&
     Number.isFinite(item.width) && Number.isFinite(item.height) &&
     (item.width || 0) >= 180 && (item.height || 0) >= 32,
   );
