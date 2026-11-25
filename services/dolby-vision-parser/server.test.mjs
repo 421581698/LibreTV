@@ -414,11 +414,17 @@ process.exit(2);
         verify(null, Buffer.from(canonicalize(segmentPayload)), servicePublicPem, Buffer.from(segmentSignature, 'base64url')),
         true,
       );
-      const rejectedSegmentDigest = await fetch(endpoint, {
-        method: 'POST',
-        headers: { ...segmentContextHeaders, 'X-DV-HLS-Assembled-Segment-SHA256': 'f'.repeat(64) },
-        body: media,
-      });
+      let rejectedSegmentDigest;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        rejectedSegmentDigest = await fetch(endpoint, {
+          method: 'POST',
+          headers: { ...segmentContextHeaders, 'X-DV-HLS-Assembled-Segment-SHA256': 'f'.repeat(64) },
+          body: media,
+        });
+        if (rejectedSegmentDigest.status !== 429) break;
+        await rejectedSegmentDigest.arrayBuffer();
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
+      }
       assert.equal(rejectedSegmentDigest.status, 422);
 
       await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write(['hevc', 'hevc'].join(String.fromCharCode(10)));\n", { mode: 0o700 });
