@@ -129,6 +129,15 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
                 self.resource["id"], variant_id, self.root / "bad.mp4", self.object_root,
             )
 
+    def test_rejects_modified_root_playlist_before_graph_provenance_binding(self):
+        variant_id, ingested = self.prepare_graph()
+        root = ingested["assets"]["master.m3u8"]
+        (self.object_root / root["object_key"]).write_bytes(b"#EXTM3U\\n# tampered\\n")
+        with self.assertRaises(HlsAssemblyError):
+            assemble_registered_hls_fmp4(
+                self.resource["id"], variant_id, self.root / "bad.mp4", self.object_root,
+            )
+
     def test_rejects_modified_content_addressed_segment(self):
         variant_id, ingested = self.prepare_graph()
         segment = ingested["assets"]["seg1.m4s"]
