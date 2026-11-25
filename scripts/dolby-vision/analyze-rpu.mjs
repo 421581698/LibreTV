@@ -23,6 +23,50 @@ async function sha256File(filePath) {
   return hash.digest('hex');
 }
 
+export function normalizeRpuInput(value) {
+  const input = Buffer.from(value);
+  if (input[0] === 0x19) return input;
+  const startCode = Buffer.from([0x00, 0x00, 0x00, 0x01]);
+  const units = [];
+  let offset = 0;
+  while (offset < input.length) {
+    if (!input.subarray(offset, offset + 4).equals(startCode)) {
+      throw new Error('AV1 RPU NAL stream must use four-byte Annex-B start codes.');
+    }
+    const payloadStart = offset + 4;
+    let next = input.indexOf(startCode, payloadStart);
+    if (next < 0) next = input.length;
+    const nalu = input.subarray(payloadStart, next);
+    if (nalu.length < 9 || nalu[0] !== 0x7c || nalu[1] !== 0x01) {
+      throw new Error('AV1 RPU stream contains a non-UNSPEC62 HEVC NAL unit.');
+    }
+    const decoded = [];
+    let zeroCount = 0;
+    for (let index = 2; index < nalu.length; index += 1) {
+      const byte = nalu[index];
+      if (zeroCount >= 2 && byte === 0x03) {
+        if (index + 1 >= nalu.length || nalu[index + 1] > 0x03) {
+          throw new Error('AV1 RPU NAL contains invalid emulation-prevention bytes.');
+        }
+        zeroCount = 0;
+        continue;
+      }
+      decoded.push(byte);
+      zeroCount = byte === 0 ? zeroCount + 1 : 0;
+    }
+    const regular = Buffer.from(decoded);
+    let lastNonZero = regular.length - 1;
+    while (lastNonZero >= 0 && regular[lastNonZero] === 0) lastNonZero -= 1;
+    if (regular[0] !== 0x19 || lastNonZero < 0 || regular[lastNonZero] !== 0x80) {
+      throw new Error('Decoded AV1 RPU NAL does not contain a valid regular RPU unit.');
+    }
+    units.push(regular);
+    offset = next;
+  }
+  if (units.length === 0) throw new Error('AV1 RPU NAL stream contains no RPU units.');
+  return Buffer.concat(units);
+}
+
 export function parseDoviToolInfoSummary(output) {
   const frameMatch = output.match(/^\s*Frames:\s*(\d+)\s*$/im);
   const profileLine = output.match(/^\s*Profiles?:\s*([^\r\n]+)$/im);
@@ -124,9 +168,14 @@ export async function analyzeRpu(options) {
   const inputSha256 = await sha256File(inputPath);
   const tempDirectory = await mkdtemp(resolve(tmpdir(), 'libretv-dovi-'));
   try {
-    const rpuPath = options.kind === 'rpu'
-      ? inputPath
-      : resolve(tempDirectory, 'extracted-rpu.bin');
+    let rpuPath = resolve(tempDirectory, 'normalized-rpu.bin');
+
+    if (options.kind === 'rpu') {
+      const sourceRpu = await readFile(inputPath);
+      const normalizedRpu = normalizeRpuInput(sourceRpu);
+      if (normalizedRpu.equals(sourceRpu)) rpuPath = inputPath;
+      else await writeFile(rpuPath, normalizedRpu, { flag: 'wx', mode: 0o600 });
+    }
 
     if (options.kind === 'hevc') {
       const extractArgs = ['extract-rpu', '-i', inputPath, '-o', rpuPath];
