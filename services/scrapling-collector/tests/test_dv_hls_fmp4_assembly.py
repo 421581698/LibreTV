@@ -10,6 +10,7 @@ from fastapi import HTTPException
 
 import registry_queue as queue
 from dv_hls_ingest import ingest_hls_directory
+import dv_hls_fmp4_assembly as hls_assembly
 from dv_hls_fmp4_assembly import HlsAssemblyError, assemble_registered_hls_fmp4
 
 
@@ -149,6 +150,28 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(result["segmentInputs"][0]["assembledSegmentSha256"], hashlib.sha256(expected).hexdigest())
         self.assertEqual(result["assembledSha256"], hashlib.sha256(expected).hexdigest())
         self.assertEqual(result["assembledByteLength"], len(expected))
+
+
+    def test_fragment_requests_reuse_validated_graph_timeline_cache(self):
+        variant_id, _ = self.prepare_graph()
+        with patch.object(
+            hls_assembly,
+            "_fragment_video_timing",
+            wraps=hls_assembly._fragment_video_timing,
+        ) as timing:
+            first = assemble_registered_hls_fmp4(
+                self.resource["id"], variant_id, self.root / "cached-0.mp4",
+                self.object_root, fragment_ordinal=0,
+            )
+            self.assertEqual(timing.call_count, 2)
+            second = assemble_registered_hls_fmp4(
+                self.resource["id"], variant_id, self.root / "cached-1.mp4",
+                self.object_root, fragment_ordinal=1,
+            )
+            self.assertEqual(timing.call_count, 2)
+        self.assertEqual(first["segmentInputs"][0]["ordinal"], 0)
+        self.assertEqual(second["segmentInputs"][0]["ordinal"], 1)
+        self.assertEqual(second["segmentInputs"][0]["decodeTime"], 4000)
 
     def test_rejects_non_contiguous_tfdt_timestamps_even_when_mfhd_is_sequential(self):
         variant_id, _ = self.prepare_graph(second_decode_time=4500)
