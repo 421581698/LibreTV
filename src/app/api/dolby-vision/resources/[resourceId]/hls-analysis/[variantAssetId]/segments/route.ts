@@ -16,7 +16,7 @@ function parserBase(): string | null {
         (parsed.pathname !== '' && parsed.pathname !== '/')) return null;
     if (parsed.protocol === 'http:' && parsed.hostname === 'dolby-vision-parser' && parsed.port === '8788') return parsed.origin;
     const hostname = parsed.hostname.toLowerCase();
-    const ipLiteral = /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
+    const ipLiteral = /^\d{1,3}(?:\\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
     if (parsed.protocol !== 'https:' || (parsed.port && parsed.port !== '443') ||
         ipLiteral || hostname === 'localhost' || !hostname.includes('.') ||
         /(^|\\.)(local|internal|localhost|test|invalid)$/.test(hostname)) return null;
@@ -39,7 +39,7 @@ function publicKeyPem(): string | null {
 
 function integerHeader(headers: Headers, name: string, minimum = 0): number | null {
   const raw = headers.get(name);
-  if (raw === null || !/^(?:0|[1-9]\\d*)$/.test(raw)) return null;
+  if (raw === null || !/^(?:0|[1-9]\d*)$/.test(raw)) return null;
   const value = Number(raw);
   return Number.isSafeInteger(value) && value >= minimum ? value : null;
 }
