@@ -134,6 +134,9 @@ function parseDolbyRpuObuStream(inputValue) {
     offset += length.value;
     obuCount += 1;
     if (type === 2) {
+      if (payload.length !== 0 || extensionPresent) {
+        throw new Error('AV1 temporal delimiter must have an empty payload and no extension header.');
+      }
       temporalUnit += 1;
       temporalDelimiterCount += 1;
       framesByTemporalUnit.set(temporalUnit, 0);
