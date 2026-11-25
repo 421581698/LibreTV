@@ -77,10 +77,16 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
     <div className="absolute right-3 z-20 flex flex-col items-end" style={{ top: '6.25rem' }}>
       <details className="group">
         <summary
-          className={`player-quality-badge cursor-pointer list-none ${declared ? 'border-amber-400/60 text-amber-200' : ''}`}
-          aria-label="Dolby Vision 视频诊断（只读）"
+          className={`player-quality-badge flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${declared ? 'border-amber-400/70 bg-amber-950/90 text-amber-100' : 'border-white/25 bg-black/90 text-white'}`}
+          aria-label="打开 Dolby Vision 视频诊断面板"
+          title="查看 Dolby Vision 格式、RPU 与显示链路验证状态"
         >
-          Dolby Vision{declared ? ' · 已声明' : ' · 未知'}
+          <span aria-hidden="true" className="text-base leading-none text-amber-300">◈</span>
+          <span>Dolby Vision 诊断</span>
+          <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-medium text-white/80">
+            {declared ? '已声明' : '待确认'}
+          </span>
+          <span aria-hidden="true" className="text-white/60">⌄</span>
         </summary>
         <div
           role="region"
