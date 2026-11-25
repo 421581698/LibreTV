@@ -710,8 +710,8 @@ export function PlayerShell({
   const resetSpatialAudioForUninspectedSource = () => {
     const engine = spatialAudioEngineRef.current;
     if (engine) {
-      const plan = engine.updateInputChannels(0, 'unknown');
-      setSpatialAudioMessage(plan.reason);
+      engine.disable();
+      setSpatialAudioMessage('当前媒体源尚未提供可验证的音轨信息；空间处理已关闭，保持原始播放。');
     }
     setSpatialAudioVerificationMessage('音频输出状态未知：当前媒体源尚未提供可验证的音轨信息。');
     setSpatialAudioMode('off');
