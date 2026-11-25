@@ -11,6 +11,7 @@ import { Icon } from '@/components/icon';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection } from '@/components/douban-section';
 import { GlassPanel } from '@/components/ui/glass';
+import { FridayGlassControls } from '@/components/friday/FridayGlassControls';
 import { SmartImage } from '@/components/smart-image';
 import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
@@ -481,6 +482,9 @@ function SettingsScreen() {
         <p className="mt-3 text-xs leading-5 text-faint">
           查看下载进度与状态，暂停、继续、取消、重试或删除任务。下载完成状态以实际文件保存结果为准。
         </p>
+      </section>
+      <section className="card p-4 sm:p-5" aria-label="Friday 液态玻璃设置">
+        <FridayGlassControls />
       </section>
     </div>
   );
