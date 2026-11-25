@@ -99,18 +99,36 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expe
     throw new Error('Only structurally valid full-scope dovi_tool HEVC reports can be signed.');
   }
   if (analysisContext !== null) {
-    if (analysisContext?.scope !== 'hls-fmp4' ||
-        !/^[A-Za-z0-9_-]{1,200}$/.test(analysisContext.resourceId || '') ||
-        typeof analysisContext.graphId !== 'string' || !analysisContext.graphId ||
-        analysisContext.graphId.length > 200 ||
-        !/^[a-f0-9]{64}$/.test(analysisContext.graphSha256 || '') ||
-        !/^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.rootAssetId || '') ||
-        !/^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.variantAssetId || '') ||
-        !Number.isSafeInteger(analysisContext.fragmentCount) ||
-        analysisContext.fragmentCount < 1 || analysisContext.fragmentCount > 10_000 ||
-        analysisContext.fragmentSequenceContinuity !== 'sequential' ||
-        analysisContext.temporalContinuity !== 'contiguous') {
-      throw new Error('Invalid HLS fMP4 provenance context.');
+    const commonValid =
+      ['hls-fmp4', 'hls-fmp4-segment'].includes(analysisContext?.scope) &&
+      /^[A-Za-z0-9_-]{1,200}$/.test(analysisContext.resourceId || '') &&
+      typeof analysisContext.graphId === 'string' && !!analysisContext.graphId &&
+      analysisContext.graphId.length <= 200 &&
+      /^[a-f0-9]{64}$/.test(analysisContext.graphSha256 || '') &&
+      /^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.rootAssetId || '') &&
+      /^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.variantAssetId || '') &&
+      Number.isSafeInteger(analysisContext.fragmentCount) &&
+      analysisContext.fragmentCount >= 1 && analysisContext.fragmentCount <= 10_000 &&
+      analysisContext.fragmentSequenceContinuity === 'sequential' &&
+      analysisContext.temporalContinuity === 'contiguous';
+    const segmentValid = analysisContext.scope !== 'hls-fmp4-segment' || (
+      Number.isSafeInteger(analysisContext.fragmentOrdinal) &&
+      analysisContext.fragmentOrdinal >= 0 && analysisContext.fragmentOrdinal < analysisContext.fragmentCount &&
+      /^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.fragmentAssetId || '') &&
+      /^[a-f0-9]{64}$/.test(analysisContext.fragmentSha256 || '') &&
+      /^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.initializationAssetId || '') &&
+      /^[a-f0-9]{64}$/.test(analysisContext.initializationSha256 || '') &&
+      /^[a-f0-9]{64}$/.test(analysisContext.assembledSegmentSha256 || '') &&
+      Number.isSafeInteger(analysisContext.fragmentSequenceNumber) && analysisContext.fragmentSequenceNumber > 0 &&
+      Number.isSafeInteger(analysisContext.decodeTime) && analysisContext.decodeTime >= 0 &&
+      Number.isSafeInteger(analysisContext.sampleDuration) && analysisContext.sampleDuration > 0 &&
+      Number.isSafeInteger(analysisContext.sampleCount) && analysisContext.sampleCount > 0 &&
+      Number.isSafeInteger(analysisContext.timescale) && analysisContext.timescale > 0
+    );
+    if (!commonValid || !segmentValid) throw new Error('Invalid HLS fMP4 provenance context.');
+    if (analysisContext.scope === 'hls-fmp4-segment' &&
+        analysisContext.assembledSegmentSha256 !== expectedSourceMediaSha256.toLowerCase()) {
+      throw new Error('HLS segment provenance digest must match the uploaded init+fragment bytes.');
     }
   }
   const payload = {
@@ -296,6 +314,19 @@ async function analyzeUpload(request, response, env) {
         fragmentSequenceContinuity: request.headers['x-dv-hls-fragment-sequence-continuity'],
         temporalContinuity: request.headers['x-dv-hls-temporal-continuity'],
       };
+      if (hlsContextHeader === 'hls-fmp4-segment') {
+        analysisContext.fragmentOrdinal = Number(request.headers['x-dv-hls-fragment-ordinal']);
+        analysisContext.fragmentAssetId = request.headers['x-dv-hls-fragment-asset-id'];
+        analysisContext.fragmentSha256 = request.headers['x-dv-hls-fragment-sha256'];
+        analysisContext.initializationAssetId = request.headers['x-dv-hls-initialization-asset-id'];
+        analysisContext.initializationSha256 = request.headers['x-dv-hls-initialization-sha256'];
+        analysisContext.assembledSegmentSha256 = request.headers['x-dv-hls-assembled-segment-sha256'];
+        analysisContext.fragmentSequenceNumber = Number(request.headers['x-dv-hls-fragment-sequence-number']);
+        analysisContext.decodeTime = Number(request.headers['x-dv-hls-decode-time']);
+        analysisContext.sampleDuration = Number(request.headers['x-dv-hls-sample-duration']);
+        analysisContext.sampleCount = Number(request.headers['x-dv-hls-sample-count']);
+        analysisContext.timescale = Number(request.headers['x-dv-hls-timescale']);
+      }
     }
     const envelope = createSignedEnvelope(
       report,
