@@ -74,8 +74,9 @@ describe('Dolby Vision parser service security primitives', () => {
     });
   });
 
-  it('refuses partial reports and detached RPU files', () => {
+  it('refuses partial reports, selected-track-only reports, and detached RPU files', () => {
     assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: null, frameLimit: 50 } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
+    assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: 1, frameLimit: null } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
     assert.throws(() => createSignedEnvelope({ ...report, inputKind: 'rpu' }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
   });
 
