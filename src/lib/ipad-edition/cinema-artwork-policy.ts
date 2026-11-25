@@ -24,7 +24,7 @@ export function selectCinemaTitleLogo(logos: readonly CinemaLogoAsset[] | undefi
     })
     .sort((a, b) => languageRank(a.iso_639_1) - languageRank(b.iso_639_1)
       || (b.vote_average ?? 0) - (a.vote_average ?? 0)
-      || (b.width ?? 0) * (b.height ?? 0) - (a.width ?? 0) * (a.height ?? 0))[0]?.file_path;
+      || (b.width ?? 0) * (b.height ?? 0) - (a.width ?? 0) * (a.height ?? 0))[0]?.file_path ?? undefined;
 }
 
 /** Only opt-in iPad media should bypass a proxy first; custom proxy choice is preserved.
