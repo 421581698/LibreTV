@@ -183,4 +183,65 @@ describe('POST HLS fragment-set analysis', () => {
     expect(response.status).toBe(502);
     expect(body).toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
   });
+
+  it('rejects a fragment count that changes within the registered rendition', async () => {
+    vi.mocked(fetchDolbyVisionHlsAssemblySegment).mockImplementation(async (_resource, _variant, ordinal) => {
+      const response = makeFragmentResponse(ordinal);
+      if (ordinal !== 1) return response;
+      const headers = new Headers(response.headers);
+      headers.set('X-DV-HLS-FRAGMENT-COUNT', '3');
+      return new Response(fragmentBytes[ordinal], { status: 200, headers });
+    });
+    const parserFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(makeEnvelope(0)), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', parserFetch);
+
+    const response = await POST(new Request('https://libretv.example/segments', { method: 'POST' }), {
+      params: Promise.resolve({ resourceId, variantAssetId }),
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ code: 'DV_HLS_SEGMENT_GRAPH_CHANGED' });
+    expect(parserFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a decode-time gap even when the registry continuity header claims contiguous timing', async () => {
+    vi.mocked(fetchDolbyVisionHlsAssemblySegment).mockImplementation(async (_resource, _variant, ordinal) => {
+      const response = makeFragmentResponse(ordinal);
+      if (ordinal !== 1) return response;
+      const headers = new Headers(response.headers);
+      headers.set('X-DV-HLS-DECODE-TIME', '4500');
+      return new Response(fragmentBytes[ordinal], { status: 200, headers });
+    });
+    const parserFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeEnvelope(0)), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeEnvelope(1)), { status: 200 }));
+    vi.stubGlobal('fetch', parserFetch);
+
+    const response = await POST(new Request('https://libretv.example/segments', { method: 'POST' }), {
+      params: Promise.resolve({ resourceId, variantAssetId }),
+    });
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
+  });
+
+  it('rejects a media-fragment sequence-number gap', async () => {
+    vi.mocked(fetchDolbyVisionHlsAssemblySegment).mockImplementation(async (_resource, _variant, ordinal) => {
+      const response = makeFragmentResponse(ordinal);
+      if (ordinal !== 1) return response;
+      const headers = new Headers(response.headers);
+      headers.set('X-DV-HLS-FRAGMENT-SEQUENCE-NUMBER', '4');
+      return new Response(fragmentBytes[ordinal], { status: 200, headers });
+    });
+    const parserFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeEnvelope(0)), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(makeEnvelope(1)), { status: 200 }));
+    vi.stubGlobal('fetch', parserFetch);
+
+    const response = await POST(new Request('https://libretv.example/segments', { method: 'POST' }), {
+      params: Promise.resolve({ resourceId, variantAssetId }),
+    });
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
+  });
 });
