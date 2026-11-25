@@ -219,8 +219,8 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
     def test_authenticated_api_streams_one_fragment_with_complete_provenance_headers(self):
         variant_id, _ = self.prepare_graph()
         staging_root = self.root / "segment-api-staging"
-        with patch.object(queue, "DV_MEDIA_OBJECT_ROOT", self.object_root), \\
-                patch.object(queue, "DV_MEDIA_STAGING_ROOT", staging_root), \\
+        with patch.object(queue, "DV_MEDIA_OBJECT_ROOT", self.object_root), \
+                patch.object(queue, "DV_MEDIA_STAGING_ROOT", staging_root), \
                 patch.object(queue, "require_auth") as require_auth:
             response = queue.api_assemble_hls_fmp4_segment(
                 self.resource["id"], variant_id, 1, authorization="Bearer collector",
