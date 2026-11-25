@@ -130,6 +130,38 @@ describe('POST /api/search', () => {
     expect(data.failures[0].error).toContain('500');
   });
 
+  it('normalizes generic CMS search results and safely encodes the keyword', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const requested = new URL(String(input));
+      expect(requested.searchParams.get('wd')).toBe('星际探索 & 未来');
+      expect(requested.searchParams.get('ac')).toBe('videolist');
+      return new Response(cmsList([
+        { vod_id: 'film-01', vod_name: '星际探索', type_name: '科幻电影', vod_year: 2019 },
+        { vod_id: 'film-01', vod_name: '重复条目', type_name: '科幻电影' },
+        { vod_id: 'film-02', vod_name: '未来城市', type_name: '科幻电影' },
+        { vod_id: '', vod_name: '缺少 ID 的条目', type_name: '科幻电影' },
+      ]), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await POST(makeRequest({
+      wd: '星际探索 & 未来',
+      sources: [{ key: 'cms-fixture', name: 'Mock CMS', url: 'https://cms-fixture.example/api.php/provide/vod' }],
+    }));
+    expect(response.status).toBe(200);
+    const data = await response.json() as SearchResponse;
+    expect(data.list).toHaveLength(2);
+    expect(data.list.map((item) => item.vodId)).toEqual(['film-01', 'film-02']);
+    expect(data.list[0]).toMatchObject({
+      sourceKey: 'cms-fixture',
+      sourceUrl: 'https://cms-fixture.example/api.php/provide/vod',
+      name: '星际探索',
+      typeName: '科幻电影',
+      year: '2019',
+    });
+    expect(data.failures).toEqual([]);
+  });
+
   it('uses browser-local Collector credentials only on an authenticated search request', async () => {
     const { token } = signSession();
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
