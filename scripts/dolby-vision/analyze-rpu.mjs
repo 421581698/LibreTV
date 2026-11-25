@@ -35,6 +35,20 @@ export function normalizeRpuInput(value) {
     }
   };
 
+  const regularToUnspec62Nalu = (regular) => {
+    const escaped = [];
+    let zeroCount = 0;
+    for (const byte of regular) {
+      if (zeroCount >= 2 && byte <= 0x03) {
+        escaped.push(0x03);
+        zeroCount = 0;
+      }
+      escaped.push(byte);
+      zeroCount = byte === 0 ? zeroCount + 1 : 0;
+    }
+    return Buffer.concat([startCode, Buffer.from([0x7c, 0x01]), Buffer.from(escaped)]);
+  };
+
   const validateUnspec62Nalu = (nalu) => {
     if (nalu.length < 9 || nalu[0] !== 0x7c || nalu[1] !== 0x01 || nalu[2] !== 0x19) {
       throw new Error('RPU stream contains a non-UNSPEC62 HEVC NAL unit.');
@@ -63,19 +77,16 @@ export function normalizeRpuInput(value) {
 
   if (input[0] === 0x19) {
     validateRegular(input);
-    if (input.indexOf(startCode) >= 0) {
-      throw new Error('Raw regular RPU contains an ambiguous Annex-B start-code sequence; provide an UNSPEC62 NAL stream.');
-    }
-    return Buffer.concat([startCode, input]);
+    return regularToUnspec62Nalu(input);
   }
 
   if (input.subarray(0, 4).equals(startCode) && input[4] === 0x19) {
     const regular = input.subarray(4);
     validateRegular(regular);
     if (regular.indexOf(startCode) >= 0) {
-      throw new Error('Annex-B regular RPU contains an ambiguous internal start-code sequence; provide an UNSPEC62 NAL stream.');
+      throw new Error('Annex-B regular RPU contains an ambiguous internal start-code sequence; provide a raw regular RPU or UNSPEC62 NAL stream.');
     }
-    return input;
+    return regularToUnspec62Nalu(regular);
   }
 
   // Keep UNSPEC62 NALs escaped and intact. dovi_tool owns EPB removal.
