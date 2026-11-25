@@ -90,8 +90,12 @@ export function toggleWatchPlayback(
 /** Seek within the actual playable window, including sliding HLS windows. */
 export function skipWatchPlayback(video: HTMLVideoElement, delta: number): boolean {
   if (!Number.isFinite(delta) || !Number.isFinite(video.currentTime)) return false;
-  const target = video.currentTime + delta;
-  if (!Number.isFinite(target)) return false;
+  return seekWatchPlayback(video, video.currentTime + delta, delta);
+}
+
+/** Absolute seek shared by cinema controls and the player API. */
+export function seekWatchPlayback(video: HTMLVideoElement, target: number, direction = target - video.currentTime): boolean {
+  if (!Number.isFinite(target) || !Number.isFinite(direction)) return false;
   try {
     const ranges = video.seekable;
     if (!ranges.length) return false;
@@ -103,7 +107,7 @@ export function skipWatchPlayback(video: HTMLVideoElement, delta: number): boole
       if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
       const candidate = Math.max(start, Math.min(end, target));
       const difference = Math.abs(candidate - target);
-      if (difference < distance || (difference === distance && (delta > 0 ? candidate > nearest : candidate < nearest))) {
+      if (difference < distance || (difference === distance && (direction > 0 ? candidate > nearest : candidate < nearest))) {
         nearest = candidate;
         distance = difference;
       }
