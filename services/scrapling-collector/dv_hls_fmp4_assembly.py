@@ -608,6 +608,48 @@ def assemble_registered_hls_fmp4(
             temporary_path.unlink(missing_ok=True)
         raise
 
+    # Produce independently parseable init+one-fragment inputs. These are
+    # deliberately separate from the full-rendition file: each digest and
+    # timeline tuple can be bound to a fragment-scoped parser signature.
+    segment_output_dir = destination.with_name(destination.name + ".segments")
+    segment_output_dir.mkdir(parents=True, exist_ok=True)
+    segment_inputs = []
+    for ordinal, (asset, timing) in enumerate(zip(segment_assets, timeline, strict=True)):
+        segment_path = segment_output_dir / f"segment-{ordinal:06d}.mp4"
+        temporary_segment = None
+        segment_digest = hashlib.sha256()
+        segment_bytes = 0
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", prefix=".dv-hls-segment-", suffix=".mp4",
+                dir=segment_output_dir, delete=False,
+            ) as target:
+                temporary_segment = Path(target.name)
+                for member in (init_asset, asset):
+                    copied, _ = _copy_verified_asset(root_dir, member, target, segment_bytes)
+                    segment_bytes += copied
+                target.flush()
+                os.fsync(target.fileno())
+            with temporary_segment.open("rb") as assembled_segment:
+                for chunk in iter(lambda: assembled_segment.read(CHUNK_SIZE), b""):
+                    segment_digest.update(chunk)
+            os.replace(temporary_segment, segment_path)
+        except Exception:
+            if temporary_segment is not None:
+                temporary_segment.unlink(missing_ok=True)
+            raise
+        segment_inputs.append({
+            **timing,
+            "fragmentAssetId": asset["child_asset_id"],
+            "fragmentSha256": asset["sha256"],
+            "fragmentByteLength": asset["byte_length"],
+            "initializationAssetId": init_asset["asset_id"],
+            "initializationSha256": init_asset["sha256"],
+            "assembledSegmentByteLength": segment_bytes,
+            "assembledSegmentSha256": segment_digest.hexdigest(),
+            "outputPath": str(segment_path),
+        })
+
     return {
         "resourceId": resource_id,
         "graphId": graph["graph_id"],
@@ -621,6 +663,7 @@ def assemble_registered_hls_fmp4(
         "fragmentSequenceContinuity": "sequential",
         "temporalContinuity": "contiguous",
         "videoTimeline": timeline,
+        "segmentInputs": segment_inputs,
         "assembledByteLength": total,
         "assembledSha256": digest.hexdigest(),
         "outputPath": str(destination),
