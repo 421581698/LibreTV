@@ -208,6 +208,8 @@ interface PlayerShellProps {
   resourceKey?: string;
   /** Stable server-issued Dolby Vision media asset ID; never infer from URL or episode key. */
   dolbyVisionAssetId?: string;
+  dolbyVisionSourceKind?: 'cms' | 'direct' | 'registry' | 'unknown';
+  dolbyVisionSourceIdentity?: string;
   onPlaybackSample?: (sample: PlaybackSample) => void;
   onQuality?: (height: number) => void;
   /** 恢复策略判源不可用（重试耗尽/格式硬失败）时回调：父级弹出换源面板 */
@@ -246,6 +248,8 @@ export function PlayerShell({
   sourceKey,
   resourceKey,
   dolbyVisionAssetId,
+  dolbyVisionSourceKind = 'unknown',
+  dolbyVisionSourceIdentity,
   onPlaybackSample,
   onRequestSwitchSource,
   onRequestFullscreen,
@@ -1992,7 +1996,7 @@ export function PlayerShell({
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
       <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
-      <DolbyVisionDiagnosticsPanel key={`${url}:${dolbyVisionAssetId ?? 'unbound'}`} report={dolbyVisionFormatReport} assetId={dolbyVisionAssetId} />
+      <DolbyVisionDiagnosticsPanel key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} />
       {audioTrackOptions.length > 1 && (
         <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
           <button
