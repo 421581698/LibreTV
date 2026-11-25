@@ -10,6 +10,20 @@ describe('buildSearchUrl', () => {
     )).toThrow('风暴（BFZY）数据源已停用');
   });
 
+  it.each([
+    ['gsm3u8', 'https://api.guangsuapi.com/api.php/provide/vod'],
+    ['jsm3u8', 'https://jszyapi.com/api.php/provide/vod'],
+    ['wjm3u8', 'https://api.wujinapi.com/api.php/provide/vod'],
+    ['hnm3u8', 'https://www.hongniuzy2.com/api.php/provide/vod'],
+    ['dbm3u8', 'https://api.apibdzy.com/api.php/provide/vod'],
+    ['zuidam3u8', 'https://api.zuidapi.com/api.php/provide/vod'],
+  ])('builds a compatible Apple CMS search URL for %s', (key, endpoint) => {
+    const url = buildSearchUrl(endpoint, '测试影片', key);
+    expect(url.origin + url.pathname).toBe(endpoint);
+    expect(url.searchParams.get('ac')).toBe('videolist');
+    expect(url.searchParams.get('wd')).toBe('测试影片');
+  });
+
   it('keeps the existing videolist action for other Apple CMS sources', () => {
     const url = buildSearchUrl(
       'https://example.com/api.php/provide/vod',
