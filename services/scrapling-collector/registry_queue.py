@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Any, Callable, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel, ConfigDict, Field
 
 DB_PATH = Path(os.environ.get("SCRAPLING_DB_PATH", "/data/collector.sqlite3"))
@@ -887,6 +888,51 @@ def api_get_cms_asset_binding(
         "mediaType": "mp4",
         "rpuPresence": "unknown",
     }
+
+
+@router.post("/v1/registry/resources/{resource_id}/hls-assembly/{variant_asset_id}")
+def api_assemble_hls_fmp4(
+    resource_id: str,
+    variant_asset_id: str,
+    authorization: str | None = Header(default=None),
+):
+    """Stream a bounded MP4 parser input assembled from verified clear fMP4 HLS members."""
+    require_auth(authorization)
+    from dv_hls_fmp4_assembly import HlsAssemblyError, assemble_registered_hls_fmp4
+
+    DV_MEDIA_STAGING_ROOT.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix="dv-hls-parser-input-", suffix=".mp4", dir=DV_MEDIA_STAGING_ROOT
+    )
+    os.close(descriptor)
+    temporary_path = Path(temporary_name)
+    try:
+        result = assemble_registered_hls_fmp4(
+            resource_id, variant_asset_id, temporary_path, DV_MEDIA_OBJECT_ROOT
+        )
+        return FileResponse(
+            temporary_path,
+            media_type="video/mp4",
+            filename="hls-rpu-parser-input.mp4",
+            background=BackgroundTask(lambda: temporary_path.unlink(missing_ok=True)),
+            headers={
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+                "X-DV-HLS-GRAPH-ID": result["graphId"],
+                "X-DV-HLS-VARIANT-ASSET-ID": result["variantAssetId"],
+                "X-DV-HLS-ASSEMBLED-SHA256": result["assembledSha256"],
+                "X-DV-HLS-FRAGMENT-COUNT": str(len(result["segmentAssetIds"])),
+                "X-DV-HLS-FRAGMENT-SEQUENCE-CONTINUITY": result["fragmentSequenceContinuity"],
+                "X-DV-HLS-TEMPORAL-CONTINUITY": result["temporalContinuity"],
+                "X-DV-RPU-PRESENCE": result["rpuPresence"],
+            },
+        )
+    except HlsAssemblyError as exc:
+        temporary_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception:
+        temporary_path.unlink(missing_ok=True)
+        raise
 
 
 @router.get("/v1/registry/resources/{resource_id}/hls-graph")
