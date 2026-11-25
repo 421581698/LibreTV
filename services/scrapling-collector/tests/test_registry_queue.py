@@ -445,5 +445,67 @@ class RegistryQueueTests(unittest.TestCase):
             queue.api_get_hls_asset_graph(resource["id"], authorization="Bearer test")
         self.assertEqual(missing.exception.status_code, 404)
 
+
+    def test_cms_asset_binding_requires_exact_provider_episode_and_playback_hashes(self):
+        from fastapi import HTTPException
+        resource = queue.upsert_resource({
+            "resource_key": "resource:cms-binding-exact", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/asset.mp4",
+            "title": "Verified MP4", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        digest = "a" * 64
+        asset = queue.register_dolby_vision_media_asset(resource["id"], digest, 1234, "video/mp4")
+        binding = queue.CmsAssetBindingRegistration(
+            source_key="custom_1", vod_id="167277", episode_index=0,
+            provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+            resource_id=resource["id"], asset_id=asset["asset_id"],
+        )
+        with patch.object(queue, "require_dv_ingestion_auth"):
+            created = queue.api_register_cms_asset_binding(binding, x_dv_ingestion_token="operator")
+        self.assertEqual(created["status"], "bound")
+        with patch.object(queue, "require_auth"):
+            found = queue.api_get_cms_asset_binding(
+                source_key="custom_1", vod_id="167277", episode_index=0,
+                provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+                authorization="Bearer test",
+            )
+            with self.assertRaises(HTTPException) as mismatch:
+                queue.api_get_cms_asset_binding(
+                    source_key="custom_1", vod_id="167277", episode_index=0,
+                    provider_url_sha256="b" * 64, playback_url_sha256="d" * 64,
+                    authorization="Bearer test",
+                )
+        self.assertEqual(found["assetId"], asset["asset_id"])
+        self.assertEqual(found["sha256"], digest)
+        self.assertEqual(found["rpuPresence"], "unknown")
+        self.assertEqual(mismatch.exception.status_code, 404)
+
+    def test_cms_asset_binding_rejects_unverified_and_conflicting_assets(self):
+        from fastapi import HTTPException
+        resource = queue.upsert_resource({
+            "resource_key": "resource:cms-binding-unverified", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/asset.mp4",
+            "title": "Unverified MP4", "access_state": "PUBLIC", "media_format": "mp4",
+        })
+        asset = queue.register_dolby_vision_media_asset(resource["id"], "e" * 64, 1234, "video/mp4")
+        binding = queue.CmsAssetBindingRegistration(
+            source_key="custom_1", vod_id="167277", episode_index=0,
+            provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+            resource_id=resource["id"], asset_id=asset["asset_id"],
+        )
+        with patch.object(queue, "require_dv_ingestion_auth"), self.assertRaises(HTTPException) as blocked:
+            queue.api_register_cms_asset_binding(binding, x_dv_ingestion_token="operator")
+        self.assertEqual(blocked.exception.status_code, 409)
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        with patch.object(queue, "require_dv_ingestion_auth"):
+            queue.api_register_cms_asset_binding(binding, x_dv_ingestion_token="operator")
+            conflicting = binding.model_copy(update={"asset_id": "other-asset"})
+            with self.assertRaises(HTTPException) as conflict:
+                queue.api_register_cms_asset_binding(conflicting, x_dv_ingestion_token="operator")
+        self.assertEqual(conflict.exception.status_code, 409)
+
 if __name__ == "__main__":
     unittest.main()
