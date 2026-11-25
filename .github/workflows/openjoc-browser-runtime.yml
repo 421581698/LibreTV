@@ -67,8 +67,8 @@ jobs:
           OPENJOC_DIR="${TMPDIR:-/tmp}/libretv-openjoc-${OPENJOC_COMMIT}"
           ffmpeg -hide_banner -y -f eac3 \
             -i "${OPENJOC_DIR}/crates/openjoc-wasm/testdata/joc.ec3" \
-            -map 0:a:0 -c:a copy -frag_duration 1000000 \
-            -movflags +default_base_moof+frag_keyframe \
+            -map 0:a:0 -c:a copy \
+            -movflags +default_base_moof+frag_every_frame \
             -f mp4 "${RUNNER_TEMP}/joc-cmaf.mp4"
       - name: Verify CMAF extraction through OpenJOC WASM to PCM
         env:
