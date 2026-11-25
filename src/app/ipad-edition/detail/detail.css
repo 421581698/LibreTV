@@ -851,3 +851,166 @@
     padding-top: 18px;
   }
 }
+
+/* Cinema Detail V2 — artwork-first layout. Scoped to iPad title details only. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+  width: min(475px, 43vw);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-title--logo {
+  max-width: min(360px, 100%);
+  line-height: 1;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-title-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: clamp(72px, 13svh, 146px);
+  object-fit: contain;
+  object-position: left bottom;
+  filter: drop-shadow(0 2px 14px rgba(0,0,0,.35));
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1:not(.ipad-cinema-title--logo) {
+  max-width: min(440px, 100%);
+  font-weight: 680;
+  letter-spacing: -.025em;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-wrap {
+  margin-top: 12px;
+  max-width: 100%;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-wrap .ipad-cinema-overview {
+  margin: 0;
+  max-width: 100%;
+  -webkit-line-clamp: 2;
+  line-height: 1.65;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-wrap .ipad-cinema-overview.is-expanded {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-toggle {
+  padding: 4px 0 0;
+  border: 0;
+  color: rgba(255,255,255,.92);
+  background: transparent;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-toggle:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero-credits {
+  position: absolute;
+  z-index: 4;
+  right: clamp(24px, 3.6vw, 64px);
+  bottom: clamp(32px, 5svh, 60px);
+  width: min(268px, 23vw);
+  color: rgba(255,255,255,.84);
+  text-shadow: 0 2px 16px rgba(0,0,0,.8);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero-credits p { margin: 0; }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero-credits span {
+  margin-right: 8px;
+  color: rgba(255,255,255,.58);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__shade {
+  background:
+    linear-gradient(0deg, #08090c 0%, rgba(8,9,12,.7) 11%, rgba(8,9,12,.08) 43%, transparent 69%),
+    linear-gradient(90deg, rgba(0,0,0,.48), rgba(0,0,0,.16) 35%, transparent 69%);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-bottom-fade {
+  height: 17%;
+  background: linear-gradient(to top, #08090c, transparent);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-details {
+  padding-top: 14px;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-trailers {
+  margin-top: 8px;
+  margin-bottom: 34px;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-trailer {
+  position: relative;
+  display: block;
+  width: clamp(230px, 29vw, 340px);
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px;
+  color: #fff;
+  background: #25272c;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-trailer img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-trailer > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  text-shadow: 0 2px 14px #000;
+  background: rgba(0,0,0,.13);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-trailer strong {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 8px #000;
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-info {
+  margin-top: 26px;
+}
+@media (orientation: landscape) and (min-width: 901px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero {
+    height: clamp(490px, 75svh, 790px);
+    min-height: 490px;
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: min(475px, 43vw);
+    bottom: clamp(28px, 5svh, 54px);
+    left: clamp(28px, 3.5vw, 58px);
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1:not(.ipad-cinema-title--logo) {
+    font-size: clamp(28px, 2.85vw, 39px);
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-kicker { margin-bottom: 8px; }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-actions { margin-top: 18px; }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-meta { margin-top: 10px; }
+}
+@media (max-width: 900px), (orientation: portrait) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: min(540px, 80vw);
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero-credits {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: auto;
+    max-width: min(540px, 80vw);
+    margin: 0 0 38px clamp(24px, 5vw, 64px);
+    padding-top: 18px;
+    font-size: 11px;
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-title-logo { max-height: 105px; }
+}
+@media (max-width: 600px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content { width: calc(100% - 44px); }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero-credits { display: none; }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-trailer { width: min(100%, 340px); }
+}
