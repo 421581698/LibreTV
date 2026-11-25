@@ -1,6 +1,6 @@
 # Native Dolby Audio Adapter Contract
 
-Status: interface specification only. The current LibreTV repository is a Next.js/TypeScript web application; it does not contain iOS/Xcode or Android/Gradle application targets. This document is the integration contract for future native shells, not an implementation or a claim of native Dolby output.
+Status: interface specification plus isolated native adapter libraries. The repository remains a Next.js/TypeScript web application and does not contain complete iOS/Xcode or Android application targets. The Swift and Kotlin libraries report limited platform facts but are not wired into an app shell or the web player, and do not claim native Dolby output.
 
 ## Goals
 
@@ -114,3 +114,23 @@ Android application target, collect platform facts, decode JOC, or establish
 that a reported output state is true. The native shell must still authenticate
 the bridge source and invoke the validator only from its trusted top-level
 application context.
+
+
+## Isolated platform libraries
+
+The repository now contains:
+
+- `native/ios`: a Swift Package that reads the current AVAudioSession output
+  route and emits a version-1 snapshot. Dolby/JOC/object-render states remain
+  unknown because AVAudioSession route metadata does not prove those outcomes.
+- `native/android`: an Android library that checks platform decoder capability
+  for `audio/eac3-joc`, reads Spatializer availability/enabled state where
+  supported, and accepts the actual routed output device from its host player.
+  It does not treat a list of connected devices as the active route.
+
+Both are isolated adapter modules, not complete application shells. Their
+build/test workflow is defined in
+`.github/workflows/native-audio-adapters.yml`; because that workflow file is
+introduced on this feature branch, it must be exercised after the workflow is
+available to the base branch or via a repository workflow-dispatch path. No
+physical-device run has been performed.
