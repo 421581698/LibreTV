@@ -95,6 +95,7 @@ export interface VerifiedHlsRpuSegmentSet {
   segments: VerifiedDolbyVisionRpuEnvelope[];
   totalRpuFrameCount: number;
   timelineContinuity: 'contiguous';
+  rpuProfileContinuity: 'consistent';
   rpuSemanticContinuity: 'not-established';
 }
 
@@ -129,6 +130,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
   let previousEnd: number | null = null;
   let previousSequence: number | null = null;
   let commonTimescale: number | null = null;
+  let commonProfiles: number[] | null = null;
   let totalRpuFrameCount = 0;
 
   for (let ordinal = 0; ordinal < options.expectedFragmentCount; ordinal += 1) {
@@ -175,6 +177,10 @@ export function verifySignedDolbyVisionRpuSegmentSet(
       now: options.now,
     });
     if (!result) return null;
+    const profiles = result.report.profiles;
+    if (commonProfiles === null) commonProfiles = profiles;
+    else if (profiles.length !== commonProfiles.length ||
+        profiles.some((profile, index) => profile !== commonProfiles?.[index])) return null;
     totalRpuFrameCount += result.report.frameCount;
     if (!Number.isSafeInteger(totalRpuFrameCount)) return null;
     verified.push(result);
@@ -184,6 +190,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     segments: verified,
     totalRpuFrameCount,
     timelineContinuity: 'contiguous',
+    rpuProfileContinuity: 'consistent',
     rpuSemanticContinuity: 'not-established',
   };
 }
