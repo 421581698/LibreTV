@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import argparse
 import os
 import uuid
