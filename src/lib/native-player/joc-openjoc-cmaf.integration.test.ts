@@ -141,6 +141,13 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
     const packets = mediaSegments.flatMap(segment => extractor.extractMediaSegment(segment).packets);
     expect(packets.length).toBeGreaterThan(0);
     expect(packets.every(packet => packet.sampleEntry === 'ec-3')).toBe(true);
+    console.info('CMAF E-AC-3 samples:', packets.map(packet => ({
+      size: packet.bytes.byteLength,
+      pts: packet.presentationTime,
+      duration: packet.duration,
+      streamType: packet.bytes[2] >> 6,
+      substreamId: (packet.bytes[2] >> 3) & 7,
+    })));
 
     const instantiated = await WebAssembly.instantiate(wasmBytes, {
       env: { openjoc_wasm_clock_now_ms: () => performance.now() },
@@ -195,6 +202,7 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
     };
 
     try {
+      let packetNumber = 0;
       for (const packet of packets) {
         const pointer = alloc(packet.bytes.byteLength);
         expect(pointer).toBeGreaterThan(0);
@@ -207,12 +215,13 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
             const detail = errorSize > 0
               ? new TextDecoder().decode(new Uint8Array(wasmMemory.buffer, errorPointer(handle), errorSize).slice())
               : 'No decoder detail was provided.';
-            throw new Error(`OpenJOC rejected CMAF sample ${packet.sampleIndex} (size=${packet.bytes.byteLength}, pts=${packet.presentationTime}/${packet.timescale}): ${detail}`);
+            throw new Error(`OpenJOC rejected CMAF packet ${packetNumber} (sample=${packet.sampleIndex}, size=${packet.bytes.byteLength}, pts=${packet.presentationTime}/${packet.timescale}, streamType=${packet.bytes[2] >> 6}, substream=${(packet.bytes[2] >> 3) & 7}): ${detail}`);
           }
         } finally {
           dealloc(pointer, packet.bytes.byteLength);
         }
         drain();
+        packetNumber += 1;
       }
 
       let reachedEos = false;
