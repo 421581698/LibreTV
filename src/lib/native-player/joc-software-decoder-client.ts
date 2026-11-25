@@ -52,29 +52,34 @@ export class JocSoftwareDecoderClient {
   private activeVideo: HTMLVideoElement | null = null;
   private previousMuted = false;
   private ownsMediaMute = false;
+  private clockRaf = 0;
+  private readonly outputEnabled: boolean;
   private readonly listeners = new Set<(status: JocDecoderStatus) => void>();
   private readonly pcmListeners = new Set<(frame: JocDecoderPcmFrame) => void>();
   private readonly errorListeners = new Set<(error: Error) => void>();
   private readonly pending = new Map<string, Array<{ resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>>();
 
-  private constructor(context: AudioContext, worker: Worker) {
+  private constructor(context: AudioContext, worker: Worker, outputEnabled: boolean) {
     this.context = context;
+    this.outputEnabled = outputEnabled;
     this.worker = worker;
     this.worker.addEventListener('message', this.onWorkerMessage);
     this.worker.addEventListener('error', this.onWorkerError);
   }
 
-  static async create(options: { wasmUrl?: string; audioContext?: AudioContext } = {}): Promise<JocSoftwareDecoderClient> {
+  static async create(options: { wasmUrl?: string; audioContext?: AudioContext; outputEnabled?: boolean } = {}): Promise<JocSoftwareDecoderClient> {
     const context = options.audioContext ?? new AudioContext({ sampleRate: 48000, latencyHint: 'playback' });
     if (context.sampleRate !== 48000) {
       if (!options.audioContext) await context.close();
       throw new Error(`OpenJOC requires a 48 kHz AudioContext; browser selected ${context.sampleRate} Hz.`);
     }
     const worker = new Worker(new URL('./joc-decoder.worker.ts', import.meta.url), { type: 'module', name: 'libretv-openjoc' });
-    const client = new JocSoftwareDecoderClient(context, worker);
+    const outputEnabled = options.outputEnabled ?? true;
+    const client = new JocSoftwareDecoderClient(context, worker, outputEnabled);
     try {
-      await context.audioWorklet.addModule('/audio/openjoc-pcm.worklet.js');
-      client.node = new AudioWorkletNode(context, 'openjoc-pcm', {
+      if (outputEnabled) {
+        await context.audioWorklet.addModule('/audio/openjoc-pcm.worklet.js');
+        client.node = new AudioWorkletNode(context, 'openjoc-pcm', {
         numberOfInputs: 0,
         numberOfOutputs: 1,
         outputChannelCount: [2],
@@ -82,8 +87,9 @@ export class JocSoftwareDecoderClient {
         channelCountMode: 'explicit',
       });
       client.node.port.addEventListener('message', client.onWorkletMessage);
-      client.node.port.start();
-      client.node.connect(context.destination);
+        client.node.port.start();
+        client.node.connect(context.destination);
+      }
       await client.waitFor('ready', () => {
         worker.postMessage({ type: 'init', generation: client.generation, wasmUrl: options.wasmUrl });
       });
@@ -214,7 +220,7 @@ export class JocSoftwareDecoderClient {
    */
   async activateOutput(video: HTMLVideoElement, minimumPrerollMs = 128): Promise<boolean> {
     this.assertActive();
-    if (!this.node || !this.ready || video.paused || video.ended) return false;
+    if (!this.outputEnabled || !this.node || !this.ready || video.paused || video.ended) return false;
     const requiredFrames = Math.ceil(48000 * Math.max(128, minimumPrerollMs) / 1000);
     if (this.queuedFrames < requiredFrames) return false;
     await this.resumeFromUserGesture();
@@ -222,6 +228,12 @@ export class JocSoftwareDecoderClient {
 
     this.activeVideo = video;
     this.previousMuted = video.muted;
+    const updateClock = () => {
+      if (this.disposed || this.activeVideo !== video) return;
+      this.setMediaClock(video.currentTime * 48000);
+      this.clockRaf = requestAnimationFrame(updateClock);
+    };
+    updateClock();
     this.ownsMediaMute = false;
     try {
       await this.waitFor('output-started', () => this.node?.port.postMessage({ type: 'start' }));
@@ -256,6 +268,8 @@ export class JocSoftwareDecoderClient {
 
   fallbackToMediaAudio(): void {
     this.node?.port.postMessage({ type: 'stop' });
+    if (this.clockRaf) cancelAnimationFrame(this.clockRaf);
+    this.clockRaf = 0;
     if (this.activeVideo && this.ownsMediaMute) this.activeVideo.muted = this.previousMuted;
     this.activeVideo = null;
     this.ownsMediaMute = false;
@@ -323,6 +337,10 @@ export class JocSoftwareDecoderClient {
       this.decodedAccessUnits = message.decodedAccessUnits;
       this.emitStatus();
     } else if (message.type === 'pcm') {
+      if (!this.outputEnabled) {
+        for (const listener of this.pcmListeners) listener({ samples, sampleFrames: message.sampleFrames, ptsSamples: message.ptsSamples });
+        return;
+      }
       if (!this.node || message.sampleRate !== 48000 || message.channels !== 2) {
         this.fail(new Error('OpenJOC PCM format is unsupported.'));
         return;
