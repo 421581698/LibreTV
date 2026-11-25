@@ -141,6 +141,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     return () => {
       controller.abort();
       hlsAnalysisRequestRef.current?.abort();
+      hlsSegmentAnalysisRequestRef.current?.abort();
     };
   }, [sourceKind, sourceIdentity, report?.container]);
 
@@ -411,9 +412,11 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                 )}
                 {hlsGraphError && <p role="alert" className="mt-1 text-amber-200">{hlsGraphError}</p>}
                 <p className="mt-1 text-[10px] leading-snug text-white/45">
-                  {currentHlsEvidence
-                    ? '已完成此变体的签名 RPU 分析；视频时间戳连续性已通过校验；跨分片 RPU 连续性仍未验证。'
-                    : '这里只核对不可变资产身份与分片关系；分片级 RPU 尚未分析。'}
+                  {currentHlsSegmentEvidence
+                    ? '全部分片已分别完成 RPU 解析和签名验真；视频时间轴连续。RPU 逐帧语义连续性仍需逐帧数据验证。'
+                    : currentHlsEvidence
+                      ? '已完成此变体的整段签名 RPU 分析；视频时间戳连续性已通过校验；分片级 RPU 尚未逐片验真。'
+                      : '这里只核对不可变资产身份与分片关系；分片级 RPU 尚未分析。'}
                 </p>
               </div>
             )}
