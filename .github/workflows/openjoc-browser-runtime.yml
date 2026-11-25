@@ -1,0 +1,74 @@
+name: OpenJOC Browser Runtime
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/native-player/joc-*'
+      - 'public/audio/openjoc-pcm.worklet.js'
+      - 'scripts/build-openjoc-wasm.sh'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/openjoc-browser-runtime.yml'
+  push:
+    branches:
+      - feature/dolby-immersive-audio-v4-2026-11-25
+    paths:
+      - 'src/lib/native-player/joc-*'
+      - 'public/audio/openjoc-pcm.worklet.js'
+      - 'scripts/build-openjoc-wasm.sh'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/openjoc-browser-runtime.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openjoc-browser-runtime-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wasm-and-browser-bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.89.0
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Build pinned OpenJOC WASM asset
+        run: npm run build:openjoc-wasm
+      - name: Test upstream decoder bridge
+        env:
+          OPENJOC_COMMIT: f9b54bbbb8e1b44c746a72e1b14b289cad418cf9
+        run: |
+          OPENJOC_DIR="${TMPDIR:-/tmp}/libretv-openjoc-${OPENJOC_COMMIT}"
+          cargo test --manifest-path "${OPENJOC_DIR}/Cargo.toml" --locked -p openjoc-wasm
+          cargo run --manifest-path "${OPENJOC_DIR}/Cargo.toml" --locked -p openjoc-wasm \
+            --example smoke-sofa -- "${RUNNER_TEMP}/custom.sofa"
+          node "${OPENJOC_DIR}/scripts/test-wasm.mjs" \
+            public/wasm/openjoc_wasm.wasm embedded "${RUNNER_TEMP}/custom.sofa"
+      - name: TypeScript validation
+        run: npm run typecheck
+      - name: Repository tests
+        run: npm test
+      - name: Lint
+        run: npm run lint
+      - name: Upload reproducible decoder build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: openjoc-wasm-v0.20.2
+          path: |
+            public/wasm/openjoc_wasm.wasm
+            public/wasm/openjoc_wasm.wasm.sha256
+            public/wasm/OPENJOC-LICENSE
+            public/wasm/openjoc-dependency-tree.txt
+            public/wasm/openjoc-build-manifest.json
+          if-no-files-found: error
+          retention-days: 14
