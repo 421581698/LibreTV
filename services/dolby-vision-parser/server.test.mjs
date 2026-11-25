@@ -270,7 +270,7 @@ process.exit(2);
         variantAssetId: 'variant:playlist',
         fragmentCount: 3,
         fragmentSequenceContinuity: 'sequential',
-        temporalContinuity: 'unknown',
+        temporalContinuity: 'contiguous',
       });
       const { signature: hlsSignature, ...hlsPayload } = hlsEnvelope;
       assert.equal(
