@@ -91,7 +91,9 @@ describe('iPad Edition navigation contract', () => {
 
   it('switches navigation by app width and keeps expanded links keyboard reachable', () => {
     expect(shell).toContain('resolveIpadNavigationLayout(root.getBoundingClientRect().width)');
-    expect(shell).toContain('tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}');
+    expect(shell).toContain('tabIndex={wideLayout || sidebarOpen ? 0 : -1}');
+    expect(shell).toContain('inert={!wideLayout && !sidebarOpen}');
+    expect(shell).toContain('aria-hidden={!wideLayout && !sidebarOpen}');
     expect(responsiveStyles).toContain('width: calc(100% - var(--ipad-sidebar-width))');
     expect(responsiveStyles).toContain('container-type: inline-size');
   });
@@ -99,8 +101,10 @@ describe('iPad Edition navigation contract', () => {
   it('starts with the wide sidebar collapsed and always exposes a clear close control', () => {
     expect(shell).toContain('const [navigationCollapsed, setNavigationCollapsed] = useState(true);');
     expect(shell).toContain('aria-label="关闭侧边栏"');
-    expect(shell).toContain('title="关闭侧边栏"');
-    expect(shell).toContain('<span>关闭</span>');
+    expect(shell).toContain('title={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
+    expect(shell).toContain('aria-label={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
+    expect(shell).toContain('className="ipad-nav__collapse-button"');
+    expect(shell).toContain('setNavigationCollapsed((collapsed) => !collapsed)');
     expect(responsiveStyles).toContain('min-width: 68px;');
     expect(shell).toContain('setSidebarOpen(false);');
     expect(shell).toContain('setNavigationCollapsed(true);');
@@ -110,7 +114,8 @@ describe('iPad Edition navigation contract', () => {
     expect(shell).toContain('const [navigationCollapsed, setNavigationCollapsed] = useState(true);');
     expect(shell).toContain('data-ipad-layout={wideLayout ? \'expanded\' : \'compact\'}');
     expect(shell).toContain('aria-label="关闭侧边栏"');
-    expect(shell).toContain('title="关闭侧边栏"');
+    expect(shell).toContain('title={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
+    expect(shell).toContain('aria-label={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
     expect(shell).toContain('if (wideLayout) setNavigationCollapsed(true);');
     expect(responsiveStyles).toContain('[data-ipad-sidebar-open="false"] .ipad-nav__sidebar');
     expect(responsiveStyles).toContain('[data-ipad-sidebar-open="true"] > .ipad-edition__main');
