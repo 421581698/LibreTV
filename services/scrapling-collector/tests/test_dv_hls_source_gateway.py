@@ -171,18 +171,20 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
     def test_worker_rejects_candidate_changed_after_ingestion_job_was_queued(self):
         import worker
 
+        checkpoints = []
         with patch.object(worker, "require_egress_firewall"):
-            with self.assertRaisesRegex(RuntimeError, "candidate_changed_after_queue"):
-                worker.handle(
-                    {
-                        "_job_type": "dv_media_ingest",
-                        "candidate_id": self.candidate_id,
-                        "resource_id": self.resource_id,
-                        "source_version": "0" * 24,
-                    },
-                    lambda _event: None,
-                    lambda: False,
-                )
+            result = worker.handle(
+                {
+                    "_job_type": "dv_media_ingest",
+                    "candidate_id": self.candidate_id,
+                    "resource_id": self.resource_id,
+                    "source_version": "0" * 24,
+                },
+                checkpoints.append,
+                lambda: False,
+            )
+        self.assertEqual(result, {"status": "skipped", "reason": "candidate_changed_after_queue"})
+        self.assertIn("authorized_media_ingest_skipped", [item["stage"] for item in checkpoints])
 
     def test_worker_dispatches_hls_candidate_to_graph_source_gateway(self):
         import worker
