@@ -138,8 +138,9 @@ function parseDolbyRpuObuStream(inputValue) {
       temporalDelimiterCount += 1;
       framesByTemporalUnit.set(temporalUnit, 0);
     } else if (type === 3 || type === 6) {
+      if (temporalUnit < 0) throw new Error('AV1 frame appeared before a temporal delimiter.');
       frameUnitCount += 1;
-      if (temporalUnit >= 0) framesByTemporalUnit.set(temporalUnit, (framesByTemporalUnit.get(temporalUnit) || 0) + 1);
+      framesByTemporalUnit.set(temporalUnit, (framesByTemporalUnit.get(temporalUnit) || 0) + 1);
     } else if (type === 5) {
       const metadataType = readLeb128(payload, 0);
       if (metadataType.value === 4) {
