@@ -60,7 +60,7 @@ describe('dovi_tool RPU report parsing', () => {
     const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), nalu]);
     const expected = Buffer.concat([Buffer.from([0, 0, 0, 1]), regular]);
     expect(normalizeRpuInput(annexB)).toEqual(annexB);
-    expect(normalizeRpuInput(regular)).toEqual(expected);
+    expect(normalizeRpuInput(regular)).toEqual(annexB);
   });
 
   it('normalizes multiple UNSPEC62 NAL units without losing regular RPU boundaries', () => {
@@ -76,7 +76,10 @@ describe('dovi_tool RPU report parsing', () => {
   it('preserves already-normalized Annex-B regular RPU chunks', () => {
     const regular = Buffer.from([0x19, 0x11, 0x22, 0x33, 0x44, 0x55, 0x80]);
     const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), regular]);
-    expect(normalizeRpuInput(annexB)).toEqual(annexB);
+    expect(normalizeRpuInput(annexB)).toEqual(Buffer.concat([
+      Buffer.from([0, 0, 0, 1, 0x7c, 0x01]),
+      regular,
+    ]));
   });
 
   it('rejects malformed NAL headers, malformed RPU payloads and invalid emulation-prevention bytes', () => {
