@@ -12,3 +12,5 @@ let package = Package(
         .testTarget(name: "LibreTVNativeAudioTests", dependencies: ["LibreTVNativeAudio"])
     ]
 )
+
+// Adapter package is independently built by native-audio-adapters.yml.
