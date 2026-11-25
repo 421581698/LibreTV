@@ -256,10 +256,10 @@ describe('成人内容过滤', () => {
     expect(isAdultContent(undefined)).toBe(false);
   });
 
-  it('filterAdultResults 按开关过滤', () => {
+  it('filterAdultResults cannot be disabled by a client preference', () => {
     const items = [{ typeName: '伦理片' }, { typeName: '剧情片' }];
     expect(filterAdultResults(items, true)).toEqual([{ typeName: '剧情片' }]);
-    expect(filterAdultResults(items, false)).toHaveLength(2);
+    expect(filterAdultResults(items, false)).toEqual([{ typeName: '剧情片' }]);
   });
 });
 
