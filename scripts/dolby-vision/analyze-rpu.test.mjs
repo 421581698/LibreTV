@@ -58,7 +58,6 @@ describe('dovi_tool RPU report parsing', () => {
     const escaped = Buffer.from([0x19, 0x00, 0x00, 0x03, 0x01, 0x80, 0x55, 0x66, 0x80]);
     const nalu = Buffer.concat([Buffer.from([0x7c, 0x01]), escaped]);
     const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), nalu]);
-    const expected = Buffer.concat([Buffer.from([0, 0, 0, 1]), regular]);
     expect(normalizeRpuInput(annexB)).toEqual(annexB);
     expect(normalizeRpuInput(regular)).toEqual(annexB);
   });
