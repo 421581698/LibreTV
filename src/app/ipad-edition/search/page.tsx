@@ -79,10 +79,23 @@ function IpadSearchContent() {
   };
 
   useEffect(() => {
-    if (initial.trim()) void runSearch(initial);
-    // initial query is the route's entry value; later searches are user-triggered.
+    // Keep search state synchronized with browser Back/Forward navigation.
+    if (initial.trim()) {
+      void runSearch(initial);
+    } else {
+      activeController.current?.abort();
+      activeController.current = null;
+      requestId.current += 1;
+      setQuery('');
+      setResults([]);
+      setError('');
+      setHasSearched(false);
+      setLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initial]);
+
+  useEffect(() => () => activeController.current?.abort(), []);
 
   // Poster selection is navigation-only. Resource details and playback must
   // remain behind the explicit Start Playback action on the detail page.
