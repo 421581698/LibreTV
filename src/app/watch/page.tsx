@@ -880,6 +880,8 @@ function WatchContent() {
                   episodeKey={currentEpisodeKey}
                   sourceKey={sourceKey}
                   resourceKey={currentEpisodeKey}
+                  dolbyVisionSourceKind={directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown'}
+                  dolbyVisionSourceIdentity={sourceKey || undefined}
                   onPlaybackSample={(sample) => useAppStore.getState().recordPlaybackSample(sample)}
                   onRequestFullscreen={requestWatchFullscreen}
                   onRequestSwitchSource={() => {
