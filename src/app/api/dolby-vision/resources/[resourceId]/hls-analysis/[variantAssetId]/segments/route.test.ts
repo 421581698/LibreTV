@@ -244,4 +244,25 @@ describe('POST HLS fragment-set analysis', () => {
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
   });
+
+  it('rejects a registry fragment bound to a different resource ID', async () => {
+    vi.mocked(fetchDolbyVisionHlsAssemblySegment).mockImplementation(async (_resource, _variant, ordinal) => {
+      const response = makeFragmentResponse(ordinal);
+      const headers = new Headers(response.headers);
+      headers.set('X-DV-HLS-RESOURCE-ID', 'another-resource');
+      return new Response(fragmentBytes[ordinal], { status: 200, headers });
+    });
+    const parserFetch = vi.fn();
+    vi.stubGlobal('fetch', parserFetch);
+
+    const response = await POST(new Request('https://libretv.example/segments', { method: 'POST' }), {
+      params: Promise.resolve({ resourceId, variantAssetId }),
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'DV_HLS_SEGMENT_BINDING_INVALID',
+      invalidFields: ['resource-id'],
+    });
+    expect(parserFetch).not.toHaveBeenCalled();
+  });
 });
