@@ -130,6 +130,61 @@ describe('toggleWatchPlayback', () => {
     expect(onChange).toHaveBeenCalledWith(false);
   });
 
+  it('ignores late play success after pause on the same video', async () => {
+    const video = makeVideo();
+    let resolvePlay: (() => void) | undefined;
+    video.play = vi.fn(() => new Promise<void>(resolve => { resolvePlay = resolve; }));
+    const onChange = vi.fn();
+
+    toggleWatchPlayback(video, () => true, onChange);
+    video.setPaused(false); // The browser can enter playing before play() settles.
+    toggleWatchPlayback(video, () => true, onChange);
+    expect(onChange).toHaveBeenLastCalledWith(false);
+
+    resolvePlay?.();
+    await Promise.resolve();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(video.paused).toBe(true);
+  });
+
+  it('ignores an old play rejection after a newer replay succeeds', async () => {
+    const video = makeVideo();
+    let rejectOld: ((reason: Error) => void) | undefined;
+    let resolveNew: (() => void) | undefined;
+    let requestCount = 0;
+    video.play = vi.fn(() => new Promise<void>((resolve, reject) => {
+      if (++requestCount === 1) rejectOld = reject;
+      else resolveNew = resolve;
+    }));
+    const onChange = vi.fn();
+
+    toggleWatchPlayback(video, () => true, onChange);
+    video.setPaused(false);
+    toggleWatchPlayback(video, () => true, onChange); // pause supersedes old play
+    toggleWatchPlayback(video, () => true, onChange); // new play request
+    video.setPaused(false);
+    resolveNew?.();
+    await Promise.resolve();
+    expect(onChange.mock.calls.map(([state]) => state)).toEqual([false, true]);
+
+    rejectOld?.(new DOMException('superseded request', 'AbortError'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onChange.mock.calls.map(([state]) => state)).toEqual([false, true]);
+  });
+
+  it('never reports playing after the latest play promise rejects', async () => {
+    const video = makeVideo();
+    video.play = vi.fn(() => Promise.reject(new DOMException('blocked', 'NotAllowedError')));
+    const onChange = vi.fn();
+
+    toggleWatchPlayback(video, () => true, onChange);
+    video.setPaused(false); // Guard against a transient native playing state.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onChange).toHaveBeenLastCalledWith(false);
+  });
+
   it('ignores a stale play promise after the video is replaced', async () => {
     const video = makeVideo();
     let resolvePlay: (() => void) | undefined;
