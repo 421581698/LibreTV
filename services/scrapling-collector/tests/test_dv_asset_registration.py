@@ -74,6 +74,25 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "matching media format"):
             self.register(resource, content_type="video/webm")
 
+    def test_rejects_embedded_player_resources_even_when_public_and_played(self):
+        resource = registry.upsert_resource({
+            "resource_key": "dv-registration:embedded",
+            "source_key": "registration-eligibility-test",
+            "resource_type": "EMBEDDED_PLAYER",
+            "url": "https://media.example.test/embed",
+            "title": "Embedded player fixture",
+            "access_state": "PUBLIC",
+            "media_format": "mp4",
+        })
+        registry.record_verification(
+            resource["id"], "preflight", "passed", {"access_state": "PUBLIC"}
+        )
+        registry.record_verification(
+            resource["id"], "player", "passed", {"progressed_seconds": 4}
+        )
+        with self.assertRaisesRegex(ValueError, "DIRECT_MEDIA"):
+            self.register(resource)
+
     def test_accepts_confirmed_mp4_and_webm_assets(self):
         mp4 = self.make_resource("dv-registration:mp4", media_format="mp4")
         webm = self.make_resource("dv-registration:webm", media_format="webm")
