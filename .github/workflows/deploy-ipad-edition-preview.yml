@@ -1645,6 +1645,14 @@ jobs:
                       currentTime = Number(value) || 0;
                     } },
                     duration: { configurable: true, get: () => 120 },
+                    // The detached synthetic fixture has no native seekable range.
+                    // Model a finite VOD window explicitly; production still uses
+                    // the browser's real TimeRanges and rejects unavailable seeks.
+                    seekable: { configurable: true, get: () => ({
+                      length: 1,
+                      start: index => { if (index !== 0) throw new DOMException("Invalid range", "IndexSizeError"); return 0; },
+                      end: index => { if (index !== 0) throw new DOMException("Invalid range", "IndexSizeError"); return 120; },
+                    }) },
                   });
                   video.play = () => {
                     if (window.__mockPlaybackReject) {
