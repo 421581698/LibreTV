@@ -84,7 +84,7 @@ describe('signed Dolby Vision RPU envelope', () => {
       variantAssetId: 'variant:playlist',
       fragmentCount: 24,
       fragmentSequenceContinuity: 'sequential' as const,
-      temporalContinuity: 'unknown' as const,
+      temporalContinuity: 'contiguous' as const,
     };
     const envelope = makeEnvelope({ analysisContext });
     expect(verifySignedDolbyVisionRpuEnvelope(envelope, options)).toBeNull();
