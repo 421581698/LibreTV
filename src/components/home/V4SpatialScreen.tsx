@@ -11,7 +11,6 @@ import { Icon } from '@/components/icon';
 import { requestShowDownloadManager } from '@/components/download-manager';
 import { AnimeRecommendationSection } from '@/components/douban-section';
 import { GlassPanel } from '@/components/ui/glass';
-import { FridayGlassControls } from '@/components/friday/FridayGlassControls';
 import { SmartImage } from '@/components/smart-image';
 import { db, removeFavorite, type FavoriteEntry, type HistoryEntry } from '@/lib/db';
 import { isInDisabledSubscription, isSourceDisabled, resolveSource, useAppStore } from '@/lib/store';
@@ -458,9 +457,6 @@ function SettingsScreen() {
     <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-12 sm:px-6">
 
       <SourceManagerDrawer open embedded onClose={() => undefined} />
-      <section className="card p-4 sm:p-5" aria-label="Friday 液态玻璃设置">
-        <FridayGlassControls />
-      </section>
       <section className="card p-4 sm:p-5" aria-labelledby="settings-downloads-title">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
