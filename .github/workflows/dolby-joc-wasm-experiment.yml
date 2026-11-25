@@ -1,0 +1,68 @@
+name: Dolby JOC WASM Experimental Verify
+
+# Research-only gate: pinned upstream compiler/runtime validation.
+# Never deploys a website, modifies the player, or claims Dolby certification.
+on:
+  push:
+    branches:
+      - feature/libretv-ipad-edition-product
+    paths:
+      - "src/lib/dolby/**"
+      - ".github/workflows/dolby-joc-wasm-experiment.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dolby-joc-wasm-experiment-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-upstream-wasm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout PR #99 existing branch
+        uses: actions/checkout@v4
+
+      - name: Checkout verified upstream source at a pinned SHA
+        env:
+          OPENJOC_PIN: b586b25f21cc0d84306e8c01bf8e270da88dfc64
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/chyinan/OpenJOC.git openjoc
+          git -C openjoc checkout --quiet --detach "$OPENJOC_PIN"
+          test "$(git -C openjoc rev-parse HEAD)" = "$OPENJOC_PIN"
+          printf 'Pinned upstream source: %s\n' "$OPENJOC_PIN"
+
+      - name: Install Rust WebAssembly target
+        run: |
+          rustup toolchain install 1.89.0 --profile minimal --target wasm32-unknown-unknown
+          rustup default 1.89.0
+
+      - name: Install Node.js 24 for upstream ABI smoke
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Upstream native bridge regression and SOFA fixture
+        working-directory: openjoc
+        run: |
+          cargo test -p openjoc-wasm --locked
+          cargo run -p openjoc-wasm --example smoke-sofa --locked -- "$RUNNER_TEMP/custom.sofa"
+
+      - name: Build WASM with external assets (not distributed)
+        working-directory: openjoc
+        run: cargo build -p openjoc-wasm --release --locked --target wasm32-unknown-unknown --no-default-features --features external-builtin-hrtf-assets
+
+      - name: Verify real WASM ABI and bundled test vector
+        working-directory: openjoc
+        run: node scripts/test-wasm.mjs target/wasm32-unknown-unknown/release/openjoc_wasm.wasm external "$RUNNER_TEMP/custom.sofa"
+
+      - name: Research-only completion marker
+        if: success()
+        run: |
+          echo "OpenJOC upstream pinned WASM self-test passed."
+          echo "This is NOT LibreTV playback integration, certified Dolby Atmos, or physical iPad output verification."
