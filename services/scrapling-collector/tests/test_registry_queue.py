@@ -500,9 +500,10 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(blocked.exception.status_code, 409)
         queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
         queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        second_asset = queue.register_dolby_vision_media_asset(resource["id"], "f" * 64, 2345, "video/mp4")
         with patch.object(queue, "require_dv_ingestion_auth"):
             queue.api_register_cms_asset_binding(binding, x_dv_ingestion_token="operator")
-            conflicting = binding.model_copy(update={"asset_id": "other-asset"})
+            conflicting = binding.model_copy(update={"asset_id": second_asset["asset_id"]})
             with self.assertRaises(HTTPException) as conflict:
                 queue.api_register_cms_asset_binding(conflicting, x_dv_ingestion_token="operator")
         self.assertEqual(conflict.exception.status_code, 409)
