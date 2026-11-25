@@ -210,7 +210,7 @@ function toPlainText(view: Omit<DiagnosticsView, 'plainText'>): string {
     lines.push('');
   }
   lines.push('诊断模式：只读（不自动换源 / 不降画质 / 不重启）');
-  return lines.join('\\n').trimEnd();
+  return lines.join('\n').trimEnd();
 }
 
 /**
