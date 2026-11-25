@@ -146,6 +146,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
   let commonProfiles: number[] | null = null;
   let totalRpuFrameCount = 0;
   let commonParserVersion: string | null = null;
+  let commonInputKind: string | null = null;
   const metadataLevelCounts: Record<string, number> = Object.create(null);
   const orderedEvidence: Array<{
     ordinal: number;
@@ -200,6 +201,8 @@ export function verifySignedDolbyVisionRpuSegmentSet(
       now: options.now,
     });
     if (!result || result.report.frameCount !== expected.sampleCount) return null;
+    if (commonInputKind === null) commonInputKind = result.report.inputKind;
+    else if (result.report.inputKind !== commonInputKind) return null;
     if (commonParserVersion === null) commonParserVersion = result.report.parserVersion;
     else if (result.report.parserVersion !== commonParserVersion) return null;
     for (const [level, count] of Object.entries(result.report.metadataLevelFrameCounts)) {
