@@ -185,7 +185,7 @@ jobs:
           node scripts/dolby-vision/verify-parser-service-fixture.mjs /tmp/dolby-vision-regular.mp4
 
   collector-verification:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: services/scrapling-collector
