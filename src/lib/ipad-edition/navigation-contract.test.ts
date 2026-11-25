@@ -261,3 +261,12 @@ describe('iPad Edition state regression contracts', () => {
     expect(shell).toContain('[sidebarOpen, wideLayout, navigationCollapsed, isChromeHidden]');
   });
 });
+
+
+describe('iPad Edition regional release merge regression', () => {
+  it('preserves both-region labeling even when US and CN dates differ', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/components/ipad-edition/IpadEditionHome.tsx'), 'utf8');
+    expect(source).toContain("const combinedRegion = existing.releaseRegion === item.releaseRegion");
+    expect(source).toContain("byId.set(item.id, { ...preferred, releaseRegion: combinedRegion });");
+  });
+});
