@@ -836,20 +836,20 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   border-radius: 999px !important;
   border: 1px solid var(--ipad-glass-edge, rgba(255,255,255,.72)) !important;
   color: var(--ipad-nav-ink) !important;
-  background: var(--ipad-glass-fill, rgba(246,248,252,.72)) !important;
-  box-shadow: var(--ipad-glass-shadow, 0 16px 48px rgba(24,38,62,.14)) !important;
+  background: var(--ipad-glass-fill, rgba(246,248,252,.72));
+  box-shadow: var(--ipad-glass-shadow, 0 16px 48px rgba(24,38,62,.14));
 }
 .ipad-nav__topbar-inner.liquid-glass[data-liquid-glass-engine="ready"] {
   border-radius: 999px !important;
-  background: var(--ipad-glass-fill, rgba(246,248,252,.72)) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
+  background: var(--ipad-glass-fill, rgba(246,248,252,.72));
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
 }
 .ipad-nav__topbar-inner[data-liquid-glass-engine="fallback"] {
   border-radius: 999px !important;
-  background: var(--ipad-glass-fill-strong, rgba(246,248,252,.86)) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
+  background: var(--ipad-glass-fill-strong, rgba(246,248,252,.86));
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
 }
 .ipad-nav__capsule-action {
   display: grid !important;
