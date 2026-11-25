@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
 import { attachEnvironmentEngine } from '@/lib/ipad-edition/environment-engine';
 import { resolveIpadNavigationLayout } from '@/lib/ipad-edition/container';
@@ -70,12 +70,8 @@ function NavigationIcon({ name }: { name: NavigationIconName }) {
 export function IpadEditionShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || '/ipad-edition';
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarDragOffset, setSidebarDragOffset] = useState(0);
-  const [sidebarDragging, setSidebarDragging] = useState(false);
   const [cinemaScrolled, setCinemaScrolled] = useState(false);
   const [wideLayout, setWideLayout] = useState(false);
-  const [navigationCollapsed, setNavigationCollapsed] = useState(true);
-  const gestureRef = useRef<{ pointerId: number; startX: number; lastX: number; lastAt: number; width: number; wasOpen: boolean } | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const environmentRootRef = useRef<HTMLDivElement | null>(null);
   const wideLayoutRef = useRef(false);
@@ -89,10 +85,8 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       wideLayoutRef.current = expanded;
       setWideLayout(expanded);
       if (!expanded) {
-        setNavigationCollapsed(false);
         setSidebarOpen(false);
       } else if (!wasWide) {
-        setNavigationCollapsed(true);
         setSidebarOpen(false);
       }
     };
@@ -129,14 +123,12 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Route changes must never carry an expanded navigation panel into the next page.
     setSidebarOpen(false);
-    setSidebarDragOffset(0);
-    if (wideLayout) setNavigationCollapsed(true);
   }, [pathname, wideLayout]);
   const isPlayerRoute = pathname === '/ipad-edition/watch' || pathname.startsWith('/ipad-edition/watch/');
   const isChromeHidden = isPlayerRoute;
 
   useEffect(() => {
-    if (isChromeHidden || (!sidebarOpen && !(wideLayout && !navigationCollapsed))) return;
+    if (isChromeHidden || !sidebarOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const sidebar = document.getElementById('ipad-edition-sidebar');
@@ -149,8 +141,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       if (event.key === 'Escape') {
         event.preventDefault();
         setSidebarOpen(false);
-        if (wideLayout) setNavigationCollapsed(true);
-        return;
+            return;
       }
       if (event.key !== 'Tab') return;
       const elements = focusable();
@@ -173,64 +164,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       window.removeEventListener('keydown', onKeyDown);
       menuButtonRef.current?.focus({ preventScroll: true });
     };
-  }, [sidebarOpen, wideLayout, navigationCollapsed, isChromeHidden]);
-
-  const beginSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'mouse' || !event.isPrimary || isChromeHidden || (wideLayout && !navigationCollapsed)) return;
-    const sidebar = document.querySelector<HTMLElement>('.ipad-nav__sidebar');
-    const width = sidebar?.getBoundingClientRect().width ?? 280;
-    const target = event.target as HTMLElement;
-    const startedOnSidebar = Boolean(target.closest('.ipad-nav__sidebar'));
-    const startedAtEdge = event.clientX <= 24;
-    if (sidebarOpen ? !startedOnSidebar : !startedAtEdge) return;
-    gestureRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      lastX: event.clientX,
-      lastAt: event.timeStamp,
-      width,
-      wasOpen: sidebarOpen,
-    };
-    setSidebarDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const moveSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const gesture = gestureRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-    const delta = event.clientX - gesture.startX;
-    const offset = gesture.wasOpen ? Math.min(0, Math.max(-gesture.width, delta)) : Math.max(0, Math.min(gesture.width, delta));
-    gesture.lastX = event.clientX;
-    gesture.lastAt = event.timeStamp;
-    setSidebarDragOffset(offset);
-    event.preventDefault();
-  };
-
-  const finishSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const gesture = gestureRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-    const delta = event.clientX - gesture.startX;
-    const elapsed = Math.max(1, event.timeStamp - gesture.lastAt);
-    const velocity = (event.clientX - gesture.lastX) / elapsed;
-    const threshold = gesture.width * 0.28;
-    const shouldOpen = gesture.wasOpen
-      ? !(delta < -threshold || velocity < -0.45)
-      : delta > threshold || velocity > 0.45;
-    setSidebarOpen(shouldOpen);
-    setSidebarDragOffset(0);
-    setSidebarDragging(false);
-    gestureRef.current = null;
-  };
-
-  const cancelSidebarGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (gestureRef.current?.pointerId !== event.pointerId) return;
-    gestureRef.current = null;
-    setSidebarDragOffset(0);
-    setSidebarDragging(false);
-  };
+  }, [sidebarOpen, isChromeHidden]);
 
   const isDetailRoute = pathname === '/ipad-edition/detail' || pathname.startsWith('/ipad-edition/detail/');
-  const isExpandedSidebar = wideLayout && !navigationCollapsed && !isChromeHidden;
   const allNavigation = [...primaryNavigation, ...personalNavigation];
   const activeHref = allNavigation.find((item) => item.href !== '/ipad-edition' && pathname.startsWith(item.href))?.href
     ?? (pathname === '/ipad-edition' ? '/ipad-edition' : '');
@@ -244,18 +180,11 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       data-ipad-detail={isDetailRoute ? 'true' : undefined}
       data-ipad-home={pathname === '/ipad-edition' ? 'true' : undefined}
       data-ipad-scrolled={cinemaScrolled ? 'true' : 'false'}
-      data-ipad-sidebar-open={sidebarOpen || isExpandedSidebar ? 'true' : 'false'}
+      data-ipad-sidebar-open={sidebarOpen ? 'true' : 'false'}
       data-ipad-layout={wideLayout ? 'expanded' : 'compact'}
-      data-ipad-sidebar-dragging={sidebarDragging ? 'true' : 'false'}
-      onPointerDown={beginSidebarGesture}
-      onPointerMove={moveSidebarGesture}
-      onPointerUp={finishSidebarGesture}
-      onPointerCancel={cancelSidebarGesture}
-      style={{ '--ipad-sidebar-drag': `${sidebarDragOffset}px` } as CSSProperties}
     >
-      {!isChromeHidden && !isExpandedSidebar && <div className="ipad-nav__edge-swipe-zone" aria-hidden="true" />}
 
-      {!isChromeHidden && sidebarOpen && !isExpandedSidebar && (
+      {!isChromeHidden && sidebarOpen && (
         <button
           className="ipad-nav__scrim"
           type="button"
@@ -270,13 +199,13 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           disableEngine
           variant="panel"
           cornerRadius={24}
-          className={`ipad-nav__sidebar${sidebarOpen || isExpandedSidebar ? ' is-open' : ''}`}
+          className={`ipad-nav__sidebar${sidebarOpen ? ' is-open' : ''}`}
           id="ipad-edition-sidebar"
           aria-label="主导航"
-          aria-hidden={!wideLayout && !sidebarOpen}
-          inert={!wideLayout && !sidebarOpen}
+          aria-hidden={!sidebarOpen}
+          inert={!sidebarOpen}
         >
-          <Link className="ipad-nav__brand" aria-label="LibreTV 首页" href="/ipad-edition" tabIndex={wideLayout || sidebarOpen ? 0 : -1}>
+          <Link className="ipad-nav__brand" aria-label="LibreTV 首页" href="/ipad-edition" tabIndex={sidebarOpen ? 0 : -1}>
             <span className="ipad-nav__brand-mark">L</span>
             <span className="ipad-nav__brand-copy">
               <strong>LibreTV</strong>
@@ -286,15 +215,12 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             className="ipad-nav__collapse-button"
-            aria-label={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}
-            title={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}
-            aria-expanded={sidebarOpen || isExpandedSidebar}
-            onClick={() => {
-              setSidebarOpen(false);
-              setNavigationCollapsed((collapsed) => !collapsed);
-            }}
+            aria-label="收起侧边栏"
+            title="收起侧边栏"
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOpen(false)}
           >
-            <svg className="ipad-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d={wideLayout && navigationCollapsed ? "m9 6 6 6-6 6" : "m15 6-6 6 6 6"} /></svg>
+            <svg className="ipad-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
           </button>
 
           <p className="ipad-nav__section-label">主导航</p>
@@ -305,7 +231,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 aria-label={item.label}
                 title={item.label}
-                tabIndex={wideLayout || sidebarOpen ? 0 : -1}
+                tabIndex={sidebarOpen ? 0 : -1}
                 className={activeHref === item.href ? 'is-active' : ''}
                 aria-current={activeHref === item.href ? 'page' : undefined}
               >
@@ -324,7 +250,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
                 href={item.href}
                 aria-label={item.label}
                 title={item.label}
-                tabIndex={wideLayout || sidebarOpen ? 0 : -1}
+                tabIndex={sidebarOpen ? 0 : -1}
                 className={activeHref === item.href ? 'is-active' : ''}
                 aria-current={activeHref === item.href ? 'page' : undefined}
               >
@@ -342,7 +268,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="ipad-edition__main">
-        {!isChromeHidden && !isExpandedSidebar && (
+        {!isChromeHidden && (
           <header className="ipad-nav__topbar">
             <LiquidGlassSurface as="div" disableEngine variant="panel" cornerRadius={999} className="ipad-nav__topbar-inner">
               <button
@@ -350,16 +276,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
                 className={`ipad-nav__capsule-action ipad-nav__menu-button${sidebarOpen ? ' is-active' : ''}`}
                 type="button"
                 aria-label={sidebarOpen ? '收起侧边栏' : '展开侧边栏'}
-                aria-expanded={sidebarOpen || isExpandedSidebar}
+                aria-expanded={sidebarOpen}
                 aria-controls="ipad-edition-sidebar"
-                onClick={() => {
-                  if (wideLayout) {
-                    setNavigationCollapsed((collapsed) => !collapsed);
-                    setSidebarOpen(false);
-                  } else {
-                    setSidebarOpen((open) => !open);
-                  }
-                }}
+                onClick={() => setSidebarOpen((open) => !open)}
               >
                 <NavigationIcon name="panel-left" />
               </button>

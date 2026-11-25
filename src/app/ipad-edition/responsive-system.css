@@ -51,7 +51,6 @@
   transform: translateX(var(--ipad-sidebar-drag, 0px)) !important;
   visibility: visible !important;
 }
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="true"] .ipad-nav__topbar,
 .ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="true"] .ipad-nav__edge-swipe-zone { display: none !important; }
 .ipad-nav__collapse-button {
   position: absolute;
@@ -209,14 +208,8 @@
 .ipad-edition[data-ipad-edition="true"] .ipad-nav__links a.is-active { background: rgba(150,155,175,.25) !important; box-shadow: inset 0 1px 1px rgba(255,255,255,.22); }
 .ipad-edition[data-ipad-edition="true"] .ipad-nav__links a i { display: none; }
 .ipad-edition[data-ipad-layout="expanded"] { --ipad-sidebar-width: 230px; }
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"]:not([data-ipad-player="true"]) > .ipad-edition__main { width: calc(100% - 84px) !important; margin-left: 84px !important; }
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__sidebar { width: 64px !important; transform: none !important; visibility: visible !important; padding: 48px 8px 12px !important; }
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__brand-copy,
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__section-label,
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__links a span,
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__sidebar-foot { display: none; }
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__links a { justify-content: center; padding: 8px !important; }
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__brand { justify-content: center; }
-.ipad-edition[data-ipad-layout="expanded"][data-ipad-sidebar-open="false"] .ipad-nav__collapse-button { right: 15px !important; }
+.ipad-edition[data-ipad-edition="true"][data-ipad-sidebar-open="false"] .ipad-nav__sidebar { visibility: hidden !important; transform: translateX(-110%) !important; pointer-events: none !important; }
+.ipad-edition[data-ipad-edition="true"][data-ipad-sidebar-open="false"] > .ipad-edition__main { width: 100% !important; margin: 0 !important; }
+.ipad-edition[data-ipad-edition="true"][data-ipad-sidebar-open="true"] .ipad-nav__topbar { z-index: 10001 !important; }
 @media (prefers-reduced-motion: reduce) { .ipad-edition[data-ipad-edition="true"] .ipad-nav__sidebar { transition: none !important; } }
 @media (prefers-reduced-transparency: reduce) { .ipad-edition[data-ipad-edition="true"] .ipad-nav__sidebar { background: var(--ipad-nav-panel) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; } }

@@ -91,47 +91,50 @@ describe('iPad Edition navigation contract', () => {
 
   it('switches navigation by app width and keeps expanded links keyboard reachable', () => {
     expect(shell).toContain('resolveIpadNavigationLayout(root.getBoundingClientRect().width)');
-    expect(shell).toContain('tabIndex={wideLayout || sidebarOpen ? 0 : -1}');
-    expect(shell).toContain('inert={!wideLayout && !sidebarOpen}');
-    expect(shell).toContain('aria-hidden={!wideLayout && !sidebarOpen}');
+    expect(shell).toContain('tabIndex={sidebarOpen ? 0 : -1}');
+    expect(shell).toContain('inert={!sidebarOpen}');
+    expect(shell).toContain('aria-hidden={!sidebarOpen}');
     expect(responsiveStyles).toContain('width: calc(100% - var(--ipad-sidebar-width))');
     expect(responsiveStyles).toContain('container-type: inline-size');
   });
 
   it('starts with the wide sidebar collapsed and always exposes a clear close control', () => {
-    expect(shell).toContain('const [navigationCollapsed, setNavigationCollapsed] = useState(true);');
+    expect(shell).toContain('const [sidebarOpen, setSidebarOpen] = useState(false);');
     expect(shell).toContain('aria-label="关闭侧边栏"');
-    expect(shell).toContain('title={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
-    expect(shell).toContain('aria-label={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
+    expect(shell).toContain('title="收起侧边栏"');
+    expect(shell).toContain('aria-label="收起侧边栏"');
     expect(shell).toContain('className="ipad-nav__collapse-button"');
-    expect(shell).toContain('setNavigationCollapsed((collapsed) => !collapsed)');
-    expect(responsiveStyles).toContain('min-width: 68px;');
+    expect(shell).toContain('setSidebarOpen((open) => !open)');
+    expect(responsiveStyles).toContain('visibility: hidden !important; transform: translateX(-110%) !important; pointer-events: none !important;');
+    expect(responsiveStyles).toContain('width: 100% !important; margin: 0 !important;');
+    expect(shell).not.toContain('beginSidebarGesture');
+    expect(shell).not.toContain('ipad-nav__edge-swipe-zone');
     expect(shell).toContain('setSidebarOpen(false);');
-    expect(shell).toContain('setNavigationCollapsed(true);');
+    expect(shell).toContain('setSidebarOpen(false);');
   });
 
   it('starts the sidebar closed at every width and keeps a visible close path when opened', () => {
-    expect(shell).toContain('const [navigationCollapsed, setNavigationCollapsed] = useState(true);');
+    expect(shell).toContain('const [sidebarOpen, setSidebarOpen] = useState(false);');
     expect(shell).toContain('data-ipad-layout={wideLayout ? \'expanded\' : \'compact\'}');
     expect(shell).toContain('aria-label="关闭侧边栏"');
-    expect(shell).toContain('title={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
-    expect(shell).toContain('aria-label={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}');
-    expect(shell).toContain('if (wideLayout) setNavigationCollapsed(true);');
+    expect(shell).toContain('title="收起侧边栏"');
+    expect(shell).toContain('aria-label="收起侧边栏"');
+    expect(shell).toContain('setSidebarOpen(false);');
     expect(responsiveStyles).toContain('[data-ipad-sidebar-open="false"] .ipad-nav__sidebar');
     expect(responsiveStyles).toContain('[data-ipad-sidebar-open="true"] > .ipad-edition__main');
   });
 
   it('closes wide navigation after route changes and reports its expanded state accessibly', () => {
-    expect(shell).toContain('if (wideLayout) setNavigationCollapsed(true);');
+    expect(shell).toContain('setSidebarOpen(false);');
     expect(shell).toContain('}, [pathname, wideLayout]);');
-    expect(shell).toContain('aria-expanded={sidebarOpen || isExpandedSidebar}');
+    expect(shell).toContain('aria-expanded={sidebarOpen}');
   });
 
   it('preserves an accessible sidebar toggle and manages modal focus/scroll lifecycle', () => {
-    expect(shell).toContain('aria-expanded={sidebarOpen || isExpandedSidebar}');
+    expect(shell).toContain('aria-expanded={sidebarOpen}');
     expect(shell).toContain('aria-controls="ipad-edition-sidebar"');
     expect(shell).toContain('setSidebarOpen((open) => !open)');
-    expect(shell).toContain('setNavigationCollapsed((collapsed) => !collapsed)');
+    expect(shell).toContain('setSidebarOpen((open) => !open)');
     expect(shell).toContain('new ResizeObserver(updateLayout)');
     expect(shell).toContain('data-ipad-layout={wideLayout ? \'expanded\' : \'compact\'}');
     expect(shell).toContain('onClick={() => setSidebarOpen(false)}');
@@ -262,8 +265,8 @@ describe('iPad Edition state regression contracts', () => {
   });
 
   it('does not lock body scroll for hidden navigation on the immersive player route', () => {
-    expect(shell).toContain('if (isChromeHidden || (!sidebarOpen && !(wideLayout && !navigationCollapsed))) return;');
-    expect(shell).toContain('[sidebarOpen, wideLayout, navigationCollapsed, isChromeHidden]');
+    expect(shell).toContain('if (isChromeHidden || !sidebarOpen) return;');
+    expect(shell).toContain('[sidebarOpen, isChromeHidden]');
   });
 });
 
