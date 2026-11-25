@@ -56,6 +56,25 @@ jobs:
             --example smoke-sofa -- "${RUNNER_TEMP}/custom.sofa"
           node "${OPENJOC_DIR}/scripts/test-wasm.mjs" \
             public/wasm/openjoc_wasm.wasm embedded "${RUNNER_TEMP}/custom.sofa"
+      - name: Remux the upstream JOC fixture into fragmented MP4
+        env:
+          OPENJOC_COMMIT: f9b54bbbb8e1b44c746a72e1b14b289cad418cf9
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          OPENJOC_DIR="${TMPDIR:-/tmp}/libretv-openjoc-${OPENJOC_COMMIT}"
+          ffmpeg -hide_banner -y -f eac3 \
+            -i "${OPENJOC_DIR}/crates/openjoc-wasm/testdata/joc.ec3" \
+            -map 0:a:0 -c:a copy -frag_duration 1000000 \
+            -movflags +empty_moov+default_base_moof+frag_keyframe \
+            -f mp4 "${RUNNER_TEMP}/joc-cmaf.mp4"
+      - name: Verify CMAF extraction through OpenJOC WASM to PCM
+        env:
+          OPENJOC_CMAF_FIXTURE: ${{ runner.temp }}/joc-cmaf.mp4
+          OPENJOC_WASM_PATH: public/wasm/openjoc_wasm.wasm
+        run: npm test -- src/lib/native-player/joc-openjoc-cmaf.integration.test.ts
       - name: TypeScript validation
         run: npm run typecheck
       - name: Repository tests
