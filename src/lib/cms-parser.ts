@@ -7,6 +7,18 @@ import type { SearchResultItem, VideoDetail } from './types';
 
 const M3U8_PATTERN = /\$https?:\/\/[^"'\s]+?\.m3u8/g;
 
+
+/** Accept only absolute HTTP(S) playback URLs without embedded credentials. */
+function isSafePlaybackUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'http:' || url.protocol === 'https:') &&
+      Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 const UA_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -64,9 +76,7 @@ export function extractEpisodeItemsFromPlayUrl(playUrl: string): { title: string
           if (separator < 0) return null;
           const title = episode.slice(0, separator).trim();
           const url = episode.slice(separator + 1).trim();
-          return url.startsWith('http://') || url.startsWith('https://')
-            ? { title, url }
-            : null;
+          return isSafePlaybackUrl(url) ? { title, url } : null;
         })
         .filter((episode): episode is { title: string; url: string } => episode !== null)
     )
@@ -225,7 +235,7 @@ export function parseDetailPageHtml(
     const parenIndex = u.indexOf('(');
     if (parenIndex > 0) u = u.substring(0, parenIndex);
     return u;
-  });
+  }).filter(isSafePlaybackUrl);
 
   const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
   const descMatch = html.match(/<div[^>]*class=["']sketch["'][^>]*>([\s\S]*?)<\/div>/);
