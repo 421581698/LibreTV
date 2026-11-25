@@ -88,7 +88,7 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expe
   }
   if (!keyId || keyId.length > 128) throw new Error('Invalid signing key ID.');
   if (!report || report.source !== 'dovi_tool' || report.verified !== true || report.rpuPresent !== true ||
-      report.inputKind !== 'hevc' || report.extractionScope?.track !== null || report.extractionScope?.frameLimit !== null ||
+      !['hevc', 'av1'].includes(report.inputKind) || report.extractionScope?.track !== null || report.extractionScope?.frameLimit !== null ||
       !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
       !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '') ||
       !/^[a-f0-9]{64}$/i.test(report.sourceMediaSha256 || '') ||
@@ -264,7 +264,7 @@ async function analyzeUpload(request, response, env) {
     });
     const report = JSON.parse(stdout);
     if ((sourceContentType === 'video/hevc' && report.inputSha256 !== actualSha256) ||
-        !['hevc', 'rpu'].includes(report.inputKind) || report.extractionScope?.frameLimit !== null ||
+        !['hevc', 'rpu', 'av1'].includes(report.inputKind) || report.extractionScope?.frameLimit !== null ||
         !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
         !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '')) {
       sendJson(response, 422, { error: 'PARSER_REPORT_REJECTED' });
