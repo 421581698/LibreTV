@@ -40,7 +40,7 @@ def handle(payload: dict, checkpoint, cancelled):
         expected_source_version = payload.get("source_version")
         if expected_source_version:
             current_source_version = hashlib.sha256(
-                (str(candidate.get("url") or "") + "\\0" + str(candidate.get("validation") or "")).encode("utf-8")
+                (str(candidate.get("url") or "") + "\0" + str(candidate.get("validation") or "")).encode("utf-8")
             ).hexdigest()[:24]
             if current_source_version != expected_source_version:
                 checkpoint({"stage": "authorized_media_ingest_skipped", "reason": "candidate_changed_after_queue"})
