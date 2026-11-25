@@ -119,6 +119,7 @@ async function initialize(request: Extract<WorkerRequest, { type: 'init' }>): Pr
     exportsRef = instantiated.instance.exports;
     memory();
     decoderHandle = requiredFunction<() => number>('openjoc_wasm_decoder_create')();
+    memory();
     if (!decoderHandle) throw new Error('OpenJOC decoder initialization failed.');
     send({ type: 'ready', generation: request.generation, decoder: 'OpenJOC', renderer: 'Stereo', sampleRate: 48000, channels: 2, nativeDolbyDecoderUsed: false });
   } catch (error) {
