@@ -37,6 +37,13 @@ def handle(payload: dict, checkpoint, cancelled):
         from dv_source_gateway import _json_object, _read_candidate, ingest_authorized_candidate
         candidate = _read_candidate(candidate_id)
         validation = _json_object(candidate.get("validation"))
+        expected_source_version = payload.get("source_version")
+        if expected_source_version:
+            current_source_version = hashlib.sha256(
+                (str(candidate.get("url") or "") + "\\0" + str(candidate.get("validation") or "")).encode("utf-8")
+            ).hexdigest()[:24]
+            if current_source_version != expected_source_version:
+                raise RuntimeError("authorized_media_candidate_changed_after_queue")
         if validation.get("media_format") == "hls":
             from dv_hls_source_gateway import ingest_authorized_hls_candidate
             result = ingest_authorized_hls_candidate(
