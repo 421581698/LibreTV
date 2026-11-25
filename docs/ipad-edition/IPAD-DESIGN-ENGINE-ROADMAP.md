@@ -129,6 +129,6 @@
 ## 分支与发布边界
 
 - 仅在 feature/libretv-ipad-edition-product 开发。
-- 独立预览地址：https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition。
+- 独立 Preview Worker 的预期路由为 `https://libretv-ipad-edition-preview.bggdbh.workers.dev/ipad-edition`；这是配置目标地址，不代表当前已部署或可访问。部署状态必须以对应 SHA 的成功 workflow run 和 HTTP smoke test 为准。
 - 不修改 main，不合并 PR #99，不部署生产。
 - CI 与 HTTP Smoke Test 不替代真实 iPad Safari 验收。
