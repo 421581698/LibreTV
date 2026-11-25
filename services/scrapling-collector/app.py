@@ -2152,7 +2152,7 @@ def record_playback_evidence(
         raise HTTPException(status_code=400, detail="Invalid candidate ID")
     with db() as connection:
         row = connection.execute(
-            "SELECT host,kind,status,access_state,validation FROM candidates WHERE id=?",
+            "SELECT url,host,kind,status,access_state,validation FROM candidates WHERE id=?",
             (candidate_id,),
         ).fetchone()
         if not row:
@@ -2217,10 +2217,17 @@ def record_playback_evidence(
         else:
             # Long media transfers run in the durable worker, not in the
             # browser's playback-confirmation request.
+            source_version = hashlib.sha256(
+                (str(row["url"]) + "\\0" + str(row["validation"] or "")).encode("utf-8")
+            ).hexdigest()[:24]
             job = registry_store.submit_job(
                 "dv_media_ingest",
-                {"candidate_id": candidate_id, "resource_id": registry_result["resource"]["id"]},
-                "dv-source-ingest:" + candidate_id,
+                {
+                    "candidate_id": candidate_id,
+                    "resource_id": registry_result["resource"]["id"],
+                    "source_version": source_version,
+                },
+                "dv-source-ingest:" + candidate_id + ":" + source_version,
                 max_attempts=3,
             )
             media_ingestion = {"status": "queued", "job_id": job["id"]}
