@@ -93,3 +93,24 @@ The reported-* vocabulary is deliberate. A bridge message is a platform adapter 
 ## Current implementation boundary
 
 The web repository currently provides browser API inventory, HLS metadata inspection, conservative HRTF routing, evidence-based diagnostics and fail-open behavior. It does not contain either native application target or a JOC decoder/object renderer. Do not mark those gates complete until the corresponding native code and physical evidence exist.
+
+
+
+## Web-side bridge validation now implemented
+
+The web repository now includes `src/lib/native-audio-bridge.ts` and
+`src/lib/native-audio-bridge.test.ts`. The validator:
+
+- accepts only the version-1 schema and known platform/route/state enums;
+- checks session identity, timestamp freshness and future-clock skew;
+- bounds codec, channel-count and sample-rate values;
+- copies only declared fields, dropping unexpected properties such as URLs or
+  authorization material; and
+- formats native values as “native app reports”, never as independent proof of
+  acoustic output.
+
+This is a web-side contract validator only. It does not create an iOS or
+Android application target, collect platform facts, decode JOC, or establish
+that a reported output state is true. The native shell must still authenticate
+the bridge source and invoke the validator only from its trusted top-level
+application context.
