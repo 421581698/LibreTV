@@ -121,7 +121,12 @@ scope.onmessage = (event: MessageEvent<WorkerRequest>): void => {
     }
     return;
   }
-  if (!current(request.generation) || !decoderHandle || !exportsRef) return;
+  if (request.type === 'reset') {
+    if (disposed || !decoderHandle || !exportsRef || request.generation <= generation) return;
+    generation = request.generation;
+  } else if (!current(request.generation) || !decoderHandle || !exportsRef) {
+    return;
+  }
 
   try {
     if (request.type === 'reset') {
