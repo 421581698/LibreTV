@@ -725,9 +725,38 @@
   cursor: default;
 }
 
-/* Detail hero, information blocks and cast use the same global typography and spacing tokens. */
+/* Detail hero has its own Apple TV-scale typography: the global display token
+   is sized for other surfaces and made long CJK titles obscure the artwork. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+  width: min(540px, 46vw);
+  max-width: calc(100% - 48px);
+}
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1 {
-  font-size: var(--ipad-font-display);
+  max-width: 100%;
+  font-size: clamp(30px, 3.2vw, 46px);
+  font-weight: 740;
+  line-height: 1.12;
+  letter-spacing: -.035em;
+  overflow-wrap: break-word;
+}
+@media (min-width: 601px) and (max-width: 900px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: min(540px, 60vw);
+  }
+}
+@media (orientation: portrait) and (min-width: 601px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: min(540px, 78vw);
+  }
+}
+@media (max-width: 600px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
+    width: calc(100% - 44px);
+    max-width: none;
+  }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1 {
+    font-size: clamp(28px, 7vw, 38px);
+  }
 }
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-info h2,
 .ipad-edition [data-ipad-detail="true"] .ipad-cinema-section > h2 {
