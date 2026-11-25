@@ -90,7 +90,7 @@ export function getEnvSources(): SourceConfig[] {
       return {
         key: configuredKey,
         name: name.trim(),
-        url: url.trim().replace(/\\/+$/, ''),
+        url: url.trim().replace(/\/+$/, ''),
         detail: typeof detail === 'string' && detail.trim() ? detail.trim() : undefined,
         isAdult: isAdult === true,
       };
