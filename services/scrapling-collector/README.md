@@ -115,7 +115,7 @@ After the owner manually deploys the Blueprint, verify all of the following befo
 
 ## Dolby Vision immutable media identity and ingestion
 
-The registry stores immutable media-asset metadata in `registry_media_assets`. The separate `X-DV-Ingestion-Token` credential is not interchangeable with the collector API token. The asset registration endpoint is an internal assertion interface; the trusted raw-byte ingestion endpoint below is preferred because it computes the digest from bytes received by the service.
+The registry stores immutable media-asset metadata in `registry_media_assets`. The separate `X-DV-Ingestion-Token` credential is not interchangeable with the collector API token. The asset registration endpoint is an internal assertion interface; the trusted raw-byte ingestion endpoint below is preferred because it computes the digest from bytes received by the service. The shared registration function independently enforces `DIRECT_MEDIA`, `PUBLIC`, validated, and `PLAYER_CONFIRMED` state inside its write transaction. Standalone MP4/WebM assets must match the resource format; HLS playlist, initialization, segment, audio, and subtitle members are accepted only for a confirmed HLS resource. This check also applies to idempotent re-registration and the metadata-only registration API, so callers cannot bypass eligibility by choosing a different entry point.
 
 ### Trusted local-file worker
 
