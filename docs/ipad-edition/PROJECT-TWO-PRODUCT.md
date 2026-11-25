@@ -37,7 +37,7 @@
 
 ## 独立验证
 
-产品包含本地继续观看进度轨道；播放入口使用 iPad Edition 专属播放路由。\n\n当前产品分支的 TypeScript、ESLint、单元测试与 Next.js 生产构建已通过 CI；独立 Preview 部署与 HTTP smoke test 已通过，最新增量变更正在重新验收。
+产品包含本地继续观看进度轨道；播放入口使用 iPad Edition 专属播放路由。\n\n当前产品分支的 TypeScript、ESLint、单元测试与 Next.js 生产构建已通过最近一次 GitHub Actions Verify。独立 iPad Edition Preview 尚未部署：对应 workflow 只在显式 `workflow_dispatch` 且 `confirm_preview_deploy=yes` 时执行；普通 push 不会部署。当前没有可据以确认 Preview HTTP smoke test 已通过的本轮部署记录。
 
 - TypeScript：`npm run typecheck`
 - ESLint：`npm run lint`
