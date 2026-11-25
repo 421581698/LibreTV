@@ -7,6 +7,8 @@ import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvide
 
 interface DolbyVisionDiagnosticsPanelProps {
   report: DolbyVisionFormatReport | null;
+  sourceKind?: 'cms' | 'direct' | 'registry' | 'unknown';
+  sourceIdentity?: string;
   /** Stable server-issued registry asset ID; never derive this from a playback URL. */
   assetId?: string;
 }
@@ -15,7 +17,7 @@ interface DolbyVisionDiagnosticsPanelProps {
  * Read-only Dolby Vision status. Codec declarations are not proof of RPU
  * presence, successful Dolby Vision decoding, or display output.
  */
-export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVisionDiagnosticsPanelProps) {
+export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKind = 'unknown', sourceIdentity }: DolbyVisionDiagnosticsPanelProps) {
   const declared = Boolean(report?.detected);
   const canAnalyzeRpu = canAnalyzeDolbyVisionRpuAsset(assetId, report);
   const profileLabel = report?.profiles.length
@@ -104,6 +106,16 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
           </div>
           <div className="space-y-1.5 text-[11px]">
             <div className="flex justify-between gap-3">
+              <span className="text-white/55">资源来源</span>
+              <span className="text-right">{sourceKind === 'cms' ? 'CMS / 聚合 API' : sourceKind === 'direct' ? '直接媒体地址' : sourceKind === 'registry' ? '可信资源登记' : '普通播放源'}</span>
+            </div>
+            {sourceIdentity && (
+              <div className="flex justify-between gap-3">
+                <span className="text-white/55">来源标识</span>
+                <span className="max-w-[13rem] truncate text-right" title={sourceIdentity}>{sourceIdentity}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-3">
               <span className="text-white/55">格式声明</span>
               <span className="text-right">{declared ? '检测到 Dolby Vision codec 声明' : '未确认'}</span>
             </div>
@@ -185,9 +197,13 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
             </div>
           )}
           {!assetId && (
-            <p className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/45">
-              当前播放源尚未绑定可信媒体资产 ID，因此不能执行 RPU 验证。
-            </p>
+            <div className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/55">
+              <p className="font-semibold text-amber-200">未绑定可信媒体资产</p>
+              <p className="mt-1">{sourceKind === 'cms'
+                ? '当前播放源是 CMS 聚合 API。影片 ID、标题和 API 地址都不是媒体资产身份；必须先由已验证的直接媒体候选完成公开访问验证、实际播放确认、授权来源获取及 SHA-256 入库，才能绑定 RPU 分析。'
+                : '当前播放源尚未绑定服务端签发的可信媒体资产 ID，因此不能执行 RPU 验证。'} </p>
+              <p className="mt-1">不会根据影片标题、CMS ID 或播放 URL 自动建立可信绑定。</p>
+            </div>
           )}
           {assetId && report?.container === 'mp4' && !canAnalyzeRpu && (
             <p className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/45">
