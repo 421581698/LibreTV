@@ -175,7 +175,7 @@ function capabilityGroup(diag: PlaybackDiagnostics): DiagnosticsViewGroup | null
       row('输出最大声道数', cap.outputMaxChannels == null ? '未知' : String(cap.outputMaxChannels), cap.outputMaxChannels == null ? 'unknown' : 'neutral'),
       row('输出延迟', cap.outputLatencyMs == null ? '未知' : `${cap.outputLatencyMs} ms`, cap.outputLatencyMs == null ? 'unknown' : 'neutral'),
       row('输出设备名称', cap.outputDeviceName === 'not-exposed' ? '浏览器未公开设备名称' : '未知', 'unknown'),
-      row('Dolby Atmos 渲染接入', cap.spatialRendering === 'not-integrated' ? '播放器尚未接入（保持原始播放）' : '未知', 'unknown'),
+      row('Dolby Atmos 渲染接入', cap.dolbyAtmosRendering === 'not-integrated' ? '播放器尚未接入（保持原始播放）' : '未知', 'unknown'),
       row('默认播放路径', '浏览器原生媒体播放', 'positive'),
     ],
   };
