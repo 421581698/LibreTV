@@ -19,10 +19,15 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
   const profileLabel = report?.profiles.length
     ? report.profiles.map((profile) => `Profile ${profile}`).join(' / ')
     : '未检测到可验证的 Profile 声明';
-  const [verifiedEvidence, setVerifiedEvidence] = useState<VerifiedDolbyVisionEvidenceResponse | null>(null);
+  const [verifiedEvidence, setVerifiedEvidence] = useState<{ assetId: string; evidence: VerifiedDolbyVisionEvidenceResponse } | null>(null);
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [analysisError, setAnalysisError] = useState('');
   const requestRef = useRef<AbortController | null>(null);
+  // Hide evidence synchronously on the render where the asset changes; the effect below
+  // performs cleanup, but effects run after paint and alone permit one stale render.
+  const currentVerifiedEvidence = verifiedEvidence?.assetId === assetId
+    ? verifiedEvidence.evidence
+    : null;
 
   useEffect(() => {
     requestRef.current?.abort();
@@ -58,7 +63,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
             : '分析失败或签名证据校验未通过');
       }
       if (!controller.signal.aborted) {
-        setVerifiedEvidence(parsed);
+        setVerifiedEvidence({ assetId, evidence: parsed });
         setAnalysisState('idle');
       }
     } catch (error) {
@@ -108,9 +113,9 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-white/55">RPU 存在性</span>
-              <span>{verifiedEvidence ? '已验证存在' : '未验证'}</span>
+              <span>{currentVerifiedEvidence ? '已验证存在' : '未验证'}</span>
             </div>
-            {verifiedEvidence && (
+            {currentVerifiedEvidence && (
               <>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">可信分析来源</span>
@@ -118,23 +123,23 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId }: DolbyVi
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">RPU Profile</span>
-                  <span>{verifiedEvidence.evidence.profile === null ? '多 Profile / 未唯一归属' : verifiedEvidence.evidence.profile}</span>
+                  <span>{currentVerifiedEvidence.evidence.profile === null ? '多 Profile / 未唯一归属' : currentVerifiedEvidence.evidence.profile}</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">分析帧数</span>
-                  <span>{verifiedEvidence.evidence.frameCount.toLocaleString()}</span>
+                  <span>{currentVerifiedEvidence.evidence.frameCount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-white/55">动态元数据层</span>
-                  <span>{verifiedEvidence.evidence.metadataLevels.join(' / ') || '未检出'}</span>
+                  <span>{currentVerifiedEvidence.evidence.metadataLevels.join(' / ') || '未检出'}</span>
                 </div>
               </>
             )}
             <div className="flex justify-between gap-3">
               <span className="text-white/55">帧级动态元数据</span>
               <span className="text-right">
-                {verifiedEvidence
-                  ? verifiedEvidence.evidence.metadataLevels.some((level) => level === 1 || level === 2)
+                {currentVerifiedEvidence
+                  ? currentVerifiedEvidence.evidence.metadataLevels.some((level) => level === 1 || level === 2)
                     ? '已验证 L1/L2'
                     : 'RPU 已存在，动态元数据未确认'
                   : '未验证'}
