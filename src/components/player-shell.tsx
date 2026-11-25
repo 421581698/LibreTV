@@ -1095,7 +1095,7 @@ export function PlayerShell({
       let decoderInit: Promise<JocSoftwareDecoderClient> | null = null;
       let decodeQueue: Promise<void> = Promise.resolve();
       let decodeFailed = false;
-      let clockFrame = 0;
+      let decodeGeneration = 0;
 
       const emitJocEvent = (type: string, detail: Record<string, unknown> = {}) => {
         window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', { detail: { type, ...detail } }));
@@ -1103,7 +1103,7 @@ export function PlayerShell({
 
       const ensureDecoder = (): Promise<JocSoftwareDecoderClient> => {
         if (!decoderInit) {
-          decoderInit = JocSoftwareDecoderClient.create().then(client => {
+          decoderInit = JocSoftwareDecoderClient.create({ outputEnabled: jocOutputEnabled }).then(client => {
             decoderClient = client;
             client.onStatus(status => emitJocEvent('software-decoder-status', status as unknown as Record<string, unknown>));
             client.onError(error => {
@@ -1117,21 +1117,11 @@ export function PlayerShell({
         return decoderInit;
       };
 
-      const updateVideoClock = () => {
-        if (!decoderClient?.isOutputActive) {
-          clockFrame = 0;
-          return;
-        }
-        decoderClient.setMediaClock(video.currentTime * 48000);
-        clockFrame = window.requestAnimationFrame(updateVideoClock);
-      };
-
       const onOutputGesture = () => {
         if (!jocOutputEnabled || !decoderClient || !video || video.paused || video.ended) return;
         decoderClient.setMediaClock(video.currentTime * 48000);
         void decoderClient.activateOutput(video).then(active => {
-          if (active) updateVideoClock();
-          else emitJocEvent('software-output-not-ready', {
+          if (!active) emitJocEvent('software-output-not-ready', {
             reason: 'Need at least 128 ms of timestamped PCM and a running AudioContext; native audio remains active.',
             queuedFrames: decoderClient?.getStatus().queuedFrames ?? 0,
           });
@@ -1142,8 +1132,7 @@ export function PlayerShell({
       const onVideoPlay = () => decoderClient?.resumeOutput();
       const onVideoSeeking = () => {
         decoderClient?.fallbackToMediaAudio();
-        if (clockFrame) window.cancelAnimationFrame(clockFrame);
-        clockFrame = 0;
+        decodeGeneration += 1;
         jocExtractor?.resetTimeline();
         decodeQueue = decodeQueue.then(async () => {
           if (decoderClient) await decoderClient.reset();
@@ -1208,10 +1197,12 @@ export function PlayerShell({
             // as an anchor. Do not compare raw track ticks with video.currentTime.
             const firstPts = result.packets[0].presentationTime;
             const anchorOffset = fragment.start * 48000 - firstPts * 48000 / result.timescale;
+            const packetGeneration = decodeGeneration;
             decodeQueue = decodeQueue.then(async () => {
-              if (decodeFailed || hlsRef.current !== hls) return;
+              if (decodeFailed || hlsRef.current !== hls || packetGeneration !== decodeGeneration) return;
               const client = await ensureDecoder();
               for (let index = 0; index < result.packets.length; index += 1) {
+                if (packetGeneration !== decodeGeneration) return;
                 const packet = result.packets[index];
                 const mappedPts = Math.round(packet.presentationTime * 48000 / packet.timescale + anchorOffset);
                 const accepted = await client.pushPacket({
@@ -1241,7 +1232,6 @@ export function PlayerShell({
       const disposeJocTap = () => {
         jocTap.dispose();
         hls.off(Hls.Events.FRAG_LOADED, jocTap.handle);
-        if (clockFrame) window.cancelAnimationFrame(clockFrame);
         containerRef.current?.removeEventListener('pointerdown', onOutputGesture, true);
         video.removeEventListener('pause', onVideoPause);
         video.removeEventListener('play', onVideoPlay);
