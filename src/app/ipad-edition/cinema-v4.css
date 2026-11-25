@@ -149,7 +149,8 @@
   z-index: 75;
   left: max(28px,env(safe-area-inset-left,0px));
   right: max(28px,env(safe-area-inset-right,0px));
-  bottom: calc(max(18px,env(safe-area-inset-bottom,0px)) + 66px);
+  /* Keep the seek target above the 48px toolbar despite the shared watch styles. */
+  bottom: calc(max(18px,env(safe-area-inset-bottom,0px)) + 66px) !important;
   top: auto;
   width: auto;
   max-width: none;
@@ -200,7 +201,8 @@
   position: relative;
   height: 48px;
   min-height: 48px;
-  touch-action: none;
+  /* The shared range style allows panning, which cancels this custom drag. */
+  touch-action: none !important;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;

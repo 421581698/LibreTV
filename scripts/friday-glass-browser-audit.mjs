@@ -92,6 +92,7 @@ async function checkMotion() {
       const intervals = [];
       let previous;
       const observe = (timestamp) => {
+        animated ||= highlight.getAnimations().length === 1;
         if (previous !== undefined) intervals.push(timestamp - previous);
         previous = timestamp;
         if (intervals.length < 24) {
@@ -103,10 +104,7 @@ async function checkMotion() {
       };
       element.querySelector('.ipad-nav__menu-button').click();
       let animated = false;
-      requestAnimationFrame(() => {
-        animated = highlight.getAnimations().length === 1;
-        requestAnimationFrame(observe);
-      });
+      requestAnimationFrame(observe);
     }));
     assert(motion.animated, 'Capsule selection did not animate');
     results.push({ route: '/ipad-edition/search', motion });
@@ -115,7 +113,7 @@ async function checkMotion() {
   }
 }
 
-async function checkPlayback(url, body) {
+async function checkPlayback(url, body, verifyTouchSeek = false) {
   const page = await browser.newPage({ viewport: { width: 1194, height: 834 }, hasTouch: true });
   try {
     const sourceUrl = 'https://preview.invalid/api.php/provide/vod';
@@ -128,7 +126,21 @@ async function checkPlayback(url, body) {
       episodeItems: [{ title: '玻璃性能样片', url: mediaUrl }],
       videoInfo: { title: '玻璃性能样片', sourceKey: 'friday-cms', sourceName: 'Preview Fixture', sourceUrl },
     } }));
-    await page.route(mediaUrl, (route) => route.fulfill({ contentType: 'video/webm', body }));
+    await page.route(mediaUrl, (route) => {
+      const headers = { 'accept-ranges': 'bytes', 'access-control-allow-origin': '*' };
+      const range = /^bytes=(\d+)-(\d*)$/.exec(route.request().headers().range ?? '');
+      if (!range) return route.fulfill({ contentType: 'video/webm', headers, body });
+      const start = Number(range[1]);
+      const end = range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+      if (start > end) {
+        return route.fulfill({ status: 416, headers: { ...headers, 'content-range': `bytes */${body.length}` } });
+      }
+      return route.fulfill({
+        status: 206, contentType: 'video/webm',
+        headers: { ...headers, 'content-range': `bytes ${start}-${end}/${body.length}` },
+        body: body.subarray(start, end + 1),
+      });
+    });
     const watch = new URL('/ipad-edition/watch', url);
     watch.search = new URLSearchParams({ source: 'friday-cms', id: 'ipad-preview-fixture', index: '0', title: '玻璃性能样片', sourceUrl });
     await page.goto(watch.href);
@@ -152,7 +164,37 @@ async function checkPlayback(url, body) {
       };
     });
     assert(playback.decodedFrames > 0, 'Browser did not decode the media fixture');
-    return playback;
+    if (!verifyTouchSeek) return playback;
+    await video.evaluate((element) => element.pause());
+    const slider = page.getByRole('slider', { name: '播放进度' });
+    await slider.scrollIntoViewIfNeeded();
+    const bounds = await slider.boundingBox();
+    const duration = await video.evaluate((element) => element.duration);
+    const before = await video.evaluate((element) => element.currentTime);
+    assert(bounds && Number.isFinite(duration), 'Seek surface or media duration is missing');
+    const y = bounds.y + bounds.height / 2;
+    const hit = await slider.evaluate((element, point) =>
+      element.contains(document.elementFromPoint(point.x, point.y)),
+    { x: bounds.x + bounds.width / 2, y });
+    assert(hit, 'Another control intercepts the seek surface');
+    const touch = await page.context().newCDPSession(page);
+    const point = (fraction) => ({ x: bounds.x + bounds.width * fraction, y, id: 1 });
+    try {
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point(.5)] });
+      for (const fraction of [.56, .62, .68, .74, .8]) {
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point(fraction)] });
+      }
+      const whileDragging = await video.evaluate((element) => element.currentTime);
+      assert(Math.abs(whileDragging - before) < .2, 'Video seek must wait for touch release');
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForFunction((expected) => {
+        const video = document.querySelector('.netflix-player-frame video');
+        return video && Math.abs(video.currentTime - expected) < .3 && !video.seeking;
+      }, .8 * duration, { timeout: 5000 });
+    } finally {
+      await touch.detach();
+    }
+    return { ...playback, scrubBefore: before, scrubAfter: await video.evaluate((element) => element.currentTime) };
   } finally {
     await page.close();
   }
@@ -160,12 +202,15 @@ async function checkPlayback(url, body) {
 
 try {
   for (const viewport of settings) {
-    for (const scheme of ['light', 'dark']) await checkAppearance(viewport, scheme);
+    for (const scheme of ['light', 'dark']) {
+      console.error(`Checking ${viewport.prefix || '/'} settings at ${viewport.width} × ${viewport.height} (${scheme})`);
+      await checkAppearance(viewport, scheme);
+    }
   }
   await checkMotion();
   if (mediaPath) {
     const body = await fs.readFile(mediaPath);
-    const test = await checkPlayback(candidate, body);
+    const test = await checkPlayback(candidate, body, true);
     assert(test.protected, 'The player did not enter the protected rendering mode');
     const reference = baseline ? await checkPlayback(baseline, body) : null;
     if (reference) {
