@@ -19,7 +19,7 @@ const signedPayloadShape = {
     variantAssetId: z.string().regex(/^[A-Za-z0-9:_-]{1,200}$/),
     fragmentCount: z.number().int().positive().max(10000),
     fragmentSequenceContinuity: z.literal('sequential'),
-    temporalContinuity: z.literal('unknown'),
+    temporalContinuity: z.literal('contiguous'),
   }).strict().optional(),
 };
 
