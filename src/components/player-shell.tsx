@@ -8,7 +8,6 @@ import { getAdvertised4kStatus, resolveQualitySelection, type QualityPreference 
 import { getMediaPlaybackKind } from '@/lib/media-playback';
 import { selectHlsAudioTrack } from '@/lib/hls-audio-track-control';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
-import { beginStallWindow, endStallWindow } from '@/lib/playback-stability';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import {
@@ -18,16 +17,6 @@ import {
   resolveRecoveryAction,
   resolveStallAction,
 } from '@/lib/playback-auto-policy';
-import {
-  buildPlaybackDiagnostics,
-  readStabilityMetrics,
-  toHlsAudioTrackLike,
-  toNativeAudioTrackLikes,
-  type DiagnosticsInput,
-  type PlaybackDiagnostics,
-  type StabilityPeaks,
-} from '@/lib/playback-diagnostics';
-import AudioDiagnosticsPanel from '@/components/audio-diagnostics-panel';
 import DolbyVisionDiagnosticsPanel from '@/components/dolby-vision-diagnostics-panel';
 import { inspectDolbyVisionFormat, type DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
 import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspector';
@@ -58,25 +47,6 @@ import {
 
 /** 片段时间统一保留 1 位小数：与面板展示保持一致，避免浮点尾巴 */
 const round1 = (v: number) => Math.round(v * 10) / 10;
-
-/** Read-only browser capability probe (no decode/passthrough claim). */
-function readCapabilityEnvironment(video: HTMLVideoElement) {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return {
-      audioContextAvailable: false,
-      mediaSourceAvailable: false,
-      mediaCapabilitiesAvailable: false,
-    };
-  }
-  return {
-    userAgent: navigator.userAgent,
-    audioContextAvailable: typeof AudioContext !== 'undefined'
-      || typeof (window as { webkitAudioContext?: unknown }).webkitAudioContext !== 'undefined',
-    mediaSourceAvailable: typeof MediaSource !== 'undefined',
-    mediaCapabilitiesAvailable: 'mediaCapabilities' in navigator,
-    canPlayType: (mimeType: string) => video.canPlayType(mimeType),
-  };
-}
 
 const QUALITY_PREFERENCE_KEY = 'libretv-quality-preference';
 function readQualityPreference(): QualityPreference {
@@ -284,8 +254,6 @@ export function PlayerShell({
   const [qualityNotice, setQualityNotice] = useState('');
   const [networkQualityWarning, setNetworkQualityWarning] = useState('');
   const [qualityControlMode, setQualityControlMode] = useState<'hls' | 'native' | 'single'>('single');
-  // Read-only diagnostics HUD state. Never feeds back into playback decisions.
-  const [diagnosticsSnapshot, setDiagnosticsSnapshot] = useState<PlaybackDiagnostics | null>(null);
   const [dolbyVisionFormatReportState, setDolbyVisionFormatReportState] = useState<{ sourceUrl: string; report: DolbyVisionFormatReport } | null>(null);
   // Never render a format report collected for the previous playback URL during a source switch.
   const dolbyVisionFormatReport = dolbyVisionFormatReportState?.sourceUrl === url
@@ -354,61 +322,6 @@ export function PlayerShell({
   };
 
   const playbackIdentityRef = useRef({ sourceKey, resourceKey, onPlaybackSample });
-  // Read-only diagnostics accumulator: raw observations from real HLS/video
-  // events, aggregated through buildPlaybackDiagnostics() at flush time.
-  // Never influences playback decisions.
-  const diagnosticsRef = useRef<{
-    input: DiagnosticsInput;
-    peaks: StabilityPeaks;
-    lastProgressAtMs: number | null;
-    stallStartedAtMs: number | null;
-  }>({ input: {}, peaks: { peakStallMs: 0, peakDroppedFrameRatio: null }, lastProgressAtMs: null, stallStartedAtMs: null });
-  const resetDiagnostics = () => {
-    diagnosticsRef.current = {
-      input: {},
-      peaks: { peakStallMs: 0, peakDroppedFrameRatio: null },
-      lastProgressAtMs: null,
-      stallStartedAtMs: null,
-    };
-  };
-  /** Sample real video state into the stability diagnostic (read-only). */
-  // Refresh the read-only diagnostics HUD on a low-frequency timer. This only
-  // copies the accumulator into React state for display; it never changes any
-  // playback decision or calls any recovery action.
-  useEffect(() => {
-    const refresh = () => {
-      const src = diagnosticsRef.current.input;
-      if (!src.format && !src.audioTracks && !src.capabilityEnvironment && !src.stabilityMetrics) return;
-      setDiagnosticsSnapshot(buildPlaybackDiagnostics(src, diagnosticsRef.current.peaks));
-    };
-    refresh();
-    const timer = window.setInterval(refresh, 2000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const recordStallWindowEnd = () => {
-    const diag = diagnosticsRef.current;
-    const durationMs = endStallWindow(diag.stallStartedAtMs, Date.now());
-    diag.peaks.peakStallMs = Math.max(diag.peaks.peakStallMs, durationMs);
-    diag.stallStartedAtMs = null;
-  };
-  const observeStability = (video: HTMLVideoElement) => {
-    const diag = diagnosticsRef.current;
-    const now = Date.now();
-    const metrics = readStabilityMetrics({
-      video,
-      nowMs: now,
-      lastProgressAtMs: diag.lastProgressAtMs,
-      online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
-    });
-    diag.input.stabilityMetrics = metrics;
-    const quality = typeof video.getVideoPlaybackQuality === 'function' ? video.getVideoPlaybackQuality() : null;
-    const dropped = quality?.droppedVideoFrames;
-    const total = quality?.totalVideoFrames;
-    if (typeof dropped === 'number' && typeof total === 'number' && total > 0) {
-      diag.peaks.peakDroppedFrameRatio = Math.max(diag.peaks.peakDroppedFrameRatio ?? 0, dropped / total);
-    }
-  };
   const playbackMetricsRef = useRef({
     startedAt: Date.now(), firstFragmentMs: undefined as number | undefined,
     totalBytes: 0, totalDownloadMs: 0, totalMediaSeconds: 0,
@@ -421,9 +334,6 @@ export function PlayerShell({
     stalledObserved: false, degradedObserved: false, suppressedRecoveries: 0,
   });
   const resetPlaybackMetrics = () => {
-    resetDiagnostics();
-    // Do not carry the previous source's diagnostic snapshot into a new episode/source.
-    setDiagnosticsSnapshot(null);
     setSelectedHlsRendition(null);
     setObservedMediaBitrateKbps(0);
     setObservedThroughputKbps(0);
@@ -443,10 +353,6 @@ export function PlayerShell({
     const metrics = playbackMetricsRef.current;
     if (metrics.flushed || (!metrics.playedSeconds && !metrics.totalBytes && !metrics.fatalErrors)) return;
     metrics.flushed = true;
-    // 上报前补一次真实视频状态采样，保证稳定性诊断反映最终状态（只读）。
-    const video = artRef.current?.video as HTMLVideoElement | undefined;
-    if (video) observeStability(video);
-    setDiagnosticsSnapshot(buildPlaybackDiagnostics(diagnosticsRef.current.input, diagnosticsRef.current.peaks));
     const identity = playbackIdentityRef.current;
     if (!identity.sourceKey || !identity.resourceKey) return;
     identity.onPlaybackSample?.({
@@ -468,7 +374,6 @@ export function PlayerShell({
       stalledObserved: metrics.stalledObserved,
       degradedObserved: metrics.degradedObserved,
       suppressedRecoveries: metrics.suppressedRecoveries,
-      diagnostics: buildPlaybackDiagnostics(diagnosticsRef.current.input, diagnosticsRef.current.peaks),
     });
   };
 
@@ -932,26 +837,8 @@ export function PlayerShell({
       }
     };
 
-    // 只读诊断初始化必须位于原生 HLS / hls.js 分支之前：
-    // Safari/iOS 通常走原生 HLS，不能因下面的提前 return 而跳过容器与能力采样。
-    // 只传入 URL 给本地格式识别器，不把 URL 写入诊断快照或遥测。
-    diagnosticsRef.current.input.format = { url: mediaUrl, mimeType: undefined };
-    diagnosticsRef.current.input.capabilityEnvironment = readCapabilityEnvironment(video);
-
-    const observeNativeAudioTracks = () => {
-      if (loadGeneration !== mediaLoadGenerationRef.current) return;
-      // Safari 的原生 AudioTrackList 通常只公开轨道标签/语言/启用状态，
-      // 不公开 codec、CHANNELS 或 JOC。只记录可见轨道数量，绝不推断编码。
-      const nativeVideo = video as HTMLVideoElement & {
-        audioTracks?: { length: number };
-      };
-      const observedTracks = toNativeAudioTrackLikes(nativeVideo.audioTracks);
-      if (observedTracks !== null) diagnosticsRef.current.input.audioTracks = observedTracks;
-    };
-
     const restoreEvents = ['loadedmetadata', 'durationchange', 'canplay'] as const;
     const onRestoreEvent = () => {
-      observeNativeAudioTracks();
       void restoreAndStart();
     };
     restoreEvents.forEach((event) => video.addEventListener(event, onRestoreEvent));
@@ -970,34 +857,14 @@ export function PlayerShell({
     hls.loadSource(mediaUrl);
     hls.attachMedia(video);
 
-    // 真实音轨：hls.js 的 audioTracks 是 MediaPlaylist[]，字段与音频检查器入参一致。
-    // 映射为精简结构（丢弃 name/url），只保留声道/编码/JOC 用于只读分析。
     const observeAudioTracks = () => {
-      // Same instance/generation identity guard as isCurrentHls(), inlined so
-      // the audio-track listener can never mutate stale diagnostics after换集.
       if (hlsRef.current !== hls || loadGeneration !== mediaLoadGenerationRef.current) return;
-      const tracks = hls.audioTracks.map(toHlsAudioTrackLike);
       setAudioTrackOptions(hls.audioTracks.map((track, index) => ({
         id: track.id,
         label: [track.name, track.lang, track.channels ? `${track.channels} ch` : ''].filter(Boolean).join(' · ') || `音轨 ${index + 1}`,
         isDefault: Boolean(track.default),
       })));
       setSelectedAudioTrack(hls.audioTrack);
-      diagnosticsRef.current.input.audioTracks = tracks;
-      // 把默认音轨的声道声明补进格式检测（JOC 只是元数据提示）。
-      const declared = tracks.find((track) => track.default) ?? tracks[0];
-      if (declared?.channels) {
-        diagnosticsRef.current.input.format = {
-          ...diagnosticsRef.current.input.format,
-          hlsChannels: declared.channels,
-        };
-      }
-      // 用声明的音频编码推导 canPlayType 提示的 MIME（仅提示，非解码证明）。
-      const trackCodec = declared?.audioCodec;
-      if (trackCodec) {
-        const codec = trackCodec.split('.')[0];
-        diagnosticsRef.current.input.assessmentMimeType = `audio/mp4; codecs="${codec}"`;
-      }
     };
     hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, observeAudioTracks);
     hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
@@ -1479,15 +1346,11 @@ export function PlayerShell({
       if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
       if (metrics.waiting) metrics.recoveries += 1;
       metrics.waiting = false;
-      recordStallWindowEnd();
       if (stallRecoveryTimerRef.current) clearTimeout(stallRecoveryTimerRef.current);
       stallRecoveryTimerRef.current = null;
       stallRecoveryRequestedRef.current = false;
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
       playbackStartedRef.current = true;
-      // 只读诊断：起播即建立进度基准，并采样一次真实稳定性状态。
-      diagnosticsRef.current.lastProgressAtMs = Date.now();
-      if (art.video) observeStability(art.video);
       setShowPoster(false);
       setShowPlayFallback(false);
       // 仅在媒体真正恢复（有分片进入 buffer）后清错误遮罩：
@@ -1566,13 +1429,10 @@ export function PlayerShell({
       const position = art.currentTime;
       if (metrics.lastTickAt > 0 && position > metrics.lastPosition && position - metrics.lastPosition <= 2.5) {
         metrics.playedSeconds += position - metrics.lastPosition;
-        // 真实时间前进：刷新只读稳定性诊断的最后进度时刻。
-        diagnosticsRef.current.lastProgressAtMs = Date.now();
       }
       metrics.lastPosition = position;
       metrics.lastTickAt = Date.now();
       metrics.height = Math.max(metrics.height, art.video?.videoHeight ?? 0);
-      if (art.video) observeStability(art.video);
       const now = Date.now();
       // Keep the on-screen timeline in sync with the browser's media clock.
       // Persistence remains separately throttled to avoid excessive IndexedDB writes.
@@ -1641,7 +1501,6 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:pause', () => {
-      recordStallWindowEnd();
       if (playbackConfirmationTimerRef.current) {
         clearTimeout(playbackConfirmationTimerRef.current);
         playbackConfirmationTimerRef.current = null;
@@ -1654,13 +1513,7 @@ export function PlayerShell({
       if (!art.video?.paused && !metrics.waiting) {
         metrics.stalls += 1;
         metrics.waiting = true;
-        // 只读记录本次 waiting 起点；重复 waiting 事件不重置计时。
-        diagnosticsRef.current.stallStartedAtMs = beginStallWindow(
-          diagnosticsRef.current.stallStartedAtMs, Date.now(),
-        );
       }
-      // 只读诊断：缓冲等待时采样真实视频状态，更新健康度。
-      if (art.video) observeStability(art.video);
       // 已经正常播放后持续缓冲 12 秒：第一阶段只记录 stalled/degraded 并上报，
       // 不自动切源（策略由 resolveStallAction 决定，默认 observe-only）。
       if (
@@ -1698,7 +1551,6 @@ export function PlayerShell({
       getVideoPrefetcher().stop();
     });
     art.on('video:ended', () => {
-      recordStallWindowEnd();
       flushPlaybackMetrics();
       // finishBySkip 已经手动走过结束链路：这里不能重复触发 onEnded
       if (endedRef.current) return;
@@ -1995,7 +1847,6 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      <AudioDiagnosticsPanel diagnostics={diagnosticsSnapshot} />
       <DolbyVisionDiagnosticsPanel key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} />
       {audioTrackOptions.length > 1 && (
         <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
