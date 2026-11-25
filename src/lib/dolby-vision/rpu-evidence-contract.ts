@@ -29,7 +29,7 @@ export const DolbyVisionRpuReportSchema = z.object({
   inputSha256: sha256Schema,
   sourceMediaSha256: sha256Schema.nullable(),
   rpuSha256: sha256Schema,
-  inputKind: z.enum(['hevc', 'rpu']),
+  inputKind: z.enum(['hevc', 'av1', 'rpu']),
   extractionScope: extractionScopeSchema,
   notes: z.array(z.string()),
 }).strict().superRefine((report, context) => {
@@ -51,7 +51,7 @@ export const DolbyVisionRpuReportSchema = z.object({
   if (Object.values(report.metadataLevelFrameCounts).some((count) => count > report.frameCount)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['metadataLevelFrameCounts'], message: '单个元数据层级的帧计数不能超过 RPU 总帧数。' });
   }
-  if (report.inputKind === 'hevc' && typeof report.extractionScope !== 'object') {
+  if (['hevc', 'av1'].includes(report.inputKind) && typeof report.extractionScope !== 'object') {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['extractionScope'], message: 'HEVC 报告必须包含轨道/帧范围。' });
   }
   if (report.inputKind === 'hevc' && report.sourceMediaSha256 === null) {
