@@ -125,7 +125,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
             )
 
     def test_rejects_non_contiguous_fragment_sequence_numbers(self):
-        variant_id, _ = self.prepare_graph(second_sequence=4)
+        variant_id, _ = self.prepare_graph(second_sequence=4, second_decode_time=4000)
         with self.assertRaisesRegex(HlsAssemblyError, "not contiguous"):
             assemble_registered_hls_fmp4(
                 self.resource["id"], variant_id, self.root / "bad.mp4", self.object_root,
