@@ -42,7 +42,12 @@ class BitCursor {
     }
     return value;
   }
-  skip(width: number): void { this.read(width); }
+  skip(width: number): void {
+    if (!Number.isInteger(width) || width < 0 || this.position + width > this.bytes.byteLength * 8) {
+      throw new Error('E-AC-3 CMAF sample contains truncated BSI fields.');
+    }
+    this.position += width;
+  }
 }
 
 function parseHeader(bytes: Uint8Array, offset: number): SyncframeHeader {
