@@ -84,7 +84,7 @@ export function IpadCinemaDetailLayout({
           <button type="button" onClick={onBack} className="ipad-cinema-back" aria-label="返回">‹</button>
           <span>LIBRETV CINEMA</span>
         </header>
-        <div className="ipad-cinema-hero__content">
+        <div className={overviewExpanded ? 'ipad-cinema-hero__content is-overview-expanded' : 'ipad-cinema-hero__content'}>
           <div className="ipad-cinema-kicker">{eyebrow}</div>
           <h1 className={showLogo ? 'ipad-cinema-title--logo' : undefined}>
             {showLogo ? (
