@@ -252,20 +252,48 @@ async function main() {
   let input = null;
   if (options.kind === 't35' || options.kind === 'obu') input = await readFile(inputPath);
   let rpuBytes, report;
+  const converterConfigured = Boolean(process.env.AV1_RPU_CONVERTER_BIN);
   if (options.kind === 't35') {
-    rpuBytes = Buffer.concat([ANNEX_B_START_CODE, extractDolbyRpuFromT35(input)]);
-    report = { source: basename(inputPath), extractedRpuCount: 1, inputKind: 'av1-t35-payload' };
+    const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-t35-'));
+    try {
+      const rpu = converterConfigured
+        ? await convertT35PayloadWithLibdovi(input, directory, 0, options)
+        : extractDolbyRpuFromT35(input);
+      rpuBytes = Buffer.concat([ANNEX_B_START_CODE, rpu]);
+      report = { source: basename(inputPath), extractedRpuCount: 1, inputKind: 'av1-t35-payload', extractionBackend: converterConfigured ? 'libdovi' : 'javascript' };
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   } else if (options.kind === 'obu') {
-    const result = extractDolbyRpuFromObuStream(input);
-    rpuBytes = result.rpuBytes;
-    report = result.report;
+    if (converterConfigured) {
+      const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-obu-'));
+      try {
+        const result = await extractDolbyRpuFromObuStreamWithLibdovi(input, directory, options);
+        rpuBytes = result.rpuBytes;
+        report = { ...result.report, extractionBackend: 'libdovi' };
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    } else {
+      const result = extractDolbyRpuFromObuStream(input);
+      rpuBytes = result.rpuBytes;
+      report = { ...result.report, extractionBackend: 'javascript' };
+    }
   } else {
     const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-demux-'));
     try {
       const obuBytes = await demuxAv1Container(inputPath, directory, options);
-      const result = extractDolbyRpuFromObuStream(obuBytes);
+      const result = converterConfigured
+        ? await extractDolbyRpuFromObuStreamWithLibdovi(obuBytes, directory, options)
+        : extractDolbyRpuFromObuStream(obuBytes);
       rpuBytes = result.rpuBytes;
-      report = { ...result.report, inputKind: options.kind, containerDemux: 'ffmpeg-copy', sourceByteLength: inputStat.size };
+      report = {
+        ...result.report,
+        inputKind: options.kind,
+        containerDemux: 'ffmpeg-copy',
+        extractionBackend: converterConfigured ? 'libdovi' : 'javascript',
+        sourceByteLength: inputStat.size,
+      };
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
