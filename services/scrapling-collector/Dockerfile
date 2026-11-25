@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,7 +11,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends gosu libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
+RUN python -m pip install --no-cache-dir uv \\
+    && uv pip install --system --no-cache -r requirements.txt \\
     && mkdir -p /data /opt/collector-browsers \
     && useradd --create-home --uid 10001 collector \
     && chown -R collector:collector /data \
