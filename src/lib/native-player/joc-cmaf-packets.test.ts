@@ -78,7 +78,7 @@ function eac3Frame(streamType = 0, substreamId = 0, blocksCode = 3, bsid = 16): 
   push(0, 1); // compre
   if (streamType === 1) {
     push(1, 1); // chanmape
-    push(0x0002, 16); // D0 channel map -> dec3 chan_loc bit 8
+    push(0x0200, 16); // upstream Lrs/Rrs map -> dec3 chan_loc 0x002
   }
   push(0, 1); // mixmdate
   push(0, 1); // infomdate
@@ -130,7 +130,7 @@ describe('JocCmafPacketExtractor', () => {
     )).toEqual({
       syncframes: 1, hasDependentD0: false, independentBsid: 16,
     });
-    const dependentConfig = parseEc3SpecificBox(makeDec3Box(1, 0x100, 8));
+    const dependentConfig = parseEc3SpecificBox(makeDec3Box(1, 0x002, 8));
     const dependentSample = new Uint8Array([...eac3Frame(0, 0, 3, 8), ...eac3Frame(1)]);
     expect(validateCmafEac3AccessUnit(dependentSample, dependentConfig)).toEqual({
       syncframes: 2, hasDependentD0: true, independentBsid: 8,
@@ -170,7 +170,7 @@ describe('JocCmafPacketExtractor', () => {
   it('extracts an I0+D0 CMAF sample and enforces its dec3 channel map', () => {
     const accessUnit = [...eac3Frame(0, 0, 3, 8), ...eac3Frame(1)];
     const extractor = new JocCmafPacketExtractor(7);
-    extractor.updateInitSegment(makeInitSegment('soun', 'ec-3', makeDec3Box(1, 0x100, 8)));
+    extractor.updateInitSegment(makeInitSegment('soun', 'ec-3', makeDec3Box(1, 0x002, 8)));
     const result = extractor.extractMediaSegment(makeMediaSegment([accessUnit]));
     expect(result.packets).toHaveLength(1);
     expect([...result.packets[0].bytes]).toEqual(accessUnit);
