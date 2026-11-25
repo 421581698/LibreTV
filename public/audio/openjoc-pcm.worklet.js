@@ -6,6 +6,9 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
     this.queuedFrames = 0;
     this.droppedFrames = 0;
     this.playing = false;
+    this.started = false;
+    this.underrunQuanta = 0;
+    this.underrunSent = false;
     this.clockPtsSamples = null;
     this.expectedPtsSamples = null;
     this.maxQueueFrames = 48000;
@@ -18,6 +21,15 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       }
       if (data.type === 'stop') {
         this.playing = false;
+        return;
+      }
+      if (data.type === 'clear') {
+        this.queue = [];
+        this.queuedFrames = 0;
+        this.expectedPtsSamples = this.clockPtsSamples;
+        this.underrunQuanta = 0;
+        this.underrunSent = false;
+        this.port.postMessage({ type: 'queued', frames: 0 });
         return;
       }
       if (data.type === 'clock' && Number.isFinite(data.ptsSamples)) {
@@ -87,6 +99,20 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       if (chunk.offset >= chunkFrames) this.queue.shift();
     }
 
+    if (written > 0) {
+      this.underrunQuanta = 0;
+      this.underrunSent = false;
+      if (!this.started) {
+        this.started = true;
+        this.port.postMessage({ type: 'started' });
+      }
+    } else if (this.started && this.queue.length === 0) {
+      this.underrunQuanta += 1;
+      if (this.underrunQuanta >= 12 && !this.underrunSent) {
+        this.underrunSent = true;
+        this.port.postMessage({ type: 'underrun' });
+      }
+    }
     this.port.postMessage({ type: 'queued', frames: this.queuedFrames, droppedFrames: this.droppedFrames });
     return true;
   }
