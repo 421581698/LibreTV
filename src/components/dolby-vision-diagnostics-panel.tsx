@@ -8,6 +8,7 @@ import { canAnalyzeDolbyVisionRpuAsset } from '@/lib/dolby-vision/rpu-analysis-e
 import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
 
 interface DolbyVisionDiagnosticsPanelProps {
+  cinemaExpanded?: boolean;
   report: DolbyVisionFormatReport | null;
   /** Mounted player host, not a detached probe element. */
   playerContainerRef?: RefObject<HTMLDivElement | null>;
@@ -21,7 +22,7 @@ interface DolbyVisionDiagnosticsPanelProps {
  * Read-only Dolby Vision status. Codec declarations are not proof of RPU
  * presence, successful Dolby Vision decoding, or display output.
  */
-export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef, assetId, sourceKind = 'unknown', sourceIdentity }: DolbyVisionDiagnosticsPanelProps) {
+export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef, assetId, sourceKind = 'unknown', sourceIdentity, cinemaExpanded = false }: DolbyVisionDiagnosticsPanelProps) {
   const declared = Boolean(report?.detected);
   const canAnalyzeRpu = canAnalyzeDolbyVisionRpuAsset(assetId, report);
   const profileLabel = report?.profiles.length
@@ -329,8 +330,8 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
   }
 
   return (
-    <div className="absolute right-3 z-20 flex flex-col items-end" style={{ top: '6.25rem' }}>
-      <details className="group">
+    <div className={cinemaExpanded ? "cinema-v4-diagnostics-panel" : "absolute right-3 z-20 flex flex-col items-end"} style={cinemaExpanded ? undefined : { top: '6.25rem' }}>
+      <details className="group" open={cinemaExpanded || undefined}>
         <summary
           className={`player-quality-badge flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${declared ? 'border-amber-400/70 bg-amber-950/90 text-amber-100' : 'border-white/25 bg-black/90 text-white'}`}
           aria-label="打开 Dolby Vision 视频诊断面板"
