@@ -168,6 +168,22 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertEqual(json.loads(row["payload"])["candidate_id"], self.candidate_id)
         self.assertEqual(json.loads(row["payload"])["resource_id"], self.resource_id)
 
+    def test_worker_rejects_candidate_changed_after_ingestion_job_was_queued(self):
+        import worker
+
+        with patch.object(worker, "require_egress_firewall"):
+            with self.assertRaisesRegex(RuntimeError, "candidate_changed_after_queue"):
+                worker.handle(
+                    {
+                        "_job_type": "dv_media_ingest",
+                        "candidate_id": self.candidate_id,
+                        "resource_id": self.resource_id,
+                        "source_version": "0" * 24,
+                    },
+                    lambda _event: None,
+                    lambda: False,
+                )
+
     def test_worker_dispatches_hls_candidate_to_graph_source_gateway(self):
         import worker
         from dv_hls_source_gateway import ingest_authorized_hls_candidate
