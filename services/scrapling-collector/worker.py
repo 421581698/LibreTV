@@ -43,7 +43,8 @@ def handle(payload: dict, checkpoint, cancelled):
                 (str(candidate.get("url") or "") + "\\0" + str(candidate.get("validation") or "")).encode("utf-8")
             ).hexdigest()[:24]
             if current_source_version != expected_source_version:
-                raise RuntimeError("authorized_media_candidate_changed_after_queue")
+                checkpoint({"stage": "authorized_media_ingest_skipped", "reason": "candidate_changed_after_queue"})
+                return {"status": "skipped", "reason": "candidate_changed_after_queue"}
         if validation.get("media_format") == "hls":
             from dv_hls_source_gateway import ingest_authorized_hls_candidate
             result = ingest_authorized_hls_candidate(
