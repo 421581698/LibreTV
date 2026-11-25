@@ -229,7 +229,11 @@ export function validateSources(
     sources.push(source);
   }
 
-  return sources;
+  // Lower configured weight is the default tie-breaker; stable ordering is retained
+  // for sources without an explicit weight.
+  return sources.sort((a, b) =>
+    (a.weight ?? Number.POSITIVE_INFINITY) - (b.weight ?? Number.POSITIVE_INFINITY)
+  );
 }
 
 const SEARCH_CACHE_TTL_MS = 30_000;
