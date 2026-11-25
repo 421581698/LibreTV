@@ -110,7 +110,7 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "matching media format"):
             self.register(
                 resource,
-                content_type="video/mp4",
+                content_type="video/webm",
                 digest="e" * 64,
             )
 
