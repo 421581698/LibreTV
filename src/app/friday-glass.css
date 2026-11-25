@@ -329,3 +329,21 @@ html[data-friday-material-setting="solid"] .friday-v12-canvas-wrap {
 @media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {
   .friday-v12-canvas-wrap { display: none !important; }
 }
+
+
+/* Forced-colors must use OS palette, never translucent custom RGB overrides. */
+@media (forced-colors: active) {
+  html [data-friday-material],
+  html .liquid-glass[data-friday-material],
+  html .friday-glass-surface[data-friday-material],
+  html :is(.glass-panel,.glass-popover,.glass-dialog,.glass-toolbar,.glass-button),
+  html .artplayer :is(.art-bottom,.art-settings,.art-contextmenus,.art-info,.art-notice) {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border-color: CanvasText !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  html .friday-v12-canvas-wrap { display: none !important; }
+}
