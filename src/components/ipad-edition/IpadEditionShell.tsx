@@ -132,6 +132,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     setSidebarDragOffset(0);
     if (wideLayout) setNavigationCollapsed(true);
   }, [pathname, wideLayout]);
+  const isPlayerRoute = pathname === '/ipad-edition/watch' || pathname.startsWith('/ipad-edition/watch/');
+  const isChromeHidden = isPlayerRoute;
+
   useEffect(() => {
     if (isChromeHidden || (!sidebarOpen && !(wideLayout && !navigationCollapsed))) return;
     const previousOverflow = document.body.style.overflow;
@@ -226,9 +229,7 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
     setSidebarDragging(false);
   };
 
-  const isPlayerRoute = pathname === '/ipad-edition/watch' || pathname.startsWith('/ipad-edition/watch/');
   const isDetailRoute = pathname === '/ipad-edition/detail' || pathname.startsWith('/ipad-edition/detail/');
-  const isChromeHidden = isPlayerRoute;
   const isExpandedSidebar = wideLayout && !navigationCollapsed && !isChromeHidden;
   const allNavigation = [...primaryNavigation, ...personalNavigation];
   const activeHref = allNavigation.find((item) => item.href !== '/ipad-edition' && pathname.startsWith(item.href))?.href
