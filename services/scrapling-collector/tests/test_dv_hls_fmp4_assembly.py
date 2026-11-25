@@ -231,6 +231,7 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(Path(response.path).read_bytes(), expected)
         self.assertEqual(response.headers["x-dv-analysis-scope"], "hls-fmp4-segment")
         self.assertEqual(response.headers["x-dv-hls-fragment-ordinal"], "1")
+        self.assertEqual(response.headers["x-dv-hls-fragment-count"], "2")
         self.assertEqual(response.headers["x-dv-hls-fragment-sequence-number"], "2")
         self.assertEqual(response.headers["x-dv-hls-decode-time"], "4000")
         self.assertEqual(response.headers["x-dv-hls-sample-duration"], "4000")
