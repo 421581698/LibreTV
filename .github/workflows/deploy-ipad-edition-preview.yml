@@ -1378,8 +1378,9 @@ jobs:
                 if (route.name === "watch") {
                   await page.locator(".netflix-watch").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
-                  // The title-row H1 is intentionally hidden by the shared page-heading rule.
-                  // Validate the actual visible playback control instead of waiting on that H1.
+                  // The legacy title row is intentionally hidden by Cinema V4.
+                  // Validate the actual Cinema V4 heading and playback controls.
+                  await page.locator(".ipad-edition-watch .cinema-v4-heading").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".watch-cinema-progress").waitFor({ state: "visible", timeout: 30000 });
                 }
@@ -1422,10 +1423,10 @@ jobs:
                     hasPlayerFrame: Boolean(document.querySelector(".netflix-player-frame")),
                     hasWatchContent: Boolean(document.querySelector(".netflix-watch")),
                     hasVisiblePlayerTitle: (() => {
-                      const title = document.querySelector(".netflix-watch .netflix-title-row h1");
+                      const title = document.querySelector(".ipad-edition-watch .cinema-v4-heading");
                       return Boolean(title && title.getClientRects().length > 0 && getComputedStyle(title).visibility !== "hidden");
                     })(),
-                    visiblePlayerTitleText: document.querySelector(".netflix-watch .netflix-title-row h1")?.textContent?.trim() ?? null,
+                    visiblePlayerTitleText: document.querySelector(".ipad-edition-watch .cinema-v4-heading")?.textContent?.trim() ?? null,
                     hasProgressControl: Boolean(document.querySelector(".watch-cinema-progress")),
                     progressControlWithinViewport: (() => {
                       const control = document.querySelector(".watch-cinema-progress");
@@ -1456,7 +1457,7 @@ jobs:
                       const centerControls = rect(".cinema-center-controls");
                       const info = rect(".watch-cinema-info");
                       const tools = rect(".netflix-watch-tools");
-                      const title = rect(".netflix-watch .netflix-title-row h1");
+                      const title = rect(".ipad-edition-watch .cinema-v4-heading");
                       const utility = rect("#netflix-watch-utility-panel");
                       const viewportWidth = document.documentElement.clientWidth;
                       const centerControlsInsideFrame = Boolean(frame && centerControls &&
