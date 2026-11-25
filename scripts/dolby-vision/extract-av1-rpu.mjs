@@ -158,7 +158,7 @@ function parseArgs(argv) {
     else throw new Error('Unknown command-line option.');
   }
   if (!options.help && (!options.input || !options.output || !['obu', 't35', 'mp4', 'ivf'].includes(options.kind))) {
-    throw new Error('Usage: extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35]');
+    throw new Error('Usage: extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--ffmpeg PATH] [--ffprobe PATH]');
   }
   return options;
 }
