@@ -213,7 +213,7 @@ process.exit(2);
         true,
       );
 
-      await writeFile(fakeFfprobe, "#!/usr/bin/env node\\nprocess.stdout.write('hevc\\\\nhevc\\\\n');\\n", { mode: 0o700 });
+      await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write('hevc\nhevc\n');\n", { mode: 0o700 });
       await chmod(fakeFfprobe, 0o700);
       const ambiguousVideoTracks = await fetch(endpoint, { method: 'POST', headers, body: media });
       assert.equal(ambiguousVideoTracks.status, 415);
