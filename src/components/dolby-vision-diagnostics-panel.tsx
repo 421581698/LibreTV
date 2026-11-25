@@ -498,8 +498,8 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
               <span className="text-white/55">浏览器原生 HLS 能力</span>
               <span>{browserCapability?.nativeHls ?? 'unknown'}（能力查询）</span>
             </div>
-            {browserCapability?.codecs.map((codec) => (
-              <div key={codec.codec} className="flex justify-between gap-3">
+            {browserCapability?.codecs.map((codec, index) => (
+              <div key={`${codec.codec}-${index}`} className="flex justify-between gap-3">
                 <span className="text-white/55">声明 Codec · {codec.codec}</span>
                 <span>{codec.support}（非播放证明）</span>
               </div>
