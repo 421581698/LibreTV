@@ -1,74 +1,52 @@
-<!-- SUPERSEDED: The generic HRTF/spatial-session P2/P3 implementation described below was retired by DOLBY-ONLY-ARCHITECTURE-RESET.md on 2026-11-24. Treat this file as historical implementation evidence only; the Dolby-only reset document is authoritative for current product scope. -->
+# LibreTV Dolby-only audio engine — current status
 
-# LibreTV Immersive Audio Engine 2.0 — implementation status
+Updated: 2026-11-25  
+Branch: `feature/libretv-ipad-edition-product`  
+PR: #99 (Draft; keep open and unmerged)
 
-Updated: 2026-11-24  
-Branch: `feature/libretv-ipad-edition-product` (PR #99, Draft)  
-Implementation code evidence: `3a607107a16d21320231877a281df48345fcef4e` (documentation refresh follows)
+## Authoritative architecture
 
-## P1–P6 acceptance summary
+[Dolby-only architecture reset](./DOLBY-ONLY-ARCHITECTURE-RESET.md) is the current product-scope authority. The earlier generic HRTF/spatial-session implementation was retired. Historical P1–P6, P3 lifecycle, and device-matrix documents are retained as historical research/specification and must not be read as evidence that the retired renderer remains in the player.
 
-| Phase | Implementation status | Acceptance status | Remaining evidence |
-|---|---|---|---|
-| P1 format detection | Metadata/parser foundations exist | Not finally accepted | Controlled real elementary-stream samples cross-checked against matching HLS manifests |
-| P2 spatial presentation | Standalone Web Audio HRTF foundation; selected HLS stereo metadata can drive stereo virtualization; unknown/six-channel layouts bypass | Not finally accepted | Real decoded multichannel media, Safari AudioContext, suspend/resume and failure recovery |
-| P3 player integration | Isolated MP4/WebM and HLS sessions; separate hls.js/MSE or Safari native-HLS controller; spatial-session audio-track selection; source-generation guard and native fallback | Core integration implemented; exact-head automation pending; not accepted | Manifest/playlist/segment/key CORS matrix, delayed errors and race tests, exact-head Preview, Safari/iOS and real-device regression |
-| P4 physical devices | Not implemented/recorded | Not accepted | Named iPhone/iPad and output-chain test records |
-| P5 diagnostics | Read-only diagnostics HUD foundation exists | Not finally accepted | Correlation with observed output on real device chains |
-| P6 release gates | iPad Verify, Resource Playback Verification and HLS External Stream Smoke are being re-run on the documentation-updated branch head `202837cf591193e33470b6ab466d1e233e406247`; iPad Verify run `45378989163` and Resource run `45378986008` are in progress, External HLS run `45378986144` passed | Not accepted | Exact-head Ubuntu Preview run `45378980789` pending; HLS Browser Smoke `45378986359` in progress; visual audit and Safari/iOS device regression remain open |
+The product must report four independent states:
 
-## Landed foundations
+1. **Detected** — source-declared Dolby codec/JOC metadata was recognized.
+2. **Decoded** — a supported Dolby decoder actually decoded the selected stream.
+3. **Rendered** — a verified Dolby Atmos/object-rendering path processed the decoded content.
+4. **Output verified** — a named physical device and output chain passed acceptance.
 
-- Read-only format detection for AC-3, E-AC-3, TrueHD, DTS, AAC and other existing codecs.
-- Dolby AC-4 FourCC detection in HLS `CODECS` metadata, including the four-part codec string:
-  `ac-4.<bitstream_version>.<presentation_version>.<mdcompat>`.
-- AC-4 `mdcompat` is retained as bounded numeric source metadata and shown as a declared compatibility tier. It is **not** a browser/device decode result and must not enable an Atmos badge.
-- HLS audio rendition inspection recognizes `ac-4` alongside the existing codecs.
-- Read-only diagnostics continue to report native Dolby decode and bitstream passthrough as unknown, and Atmos object decode as not-established.
-- A CORS-guarded Web Audio spatial presentation module is present. It supports opt-in stereo headphone virtualization and a gated 5.1-to-binaural route only when an explicit 5.1 speaker layout is supplied. The independent HLS session passes the selected rendition's declared stereo channel count into the engine and updates the route on track changes; six channels with unknown speaker layout stay bypassed. This is not Dolby Atmos decoding or object rendering.
-- P3 code: `SpatialMediaSession` owns a distinct media element for direct MP4/WebM and HLS, checks CORS readability before allocation, sets `crossOrigin` before source assignment, creates/resumes the Web Audio engine only from the second explicit user gesture, mirrors native play/pause/seek/rate/volume state, and restores the untouched ArtPlayer element on disable/error/source change/unmount. HLS uses an independently owned hls.js/MSE controller or a separate Safari native-HLS media pipeline; spatial-session track selection does not mutate the original player HLS instance. Pending preparation is invalidated on source changes.
-- When the direct-media audio channel layout is unknown, the engine deliberately remains on an unprocessed bypass route. This session lifecycle milestone does not yet enable spatial virtualization for those sources.
-- The spatial HLS controller is independent from the original ArtPlayer/HLS instance. Manifest preflight is only an initial CORS check; actual playlist, segment, key, redirect and fatal-error behavior still requires controlled fixtures.
+Metadata, codec strings, channel counts, browser capability hints, and Web Audio availability cannot promote one state into another.
 
-## Three core capabilities
+## Current implementation boundary
 
-- **Dolby Atmos bitstream decoding:** not implemented; no verifiable E-AC-3 JOC, AC-4 or TrueHD browser decoder is included.
-- **Atmos object-audio rendering:** not implemented; no Atmos object metadata parser or dynamic object renderer is integrated.
-- **Dolby bitstream passthrough:** not implemented or verified; no AVR/Soundbar Atmos passthrough evidence exists.
+- Read-only format and HLS audio metadata inspection exists for supported Dolby-family declarations.
+- Codec identifiers are validated conservatively; malformed prefixes and ambiguous group-level declarations must not be treated as proof of a specific track's decoded format.
+- JOC is metadata only. It does not prove Atmos object decoding or rendering.
+- Playback diagnostics distinguish browser capability hints from actual decode/output evidence.
+- Native ArtPlayer/HTMLMediaElement playback, hls.js/MSE, Safari native HLS, direct MP4/WebM, audio-track selection, and playback recovery remain the playback infrastructure.
+- Playback auto-recovery policy remains read-only by default; diagnostics do not silently switch sources or downgrade quality.
+- Dolby Vision RPU analysis is a separate video-evidence path and does not establish Dolby audio decoding or Atmos output.
 
-## P3 architecture and test specification
+## Capability status
 
-The following documents define the architecture and test specification. The initial direct-media session implementation now exists, but these documents are not themselves implementation evidence:
+| Capability | Current status | What is still required |
+|---|---|---|
+| Dolby format/metadata detection | Implemented as read-only software inspection | Controlled licensed bitstreams and matching manifests for broader real-stream validation |
+| Native Dolby decoding | Not established | A supported platform decoder and verifiable decode evidence |
+| E-AC-3 JOC / Atmos object decoding | Not implemented / not established | A technically and legally supported decoder path |
+| Atmos object rendering | Not implemented / not established | Verified Dolby-compatible object renderer and known object-based test content |
+| Dolby bitstream passthrough | Not implemented / not verified | Platform integration and receiver-side input-status evidence |
+| Physical iPhone/iPad output | Not tested | Named device, OS/browser, source fixture and output-chain records |
+| Diagnostics truthfulness | Software foundations implemented | Continue regression checks to prevent metadata being promoted to decode/render/output claims |
 
-- [P3 Architecture Decision Record](./P3-ARCHITECTURE-DECISION.md) — independent Spatial Media Session, CORS/user-gesture gates, session lifecycle and untouched native fallback.
-- [P3 Lifecycle Test Matrix](./P3-LIFECYCLE-TEST-MATRIX.md) — episode/provider/track transitions, pause/resume, errors, teardown, fallback and Safari native-HLS regression.
+## Acceptance gates
 
-Key safety decision: Web Audio is attached only to a separately-owned media element, never to reusable `art.video`. The existing native element remains the fallback route. Spatial HLS now has a separately-owned controller and track selector, but controlled manifest/segment/key CORS verification, the full lifecycle matrix and real Safari/iOS acceptance remain incomplete. Unknown channel layouts continue to bypass layout-specific processing.
+- Exact-head CI must pass for the current PR branch SHA.
+- Existing native playback, HLS, MP4/WebM, audio-track selection and recovery regression tests must pass.
+- No references may remain to retired spatial-session modules or deleted generic spatial smoke scripts in active player code.
+- JOC or a channel count must never be presented as proof of Atmos decoding/rendering.
+- Physical Dolby output remains unaccepted until evidence is recorded for named hardware and a known test source.
 
-## Integration safety gates
+## Release boundary
 
-1. Keep browser-native playback as the default route.
-2. Never attach Web Audio to a cross-origin media element unless its CORS mode and response are known safe. A failed CORS check must leave native playback untouched.
-3. Respect the `MediaElementAudioSourceNode` one-element lifecycle. Disconnecting the graph does not restore native playback on a captured element. Do not capture the existing reusable `art.video`.
-4. Do not infer a 5.1 speaker order from `CHANNELS=6` or `6/JOC`. Unknown layouts bypass spatial routing.
-5. AudioContext activation must happen in an explicit user gesture.
-6. Keep codec signalling, actual decode, object rendering, output routing and physical-device acceptance as separate states.
-7. Preserve ArtPlayer, hls.js, direct MP4/WebM and Safari native-HLS behavior by default.
-
-## Verified software gates and remaining acceptance
-
-- Chromium HLS playback and standalone Web Audio graph smoke passed on commit `aeb2c7b9a54900698dd5cfb2ebb4e044927f0fa0` (run `45364845662`), with autoplay restrictions enabled. The graph smoke uses a same-origin generated PCM fixture; it is not a multichannel or Atmos decode test.
-- Earlier iPad CSS structure audit, TypeScript, ESLint, unit tests and production build passed on commit `aeb2c7b9` (Verify run `45364845773`).
-- The exact current head `f6f0309c4129b44ffd54473740824b5be5484f7a` passed iPad Edition Verify (run `45373955182`), Resource Playback Verification (`45373955096`), HLS Browser Playback Smoke (`45373955327`) and HLS External Stream Smoke (`45373955245`). This verifies software gates only; it is not Preview or physical-device acceptance.
-- The isolated Ubuntu iPad Preview for exact head `f6f0309c4129b44ffd54473740824b5be5484f7a` is queued/pending as run `45373944056`. No exact-head Preview visual audit or physical iPad/Safari regression has passed yet.
-
-## Remaining acceptance requirements
-
-- **P1:** validate metadata against controlled/licensed real elementary-stream samples and matching HLS manifests; parser fixtures alone are insufficient.
-- **P2:** add real multichannel CORS-safe HLS/MSE, Safari AudioContext, suspend/resume and failure-recovery evidence. No Atmos object renderer or codec decoder is implemented.
-- **P3:** verify isolated hls.js/MSE manifest, playlist, segment, key and redirect CORS behavior; complete delayed-error, repeated source/episode race, UI accessibility and audible fallback tests; pass the full [lifecycle matrix](./P3-LIFECYCLE-TEST-MATRIX.md), exact-head Preview and real Safari/iOS checks.
-- **P4:** test physical iPhone/iPad, AirPods/Bluetooth, USB-C, HDMI and named AVR/Soundbar chains. These cannot be inferred from CI.
-- **P5:** validate diagnostics on those physical output chains; unsupported platform fields remain unknown/null.
-- **P6:** pass exact-head CI, isolated Preview visual audit and real Safari/iOS regression. Simulated Chromium viewport tests are not real iPad acceptance.
-
-PR #99 must remain Draft. Do not merge, modify `main`, or deploy production as part of this work.
+PR #99 remains Draft and unmerged. Work stays on `feature/libretv-ipad-edition-product`. Do not modify `main`, merge the PR, or deploy production as part of this work.
