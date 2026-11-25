@@ -133,8 +133,12 @@ test('demuxes one AV1 video track from MP4 and IVF containers without re-encodin
   const ffmpegPath = resolve(directory, 'ffmpeg');
   await writeFile(fixturePath, obuFixture);
   await writeFile(inputPath, Buffer.from('container fixture'));
-  await writeFile(ffprobePath, String.raw`#!/usr/bin/env node\nprocess.stdout.write(process.env.TEST_AV1_STREAMS || "av1\\n");\n`);
-  await writeFile(ffmpegPath, '#!/usr/bin/env node\nconst fs=require("node:fs"); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, process.argv.at(-1));\n');
+  await writeFile(ffprobePath, `#!/usr/bin/env node
+process.stdout.write(process.env.TEST_AV1_STREAMS || "av1\\n");
+`);
+  await writeFile(ffmpegPath, `#!/usr/bin/env node
+const fs=require("node:fs"); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, process.argv.at(-1));
+`);
   await chmod(ffprobePath, 0o755);
   await chmod(ffmpegPath, 0o755);
 
