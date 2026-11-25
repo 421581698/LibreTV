@@ -277,9 +277,6 @@ def assemble_registered_hls_fmp4(
             expect_segment_uri = False
     if expect_segment_uri or len(map_ids) != 1 or not segment_ids:
         raise HlsAssemblyError("HLS playlist must contain one initialization segment and at least one complete media segment.")
-    if len(set(segment_ids)) != len(segment_ids):
-        raise HlsAssemblyError("Repeated media segment assets are not accepted in this RPU assembly path.")
-
     expected_children = [map_ids[0], *segment_ids]
     actual_children = [row["child_asset_id"] for row in edges]
     actual_roles = [row["role"] for row in edges]
