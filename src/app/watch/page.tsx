@@ -1160,7 +1160,7 @@ function WatchContent() {
               </div>
             </section>
 
-            <div className="cinema-v4-actions" role="toolbar" aria-label="影院播放功能">
+            {isIpadEditionPlayback && <div className="cinema-v4-actions" role="toolbar" aria-label="影院播放功能">
               <button type="button" className="cinema-v4-tool" aria-label={`播放速度 ${watchRate} 倍`} onClick={() => {
                 const rates = [1, 1.25, 1.5, 2, 0.75];
                 const current = playerApiRef.current?.getPlaybackRate() ?? watchRate;
@@ -1189,7 +1189,7 @@ function WatchContent() {
               <button type="button" className="cinema-v4-tool" onClick={requestWatchFullscreen}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>全屏</span>
               </button>
-            </div>
+            </div>}
             {isIpadEditionPlayback && cinemaLocked && (
               <button type="button" className="cinema-v4-unlock" onClick={() => setCinemaLocked(false)} aria-label="解锁屏幕">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>解除触控锁定</span>
