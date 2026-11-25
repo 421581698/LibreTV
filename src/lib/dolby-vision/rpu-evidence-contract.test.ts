@@ -60,6 +60,20 @@ describe('Dolby Vision RPU evidence report contract', () => {
     expect(result?.sourceHashBinding).toBe('matched');
   });
 
+  it('accepts AV1 RPU analysis only when bound to the exact original MP4 digest', () => {
+    const av1Report = {
+      ...validHevcReport,
+      input: 'video-track.rpu',
+      inputSha256: 'd'.repeat(64),
+      inputKind: 'av1',
+      extractionScope: { track: null, frameLimit: null },
+      sourceMediaSha256: hash,
+    };
+    expect(validateDolbyVisionRpuReport(av1Report, hash)?.sourceHashBinding).toBe('matched');
+    expect(validateDolbyVisionRpuReport(av1Report, 'c'.repeat(64))).toBeNull();
+    expect(validateDolbyVisionRpuReport({ ...av1Report, sourceMediaSha256: null }, hash)).toBeNull();
+  });
+
   it('rejects a report bound to a different media file', () => {
     expect(validateDolbyVisionRpuReport(validHevcReport, 'c'.repeat(64))).toBeNull();
   });
