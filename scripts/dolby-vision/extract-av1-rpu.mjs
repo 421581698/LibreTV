@@ -161,9 +161,13 @@ function parseDolbyRpuObuStream(inputValue) {
   // when there are multiple frames, multiple RPUs, or frames without metadata.
   // Frame-header (OBU type 3) and complete-frame (type 6) combinations require
   // deeper frame assembly and must not be treated as signed one-to-one proof.
+  const rpuCountByTemporalUnit = new Map();
+  for (const rpu of rpuUnits) {
+    rpuCountByTemporalUnit.set(rpu.temporalUnitIndex, (rpuCountByTemporalUnit.get(rpu.temporalUnitIndex) || 0) + 1);
+  }
   for (let unit = 0; unit < temporalDelimiterCount; unit += 1) {
     const frameCount = framesByTemporalUnit.get(unit) || 0;
-    const rpuCount = rpuUnits.filter((rpu) => rpu.temporalUnitIndex === unit).length;
+    const rpuCount = rpuCountByTemporalUnit.get(unit) || 0;
     if (frameCount !== 1 || rpuCount !== 1) {
       throw new Error('AV1 Dolby RPU alignment requires exactly one frame and one RPU per temporal unit.');
     }
