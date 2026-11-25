@@ -20,6 +20,7 @@ function IpadSearchContent() {
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const activeController = useRef<AbortController | null>(null);
   const requestId = useRef(0);
@@ -40,21 +41,21 @@ function IpadSearchContent() {
   }, [selectedKeys, customAPIs, envSources]);
 
   const runSearch = async (term: string) => {
-    const value = term.trim().slice(0, 100);
+    const value = term.trim().slice(0, 50);
     setQuery(value);
     activeController.current?.abort();
     const currentRequest = ++requestId.current;
     activeController.current = null;
     if (!value) {
       setResults([]);
-      setError('');
+      setError(''); setWarning('');
       setHasSearched(false);
       setLoading(false);
       return;
     }
     setHasSearched(true);
     setResults([]);
-    setError('');
+    setError(''); setWarning('');
     if (!sources.length) {
       setError('尚未启用可用的点播源，请先在 LibreTV 设置中添加或启用资源源。');
       setLoading(false);
@@ -67,6 +68,9 @@ function IpadSearchContent() {
       const response = await api.search(value, sources, yellowFilter, { signal: controller.signal });
       if (currentRequest !== requestId.current) return;
       setResults(response.list ?? []);
+      const failures = response.failures ?? [];
+      if (failures.length && !response.list?.length) setError('部分或全部资源源请求失败，无法确认是否存在匹配内容，请重试。');
+      else if (failures.length) setWarning(`${failures.length} 个资源源请求失败，结果可能不完整。`);
       const next = new URLSearchParams({ q: value });
       if (value !== initial) {
         ownUrlUpdate.current = value;
@@ -99,7 +103,7 @@ function IpadSearchContent() {
       requestId.current += 1;
       setQuery('');
       setResults([]);
-      setError('');
+      setError(''); setWarning('');
       setHasSearched(false);
       setLoading(false);
     }
@@ -141,8 +145,8 @@ function IpadSearchContent() {
             <path d="m15.8 15.8 4.2 4.2" />
           </svg>
         </span>
-        <input value={query} maxLength={100} onChange={(event) => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
-        {query ? <button type="button" onClick={() => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(''); setResults([]); setError(''); setHasSearched(false); router.replace('/ipad-edition/search'); }}>清空</button> : null}
+        <input value={query} maxLength={50} onChange={(event) => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); setWarning(''); }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
+        {query ? <button type="button" onClick={() => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(''); setResults([]); setError(''); setWarning(''); setHasSearched(false); router.replace('/ipad-edition/search'); }}>清空</button> : null}
         <button type="submit" disabled={loading || !query.trim()}>{loading ? '搜索中…' : '搜索'}</button>
       </form>
       {!query.trim() ? (
@@ -161,6 +165,7 @@ function IpadSearchContent() {
           )}
         </div>
       ) : null}
+      {warning ? <div role="status" className="ipad-edition__rail-message">{warning}</div> : null}
       {loading ? <div className="ipad-edition__rail-message" role="status">正在检索已启用的资源源…</div> : null}
       {!loading && !error && hasSearched && query.trim() && results.length === 0 ? <div className="ipad-edition__rail-message">没有找到匹配内容，试试更短的片名或其他关键词。</div> : null}
       {results.length ? (

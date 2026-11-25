@@ -62,9 +62,9 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
               <strong title={item.title}>{item.title}</strong><small>{item.rating ? '★ ' + item.rating : '查看详情'}</small>
             </button>)}
           </div>
-          {kind !== 'anime' ? <div className="ipad-edition__pagination"><button type="button" data-friday-material="regular" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><span>第 {page + 1} 页</span><button type="button" data-friday-material="regular" disabled={uniqueItems.length < 20} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
-        </>
+          </>
       ) : null}
+      {kind !== 'anime' ? <div className="ipad-edition__pagination"><button type="button" data-friday-material="regular" disabled={page === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><span>第 {page + 1} 页</span><button type="button" data-friday-material="regular" disabled={query.isFetching || query.isError || items.length < 20} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
     </div>
   );
 }

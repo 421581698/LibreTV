@@ -372,7 +372,7 @@ function ndjsonResponse(
           });
 
           if (!cached && !abortController.signal.aborted) {
-            setCachedOutcomes(cacheKey, outcomes);
+            if (outcomes.every((outcome) => outcome.ok)) setCachedOutcomes(cacheKey, outcomes);
           }
 
           if (!abortController.signal.aborted) {
@@ -488,7 +488,7 @@ export async function POST(req: Request) {
     });
 
     if (req.signal.aborted) return jsonError('请求已取消', 400);
-    if (!cached) setCachedOutcomes(cacheKey, outcomes);
+    if (!cached) if (outcomes.every((outcome) => outcome.ok)) setCachedOutcomes(cacheKey, outcomes);
     const [registryResources, seedhubItems] = await Promise.all([registryPromise, seedhubPromise]);
 
     return NextResponse.json({ ...toSearchResponse(outcomes), ...(registryResources.length ? { registryResources } : {}), ...(seedhubItems.length ? { seedhubItems } : {}) }, {

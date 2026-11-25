@@ -65,12 +65,13 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
     const controller = new AbortController();
     setLoading(true);
     setMetadataError('');
+    setMovie(null);
     fetch('/api/tmdb/details?' + new URLSearchParams({ id, type }), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error((await response.json()).error || '无法获取影片资料');
         return response.json() as Promise<TmdbTitle>;
       })
-      .then(setMovie)
+      .then((value) => { if (!controller.signal.aborted) setMovie(value); })
       .catch((error) => { if (!controller.signal.aborted) setMetadataError(error instanceof Error ? error.message : '无法获取影片资料'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();

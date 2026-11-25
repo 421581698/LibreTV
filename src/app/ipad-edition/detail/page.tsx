@@ -16,6 +16,7 @@ function DetailContent() {
   if (bangumiId && /^\d{1,12}$/.test(bangumiId)) {
     return (
       <BangumiSubjectDetailPage
+        key={bangumiId}
         id={bangumiId}
         titleFallback={params.get('title') || '未知新番'}
         posterFallback={params.get('pic') || ''}
@@ -26,6 +27,7 @@ function DetailContent() {
   if (tmdbId && /^\d{1,12}$/.test(tmdbId)) {
     return (
       <TmdbMovieDetailPage
+        key={`${tmdbType}:${tmdbId}`}
         id={tmdbId}
         type={tmdbType}
         titleFallback={params.get('title') || '未知影片'}
@@ -41,7 +43,7 @@ function DetailContent() {
 
 export default function IpadEditionDetailPage() {
   return (
-    <div className="ipad-edition">
+    <div>
       <div data-ipad-detail="true">
         <Suspense fallback={<main className="ipad-edition__rail-message">正在加载影片详情…</main>}>
           <DetailContent />

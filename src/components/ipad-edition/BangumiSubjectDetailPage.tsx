@@ -178,8 +178,8 @@ export function BangumiSubjectDetailPage({ id, titleFallback, posterFallback }: 
   const year = subject?.date?.slice(0, 4) || '';
   const tags = (subject?.tags || []).slice(0, 16).map((tag) => tag.name).filter((tag): tag is string => Boolean(tag));
 
-  if (loading) return <main className="min-h-screen bg-[#08080a] p-10 text-white">正在加载新番资料…</main>;
-  if (!subject) return <main className="min-h-screen bg-[#08080a] p-10 text-white"><button onClick={() => router.back()}>‹ 返回</button><p className="mt-8">{error || '新番资料暂时不可用'}</p></main>;
+  if (loading) return <main className="ipad-detail-state">正在加载新番资料…</main>;
+  if (!subject) return <main className="ipad-detail-state"><button onClick={() => router.back()}>‹ 返回</button><p className="mt-8">{error || '新番资料暂时不可用'}</p></main>;
 
   return (
     <IpadCinemaDetailLayout
