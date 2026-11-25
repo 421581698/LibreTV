@@ -47,6 +47,9 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
   const currentVerifiedEvidence = verifiedEvidence && verifiedEvidence.assetId === assetId
     ? verifiedEvidence.evidence
     : null;
+  const currentHlsEvidence = hlsEvidence && hlsEvidence.resourceId === sourceIdentity
+    ? hlsEvidence
+    : null;
 
   useEffect(() => {
     requestRef.current?.abort();
@@ -267,7 +270,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-white/55">RPU 存在性</span>
-              <span>{currentVerifiedEvidence ? '已验证存在' : '未验证'}</span>
+              <span>{currentVerifiedEvidence || currentHlsEvidence ? '已验证存在' : '未验证'}</span>
             </div>
             {sourceKind === 'registry' && report?.container === 'hls' && (
               <div className="mt-2 rounded-lg border border-white/10 bg-white/5 p-2">
@@ -281,6 +284,33 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                     <span>媒体分片：{hlsGraph.segmentCount}</span>
                     <span>初始化段：{hlsGraph.initializationCount}</span>
                     <span>嵌套清单：{hlsGraph.playlistCount}</span>
+                  </div>
+                )}
+                {hlsGraph.variantAssetIds.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {hlsGraph.variantAssetIds.map((variantId) => (
+                      <button
+                        key={variantId}
+                        type="button"
+                        disabled={hlsAnalysisState === 'loading'}
+                        onClick={() => void analyzeHlsVariant(variantId)}
+                        className="w-full rounded-md bg-white/10 px-2.5 py-2 text-left text-[10px] font-medium text-white/90 transition hover:bg-white/20 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {hlsAnalysisState === 'loading' ? '正在分析 HLS fMP4 RPU…' :
+                          currentHlsEvidence?.variantAssetId === variantId ? '重新验证此 HLS 变体 RPU' :
+                            `分析此 HLS 变体 RPU · ${variantId}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {hlsAnalysisError && <p role="alert" className="mt-1 text-amber-200">{hlsAnalysisError}</p>}
+                {currentHlsEvidence && (
+                  <div className="mt-2 rounded-md border border-emerald-300/20 bg-emerald-300/5 p-2 text-[10px] text-emerald-100">
+                    <p>已验证 HLS fMP4 RPU：Profile {currentHlsEvidence.profile ?? '多 Profile / 未唯一归属'}</p>
+                    <p>解析帧数：{currentHlsEvidence.frameCount.toLocaleString()}</p>
+                    <p>元数据层：{currentHlsEvidence.metadataLevels.join(' / ')}</p>
+                    <p>图谱 SHA-256：{currentHlsEvidence.graphSha256.slice(0, 16)}…</p>
+                    <p className="mt-1 text-amber-100">时间戳连续性未知；跨分片 RPU 连续性尚未验证。</p>
                   </div>
                 )}
                 {hlsGraphError && <p role="alert" className="mt-1 text-amber-200">{hlsGraphError}</p>}
