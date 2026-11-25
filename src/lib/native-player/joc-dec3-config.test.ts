@@ -106,7 +106,7 @@ describe('OpenJOC CMAF dec3 configuration', () => {
     const valid = dec3Box();
     expect(() => parseEc3SpecificBox(valid.subarray(0, valid.length - 1))).toThrow(/box|truncated/i);
     const bad = valid.slice();
-    bad[8] |= 0x80;
+    bad[10] |= 0x01;
     expect(() => parseEc3SpecificBox(bad)).toThrow(/reserved/i);
   });
 
