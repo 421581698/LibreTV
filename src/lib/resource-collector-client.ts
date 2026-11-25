@@ -70,6 +70,29 @@ export async function fetchDolbyVisionRegistryAsset(
   });
 }
 
+/** Server-only HLS parser-input fetch. It always uses trusted server credentials, never browser overrides. */
+export async function fetchDolbyVisionHlsAssembly(
+  resourceId: string,
+  variantAssetId: string,
+  timeoutMs = 15 * 60 * 1000,
+): Promise<Response | null> {
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(resourceId) ||
+      !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId)) return null;
+  const base = trustedServerRegistryBase();
+  const token = process.env.SCRAPLING_API_TOKEN?.trim();
+  if (!base || !token) return null;
+  return fetch(
+    `${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+    },
+  );
+}
+
 /** Server-side proxy. Browser overrides are accepted only after the route's private-feature auth guard. */
 export async function collectorRequest(
   path: string,
