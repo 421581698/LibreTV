@@ -26,7 +26,6 @@ async function sha256File(filePath) {
 export function normalizeRpuInput(value) {
   const input = Buffer.from(value);
   const startCode = Buffer.from([0x00, 0x00, 0x00, 0x01]);
-  const naluHeader = Buffer.from([0x7c, 0x01]);
 
   const validateRegular = (regular) => {
     let lastNonZero = regular.length - 1;
@@ -36,25 +35,11 @@ export function normalizeRpuInput(value) {
     }
   };
 
-  const escapePayload = (regular) => {
-    const escaped = [];
-    let zeroCount = 0;
-    for (const byte of regular) {
-      if (zeroCount >= 2 && byte <= 0x03) {
-        escaped.push(0x03);
-        zeroCount = 0;
-      }
-      escaped.push(byte);
-      zeroCount = byte === 0 ? zeroCount + 1 : 0;
-    }
-    return Buffer.from(escaped);
-  };
-
-  // dovi_tool consumes HEVC Annex-B UNSPEC62 NAL units (00 00 00 01 7c 01 ...).
-  // A regular 0x19 RPU payload is therefore wrapped with the NAL header and EBSP escaping.
+  // dovi_tool info/export consume Annex-B chunks whose payload starts with
+  // the regular RPU prefix 0x19, not the enclosing HEVC UNSPEC62 NAL header.
   if (input[0] === 0x19) {
     validateRegular(input);
-    return Buffer.concat([startCode, naluHeader, escapePayload(input)]);
+    return Buffer.concat([startCode, input]);
   }
 
   const units = [];
@@ -67,6 +52,15 @@ export function normalizeRpuInput(value) {
     let next = input.indexOf(startCode, payloadStart);
     if (next < 0) next = input.length;
     const nalu = input.subarray(payloadStart, next);
+
+    // Some dovi_tool extraction paths already provide Annex-B regular RPU chunks.
+    if (nalu[0] === 0x19) {
+      validateRegular(nalu);
+      units.push(Buffer.concat([startCode, nalu]));
+      offset = next;
+      continue;
+    }
+
     if (nalu.length < 9 || nalu[0] !== 0x7c || nalu[1] !== 0x01) {
       throw new Error('RPU stream contains a non-UNSPEC62 HEVC NAL unit.');
     }
@@ -86,7 +80,7 @@ export function normalizeRpuInput(value) {
     }
     const regular = Buffer.from(decoded);
     validateRegular(regular);
-    units.push(Buffer.concat([startCode, naluHeader, escapePayload(regular)]));
+    units.push(Buffer.concat([startCode, regular]));
     offset = next;
   }
   if (units.length === 0) throw new Error('RPU NAL stream contains no RPU units.');
