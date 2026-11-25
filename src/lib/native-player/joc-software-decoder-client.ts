@@ -20,11 +20,16 @@ export interface JocDecoderStatus {
   readonly channels: 2;
   readonly renderer: 'Stereo';
   readonly nativeDolbyDecoderUsed: false;
+  readonly decodedProfile: string | null;
+  readonly reconstructedObjectCount: number | null;
+  readonly complexityIndex: number | null;
+  readonly decodedAccessUnits: number;
 }
 
 type WorkerReply =
   | { type: 'ready'; generation: number; decoder: 'OpenJOC'; renderer: 'Stereo'; sampleRate: 48000; channels: 2; nativeDolbyDecoderUsed: false }
   | { type: 'pcm'; generation: number; samples: ArrayBuffer; sampleFrames: number; ptsSamples: number | null; sampleRate: 48000; channels: 2 }
+  | { type: 'decoded'; generation: number; profile: string | null; objectCount: number | null; complexityIndex: number | null; decodedAccessUnits: number }
   | { type: 'need-input' | 'flushed' | 'reset' | 'disposed'; generation: number }
   | { type: 'error'; generation: number; message: string };
 
@@ -38,6 +43,10 @@ export class JocSoftwareDecoderClient {
   private generation = 1;
   private ready = false;
   private queuedFrames = 0;
+  private decodedProfile: string | null = null;
+  private reconstructedObjectCount: number | null = null;
+  private complexityIndex: number | null = null;
+  private decodedAccessUnits = 0;
   private inFlight = false;
   private disposed = false;
   private readonly listeners = new Set<(status: JocDecoderStatus) => void>();
@@ -91,6 +100,10 @@ export class JocSoftwareDecoderClient {
       channels: 2,
       renderer: 'Stereo',
       nativeDolbyDecoderUsed: false,
+      decodedProfile: this.decodedProfile,
+      reconstructedObjectCount: this.reconstructedObjectCount,
+      complexityIndex: this.complexityIndex,
+      decodedAccessUnits: this.decodedAccessUnits,
     };
   }
 
@@ -162,6 +175,10 @@ export class JocSoftwareDecoderClient {
     this.generation += 1;
     this.ready = false;
     this.queuedFrames = 0;
+    this.decodedProfile = null;
+    this.reconstructedObjectCount = null;
+    this.complexityIndex = null;
+    this.decodedAccessUnits = 0;
     await this.waitFor('reset', () => this.worker.postMessage({ type: 'reset', generation: this.generation }));
     this.ready = true;
     this.emitStatus();
@@ -243,6 +260,12 @@ export class JocSoftwareDecoderClient {
       this.ready = true;
       this.emitStatus();
       this.settle('ready');
+    } else if (message.type === 'decoded') {
+      this.decodedProfile = message.profile;
+      this.reconstructedObjectCount = message.objectCount;
+      this.complexityIndex = message.complexityIndex;
+      this.decodedAccessUnits = message.decodedAccessUnits;
+      this.emitStatus();
     } else if (message.type === 'pcm') {
       if (!this.node || message.sampleRate !== 48000 || message.channels !== 2) {
         this.fail(new Error('OpenJOC PCM format is unsupported.'));
