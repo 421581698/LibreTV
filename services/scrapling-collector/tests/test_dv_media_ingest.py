@@ -204,6 +204,40 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         self.assertEqual(ranged.headers["content-range"], "bytes 1-3/13")
         self.assertEqual(ranged.headers["content-length"], "3")
 
+        # Every root/child response must expose metadata that describes the
+        # exact content-addressed bytes stored for that graph member.
+        async def read_body(response):
+            return b"".join([chunk async for chunk in response.body_iterator])
+
+        for member_path, member_asset in result["assets"].items():
+            object_path = self.object_root / "sha256" / member_asset["sha256"][:2] / member_asset["sha256"]
+            stored_bytes = object_path.read_bytes()
+            self.assertEqual(hashlib.sha256(stored_bytes).hexdigest(), member_asset["sha256"])
+            self.assertEqual(len(stored_bytes), member_asset["byte_length"])
+            with patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root), patch.object(registry, "require_auth"):
+                response = registry.api_get_dolby_vision_media_asset_content(
+                    member_asset["asset_id"], authorization="Bearer collector"
+                )
+            self.assertEqual(response.status_code, 200, member_path)
+            self.assertEqual(response.headers["x-dv-asset-id"], member_asset["asset_id"])
+            self.assertEqual(response.headers["x-dv-asset-sha256"], member_asset["sha256"])
+            self.assertEqual(response.headers["content-type"], member_asset["content_type"])
+            self.assertEqual(response.headers["content-length"], str(member_asset["byte_length"]))
+            self.assertEqual(await_body := asyncio.run(read_body(response)), stored_bytes, member_path)
+            self.assertEqual(hashlib.sha256(await_body).hexdigest(), response.headers["x-dv-asset-sha256"])
+
+        # A child segment replaced with different bytes of the same length
+        # must fail closed even though its content-addressed path still exists.
+        segment_path = self.object_root / "sha256" / segment_asset["sha256"][:2] / segment_asset["sha256"]
+        segment_path.write_bytes(b"X" * segment_asset["byte_length"])
+        with patch.object(registry, "DV_MEDIA_OBJECT_ROOT", self.object_root), patch.object(registry, "require_auth"):
+            with self.assertRaises(registry.HTTPException) as error:
+                registry.api_get_dolby_vision_media_asset_content(
+                    segment_asset["asset_id"], authorization="Bearer collector"
+                )
+        self.assertEqual(error.exception.status_code, 409)
+        self.assertIn("digest", error.exception.detail)
+
     def test_rejects_encrypted_hls_and_path_traversal_without_registering_a_graph(self):
         resource = self.add_hls_resource("dv-hls:reject")
         staging = self.root / "hls-reject"
