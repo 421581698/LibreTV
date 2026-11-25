@@ -208,7 +208,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
           {assetId && report?.container === 'mp4' && !canAnalyzeRpu && (
             <p className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/45">
               {report.codecFamilies.includes('av1')
-                ? '当前检测到 AV1 Dolby Vision 声明；RPU 分析适配器尚未接入 AV1 OBU/EMDF，不能交给 HEVC 解析器处理。'
+                ? '当前检测到 AV1 Dolby Vision 声明；已有独立的 OBU 结构检查基础，但 Dolby T.35 Provider/EMDF 识别、RPU 提取和签名证据尚未完成，不能交给 HEVC 解析器处理。'
                 : '当前 MP4 未能确认是单一 HEVC 视频编码；服务端 RPU 分析目前仅支持 MP4 + 单一 HEVC 视频轨道。'}
             </p>
           )}
