@@ -1190,9 +1190,12 @@ function WatchContent() {
               </button>
             </div>}
             {isIpadEditionPlayback && cinemaLocked && (
-              <button type="button" className="cinema-v4-unlock" onClick={() => setCinemaLocked(false)} aria-label="解锁屏幕">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>解除触控锁定</span>
-              </button>
+              <>
+                <div className="cinema-v4-touch-shield" aria-hidden="true" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} />
+                <button type="button" className="cinema-v4-unlock" onClick={() => setCinemaLocked(false)} aria-label="解锁屏幕">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>解除触控锁定</span>
+                </button>
+              </>
             )}
             <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
