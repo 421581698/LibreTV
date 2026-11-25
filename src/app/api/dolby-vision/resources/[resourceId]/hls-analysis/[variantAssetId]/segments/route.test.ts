@@ -185,6 +185,41 @@ describe('POST HLS fragment-set analysis', () => {
     expect(body).toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
   });
 
+  it('rejects a missing second fragment without claiming full-set verification', async () => {
+    vi.mocked(fetchDolbyVisionHlsAssemblySegment).mockImplementation(async (_resource, _variant, ordinal) =>
+      ordinal === 0 ? makeFragmentResponse(0) : new Response(null, { status: 404 }),
+    );
+    const parserFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(makeEnvelope(0)), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', parserFetch);
+
+    const response = await POST(new Request('https://libretv.example/segments', { method: 'POST' }), {
+      params: Promise.resolve({ resourceId, variantAssetId }),
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'DV_HLS_FRAGMENT_SET_INCOMPLETE',
+      analyzedCount: 1,
+    });
+    expect(parserFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects oversized cumulative signed evidence before reporting any success', async () => {
+    const largeEnvelope = { ...makeEnvelope(0), arbitrary: 'x'.repeat(4 * 1024 * 1024 - 500) };
+    // A single response under the 4 MiB cap is still limited by its signature
+    // and schema validation. Never accept auxiliary, unsigned fields.
+    const parserFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(largeEnvelope), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', parserFetch);
+    const response = await POST(new Request('https://libretv.example/segments', { method: 'POST' }), {
+      params: Promise.resolve({ resourceId, variantAssetId }),
+    });
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: 'DV_HLS_FRAGMENT_SIGNED_EVIDENCE_REJECTED' });
+  });
+
   it('rejects a fragment count that changes within the registered rendition', async () => {
     vi.mocked(fetchDolbyVisionHlsAssemblySegment).mockImplementation(async (_resource, _variant, ordinal) => {
       const response = makeFragmentResponse(ordinal);
