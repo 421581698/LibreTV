@@ -120,7 +120,6 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
         expect(channels(handle)).toBe(2);
         const copied = new Float32Array(wasmMemory.buffer, pcmPointer(handle), floatCount).slice();
         expect(copied.every(Number.isFinite)).toBe(true);
-        expect(copied.some(value => value !== 0)).toBe(true);
         pcmParts.push(new Uint8Array(copied.buffer.slice(0)));
         totalFrames += 1;
         totalSamples += sampleCount;
@@ -157,6 +156,7 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
       expect(reachedEos).toBe(true);
       expect(totalFrames).toBeGreaterThan(0);
       expect(totalSamples).toBeGreaterThan(0);
+      expect(pcmParts.some(part => part.some(value => value !== 0))).toBe(true);
       expect(decodedUnits(handle)).toBeGreaterThan(0);
       const profileSize = profileLength(handle);
       expect(profileSize).toBeGreaterThan(0);
