@@ -15,7 +15,7 @@ function join(...parts: Uint8Array[]): Uint8Array {
 function box(type: string, payload: Uint8Array): Uint8Array {
   return join(u32(payload.length + 8), new Uint8Array([...type].map(char => char.charCodeAt(0))), payload);
 }
-function makeDec3Box(dependent = 0, chanLoc = 0): Uint8Array {
+function makeDec3Box(dependent = 0, chanLoc = 0, bsid = 16): Uint8Array {
   const bits: number[] = [];
   const push = (value: number, width: number) => {
     for (let shift = width - 1; shift >= 0; shift -= 1) bits.push((value >> shift) & 1);
@@ -23,7 +23,7 @@ function makeDec3Box(dependent = 0, chanLoc = 0): Uint8Array {
   push(768, 13);
   push(0, 3);
   push(0, 2);
-  push(16, 5);
+  push(bsid, 5);
   push(0, 1);
   push(0, 1);
   push(0, 3);
@@ -116,13 +116,13 @@ describe('JocCmafPacketExtractor', () => {
     )).toEqual({
       syncframes: 1, hasDependentD0: false, independentBsid: 16,
     });
-    const dependentConfig = parseEc3SpecificBox(makeDec3Box(1, 0x100));
+    const dependentConfig = parseEc3SpecificBox(makeDec3Box(1, 0x100, 8));
     const dependentSample = new Uint8Array([...eac3Frame(0, 0, 3, 8), ...eac3Frame(1)]);
     expect(validateCmafEac3AccessUnit(dependentSample, dependentConfig)).toEqual({
       syncframes: 2, hasDependentD0: true, independentBsid: 8,
     });
     expect(() => validateCmafEac3AccessUnit(
-      dependentSample, parseEc3SpecificBox(makeDec3Box(1, 0x001)),
+      dependentSample, parseEc3SpecificBox(makeDec3Box(1, 0x001, 8)),
     )).toThrow(/chanmap disagrees/i);
   });
 
