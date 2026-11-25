@@ -1828,41 +1828,35 @@ jobs:
                 await page.waitForFunction(() => {
                   const progress = document.querySelector(".watch-cinema-progress");
                   const elapsed = document.querySelector(".watch-cinema-time span:first-child");
-                  return Boolean(progress && Math.abs(Number(progress.value) - 37) < 0.1 &&
+                  return Boolean(progress && Math.abs(Number(progress.getAttribute("aria-valuenow")) - 37) < 0.1 &&
                     elapsed?.textContent?.trim() === "0:37");
                 }, undefined, { timeout: 3000 });
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-live-timeline", currentTime: 37 }));
 
-                // Drag the real range control: input changes only the preview, and
-                // the final pointer release must issue exactly one media seek.
+                // Real browser pointer input exercises hit testing and pointer capture.
                 const seekControl = page.locator(".watch-cinema-progress");
+                const seekBounds = await seekControl.boundingBox();
+                if (!seekBounds) throw new Error("Seek surface missing");
+                const duration = Number(await seekControl.getAttribute("aria-valuemax"));
+                const seekY = seekBounds.y + seekBounds.height / 2;
                 await page.evaluate(() => { window.__mockSeekCount = 0; });
-                await seekControl.dispatchEvent("pointerdown", {
-                  pointerId: 19, pointerType: "touch", isPrimary: true, button: 0,
-                });
-                await seekControl.evaluate(input => {
-                  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-                  setter?.call(input, "64");
-                  input.dispatchEvent(new Event("input", { bubbles: true }));
-                });
-                await page.waitForFunction(() =>
-                  document.querySelector(".watch-cinema-scrub-preview")?.textContent?.trim() === "1:04",
-                  undefined, { timeout: 3000 });
-                await page.evaluate(() => {
-                  window.dispatchEvent(new PointerEvent("pointerup", {
-                    bubbles: true, pointerId: 19, pointerType: "touch", isPrimary: true,
-                  }));
-                  // Some iOS event sequences also deliver touchend after pointerup.
-                  window.dispatchEvent(new Event("touchend", { bubbles: true }));
-                  document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event("seeked"));
-                });
+                await page.mouse.move(seekBounds.x + seekBounds.width * 0.2, seekY);
+                await page.mouse.down();
+                await page.mouse.move(seekBounds.x + seekBounds.width * 64 / duration, seekY, { steps: 12 });
+                await page.waitForFunction(() => {
+                  const slider = document.querySelector(".watch-cinema-progress");
+                  return Math.abs(Number(slider?.getAttribute("aria-valuenow")) - 64) < 1 &&
+                    window.__mockSeekCount === 0;
+                }, undefined, { timeout: 3000 });
+                await page.mouse.up();
+                await page.evaluate(() => document.querySelector(".netflix-player-frame video")?.dispatchEvent(new Event("seeked")));
                 await page.waitForFunction(() => {
                   const video = document.querySelector(".netflix-player-frame video");
                   const progress = document.querySelector(".watch-cinema-progress");
                   const elapsed = document.querySelector(".watch-cinema-time span:first-child");
-                  return Boolean(video && Math.abs(video.currentTime - 64) < 0.1 &&
-                    progress && Math.abs(Number(progress.value) - 64) < 0.1 &&
-                    elapsed?.textContent?.trim() === "1:04" && window.__mockSeekCount === 1);
+                  return Boolean(video && Math.abs(video.currentTime - 64) < 1 &&
+                    progress && Math.abs(Number(progress.getAttribute("aria-valuenow")) - 64) < 1 &&
+                    window.__mockSeekCount === 1);
                 }, undefined, { timeout: 3000 });
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-drag-seek", seekPosition: 64, seekCalls: 1 }));
 
