@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 const ALLOWED_CONTENT_TYPES = new Set([
   'video/mp4',
   'video/webm',
+  'application/vnd.apple.mpegurl',
 ]);
 
 /**
