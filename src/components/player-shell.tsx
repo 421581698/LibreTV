@@ -31,6 +31,7 @@ import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/frid
 import { prefersTouchPointer } from '@/lib/touch-pointer';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import { bindPlaybackUiEvents } from '@/lib/player-playback-ui';
+import { seekWatchPlayback } from '@/lib/watch-playback-state';
 import {
   findActiveSegment,
   findCrossedEnding,
@@ -1355,11 +1356,8 @@ export function PlayerShell({
       },
       seek: (seconds) => {
         if (!Number.isFinite(seconds) || seconds < 0) return;
-        try {
-          artRef.current.currentTime = seconds;
-        } catch {
-          /* 忽略 */
-        }
+        const video = artRef.current?.video;
+        if (video) seekWatchPlayback(video, seconds);
       },
       pause: () => {
         try {
