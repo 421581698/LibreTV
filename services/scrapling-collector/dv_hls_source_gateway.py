@@ -377,10 +377,22 @@ def ingest_authorized_hls_candidate(
         for relative_name, (expected_digest, expected_length) in expected_media_digests.items():
             digest_builder = hashlib.sha256()
             observed_length = 0
+            last_checkpoint = 0
             with (staging / relative_name).open("rb") as source:
                 for chunk in iter(lambda: source.read(CHUNK_SIZE), b""):
+                    if cancelled():
+                        raise registry.JobCancelled()
+                    if time.monotonic() > progress["deadline"]:
+                        raise HlsSourceGatewayError("HLS graph verification exceeded its total deadline")
                     observed_length += len(chunk)
                     digest_builder.update(chunk)
+                    if observed_length - last_checkpoint >= 8 * CHUNK_SIZE:
+                        checkpoint({
+                            "stage": "authorized_hls_digest_verification",
+                            "bytes_verified": observed_length,
+                            "member_bytes_total": expected_length,
+                        })
+                        last_checkpoint = observed_length
             if observed_length != expected_length or digest_builder.hexdigest() != expected_digest:
                 raise HlsSourceGatewayError("Staged HLS media member transfer digest differs from the authorized origin bytes")
         checkpoint({
