@@ -563,13 +563,22 @@ function WatchContent() {
     sha256: string;
   } | null>(null);
 
+  const cmsLookupKey = (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') &&
+    sourceKey && vodId && source?.url && currentUrl && Number.isSafeInteger(currentIndex) && currentIndex >= 0
+    ? JSON.stringify([sourceKey, vodId, currentIndex, source.url, currentUrl]) : null;
+  const [settledCmsLookupKey, setSettledCmsLookupKey] = useState<string | null>(null);
+  const cmsLookupPending = cmsLookupKey !== null && settledCmsLookupKey !== cmsLookupKey;
   useEffect(() => {
     setCmsAssetBinding(null);
-    const isCmsSource = sourceKey.startsWith('custom_') || sourceKey === 'friday-cms';
-    if (!isCmsSource || !sourceKey || !vodId || !source?.url || !currentUrl ||
-        !Number.isSafeInteger(currentIndex) || currentIndex < 0 || !globalThis.crypto?.subtle) return;
-
+    setSettledCmsLookupKey(null);
+    if (!cmsLookupKey || !source?.url) return;
+    if (!globalThis.crypto?.subtle) { setSettledCmsLookupKey(cmsLookupKey); return; }
+    let disposed = false;
     const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+      if (!disposed) setSettledCmsLookupKey(cmsLookupKey);
+    }, 2500);
     const lookup = async () => {
       try {
         const [providerUrlSha256, playbackUrlSha256] = await Promise.all([
@@ -612,11 +621,14 @@ function WatchContent() {
         }
       } catch {
         // Ordinary CMS playback remains available when no exact trusted binding exists.
+      } finally {
+        clearTimeout(timeout);
+        if (!disposed) setSettledCmsLookupKey(cmsLookupKey);
       }
     };
     void lookup();
-    return () => controller.abort();
-  }, [sourceKey, vodId, currentIndex, source?.url, currentUrl]);
+    return () => { disposed = true; clearTimeout(timeout); controller.abort(); };
+  }, [cmsLookupKey, sourceKey, vodId, currentIndex, source?.url, currentUrl]);
 
   const activeCmsAssetBinding = cmsAssetBinding &&
     cmsAssetBinding.sourceKey === sourceKey &&
@@ -1005,7 +1017,9 @@ function WatchContent() {
               ref={attachPlayerFrame}
               className="netflix-player-frame aspect-video bg-black overflow-hidden"
             >
-              {currentUrl ? (
+              {cmsLookupPending ? (
+                <div className="w-full h-full flex items-center justify-center" role="status" aria-label="正在确认媒体地址"><Spinner size="lg" /></div>
+              ) : currentUrl ? (
                 <PlaybackErrorBoundary key={playerUrl} label="player" fallback={isIpadEditionPlayback ? (retry) => (
                   <NativeCinemaFallback url={playerUrl} retry={retry}
                     onApi={(api) => { playerApiRef.current = api; }}
