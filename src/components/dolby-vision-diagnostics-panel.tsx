@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
+import { probeNativeDolbyVisionCapabilities, type DolbyVisionNativeCapabilityReport } from '@/lib/dolby-vision/native-playback-capability';
 import { canAnalyzeDolbyVisionRpuAsset } from '@/lib/dolby-vision/rpu-analysis-eligibility';
 import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
 
@@ -24,6 +25,22 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     ? report.profiles.map((profile) => `Profile ${profile}`).join(' / ')
     : '未检测到可验证的 Profile 声明';
   const [verifiedEvidence, setVerifiedEvidence] = useState<{ assetId: string; evidence: VerifiedDolbyVisionEvidenceResponse } | null>(null);
+  const [browserCapabilityState, setBrowserCapabilityState] = useState<{ report: DolbyVisionFormatReport; capability: DolbyVisionNativeCapabilityReport } | null>(null);
+  const browserCapability = browserCapabilityState?.report === report ? browserCapabilityState.capability : null;
+
+  useEffect(() => {
+    if (!report) {
+      return;
+    }
+    const video = document.createElement('video');
+    const capability = probeNativeDolbyVisionCapabilities(
+      report,
+      (mime) => video.canPlayType(mime),
+      typeof window.matchMedia === 'function' ? (query) => window.matchMedia(query) : undefined,
+    );
+    setBrowserCapabilityState({ report, capability });
+  }, [report]);
+
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [analysisError, setAnalysisError] = useState('');
   const [hlsGraph, setHlsGraph] = useState<{ resourceId: string; memberCount: number; playlistCount: number; initializationCount: number; segmentCount: number; variantAssetIds: string[] } | null>(null);
@@ -478,9 +495,26 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
               <span>尚未集成</span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="text-white/55">系统原生解码状态</span>
-              <span>当前网页无法确认</span>
+              <span className="text-white/55">浏览器原生 HLS 能力</span>
+              <span>{browserCapability?.nativeHls ?? 'unknown'}（能力查询）</span>
             </div>
+            {browserCapability?.codecs.map((codec) => (
+              <div key={codec.codec} className="flex justify-between gap-3">
+                <span className="text-white/55">声明 Codec · {codec.codec}</span>
+                <span>{codec.support}（非播放证明）</span>
+              </div>
+            ))}
+            <div className="flex justify-between gap-3">
+              <span className="text-white/55">显示 HDR 查询</span>
+              <span>{browserCapability?.hdrDisplayHint ?? 'unknown'}（非输出证明）</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-white/55">系统原生解码状态</span>
+              <span>实际解码未验证</span>
+            </div>
+            <p className="text-[10px] text-white/50">
+              浏览器 canPlayType 和动态范围媒体查询只提供能力提示，不能读取已选择的 HLS 变体、硬件位流、实际 RPU 消费情况或 HDR 像素输出。
+            </p>
             <div className="flex justify-between gap-3">
               <span className="text-white/55">显示端 Dolby Vision 输出</span>
               <span>需要真机与输出链路验证</span>
