@@ -645,7 +645,8 @@ export function PlayerShell({
         const tracks = hls?.audioTracks ?? [];
         const selectedTrack = tracks[hls?.audioTrack ?? -1] ?? tracks.find(track => track.default) ?? tracks[0];
         if (!selectedTrack) {
-          engine?.updateInputChannels(0, 'unknown');
+          engine?.disable();
+          setSpatialAudioMode('off');
           setSpatialAudioMessage('当前播放路径没有可读取的 HLS 声道元数据；为避免猜测声道，保持原始音轨。');
           setSpatialAudioVerificationMessage('音频输出状态未知：当前播放路径未提供可验证的音轨元数据。');
           return;
@@ -653,7 +654,8 @@ export function PlayerShell({
         const info = inspectHlsAudioTrack(selectedTrack);
         selectedTrackInfo = info;
         if (info.channelCount !== 2 && info.channelCount !== 6) {
-          engine?.updateInputChannels(info.channelCount ?? 0, 'unknown');
+          engine?.disable();
+          setSpatialAudioMode('off');
           setSpatialAudioMessage('当前音轨没有明确的 2 声道或 6 声道声明，空间音频不可用。');
           const verification = classifyAudioVerification(createBrowserAudioEvidence({ codec: info.codec, inputChannels: info.channelCount, hasJocMarker: info.hasJocMarker }));
           setSpatialAudioVerificationMessage(`${verification.label}：${verification.detail}`);
@@ -688,6 +690,7 @@ export function PlayerShell({
       }));
       setSpatialAudioVerificationMessage(`${verification.label}：${verification.detail}`);
     } catch (error) {
+      spatialAudioEngineRef.current?.disable();
       setSpatialAudioMessage(error instanceof Error ? error.message : '空间音频初始化失败，已保持原始播放。');
       setSpatialAudioVerificationMessage('音频输出状态未知：处理链初始化失败，已回退。');
       setSpatialAudioMode('off');
