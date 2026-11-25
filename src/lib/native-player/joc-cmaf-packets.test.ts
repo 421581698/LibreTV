@@ -36,7 +36,7 @@ function makeMediaSegment(payload = [...eac3Frame(), ...eac3Frame()]): Uint8Arra
     u32(0x000001 | 0x000100 | 0x000200),
     u32(payload.length / 8),
     u32(offset),
-    ...Array.from({ length: payload.length / 4 }, () => join(u32(1536), u32(4))),
+    ...Array.from({ length: payload.length / 8 }, () => join(u32(1536), u32(8))),
   ));
   const makeMoof = (offset: number) => box('moof', box('traf', join(tfhd, tfdt, makeTrun(offset))));
   const first = makeMoof(0);
