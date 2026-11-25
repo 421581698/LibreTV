@@ -661,7 +661,7 @@ def assemble_registered_hls_fmp4(
             "fragmentAssetId": asset["child_asset_id"],
             "fragmentSha256": asset["sha256"],
             "fragmentByteLength": asset["byte_length"],
-            "initializationAssetId": init_asset["asset_id"],
+            "initializationAssetId": init_asset["child_asset_id"],
             "initializationSha256": init_asset["sha256"],
             "assembledSegmentByteLength": segment_bytes,
             "assembledSegmentSha256": segment_digest.hexdigest(),
