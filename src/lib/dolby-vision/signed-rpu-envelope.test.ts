@@ -122,6 +122,59 @@ describe('signed Dolby Vision RPU envelope', () => {
     })).toBeNull();
   });
 
+  it('verifies a fragment signature against its graph member, init bytes, and exact segment digest', () => {
+    const assembledSegmentSha256 = 'f'.repeat(64);
+    const segmentContext = {
+      scope: 'hls-fmp4-segment' as const,
+      resourceId: 'resource_hls_123',
+      graphId: 'graph_123',
+      graphSha256: 'c'.repeat(64),
+      rootAssetId: 'root:playlist',
+      variantAssetId: 'variant:playlist',
+      fragmentCount: 2,
+      fragmentSequenceContinuity: 'sequential' as const,
+      temporalContinuity: 'contiguous' as const,
+      fragmentOrdinal: 0,
+      fragmentAssetId: 'segment:0001',
+      fragmentSha256: 'd'.repeat(64),
+      initializationAssetId: 'init:001',
+      initializationSha256: 'e'.repeat(64),
+      assembledSegmentSha256,
+      fragmentSequenceNumber: 1,
+      decodeTime: 0,
+      sampleDuration: 4000,
+      sampleCount: 100,
+      timescale: 1000,
+    };
+    const payload = {
+      version: 1,
+      keyId: options.expectedKeyId,
+      assetId: segmentContext.fragmentAssetId,
+      issuedAt: now - 10,
+      expiresAt: now + 3600,
+      report: { ...report, sourceMediaSha256: assembledSegmentSha256 },
+      analysisContext: segmentContext,
+    };
+    const signature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(payload)), privateKey).toString('base64url');
+    const result = verifySignedDolbyVisionRpuEnvelope({ ...payload, signature }, {
+      ...options,
+      expectedAssetId: segmentContext.fragmentAssetId,
+      expectedMediaSha256: assembledSegmentSha256,
+      expectedAnalysisContext: segmentContext,
+    });
+    expect(result).toMatchObject({
+      sourceHashBinding: 'matched',
+      analysisContext: segmentContext,
+      report: { sourceMediaSha256: assembledSegmentSha256 },
+    });
+    expect(verifySignedDolbyVisionRpuEnvelope({ ...payload, signature }, {
+      ...options,
+      expectedAssetId: segmentContext.fragmentAssetId,
+      expectedMediaSha256: hash,
+      expectedAnalysisContext: segmentContext,
+    })).toBeNull();
+  });
+
   it('rejects media digest mismatch, expired reports and reports issued in the future', () => {
     const envelope = makeEnvelope();
     expect(verifySignedDolbyVisionRpuEnvelope(envelope, { ...options, expectedMediaSha256: 'c'.repeat(64) })).toBeNull();
