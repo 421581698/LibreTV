@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/api-guard';
-import { cmsDescriptionToText, cmsRequestHeaders, parseDetail, parseDetailPageHtml } from '@/lib/cms-parser';
+import { cmsDescriptionToText, cmsRequestHeaders, isAdultContent, parseDetail, parseDetailPageHtml } from '@/lib/cms-parser';
 import { fetchUpstream, getCache, setCache } from '@/lib/fetch-utils';
 import { checkUpstreamAllowed } from '@/lib/ssrf';
 import { enrichEpisodesWithTmdbArtwork } from '@/lib/tmdb-episode-artwork';
@@ -40,6 +40,10 @@ export async function GET(req: Request) {
   }
   if (!source) {
     return NextResponse.json({ error: '无效的点播源配置' }, { status: 400 });
+  }
+
+  if (source.isAdult === true) {
+    return NextResponse.json({ error: '该内容源未通过内容安全审核' }, { status: 403 });
   }
 
   // Disabled providers must be rejected by detail as well as search; otherwise a direct ID request bypasses the source policy.
@@ -218,6 +222,10 @@ export async function GET(req: Request) {
 
     if (!resolved || resolved.episodes.length === 0) {
       return NextResponse.json({ error: '未找到播放资源' }, { status: 404 });
+    }
+
+    if (isAdultContent(resolved.videoInfo.typeName)) {
+      return NextResponse.json({ error: '该内容未通过内容安全审核' }, { status: 403 });
     }
     // TMDB is an optional metadata provider. Missing credentials, unmatched titles,
     // or upstream outages leave the CMS episode list and playback URLs untouched.
