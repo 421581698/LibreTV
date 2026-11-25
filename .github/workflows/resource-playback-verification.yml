@@ -104,9 +104,12 @@ jobs:
         run: |
           git clone https://github.com/quietvoid/dovi_tool.git /tmp/dovi_tool-src
           git -C /tmp/dovi_tool-src checkout --detach 41dae646193c12de152333ff5dbc33579cb9ef4a
+          mkdir -p /tmp/dovi_tool-src/src/bin
+          cp scripts/dolby-vision/av1-rpu-converter.rs /tmp/dovi_tool-src/src/bin/av1-rpu-converter.rs
           cd /tmp/dovi_tool-src
-          cargo build --locked --release --no-default-features --features internal-font --bin dovi_tool
+          cargo build --locked --release --no-default-features --features internal-font --bin dovi_tool --bin av1-rpu-converter
           install -m 0755 target/release/dovi_tool /usr/local/bin/dovi_tool
+          install -m 0755 target/release/av1-rpu-converter /usr/local/bin/av1-rpu-converter
           dovi_tool --version
       - name: Fetch upstream parser RPU fixture
         run: |
@@ -121,8 +124,8 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p84-01.bin -o /tmp/dolby-av1-p8-t35.bin
           curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p5-01-ref.bin -o /tmp/dolby-av1-p5-reference.rpu
           curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/av1-rpu/p84-01-ref.bin -o /tmp/dolby-av1-p8-reference.rpu
-          node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p5-t35.bin --output /tmp/dolby-av1-p5.rpu
-          node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p8-t35.bin --output /tmp/dolby-av1-p8.rpu
+          AV1_RPU_CONVERTER_BIN=/usr/local/bin/av1-rpu-converter node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p5-t35.bin --output /tmp/dolby-av1-p5.rpu
+          AV1_RPU_CONVERTER_BIN=/usr/local/bin/av1-rpu-converter node scripts/dolby-vision/extract-av1-rpu.mjs --kind t35 --input /tmp/dolby-av1-p8-t35.bin --output /tmp/dolby-av1-p8.rpu
           node --input-type=module -e "import fs from 'node:fs'; import {createHash} from 'node:crypto'; for (const [actual,expected] of [['/tmp/dolby-av1-p5.rpu','/tmp/dolby-av1-p5-reference.rpu'],['/tmp/dolby-av1-p8.rpu','/tmp/dolby-av1-p8-reference.rpu']]) { const a=fs.readFileSync(actual), b=fs.readFileSync(expected); if(!a.equals(b)) throw new Error('AV1 T.35 extraction differs from upstream RPU reference: '+JSON.stringify({actual:actual,actualBytes:a.length,expectedBytes:b.length,actualSha256:createHash('sha256').update(a).digest('hex'),expectedSha256:createHash('sha256').update(b).digest('hex')})); }"
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p5.rpu > /tmp/dolby-av1-p5-report.json
           DOVI_TOOL_BIN=/usr/local/bin/dovi_tool node scripts/dolby-vision/analyze-rpu.mjs --kind rpu --input /tmp/dolby-av1-p8.rpu > /tmp/dolby-av1-p8-report.json
