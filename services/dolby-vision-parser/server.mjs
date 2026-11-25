@@ -176,7 +176,7 @@ async function analyzeUpload(request, response, env) {
     if (sourceContentType === 'video/mp4') {
       const { stdout: codecOutput } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
         '-v', 'error',
-        '-select_streams', 'v:0',
+        '-select_streams', 'v',
         '-show_entries', 'stream=codec_name',
         '-of', 'default=noprint_wrappers=1:nokey=1',
         inputPath,
@@ -186,8 +186,11 @@ async function analyzeUpload(request, response, env) {
         maxBuffer: 64 * 1024,
         windowsHide: true,
       });
-      if (codecOutput.trim() !== 'hevc') {
-        sendJson(response, 415, { error: 'HEVC_VIDEO_TRACK_REQUIRED' });
+      const videoCodecs = codecOutput.trim().split(/\\r?\\n/).filter(Boolean);
+      // The current evidence contract analyzes one complete HEVC video bitstream.
+      // Reject multi-video-track containers rather than silently analyzing only v:0.
+      if (videoCodecs.length !== 1 || videoCodecs[0] !== 'hevc') {
+        sendJson(response, 415, { error: 'SINGLE_HEVC_VIDEO_TRACK_REQUIRED' });
         return;
       }
       await execFileAsync(env.FFMPEG_BIN || 'ffmpeg', [
