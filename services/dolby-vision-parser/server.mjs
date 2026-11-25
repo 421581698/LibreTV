@@ -79,7 +79,7 @@ function hasValidMetadataCoverage(report) {
   );
 }
 
-export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expectedSourceMediaSha256, now = Math.floor(Date.now() / 1000)) {
+export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expectedSourceMediaSha256, now = Math.floor(Date.now() / 1000), analysisContext = null) {
   if (!isValidAssetId(assetId)) throw new Error('Invalid stable asset ID.');
   if (!/^[a-f0-9]{64}$/i.test(expectedSourceMediaSha256 || '') ||
       typeof report?.sourceMediaSha256 !== 'string' ||
@@ -98,6 +98,21 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expe
       !hasValidMetadataCoverage(report)) {
     throw new Error('Only structurally valid full-scope dovi_tool HEVC reports can be signed.');
   }
+  if (analysisContext !== null) {
+    if (analysisContext?.scope !== 'hls-fmp4' ||
+        !/^[A-Za-z0-9_-]{1,200}$/.test(analysisContext.resourceId || '') ||
+        typeof analysisContext.graphId !== 'string' || !analysisContext.graphId ||
+        analysisContext.graphId.length > 200 ||
+        !/^[a-f0-9]{64}$/.test(analysisContext.graphSha256 || '') ||
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.rootAssetId || '') ||
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(analysisContext.variantAssetId || '') ||
+        !Number.isSafeInteger(analysisContext.fragmentCount) ||
+        analysisContext.fragmentCount < 1 || analysisContext.fragmentCount > 10_000 ||
+        analysisContext.fragmentSequenceContinuity !== 'sequential' ||
+        analysisContext.temporalContinuity !== 'unknown') {
+      throw new Error('Invalid HLS fMP4 provenance context.');
+    }
+  }
   const payload = {
     version: 1,
     keyId,
@@ -105,6 +120,7 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expe
     issuedAt: now,
     expiresAt: now + 3600,
     report,
+    ...(analysisContext ? { analysisContext } : {}),
   };
   const signature = sign(null, Buffer.from(canonicalize(payload)), createPrivateKey(privateKeyPem)).toString('base64url');
   return { ...payload, signature };
@@ -237,12 +253,30 @@ async function analyzeUpload(request, response, env) {
     // inputSha256 binds the extracted HEVC bitstream; sourceMediaSha256 binds
     // the original MP4 object that the player actually consumes.
     report.sourceMediaSha256 = actualSha256;
+    const hlsContextHeader = request.headers['x-dv-analysis-scope'];
+    let analysisContext = null;
+    if (hlsContextHeader !== undefined) {
+      const fragmentCount = Number(request.headers['x-dv-hls-fragment-count']);
+      analysisContext = {
+        scope: hlsContextHeader,
+        resourceId: request.headers['x-dv-hls-resource-id'],
+        graphId: request.headers['x-dv-hls-graph-id'],
+        graphSha256: request.headers['x-dv-hls-graph-sha256'],
+        rootAssetId: request.headers['x-dv-hls-root-asset-id'],
+        variantAssetId: request.headers['x-dv-hls-variant-asset-id'],
+        fragmentCount,
+        fragmentSequenceContinuity: request.headers['x-dv-hls-fragment-sequence-continuity'],
+        temporalContinuity: request.headers['x-dv-hls-temporal-continuity'],
+      };
+    }
     const envelope = createSignedEnvelope(
       report,
       assetId,
       env.DV_SIGNING_KEY_ID,
       env.DV_SIGNING_PRIVATE_KEY_PEM,
       actualSha256,
+      Math.floor(Date.now() / 1000),
+      analysisContext,
     );
     sendJson(response, 200, envelope);
   } catch {
