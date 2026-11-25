@@ -195,6 +195,44 @@
 }
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-time span:first-child { order: 0; }
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-time span:last-child { order: 2; }
+/* Custom iPad seek surface: 48px touch target with a 3px cinematic rail. */
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-seek-surface {
+  position: relative;
+  height: 48px;
+  min-height: 48px;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline-offset: 2px;
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-seek-surface .cinema-seek-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  border-radius: 3px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background: linear-gradient(to right,#f5f5f7 var(--watch-progress,0%),rgba(255,255,255,.36) var(--watch-progress,0%));
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-seek-surface .cinema-seek-thumb {
+  position: absolute;
+  left: var(--watch-progress,0%);
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%,-50%);
+  box-shadow: 0 1px 5px #0008;
+  pointer-events: none;
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-seek-surface:focus-visible {
+  outline: 2px solid rgba(255,255,255,.85);
+}
+
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-progress::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 3px;
