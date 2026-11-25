@@ -134,7 +134,7 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/quietvoid/dovi_tool/2.3.4/assets/hevc_tests/regular.mkv -o /tmp/dolby-vision-regular.mkv
           test "$(git hash-object /tmp/dolby-vision-regular.hevc)" = "0435ca7d75348ed3fe5362b7188fd59849413721"
           test "$(git hash-object /tmp/dolby-vision-regular.mkv)" = "4e7c735e42dcfddb5232d5b44acb1f2fff56ab5b"
-          ffmpeg -nostdin -v error -f hevc -i /tmp/dolby-vision-regular.hevc -map 0:v:0 -c:v copy -tag:v dvhe -movflags +faststart /tmp/dolby-vision-regular.mp4
+          ffmpeg -nostdin -v error -f hevc -i /tmp/dolby-vision-regular.hevc -map 0:v:0 -c:v copy -tag:v hvc1 -movflags +faststart /tmp/dolby-vision-regular.mp4
           test -s /tmp/dolby-vision-regular.mp4
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 /tmp/dolby-vision-regular.mp4)" = "hevc"
       - name: Verify full RPU extraction from pinned real HEVC fixture
