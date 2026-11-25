@@ -35,7 +35,7 @@ export function normalizeRpuInput(value) {
     }
   };
 
-  const regularToUnspec62Nalu = (regular) => {
+  const regularToAnnexBRegular = (regular) => {
     const escaped = [];
     let zeroCount = 0;
     for (const byte of regular) {
