@@ -640,6 +640,7 @@ def assemble_registered_hls_fmp4(
             raise
         segment_inputs.append({
             **timing,
+            "fragmentSequenceNumber": sequence_numbers[ordinal],
             "fragmentAssetId": asset["child_asset_id"],
             "fragmentSha256": asset["sha256"],
             "fragmentByteLength": asset["byte_length"],
