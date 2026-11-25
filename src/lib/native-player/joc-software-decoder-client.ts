@@ -38,7 +38,7 @@ const MAX_QUEUED_FRAMES = 48000;
 
 export class JocSoftwareDecoderClient {
   private readonly worker: Worker;
-  private readonly context: AudioContext;
+  private readonly context: AudioContext | null;
   private node: AudioWorkletNode | null = null;
   private generation = 1;
   private ready = false;
@@ -54,12 +54,14 @@ export class JocSoftwareDecoderClient {
   private ownsMediaMute = false;
   private clockRaf = 0;
   private readonly outputEnabled: boolean;
+  private gainNode: GainNode | null = null;
+  private activationInFlight = false;
   private readonly listeners = new Set<(status: JocDecoderStatus) => void>();
   private readonly pcmListeners = new Set<(frame: JocDecoderPcmFrame) => void>();
   private readonly errorListeners = new Set<(error: Error) => void>();
   private readonly pending = new Map<string, Array<{ resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>>();
 
-  private constructor(context: AudioContext, worker: Worker, outputEnabled: boolean) {
+  private constructor(context: AudioContext | null, worker: Worker, outputEnabled: boolean) {
     this.context = context;
     this.outputEnabled = outputEnabled;
     this.worker = worker;
@@ -68,27 +70,32 @@ export class JocSoftwareDecoderClient {
   }
 
   static async create(options: { wasmUrl?: string; audioContext?: AudioContext; outputEnabled?: boolean } = {}): Promise<JocSoftwareDecoderClient> {
-    const context = options.audioContext ?? new AudioContext({ sampleRate: 48000, latencyHint: 'playback' });
-    if (context.sampleRate !== 48000) {
+    const outputEnabled = options.outputEnabled ?? true;
+    const context = outputEnabled
+      ? options.audioContext ?? new AudioContext({ sampleRate: 48000, latencyHint: 'playback' })
+      : null;
+    if (context && context.sampleRate !== 48000) {
       if (!options.audioContext) await context.close();
       throw new Error(`OpenJOC requires a 48 kHz AudioContext; browser selected ${context.sampleRate} Hz.`);
     }
     const worker = new Worker(new URL('./joc-decoder.worker.ts', import.meta.url), { type: 'module', name: 'libretv-openjoc' });
-    const outputEnabled = options.outputEnabled ?? true;
     const client = new JocSoftwareDecoderClient(context, worker, outputEnabled);
     try {
       if (outputEnabled) {
+        if (!context) throw new Error('AudioContext is unavailable for software PCM output.');
         await context.audioWorklet.addModule('/audio/openjoc-pcm.worklet.js');
         client.node = new AudioWorkletNode(context, 'openjoc-pcm', {
-        numberOfInputs: 0,
-        numberOfOutputs: 1,
-        outputChannelCount: [2],
-        channelCount: 2,
-        channelCountMode: 'explicit',
-      });
-      client.node.port.addEventListener('message', client.onWorkletMessage);
+          numberOfInputs: 0,
+          numberOfOutputs: 1,
+          outputChannelCount: [2],
+          channelCount: 2,
+          channelCountMode: 'explicit',
+        });
+        client.gainNode = context.createGain();
+        client.node.port.addEventListener('message', client.onWorkletMessage);
         client.node.port.start();
-        client.node.connect(context.destination);
+        client.node.connect(client.gainNode);
+        client.gainNode.connect(context.destination);
       }
       await client.waitFor('ready', () => {
         worker.postMessage({ type: 'init', generation: client.generation, wasmUrl: options.wasmUrl });
@@ -102,6 +109,10 @@ export class JocSoftwareDecoderClient {
 
   get isOutputActive(): boolean {
     return this.ownsMediaMute && this.activeVideo !== null;
+  }
+
+  get isActivationPending(): boolean {
+    return this.activationInFlight;
   }
 
   getStatus(): JocDecoderStatus {
@@ -139,6 +150,7 @@ export class JocSoftwareDecoderClient {
   /** Must be called from a user gesture. This never mutes or replaces the media element audio. */
   async resumeFromUserGesture(): Promise<void> {
     this.assertActive();
+    if (!this.context) throw new Error('AudioContext is disabled for decode-only mode.');
     await this.context.resume();
     if (this.context.state !== 'running') throw new Error('AudioContext did not enter the running state.');
   }
@@ -220,27 +232,31 @@ export class JocSoftwareDecoderClient {
    */
   async activateOutput(video: HTMLVideoElement, minimumPrerollMs = 128): Promise<boolean> {
     this.assertActive();
-    if (!this.outputEnabled || !this.node || !this.ready || !this.decodedProfile || this.decodedAccessUnits <= 0 || video.paused || video.ended) return false;
+    const context = this.context;
+    if (!this.outputEnabled || !this.node || !this.gainNode || !context || !this.ready ||
+        !this.decodedProfile || this.decodedAccessUnits <= 0 || video.paused || video.ended ||
+        this.ownsMediaMute || this.activationInFlight) return false;
     const requiredFrames = Math.ceil(48000 * Math.max(128, minimumPrerollMs) / 1000);
     if (this.queuedFrames < requiredFrames) return false;
-    await this.resumeFromUserGesture();
-    if (this.queuedFrames < requiredFrames || video.paused || video.ended) return false;
 
-    this.activeVideo = video;
-    this.previousMuted = video.muted;
-    const updateClock = () => {
-      if (this.disposed || this.activeVideo !== video) return;
-      this.setMediaClock(video.currentTime * 48000);
-      this.clockRaf = requestAnimationFrame(updateClock);
-    };
-    updateClock();
-    this.ownsMediaMute = false;
+    this.activationInFlight = true;
     try {
+      await this.resumeFromUserGesture();
+      if (this.queuedFrames < requiredFrames || video.paused || video.ended) return false;
+      this.activeVideo = video;
+      this.previousMuted = video.muted;
+      const updateClock = () => {
+        if (this.disposed || this.activeVideo !== video) return;
+        this.setMediaClock(video.currentTime * 48000);
+        this.clockRaf = requestAnimationFrame(updateClock);
+      };
+      updateClock();
       await this.waitFor('output-started', () => this.node?.port.postMessage({ type: 'start' }));
-      if (this.disposed || video.paused || video.ended || this.context.state !== 'running') {
+      if (this.disposed || video.paused || video.ended || context.state !== 'running') {
         this.fallbackToMediaAudio();
         return false;
       }
+      this.gainNode.gain.setValueAtTime(this.previousMuted ? 0 : video.volume, context.currentTime);
       // The software route has rendered timestamp-aligned audio; only now mute
       // the original media element. Any subsequent worklet fault restores it.
       video.muted = true;
@@ -249,11 +265,27 @@ export class JocSoftwareDecoderClient {
     } catch {
       this.fallbackToMediaAudio();
       return false;
+    } finally {
+      this.activationInFlight = false;
     }
   }
 
   pauseOutput(): void {
+    if (this.activationInFlight && !this.ownsMediaMute) {
+      this.fallbackToMediaAudio();
+      return;
+    }
     this.node?.port.postMessage({ type: 'stop' });
+  }
+
+  updateOutputVolume(volume: number): void {
+    if (!this.activeVideo || !this.ownsMediaMute || !this.gainNode || !this.context) return;
+    if (!this.activeVideo.muted) {
+      this.fallbackToMediaAudio();
+      return;
+    }
+    const safeVolume = Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : 1));
+    this.gainNode.gain.setTargetAtTime(this.previousMuted ? 0 : safeVolume, this.context.currentTime, 0.02);
   }
 
   resumeOutput(): void {
@@ -267,6 +299,11 @@ export class JocSoftwareDecoderClient {
   }
 
   fallbackToMediaAudio(): void {
+    const pendingStart = this.pending.get('output-started');
+    if (pendingStart) {
+      this.pending.delete('output-started');
+      pendingStart.forEach(entry => entry.reject(new Error('Software output activation was cancelled.')));
+    }
     this.node?.port.postMessage({ type: 'stop' });
     if (this.clockRaf) cancelAnimationFrame(this.clockRaf);
     this.clockRaf = 0;
@@ -293,11 +330,13 @@ export class JocSoftwareDecoderClient {
       this.node.disconnect();
       this.node = null;
     }
+    this.gainNode?.disconnect();
+    this.gainNode = null;
     this.listeners.clear();
     this.pcmListeners.clear();
     this.errorListeners.clear();
     this.pending.clear();
-    void this.context.close();
+    if (this.context) void this.context.close();
   }
 
   private waitFor(type: string, send: () => void): Promise<void> {
