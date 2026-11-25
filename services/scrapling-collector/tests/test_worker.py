@@ -32,6 +32,38 @@ class WorkerPipelineTests(unittest.TestCase):
         ingest_hls.assert_called_once()
         self.assertIn("authorized_media_ingest_finished", [item["stage"] for item in checkpoints])
 
+    def test_stale_media_job_is_rejected_before_fetch_when_candidate_changes(self):
+        import hashlib
+        import json
+        from unittest.mock import patch
+
+        old_url = "https://media.example/old.mp4"
+        old_validation = json.dumps({"media_format": "progressive", "content_type": "video/mp4"})
+        expected_version = hashlib.sha256(
+            (old_url + "\\0" + old_validation).encode("utf-8")
+        ).hexdigest()[:24]
+        changed_candidate = {
+            "url": "https://media.example/new.mp4",
+            "validation": json.dumps({"media_format": "progressive", "content_type": "video/mp4"}),
+        }
+        with (
+            patch.object(worker, "require_egress_firewall"),
+            patch("dv_source_gateway._read_candidate", return_value=changed_candidate),
+            patch("dv_source_gateway.ingest_authorized_candidate") as ingest,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "candidate_changed_after_queue"):
+                worker.handle(
+                    {
+                        "_job_type": "dv_media_ingest",
+                        "candidate_id": "c" * 32,
+                        "resource_id": "r_" + "d" * 28,
+                        "source_version": expected_version,
+                    },
+                    lambda _event: None,
+                    lambda: False,
+                )
+        ingest.assert_not_called()
+
     def test_crawl_job_preflights_pending_direct_media_into_registry(self):
         task_id = "a" * 32
         candidates = [
