@@ -25,7 +25,7 @@ describe('dovi_tool RPU report parsing', () => {
       5: '[{"frame":0,"active_area_left_offset":0}]',
       6: '[]',
       8: '[{"frame":1,"target_display_index":1}]',
-    });
+    }, 2);
     expect(report).toEqual({
       metadataLevels: [1, 5, 8],
       metadataLevelFrameCounts: { 1: 2, 5: 1, 8: 1 },
@@ -35,7 +35,7 @@ describe('dovi_tool RPU report parsing', () => {
   it('counts distinct frames when an export contains multiple records for one frame', () => {
     const report = parseLevelExportFiles({
       1: '[{"frame":0,"min_pq":1},{"frame":0,"max_pq":2},{"frame":1,"min_pq":3}]',
-    });
+    }, 2);
     expect(report).toEqual({
       metadataLevels: [1],
       metadataLevelFrameCounts: { 1: 2 },
@@ -43,8 +43,14 @@ describe('dovi_tool RPU report parsing', () => {
   });
 
   it('rejects malformed or structurally invalid level exports', () => {
-    expect(() => parseLevelExportFiles({ 1: '{bad json' })).toThrow(/不是有效 JSON/);
-    expect(() => parseLevelExportFiles({ 2: '{}' })).toThrow(/必须是数组/);
-    expect(() => parseLevelExportFiles({ 5: '[{"frame":-1}]' })).toThrow(/无效帧记录/);
+    expect(() => parseLevelExportFiles({ 1: '{bad json' }, 1)).toThrow(/不是有效 JSON/);
+    expect(() => parseLevelExportFiles({ 2: '{}' }, 1)).toThrow(/必须是数组/);
+    expect(() => parseLevelExportFiles({ 5: '[{"frame":-1}]' }, 1)).toThrow(/无效帧记录/);
+  });
+
+  it('rejects metadata records outside the complete RPU frame range', () => {
+    expect(() => parseLevelExportFiles({
+      1: '[{"frame":0},{"frame":2}]',
+    }, 2)).toThrow(/超出完整 RPU 帧范围/);
   });
 });
