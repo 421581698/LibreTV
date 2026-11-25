@@ -239,6 +239,45 @@ process.exit(2);
         true,
       );
 
+      const hlsContextHeaders = {
+        ...headers,
+        'X-DV-Asset-ID': 'hls:graph-bound-test',
+        'X-DV-Analysis-Scope': 'hls-fmp4',
+        'X-DV-HLS-Resource-ID': 'resource_hls_1',
+        'X-DV-HLS-Graph-ID': 'root:playlist',
+        'X-DV-HLS-Graph-SHA256': 'c'.repeat(64),
+        'X-DV-HLS-Root-Asset-ID': 'root:playlist',
+        'X-DV-HLS-Variant-Asset-ID': 'variant:playlist',
+        'X-DV-HLS-Fragment-Count': '3',
+        'X-DV-HLS-Fragment-Sequence-Continuity': 'sequential',
+        'X-DV-HLS-Temporal-Continuity': 'unknown',
+      };
+      let hlsResponse;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        hlsResponse = await fetch(endpoint, { method: 'POST', headers: hlsContextHeaders, body: media });
+        if (hlsResponse.status !== 429) break;
+        await hlsResponse.arrayBuffer();
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
+      }
+      assert.equal(hlsResponse.status, 200);
+      const hlsEnvelope = await hlsResponse.json();
+      assert.deepEqual(hlsEnvelope.analysisContext, {
+        scope: 'hls-fmp4',
+        resourceId: 'resource_hls_1',
+        graphId: 'root:playlist',
+        graphSha256: 'c'.repeat(64),
+        rootAssetId: 'root:playlist',
+        variantAssetId: 'variant:playlist',
+        fragmentCount: 3,
+        fragmentSequenceContinuity: 'sequential',
+        temporalContinuity: 'unknown',
+      });
+      const { signature: hlsSignature, ...hlsPayload } = hlsEnvelope;
+      assert.equal(
+        verify(null, Buffer.from(canonicalize(hlsPayload)), servicePublicPem, Buffer.from(hlsSignature, 'base64url')),
+        true,
+      );
+
       await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write(['hevc', 'hevc'].join(String.fromCharCode(10)));\n", { mode: 0o700 });
       await chmod(fakeFfprobe, 0o700);
       let ambiguousVideoTracks;
