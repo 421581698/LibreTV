@@ -248,6 +248,11 @@ def ingest_hls_directory(
             raise HlsIngestionError("HLS playlist must be UTF-8.") from exc
         if not playlist.lstrip().startswith("#EXTM3U"):
             raise HlsIngestionError("Invalid HLS playlist header.")
+        # Freeze only complete VOD/event media playlists. A live playlist with
+        # EXTINF entries but no ENDLIST would become a misleading immutable asset.
+        upper_playlist = playlist.upper()
+        if "#EXTINF:" in upper_playlist and "#EXT-X-ENDLIST" not in upper_playlist:
+            raise HlsIngestionError("Only finalized HLS media playlists with EXT-X-ENDLIST can be ingested.")
         if re.search(r"(?im)^#EXT-X-SESSION-KEY:", playlist):
             raise HlsIngestionError("Encrypted or DRM HLS playlists are not ingested.")
         for key_line in (line.strip() for line in playlist.splitlines() if line.strip().upper().startswith("#EXT-X-KEY:")):
