@@ -38,7 +38,7 @@ The opt-in modes are experimental. Do not use them as evidence of native Dolby/A
 - The HLS fragment tap is read-only and is available only on the hls.js path. Safari native-HLS does not expose these fragments to this tap.
 - CMAF ec-3 is only a codec hint. OpenJOC must report its decoded profile and access-unit counters before the software output can be activated.
 - The Worker copies PCM out of WASM memory before releasing the decoder frame.
-- PCM is Float32 stereo at 48 kHz. The bounded AudioWorklet queue is capped at one second; the decoder applies backpressure at 500 ms.
+- PCM is Float32 stereo at 48 kHz. The bounded AudioWorklet queue is capped at one second; the decoder applies backpressure at 500 ms. Worker input samples are capped at 1 MiB and WASM linear memory is capped at 256 MiB.
 - CMAF PTS is mapped to the hls.js fragment timeline using frag.start as an anchor. If that anchor is absent, the sample is rejected rather than guessed.
 - The AudioWorklet follows an explicitly supplied video media clock. The browser integration currently supplies video.currentTime * 48000; a real fixture and device test must verify that the HLS fragment anchor and media element timeline agree for each supported source profile.
 - Output requires a 48 kHz AudioContext, AudioWorklet, a secure context, and a user gesture to resume audio.
