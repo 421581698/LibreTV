@@ -439,7 +439,7 @@ process.exit(2);
         await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
       }
       assert.equal(ambiguousVideoTracks.status, 415);
-      assert.deepEqual(await ambiguousVideoTracks.json(), { error: 'SINGLE_HEVC_VIDEO_TRACK_REQUIRED' });
+      assert.deepEqual(await ambiguousVideoTracks.json(), { error: 'SINGLE_HEVC_OR_AV1_VIDEO_TRACK_REQUIRED' });
 
       // Exercise the complete AV1 MP4 demux -> OBU/EMDF extraction -> RPU
       // parser -> source-media-bound Ed25519 envelope path.
