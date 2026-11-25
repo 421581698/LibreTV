@@ -29,6 +29,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
           variant="backdrop"
           frameClassName="ipad-edition__cinema-hero-backdrop"
           url={backdrop}
+          fallbackUrl={item.cover}
           mode="proxy"
           alt=""
           loading="eager"

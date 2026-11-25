@@ -56,6 +56,10 @@ function IpadSearchContent() {
     setHasSearched(true);
     setResults([]);
     setError(''); setWarning('');
+    if (value !== initial) {
+      ownUrlUpdate.current = value;
+      router.replace('/ipad-edition/search?' + new URLSearchParams({ q: value }).toString(), { scroll: false });
+    }
     if (!sources.length) {
       setError('尚未启用可用的点播源，请先在 LibreTV 设置中添加或启用资源源。');
       setLoading(false);
@@ -66,16 +70,11 @@ function IpadSearchContent() {
     setLoading(true);
     try {
       const response = await api.search(value, sources, yellowFilter, { signal: controller.signal });
-      if (currentRequest !== requestId.current) return;
+      if (controller.signal.aborted || currentRequest !== requestId.current) return;
       setResults(response.list ?? []);
       const failures = response.failures ?? [];
       if (failures.length && !response.list?.length) setError('部分或全部资源源请求失败，无法确认是否存在匹配内容，请重试。');
       else if (failures.length) setWarning(`${failures.length} 个资源源请求失败，结果可能不完整。`);
-      const next = new URLSearchParams({ q: value });
-      if (value !== initial) {
-        ownUrlUpdate.current = value;
-        router.replace('/ipad-edition/search?' + next.toString(), { scroll: false });
-      }
     } catch (reason) {
       if (controller.signal.aborted || currentRequest !== requestId.current) return;
       setResults([]);

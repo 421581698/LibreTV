@@ -37,7 +37,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
   const items: DoubanItem[] = kind === 'anime'
     ? (isCalendar(query.data) ? query.data.days.flatMap((day) => day.items) : [])
     : (isDouban(query.data) ? query.data.items : []);
-  const uniqueItems = items.filter((item, index, list) => list.findIndex((candidate) => candidate.id === item.id) === index);
+  const uniqueItems = items.filter((item, index, list) => Boolean(item.id && item.title?.trim()) && list.findIndex((candidate) => candidate.id === item.id) === index);
   const heading = kind === 'anime' ? '每日放送' : tag + title;
 
   return (
@@ -52,7 +52,7 @@ export function IpadEditionCollection({ kind, title }: { kind: CollectionKind; t
       {error ? <div className="ipad-edition__rail-message" role="alert">{error}</div> : null}
       {query.isLoading ? <div className="ipad-edition__poster-grid">{Array.from({ length: 10 }).map((_, index) => <div className="ipad-edition__poster-skeleton" key={index} />)}</div> : null}
       {query.isError ? <div className="ipad-edition__rail-message" role="alert">暂时无法获取{title}，请稍后重试。<button type="button" onClick={() => void query.refetch()}>重试</button></div> : null}
-      {!query.isLoading && !query.isError && uniqueItems.length === 0 ? <div className="ipad-edition__rail-message">当前分类没有可展示的真实内容。</div> : null}
+      {!query.isLoading && !query.isError && uniqueItems.length === 0 ? <div className="ipad-edition__rail-message">当前分类没有可展示的真实内容。<button type="button" onClick={() => void query.refetch()}>重新加载</button></div> : null}
       {uniqueItems.length ? (
         <>
           <div className="ipad-edition__section-heading"><div><p className="ipad-edition__eyebrow">NOW SHOWING</p><h2>{heading}</h2></div><span className="ipad-edition__section-note">{kind === 'anime' ? 'Bangumi' : '中国 · TMDB'} · {uniqueItems.length} 部作品</span></div>
