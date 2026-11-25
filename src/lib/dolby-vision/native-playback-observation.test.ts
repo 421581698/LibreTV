@@ -64,6 +64,7 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(paused.status).toBe('waiting');
     expect(paused.progressedSeconds).toBe(0);
     expect(paused.baselineTime).toBeNull();
+    expect(advanceNativePlaybackObservation(progressed, 'invalidate')).toEqual(emptyNativePlaybackObservation());
 
     const resume = advanceNativePlaybackObservation(paused, 'sample', { ...playing, currentTime: 2 });
     expect(resume.status).toBe('waiting');
@@ -102,6 +103,7 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(error.status).toBe('error');
     expect(error.mediaErrorCode).toBe(4);
     expect(advanceNativePlaybackObservation(error, 'sample', { ...playing, currentTime: 5 })).toEqual(error);
+    expect(advanceNativePlaybackObservation(error, 'invalidate')).toEqual(error);
     expect(advanceNativePlaybackObservation(error, 'reset').status).toBe('waiting');
   });
 });
