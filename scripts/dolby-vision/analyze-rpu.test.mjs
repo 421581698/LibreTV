@@ -53,13 +53,13 @@ describe('dovi_tool RPU report parsing', () => {
       1: '[{"frame":0},{"frame":2}]',
     }, 2)).toThrow(/超出完整 RPU 帧范围/);
   });
-  it('normalizes UNSPEC62 NALs to dovi_tool Annex-B regular RPU chunks', () => {
+  it('preserves escaped UNSPEC62 NAL bytes for dovi_tool to parse', () => {
     const regular = Buffer.from([0x19, 0x00, 0x00, 0x01, 0x80, 0x55, 0x66, 0x80]);
     const escaped = Buffer.from([0x19, 0x00, 0x00, 0x03, 0x01, 0x80, 0x55, 0x66, 0x80]);
     const nalu = Buffer.concat([Buffer.from([0x7c, 0x01]), escaped]);
     const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), nalu]);
     const expected = Buffer.concat([Buffer.from([0, 0, 0, 1]), regular]);
-    expect(normalizeRpuInput(annexB)).toEqual(expected);
+    expect(normalizeRpuInput(annexB)).toEqual(annexB);
     expect(normalizeRpuInput(regular)).toEqual(expected);
   });
 
@@ -70,10 +70,7 @@ describe('dovi_tool RPU report parsing', () => {
       Buffer.from([0, 0, 0, 1]), first,
       Buffer.from([0, 0, 0, 1]), second,
     ]);
-    expect(normalizeRpuInput(annexB)).toEqual(Buffer.from([
-      0, 0, 0, 1, 0x19, 0x11, 0x80,
-      0, 0, 0, 1, 0x19, 0x22, 0x80,
-    ]));
+    expect(normalizeRpuInput(annexB)).toEqual(annexB);
   });
 
   it('preserves already-normalized Annex-B regular RPU chunks', () => {
