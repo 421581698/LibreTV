@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { JocCmafPacketExtractor, mapJocPresentationTimeToMediaSamples } from './joc-cmaf-packets';
+import { validateCmafEac3AccessUnit } from './joc-cmaf-validation';
 
 function u32(value: number): Uint8Array {
   return new Uint8Array([(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255]);
@@ -22,15 +23,18 @@ function makeInitSegment(handler = 'soun', sampleEntry = 'ec-3'): Uint8Array {
   const minf = box('minf', stbl);
   const mdia = box('mdia', join(mdhd, hdlr, minf));
   const trak = box('trak', join(tkhd, mdia));
-  const trex = box('trex', join(u32(0), u32(7), u32(1), u32(1536), u32(4), u32(0)));
+  const trex = box('trex', join(u32(0), u32(7), u32(1), u32(1536), u32(8), u32(0)));
   return box('moov', join(trak, box('mvex', trex)));
 }
-function makeMediaSegment(payload = [1, 2, 3, 4, 5, 6, 7, 8]): Uint8Array {
-  const tfhd = box('tfhd', join(u32(0x00020000 | 0x000008 | 0x000010 | 0x000020), u32(7), u32(1536), u32(4), u32(0)));
+function eac3Frame(streamType = 0, substreamId = 0, blocksCode = 3, bsid = 16): number[] {
+  return [0x0b, 0x77, (streamType << 6) | (substreamId << 3), 0x03, (blocksCode << 4) | 0x04, bsid << 3, 0, 0];
+}
+function makeMediaSegment(payload = [...eac3Frame(), ...eac3Frame()]): Uint8Array {
+  const tfhd = box('tfhd', join(u32(0x00020000 | 0x000008 | 0x000010 | 0x000020), u32(7), u32(1536), u32(8), u32(0)));
   const tfdt = box('tfdt', join(u32(0x01000000), u32(0), u32(0)));
   const makeTrun = (offset: number) => box('trun', join(
     u32(0x000001 | 0x000100 | 0x000200),
-    u32(payload.length / 4),
+    u32(payload.length / 8),
     u32(offset),
     ...Array.from({ length: payload.length / 4 }, () => join(u32(1536), u32(4))),
   ));
@@ -47,6 +51,25 @@ describe('JocCmafPacketExtractor', () => {
     expect(mapJocPresentationTimeToMediaSamples(483_072, 96_000, 12.5, 480_000)).toBe(601_536);
   });
 
+
+  it('accepts one complete CMAF I0 access unit with optional dependent D0', () => {
+    expect(validateCmafEac3AccessUnit(new Uint8Array(eac3Frame()))).toEqual({
+      syncframes: 1, hasDependentD0: false, independentBsid: 16,
+    });
+    expect(validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(0, 0, 3, 8), ...eac3Frame(1)]))).toEqual({
+      syncframes: 2, hasDependentD0: true, independentBsid: 8,
+    });
+  });
+
+  it('rejects invalid CMAF substream order, IDs, profiles and truncated frames', () => {
+    expect(() => validateCmafEac3AccessUnit(new Uint8Array(eac3Frame(1)))).toThrow(/begin with independent/i);
+    expect(() => validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(), ...eac3Frame(1, 1)]))).toThrow(/D0/i);
+    expect(() => validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(), ...eac3Frame(0)]))).toThrow(/D0/i);
+    expect(() => validateCmafEac3AccessUnit(new Uint8Array(eac3Frame(0, 0, 2)))).toThrow(/six audio blocks/i);
+    expect(() => validateCmafEac3AccessUnit(new Uint8Array(eac3Frame()).subarray(0, 5))).toThrow(/truncated/i);
+    expect(() => validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(), ...eac3Frame(1), ...eac3Frame(1)]))).toThrow(/only I0 and optional D0/i);
+  });
+
   it('rejects invalid CMAF-to-media timeline anchors', () => {
     expect(() => mapJocPresentationTimeToMediaSamples(1, 0, 1, 0)).toThrow(/positive timescale/i);
     expect(() => mapJocPresentationTimeToMediaSamples(Number.NaN, 48_000, 1, 0)).toThrow(/finite timestamps/i);
@@ -61,8 +84,8 @@ describe('JocCmafPacketExtractor', () => {
     expect(result.timescale).toBe(48_000);
     expect(result.packets).toHaveLength(2);
     expect(result.packets[0]).toMatchObject({ decodeTime: 0, presentationTime: 0, duration: 1536, timescale: 48_000 });
-    expect([...result.packets[0].bytes]).toEqual([1, 2, 3, 4]);
-    expect([...result.packets[1].bytes]).toEqual([5, 6, 7, 8]);
+    expect([...result.packets[0].bytes]).toEqual(eac3Frame());
+    expect([...result.packets[1].bytes]).toEqual(eac3Frame());
   });
 
   it('rejects a selected track that is not an E-AC-3 audio track', () => {
