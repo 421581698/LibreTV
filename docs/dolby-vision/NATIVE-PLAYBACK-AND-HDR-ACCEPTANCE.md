@@ -10,11 +10,17 @@ into one green status.
 
 ## Platform paths
 
-1. **Safari / iPadOS HTMLVideoElement native HLS.** The existing player uses
-   the browser-native HLS path when hls.js Media Source playback is unavailable,
-   leaving variant selection and the decoder/compositor to the OS. A compatible
-   codec declaration and HLS `VIDEO-RANGE` aid platform selection; they are not
-   evidence that a particular device decoded or displayed Dolby Vision.
+1. **Safari / iPadOS HTMLVideoElement native HLS.** The player uses the
+   browser-native HLS path when hls.js Media Source playback is unavailable.
+   Since modern Safari can also expose Managed Media Source (MMS), an hls.js
+   master manifest that declares Dolby Vision triggers a one-time handoff to
+   Safari native HLS **only** when the browser reports native HLS support,
+   the user selected automatic quality, and playback has not already started.
+   On native video errors, the same resource falls back to hls.js without
+   repeatedly entering native mode. Other content, browsers, and manual quality
+   selections retain their existing behavior. Native HLS leaves rendition
+   selection and decoder/compositor behavior to the OS. Codec declarations and
+   HLS `VIDEO-RANGE` are still **not evidence of Dolby decode or output**.
 2. **Browser capability signals.** `canPlayType()` can report `probably`,
    `maybe`, or an empty response for declared codecs. The
    `(dynamic-range: high)` media query may indicate a capable display
@@ -36,6 +42,9 @@ Official references:
 - Apple AVPlayer: https://developer.apple.com/documentation/avfoundation/avplayer/
 - Apple AVPlayer HDR mode: https://developer.apple.com/documentation/avfoundation/avplayer/hdrmode
 - Web Media Capabilities: https://www.w3.org/TR/media-capabilities/
+- hls.js built-in native HLS/MMS compatibility: https://github.com/video-dev/hls.js
+- dovi_tool RPU parser (not a Dolby Vision renderer): https://github.com/quietvoid/dovi_tool
+- FFmpeg Dolby Vision metadata bitstream filters: https://ffmpeg.org/ffmpeg-bitstream-filters.html
 
 Current Apple HLS guidance describes different Dolby Vision HEVC and AV1
 profiles; this does not imply that every Safari version, device generation, or
