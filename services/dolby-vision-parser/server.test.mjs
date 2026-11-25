@@ -80,6 +80,22 @@ describe('Dolby Vision parser service security primitives', () => {
     assert.throws(() => createSignedEnvelope({ ...report, inputKind: 'rpu' }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
   });
 
+  it('refuses malformed metadata-level coverage before signing evidence', () => {
+    assert.throws(() => createSignedEnvelope({
+      ...report,
+      metadataLevels: [1, 2],
+      metadataLevelFrameCounts: { '1': 3 },
+    }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
+    assert.throws(() => createSignedEnvelope({
+      ...report,
+      metadataLevelFrameCounts: { '1': 4 },
+    }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
+    assert.throws(() => createSignedEnvelope({
+      ...report,
+      metadataLevels: [1, 1],
+    }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
+  });
+
   it('refuses to sign a report whose source digest is detached from the uploaded object', () => {
     assert.throws(
       () => createSignedEnvelope({ ...report, sourceMediaSha256: 'c'.repeat(64) }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256),
