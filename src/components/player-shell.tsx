@@ -778,9 +778,16 @@ export function PlayerShell({
       nativeRestoreEvents.forEach((event) => video.addEventListener(event, onNativeRestoreEvent));
       const onNativeDolbyError = () => {
         if (!forceNativeDolby || loadGeneration !== mediaLoadGenerationRef.current || !Hls.isSupported()) return;
-        // Retain the attempted URL so a failing native path cannot repeatedly
-        // re-enter itself when hls.js fetches the same manifest on fallback.
-        setupHls(video, mediaUrl, allowProxyFallback);
+        // The global video:error observer also records this native failure.
+        // Recover after its synchronous event handlers have run, so a stale
+        // error overlay does not cover the subsequent hls.js playback.
+        queueMicrotask(() => {
+          if (loadGeneration !== mediaLoadGenerationRef.current) return;
+          // Retain the attempted URL so a failing native path cannot repeatedly
+          // re-enter itself when hls.js fetches the same manifest on fallback.
+          setupHls(video, mediaUrl, allowProxyFallback);
+          setError('');
+        });
       };
       if (forceNativeDolby) {
         video.addEventListener('error', onNativeDolbyError, { once: true });
