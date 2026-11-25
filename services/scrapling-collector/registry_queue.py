@@ -204,8 +204,8 @@ def register_dolby_vision_media_asset(resource_id: str, sha256: str, byte_length
         # individual uploaders. This also protects metadata-only registration
         # calls and idempotent re-registration after a resource is blocked.
         hls_content_types = {
-            "application/vnd.apple.mpegurl", "video/mp2t", "video/iso.segment",
-            "audio/aac", "audio/mp4", "audio/mpeg", "text/vtt",
+            "application/vnd.apple.mpegurl", "video/mp4", "video/mp2t",
+            "video/iso.segment", "audio/aac", "audio/mp4", "audio/mpeg", "text/vtt",
         }
         expected_standalone_type = {
             "mp4": "video/mp4",
