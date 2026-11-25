@@ -26,29 +26,49 @@ async function sha256File(filePath) {
 export function normalizeRpuInput(value) {
   const input = Buffer.from(value);
   const startCode = Buffer.from([0x00, 0x00, 0x00, 0x01]);
-  if (input[0] === 0x19) return Buffer.concat([startCode, input]);
+  const naluHeader = Buffer.from([0x7c, 0x01]);
+
+  const validateRegular = (regular) => {
+    let lastNonZero = regular.length - 1;
+    while (lastNonZero >= 0 && regular[lastNonZero] === 0) lastNonZero -= 1;
+    if (regular.length < 7 || regular[0] !== 0x19 || lastNonZero < 0 || regular[lastNonZero] !== 0x80) {
+      throw new Error('RPU payload is not a valid regular RPU unit.');
+    }
+  };
+
+  const escapePayload = (regular) => {
+    const escaped = [];
+    let zeroCount = 0;
+    for (const byte of regular) {
+      if (zeroCount >= 2 && byte <= 0x03) {
+        escaped.push(0x03);
+        zeroCount = 0;
+      }
+      escaped.push(byte);
+      zeroCount = byte === 0 ? zeroCount + 1 : 0;
+    }
+    return Buffer.from(escaped);
+  };
+
+  // dovi_tool consumes HEVC Annex-B UNSPEC62 NAL units (00 00 00 01 7c 01 ...).
+  // A regular 0x19 RPU payload is therefore wrapped with the NAL header and EBSP escaping.
+  if (input[0] === 0x19) {
+    validateRegular(input);
+    return Buffer.concat([startCode, naluHeader, escapePayload(input)]);
+  }
+
   const units = [];
   let offset = 0;
   while (offset < input.length) {
     if (!input.subarray(offset, offset + 4).equals(startCode)) {
-      throw new Error('AV1 RPU NAL stream must use four-byte Annex-B start codes.');
+      throw new Error('RPU NAL stream must use four-byte Annex-B start codes.');
     }
     const payloadStart = offset + 4;
     let next = input.indexOf(startCode, payloadStart);
     if (next < 0) next = input.length;
     const nalu = input.subarray(payloadStart, next);
-    if (nalu[0] === 0x19) {
-      let lastNonZero = nalu.length - 1;
-      while (lastNonZero >= 0 && nalu[lastNonZero] === 0) lastNonZero -= 1;
-      if (nalu.length < 7 || lastNonZero < 0 || nalu[lastNonZero] !== 0x80) {
-        throw new Error('Annex-B regular RPU chunk is malformed.');
-      }
-      units.push(Buffer.concat([startCode, nalu]));
-      offset = next;
-      continue;
-    }
     if (nalu.length < 9 || nalu[0] !== 0x7c || nalu[1] !== 0x01) {
-      throw new Error('AV1 RPU stream contains a non-UNSPEC62 HEVC NAL unit.');
+      throw new Error('RPU stream contains a non-UNSPEC62 HEVC NAL unit.');
     }
     const decoded = [];
     let zeroCount = 0;
@@ -56,7 +76,7 @@ export function normalizeRpuInput(value) {
       const byte = nalu[index];
       if (zeroCount >= 2 && byte === 0x03) {
         if (index + 1 >= nalu.length || nalu[index + 1] > 0x03) {
-          throw new Error('AV1 RPU NAL contains invalid emulation-prevention bytes.');
+          throw new Error('RPU NAL contains invalid emulation-prevention bytes.');
         }
         zeroCount = 0;
         continue;
@@ -65,15 +85,11 @@ export function normalizeRpuInput(value) {
       zeroCount = byte === 0 ? zeroCount + 1 : 0;
     }
     const regular = Buffer.from(decoded);
-    let lastNonZero = regular.length - 1;
-    while (lastNonZero >= 0 && regular[lastNonZero] === 0) lastNonZero -= 1;
-    if (regular[0] !== 0x19 || lastNonZero < 0 || regular[lastNonZero] !== 0x80) {
-      throw new Error('Decoded AV1 RPU NAL does not contain a valid regular RPU unit.');
-    }
-    units.push(Buffer.concat([startCode, regular]));
+    validateRegular(regular);
+    units.push(Buffer.concat([startCode, naluHeader, escapePayload(regular)]));
     offset = next;
   }
-  if (units.length === 0) throw new Error('AV1 RPU NAL stream contains no RPU units.');
+  if (units.length === 0) throw new Error('RPU NAL stream contains no RPU units.');
   return Buffer.concat(units);
 }
 
