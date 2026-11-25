@@ -41,6 +41,21 @@ The application must report each stage independently. A successful earlier stage
 - Preserve full-scan scope, parser identity/version, frame count, RPU digest, Profile and per-level frame coverage.
 - Treat unsupported, malformed, truncated, or unavailable data as unknown/error, never as “no RPU”.
 
+### A1. AV1 Dolby Vision adapter contract (Profile 10 / dav1.10)
+
+AV1 is a separate bitstream path and must not enter the HEVC NAL parser.
+
+- Recognize the Dolby Vision AV1 signaling profile independently (for example, `dav1.10`); signaling is only an eligibility hint.
+- Parse AV1 OBU headers and payload lengths with strict bounds checks. Preserve temporal-unit and frame-unit boundaries; reject truncated, malformed, or unsupported OBU streams.
+- Locate Dolby Vision metadata only in the AV1 metadata OBU carrying ITU-T T.35 metadata. Validate the Dolby-specific country/provider identifiers and the EMDF wrapper before extracting an RPU payload.
+- Validate the extracted RPU using the Dolby Vision RPU parser, then bind the report to the exact source asset SHA-256, parser/library identity and version, OBU/frame/temporal-unit counts, RPU digest, Profile and metadata-level coverage.
+- Do not treat arbitrary T.35 metadata, a codec string, or an OBU count as proof of Dolby Vision RPU.
+- Start with raw AV1 elementary-stream fixtures. Add IVF or MP4 adapters only as separate container layers with real fixtures and timestamp/temporal-unit mapping tests.
+- Keep AV1 signed evidence schema-distinct or explicitly versioned from the existing HEVC report. Never label an AV1 report as `inputKind=hevc`.
+- Current `dovi_tool 2.3.4` CLI is used by the HEVC pipeline and is not, by itself, an AV1 demux/extraction command. Reuse of lower-level AV1/EMDF parsing APIs must be independently wrapped and tested; do not assume the CLI supports AV1 because the library contains AV1 helpers.
+
+Required AV1 tests: OBU size overflow/truncation, invalid metadata type, wrong T.35 country/provider, malformed EMDF, empty/invalid RPU, multiple metadata OBUs, missing temporal delimiter, frame/temporal-unit alignment, unsupported container, and source-hash mismatch.
+
 ### B. Decoder integration gate
 
 - Do not implement a pretend decoder or infer decoding from `canPlayType()`, MediaCapabilities, codec strings, or successful HTML video playback.
