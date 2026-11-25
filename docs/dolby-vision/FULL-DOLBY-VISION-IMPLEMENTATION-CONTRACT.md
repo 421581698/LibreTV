@@ -24,6 +24,7 @@ The application must report each stage independently. A successful earlier stage
 |---|---|---|
 | Codec declaration | Implemented | RFC 6381 and HLS declaration inspection; declarations are hints only |
 | HEVC RPU analysis | Implemented for the registered MP4 path | Private parser service, dovi_tool 2.3.x, source SHA-256 binding, signed evidence |
+| CMS episode-to-asset binding | Implemented (operator-attested exact MP4 mapping) | Requires exact source key, VOD ID, episode index, provider URL SHA-256 and playback URL SHA-256; lookup is fail-closed and playback switches to the immutable registered MP4 asset. No title/ID-only inference |
 | HEVC / Matroska fixture validation | Implemented in CI | Pinned upstream 259-frame fixture; not a feature-length customer asset |
 | HLS declaration mapping | Implemented (declaration-only) | Safari native HLS inspection now reports per-variant codec declarations; media-segment RPU and cross-segment continuity remain unimplemented |
 | HLS immutable graph inspection | Implemented (graph evidence only) | Protected collector and Next.js endpoints traverse the registered root/variant playlist graph and return content-addressed initialization/segment members; the Dolby Vision panel displays graph counts. Segment RPU extraction and continuity remain unimplemented |
@@ -37,6 +38,7 @@ The application must report each stage independently. A successful earlier stage
 ### A. Complete media inspection
 
 - Ordinary CMS `/watch` playback must not infer a registry resource from a CMS VOD ID, title, source key, or playback URL. Complete integration requires a server-side, verified mapping from the exact CMS episode/source identity to a registered direct-media resource; absent that mapping, the UI must keep the asset unbound.
+- The exact CMS binding path now has an operator-only registration endpoint and a server-authenticated lookup. Registration requires a validated PUBLIC PLAYER_CONFIRMED single MP4 resource plus its registered `video/mp4` asset. The composite key includes `source_key`, `vod_id`, `episode_index`, SHA-256 of the configured provider URL, and SHA-256 of the exact playback URL. The watch page hashes the two exact URL strings in UTF-8; when and only when all fields match, it switches playback to the immutable registry asset and supplies its asset ID to the Dolby Vision panel. Otherwise ordinary CMS playback continues unbound.
 
 - For registered HLS resources, the protected graph endpoint returns only resource-bound immutable asset identities and ordered parent/child roles; the UI reports playlist, initialization, and media-segment counts. This is graph inspection, not bitstream/RPU analysis.
 - Keep codec declaration parsing separate from elementary-stream inspection.
