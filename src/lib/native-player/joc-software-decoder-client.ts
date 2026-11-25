@@ -94,6 +94,10 @@ export class JocSoftwareDecoderClient {
     }
   }
 
+  get isOutputActive(): boolean {
+    return this.ownsMediaMute && this.activeVideo !== null;
+  }
+
   getStatus(): JocDecoderStatus {
     return {
       ready: this.ready,
@@ -141,7 +145,11 @@ export class JocSoftwareDecoderClient {
   async pushPacket(packet: JocDecoderPacket): Promise<boolean> {
     this.assertActive();
     if (!this.ready) throw new Error('OpenJOC decoder is not ready.');
-    if (this.inFlight || this.queuedFrames >= MAX_QUEUED_FRAMES / 2) return false;
+    if (this.inFlight) return false;
+    if (this.queuedFrames >= MAX_QUEUED_FRAMES / 2) {
+      await this.waitFor('capacity', () => {});
+      if (this.queuedFrames >= MAX_QUEUED_FRAMES / 2) return false;
+    }
     if (packet.bytes.byteLength === 0 || packet.bytes.byteLength > MAX_INPUT_BYTES) {
       throw new Error('E-AC-3 sample is empty or exceeds the 1 MiB input bound.');
     }
