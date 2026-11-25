@@ -1009,3 +1009,11 @@
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero-credits { display: none; }
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-trailer { width: min(100%, 340px); }
 }
+
+/* Long descriptions expand within the artwork instead of disappearing behind the hero crop. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content.is-overview-expanded {
+  max-height: calc(100% - 100px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
