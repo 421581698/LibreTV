@@ -46,6 +46,68 @@ function fn<T extends (...args: never[]) => unknown>(exports: Record<string, unk
   return value as T;
 }
 
+function nestedBoxes(bytes: Uint8Array, start: number, end: number): Mp4Box[] {
+  const boxes: Mp4Box[] = [];
+  let offset = start;
+  while (offset + 8 <= end) {
+    const size = readU32(bytes, offset);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (size < 8 || offset + size > end) throw new Error(`Invalid nested MP4 box: ${type}`);
+    boxes.push({ type, start: offset, end: offset + size });
+    offset += size;
+  }
+  if (offset !== end) throw new Error('Nested MP4 boxes do not fill their parent.');
+  return boxes;
+}
+
+function writeU32(bytes: Uint8Array, offset: number, value: number): void {
+  new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint32(offset, value, false);
+}
+
+/**
+ * FFmpeg's raw E-AC-3 demuxer omits access-unit durations in this short
+ * elementary-stream fixture. The fixture contains 1536-sample E-AC-3 AUs;
+ * set that known duration in trex/tfhd/trun so the CMAF parser receives a
+ * standards-shaped sample timeline rather than guessing from codec labels.
+ */
+function setKnownEac3AccessUnitDuration(init: Uint8Array, segment: Uint8Array, duration: number): void {
+  const initMoov = topLevelBoxes(init).find(box => box.type === 'moov');
+  if (!initMoov) throw new Error('CMAF init fixture is missing moov.');
+  const mvex = nestedBoxes(init, initMoov.start + 8, initMoov.end).find(box => box.type === 'mvex');
+  if (!mvex) throw new Error('CMAF init fixture is missing mvex.');
+  const trex = nestedBoxes(init, mvex.start + 8, mvex.end).find(box => box.type === 'trex');
+  if (!trex) throw new Error('CMAF init fixture is missing trex.');
+  writeU32(init, trex.start + 20, duration);
+
+  for (const moof of topLevelBoxes(segment).filter(box => box.type === 'moof')) {
+    const traf = nestedBoxes(segment, moof.start + 8, moof.end).find(box => box.type === 'traf');
+    if (!traf) throw new Error('CMAF media fixture is missing traf.');
+    const fields = nestedBoxes(segment, traf.start + 8, traf.end);
+    const tfhd = fields.find(box => box.type === 'tfhd');
+    if (tfhd) {
+      const versionFlags = readU32(segment, tfhd.start + 8);
+      const flags = versionFlags & 0x00ff_ffff;
+      let offset = tfhd.start + 16;
+      if (flags & 0x000001) offset += 8;
+      if (flags & 0x000002) offset += 4;
+      if (flags & 0x000008) writeU32(segment, offset, duration);
+    }
+    for (const trun of fields.filter(box => box.type === 'trun')) {
+      const flags = readU32(segment, trun.start + 8) & 0x00ff_ffff;
+      const sampleCount = readU32(segment, trun.start + 12);
+      let offset = trun.start + 16;
+      if (flags & 0x000001) offset += 4;
+      if (flags & 0x000004) offset += 4;
+      for (let sample = 0; sample < sampleCount; sample += 1) {
+        if (flags & 0x000100) { writeU32(segment, offset, duration); offset += 4; }
+        if (flags & 0x000200) offset += 4;
+        if (flags & 0x000400) offset += 4;
+        if (flags & 0x000800) offset += 4;
+      }
+    }
+  }
+}
+
 const cmafFixture = process.env.OPENJOC_CMAF_FIXTURE;
 const wasmFixture = process.env.OPENJOC_WASM_PATH;
 
@@ -58,7 +120,7 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
     const moov = boxes.find(box => box.type === 'moov');
     expect(moov).toBeDefined();
     const initStart = ftyp?.start ?? moov!.start;
-    const initBytes = mp4.subarray(initStart, moov!.end);
+    const initBytes = mp4.subarray(initStart, moov!.end).slice();
     const init = parseFmp4InitSegment(initBytes);
     const audioTrack = init.tracks.find(track => track.handlerType === 'soun' && track.sampleEntries.includes('ec-3'));
     expect(audioTrack, 'fragmented MP4 contains an E-AC-3 audio track').toBeDefined();
@@ -70,7 +132,9 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
       if (box.type !== 'moof') continue;
       const mdat = boxes.slice(index + 1).find(candidate => candidate.type === 'mdat');
       expect(mdat, 'each CMAF moof has a following mdat').toBeDefined();
-      mediaSegments.push(mp4.subarray(box.start, mdat!.end));
+      const media = mp4.subarray(box.start, mdat!.end).slice();
+      setKnownEac3AccessUnitDuration(initBytes, media, 1536);
+      mediaSegments.push(media);
     }
     expect(mediaSegments.length).toBeGreaterThan(0);
 
