@@ -359,6 +359,68 @@ process.exit(2);
         true,
       );
 
+      // A fragment signature is independently bound to the exact init+fragment
+      // upload, its immutable graph member, and its decode-time interval.
+      const segmentContextHeaders = {
+        ...hlsContextHeaders,
+        'X-DV-Asset-ID': 'hls:graph-bound-test:segment:0',
+        'X-DV-Analysis-Scope': 'hls-fmp4-segment',
+        'X-DV-HLS-Fragment-Ordinal': '0',
+        'X-DV-HLS-Fragment-Asset-ID': 'segment:0001',
+        'X-DV-HLS-Fragment-SHA256': 'd'.repeat(64),
+        'X-DV-HLS-Initialization-Asset-ID': 'init:001',
+        'X-DV-HLS-Initialization-SHA256': 'e'.repeat(64),
+        'X-DV-HLS-Assembled-Segment-SHA256': digest,
+        'X-DV-HLS-Fragment-Sequence-Number': '1',
+        'X-DV-HLS-Decode-Time': '0',
+        'X-DV-HLS-Sample-Duration': '4000',
+        'X-DV-HLS-Sample-Count': '1',
+        'X-DV-HLS-Timescale': '1000',
+      };
+      let segmentResponse;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        segmentResponse = await fetch(endpoint, { method: 'POST', headers: segmentContextHeaders, body: media });
+        if (segmentResponse.status !== 429) break;
+        await segmentResponse.arrayBuffer();
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
+      }
+      assert.equal(segmentResponse.status, 200);
+      const segmentEnvelope = await segmentResponse.json();
+      assert.deepEqual(segmentEnvelope.analysisContext, {
+        scope: 'hls-fmp4-segment',
+        resourceId: 'resource_hls_1',
+        graphId: 'root:playlist',
+        graphSha256: 'c'.repeat(64),
+        rootAssetId: 'root:playlist',
+        variantAssetId: 'variant:playlist',
+        fragmentCount: 3,
+        fragmentSequenceContinuity: 'sequential',
+        temporalContinuity: 'contiguous',
+        fragmentOrdinal: 0,
+        fragmentAssetId: 'segment:0001',
+        fragmentSha256: 'd'.repeat(64),
+        initializationAssetId: 'init:001',
+        initializationSha256: 'e'.repeat(64),
+        assembledSegmentSha256: digest,
+        fragmentSequenceNumber: 1,
+        decodeTime: 0,
+        sampleDuration: 4000,
+        sampleCount: 1,
+        timescale: 1000,
+      });
+      assert.equal(segmentEnvelope.report.sourceMediaSha256, digest);
+      const { signature: segmentSignature, ...segmentPayload } = segmentEnvelope;
+      assert.equal(
+        verify(null, Buffer.from(canonicalize(segmentPayload)), servicePublicPem, Buffer.from(segmentSignature, 'base64url')),
+        true,
+      );
+      const rejectedSegmentDigest = await fetch(endpoint, {
+        method: 'POST',
+        headers: { ...segmentContextHeaders, 'X-DV-HLS-Assembled-Segment-SHA256': 'f'.repeat(64) },
+        body: media,
+      });
+      assert.equal(rejectedSegmentDigest.status, 422);
+
       await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write(['hevc', 'hevc'].join(String.fromCharCode(10)));\n", { mode: 0o700 });
       await chmod(fakeFfprobe, 0o700);
       let ambiguousVideoTracks;
