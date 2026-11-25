@@ -16,6 +16,8 @@ type TmdbPerson = { id: number; name: string; character?: string; profile_path?:
 type TmdbTitle = {
   id: number; title?: string; name?: string; original_title?: string; original_name?: string;
   overview?: string; poster_path?: string | null; backdrop_path?: string | null; vote_average?: number;
+  images?: { logos?: { file_path?: string | null; iso_639_1?: string | null; width?: number; height?: number }[] };
+  videos?: { results?: { key?: string; site?: string; type?: string; official?: boolean; name?: string }[] };
   release_date?: string; first_air_date?: string; runtime?: number; episode_run_time?: number[];
   genres?: { id: number; name: string }[];
   production_countries?: { name: string }[];
@@ -166,6 +168,22 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const releaseYear = (movie?.release_date || movie?.first_air_date || '').slice(0, 4);
   const runtime = movie?.runtime || movie?.episode_run_time?.[0];
   const rating = movie?.vote_average || Number(ratingFallback) || 0;
+  const logos = (movie?.images?.logos || []).filter((item) =>
+    typeof item.file_path === 'string' && /^\\/[^?#\\s]+$/.test(item.file_path) &&
+    Number.isFinite(item.width) && Number.isFinite(item.height) &&
+    (item.width || 0) >= 180 && (item.height || 0) >= 32,
+  );
+  const logo = [...logos].sort((a, b) => {
+    const languageRank = (value: string | null | undefined) => value === 'zh' ? 0 : value === 'en' ? 1 : value == null ? 2 : 3;
+    return languageRank(a.iso_639_1) - languageRank(b.iso_639_1)
+      || (b.width || 0) * (b.height || 0) - (a.width || 0) * (a.height || 0);
+  })[0]?.file_path;
+  const trailers = movie?.videos?.results || [];
+  const trailer = trailers.find((item) => item.site === 'YouTube' && item.type === 'Trailer' && item.official && /^[A-Za-z0-9_-]{11}$/.test(item.key || ''))
+    || trailers.find((item) => item.site === 'YouTube' && item.type === 'Trailer' && /^[A-Za-z0-9_-]{11}$/.test(item.key || ''));
+  const trailerUrl = trailer?.key ? `https://www.youtube.com/watch?v=${trailer.key}` : '';
+  const leadingCast = cast.slice(0, 3).map((member) => member.name).filter(Boolean).join('、');
+
 
   if (loading) return <main className="ipad-detail-state">正在加载电影资料…</main>;
   if (!movie) return <main className="ipad-detail-state"><button type="button" onClick={() => router.back()}>‹ 返回</button><p>{metadataError || '电影资料暂时不可用'}</p></main>;
@@ -180,6 +198,11 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       imageMode={imageProxyMode}
       customImageProxy={customImageProxy}
       originalTitle={movie.original_title || movie.original_name || undefined}
+      titleLogoUrl={logo ? imageUrl(logo, 'w500') : undefined}
+      credits={(leadingCast || director) ? <>
+        {leadingCast ? <p><span>主演</span>{leadingCast}</p> : null}
+        {director ? <p><span>导演</span>{director}</p> : null}
+      </> : undefined}
       metadata={
         <>
           {movie.genres?.slice(0, 3).map((genre) => <span key={genre.id}>{genre.name}</span>)}
@@ -203,6 +226,16 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       }
       onBack={() => router.back()}
     >
+      {trailerUrl ? (
+        <section className="ipad-cinema-trailers ipad-cinema-section" aria-label="预告片">
+          <h2>预告片</h2>
+          <a className="ipad-cinema-trailer" href={trailerUrl} target="_blank" rel="noopener noreferrer" aria-label="在 YouTube 打开影片预告片">
+            <SmartImage url={backdrop || poster || ''} mode={imageProxyMode} customProxy={customImageProxy} alt="预告片封面" loading="lazy" showDefaultFallback={false} />
+            <span aria-hidden="true">▶</span>
+            <strong>{trailer?.name || '观看预告片'}</strong>
+          </a>
+        </section>
+      ) : null}
       <section className={`ipad-cinema-info${movie.overview ? ' has-overview' : ''}`}>
         {movie.overview ? <div><h2>剧情简介</h2><p>{movie.overview}</p></div> : null}
         <dl>
