@@ -52,6 +52,23 @@ describe('inspectNativeHlsDolbyVisionManifest', () => {
     expect(report.notes.some((note) => note.includes('不是有效的 HLS'))).toBe(true);
   });
 
+  it('rejects oversized manifests without parsing their contents', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(
+      '#EXTM3U\\n' + 'x'.repeat(512 * 1024 + 1),
+      { status: 200 },
+    ));
+
+    const report = await inspectNativeHlsDolbyVisionManifest(
+      'https://media.example/master.m3u8',
+      undefined,
+      fetcher,
+    );
+
+    expect(report.detected).toBe(false);
+    expect(report.confidence).toBe('unknown');
+    expect(report.notes.some((note) => note.includes('超过 512 KiB'))).toBe(true);
+  });
+
   it('does not block playback or claim absence on an HTTP error', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('', { status: 403 }));
 
