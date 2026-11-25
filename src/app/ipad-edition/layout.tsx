@@ -6,6 +6,8 @@ import './poster-engine.css';
 import './responsive-system.css';
 import './cinema-v4.css';
 import './cinema-hdr.css';
+// Final route-scoped Friday material layer: leave layout and media untouched.
+import './friday-glass-v12.css';
 
 export const viewport: Viewport = {
   width: 'device-width',
