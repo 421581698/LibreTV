@@ -1312,7 +1312,7 @@ function WatchContent() {
                     <button type="button" disabled={!currentUrl} onClick={() => {
                       if (!currentUrl) return;
                       const downloadTitle = `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`;
-                      if (/\\.m3u8(?:$|[?#])/i.test(currentUrl)) {
+                      if (/\.m3u8(?:$|[?#])/i.test(currentUrl)) {
                         enqueueDownload({ url: currentUrl, title: downloadTitle, format: 'MP4' });
                         return;
                       }
