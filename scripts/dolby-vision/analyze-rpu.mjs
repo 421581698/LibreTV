@@ -35,36 +35,10 @@ export function normalizeRpuInput(value) {
     }
   };
 
-  // dovi_tool info/export consume Annex-B chunks whose payload starts with
-  // the regular RPU prefix 0x19, not the enclosing HEVC UNSPEC62 NAL header.
-  if (input[0] === 0x19) {
-    validateRegular(input);
-    return Buffer.concat([startCode, input]);
-  }
-
-  const units = [];
-  let offset = 0;
-  while (offset < input.length) {
-    if (!input.subarray(offset, offset + 4).equals(startCode)) {
-      throw new Error('RPU NAL stream must use four-byte Annex-B start codes.');
-    }
-    const payloadStart = offset + 4;
-    let next = input.indexOf(startCode, payloadStart);
-    if (next < 0) next = input.length;
-    const nalu = input.subarray(payloadStart, next);
-
-    // Some dovi_tool extraction paths already provide Annex-B regular RPU chunks.
-    if (nalu[0] === 0x19) {
-      validateRegular(nalu);
-      units.push(Buffer.concat([startCode, nalu]));
-      offset = next;
-      continue;
-    }
-
-    if (nalu.length < 9 || nalu[0] !== 0x7c || nalu[1] !== 0x01) {
+  const validateUnspec62Nalu = (nalu) => {
+    if (nalu.length < 9 || nalu[0] !== 0x7c || nalu[1] !== 0x01 || nalu[2] !== 0x19) {
       throw new Error('RPU stream contains a non-UNSPEC62 HEVC NAL unit.');
     }
-    const decoded = [];
     let zeroCount = 0;
     for (let index = 2; index < nalu.length; index += 1) {
       const byte = nalu[index];
@@ -75,12 +49,49 @@ export function normalizeRpuInput(value) {
         zeroCount = 0;
         continue;
       }
-      decoded.push(byte);
+      if (zeroCount >= 2 && byte <= 0x02) {
+        throw new Error('RPU NAL is missing a required emulation-prevention byte.');
+      }
       zeroCount = byte === 0 ? zeroCount + 1 : 0;
     }
-    const regular = Buffer.from(decoded);
+    let lastNonZero = nalu.length - 1;
+    while (lastNonZero >= 2 && nalu[lastNonZero] === 0) lastNonZero -= 1;
+    if (lastNonZero < 2 || nalu[lastNonZero] !== 0x80) {
+      throw new Error('RPU NAL does not end with the required 0x80 terminator.');
+    }
+  };
+
+  if (input[0] === 0x19) {
+    validateRegular(input);
+    if (input.indexOf(startCode) >= 0) {
+      throw new Error('Raw regular RPU contains an ambiguous Annex-B start-code sequence; provide an UNSPEC62 NAL stream.');
+    }
+    return Buffer.concat([startCode, input]);
+  }
+
+  if (input.subarray(0, 4).equals(startCode) && input[4] === 0x19) {
+    const regular = input.subarray(4);
     validateRegular(regular);
-    units.push(Buffer.concat([startCode, regular]));
+    if (regular.indexOf(startCode) >= 0) {
+      throw new Error('Annex-B regular RPU contains an ambiguous internal start-code sequence; provide an UNSPEC62 NAL stream.');
+    }
+    return input;
+  }
+
+  // Keep UNSPEC62 NALs escaped and intact. dovi_tool owns EPB removal.
+  const units = [];
+  let offset = 0;
+  while (offset < input.length) {
+    if (!input.subarray(offset, offset + 4).equals(startCode)) {
+      throw new Error('RPU NAL stream must use four-byte Annex-B start codes.');
+    }
+    const payloadStart = offset + 4;
+    let next = input.indexOf(startCode, payloadStart);
+    if (next < 0) next = input.length;
+    const nalu = input.subarray(payloadStart, next);
+    if (nalu[0] === 0x19) validateRegular(nalu);
+    else validateUnspec62Nalu(nalu);
+    units.push(input.subarray(offset, next));
     offset = next;
   }
   if (units.length === 0) throw new Error('RPU NAL stream contains no RPU units.');
