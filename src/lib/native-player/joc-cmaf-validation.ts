@@ -34,7 +34,7 @@ function parseHeader(bytes: Uint8Array, offset: number): SyncframeHeader {
   const blocksCode = (bytes[offset + 4] >> 4) & 0x03;
   const bsid = (bytes[offset + 5] >> 3) & 0x1f;
   if (frameBytes < 6 || offset + frameBytes > bytes.length) {
-    throw new Error('E-AC-3 CMAF syncframe exceeds the sample boundary.');
+    throw new Error('E-AC-3 CMAF sample contains a truncated syncframe that exceeds the sample boundary.');
   }
   return { streamType, substreamId, frameBytes, sampleRateCode, blocksCode, bsid };
 }
