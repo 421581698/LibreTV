@@ -25,8 +25,8 @@ The application must report each stage independently. A successful earlier stage
 | Codec declaration | Implemented | RFC 6381 and HLS declaration inspection; declarations are hints only |
 | HEVC RPU analysis | Implemented for the registered MP4 path | Private parser service, dovi_tool 2.3.x, source SHA-256 binding, signed evidence |
 | HEVC / Matroska fixture validation | Implemented in CI | Pinned upstream 259-frame fixture; not a feature-length customer asset |
-| HLS RPU analysis | Not implemented | Playlist declarations do not contain enough information to prove full-stream RPU |
-| AV1 Dolby Vision RPU extraction | Not integrated | Requires a separate AV1 OBU/container adapter and fixtures |
+| HLS declaration mapping | Implemented (declaration-only) | Safari native HLS inspection now reports per-variant codec declarations; media-segment RPU and cross-segment continuity remain unimplemented |
+| AV1 OBU structural inspection | Partial foundation | Bounded raw OBU scanner counts metadata/T.35 OBUs and rejects malformed lengths; Dolby provider identification, EMDF parsing, RPU extraction, container adapters and signed AV1 evidence remain unimplemented |
 | Dolby Vision decoding | Not integrated by LibreTV | Requires a supported native platform decoder or properly licensed decoder component |
 | RPU-aware rendering / display mapping | Not integrated | No renderer is allowed to be represented as Dolby Vision processing without evidence |
 | Physical Dolby Vision output verification | Pending | Requires named device, OS, content, and output-chain acceptance |
@@ -34,6 +34,8 @@ The application must report each stage independently. A successful earlier stage
 ## Implementation sequence
 
 ### A. Complete media inspection
+
+- Ordinary CMS `/watch` playback must not infer a registry resource from a CMS VOD ID, title, source key, or playback URL. Complete integration requires a server-side, verified mapping from the exact CMS episode/source identity to a registered direct-media resource; absent that mapping, the UI must keep the asset unbound.
 
 - Keep codec declaration parsing separate from elementary-stream inspection.
 - Extend container adapters independently: MP4/HEVC first, then AV1/OBU and additional containers only with real fixtures.
@@ -67,7 +69,7 @@ The inspected parser code needs hardening before reuse:
 - The IVF frame-header reader treats any UnexpectedEof as clean EOF, including a partially truncated header; distinguish zero-byte EOF from partial-header truncation.
 - Container parsing, OBU parsing, metadata identification, and RPU validation must remain separate stages with independent negative tests.
 
-The fork is therefore a source of implementation ideas and fixtures only. Any reuse requires a reviewed, pinned commit, strict parser fixes, license attribution, fuzz/property tests, and CI evidence before production integration.
+The fork is therefore a source of implementation ideas and fixtures only. Any reuse requires a reviewed, pinned commit, strict parser fixes, license attribution, fuzz/property tests, and CI evidence before production integration. The repository now contains a separate bounded raw-OBU structural scanner as a defensive first step; it intentionally reports RPU presence as `unknown` and is not an AV1 Dolby Vision parser or extraction implementation.
 
 ### B. Decoder integration gate
 
