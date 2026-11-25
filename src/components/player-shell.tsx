@@ -13,7 +13,7 @@ import { DEFAULT_SUBTITLE_PREFERENCES, loadSubtitlePreferences, saveSubtitlePref
 import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from '@/lib/native-player/subtitle-track-controller';
 import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
 import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
-import { classifyAudioVerification, createBrowserAudioEvidence } from '@/lib/dolby-audio-capabilities';
+import { classifyAudioVerification, createBrowserAudioEvidence, inspectBrowserAudioFeatures } from '@/lib/dolby-audio-capabilities';
 import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/native-player/jassub-renderer';
 import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native-player/subtitle-style';
 import { sanitizePlaybackSnapshot } from '@/lib/native-player/snapshot-sanitizer';
@@ -242,6 +242,7 @@ export function PlayerShell({
   const [spatialAudioMode, setSpatialAudioMode] = useState<SpatialAudioMode>('off');
   const [spatialAudioMessage, setSpatialAudioMessage] = useState('空间音频默认关闭，不改变原始音轨。');
   const [spatialAudioVerificationMessage, setSpatialAudioVerificationMessage] = useState('Dolby 原生输出与 JOC 对象解码尚未验证。');
+  const [browserAudioFeatureMessage, setBrowserAudioFeatureMessage] = useState('浏览器音频 API 检测待运行。');
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -260,6 +261,16 @@ export function PlayerShell({
 
   useEffect(() => {
     setQualityPreference(readQualityPreference());
+    const features = inspectBrowserAudioFeatures();
+    const featureNames = [
+      features.webAudio && 'Web Audio',
+      features.mediaElementSource && 'MediaElementSource',
+      features.hrtfPanner && 'HRTF Panner',
+      features.audioWorklet && 'AudioWorklet',
+      features.mediaCapabilitiesApi && 'MediaCapabilities API',
+      features.webCodecsAudioDecoderApi && 'WebCodecs AudioDecoder API',
+    ].filter(Boolean);
+    setBrowserAudioFeatureMessage(`浏览器 API：${featureNames.length ? featureNames.join(' · ') : '未检测到可用音频 API'}。API 存在不代表 Dolby 解码或系统输出已启用。`);
   }, []);
 
   useEffect(() => {
@@ -636,6 +647,7 @@ export function PlayerShell({
         if (!selectedTrack) {
           engine?.updateInputChannels(0, 'unknown');
           setSpatialAudioMessage('当前播放路径没有可读取的 HLS 声道元数据；为避免猜测声道，保持原始音轨。');
+          setSpatialAudioVerificationMessage('音频输出状态未知：当前播放路径未提供可验证的音轨元数据。');
           return;
         }
         const info = inspectHlsAudioTrack(selectedTrack);
@@ -643,6 +655,8 @@ export function PlayerShell({
         if (info.channelCount !== 2 && info.channelCount !== 6) {
           engine?.updateInputChannels(info.channelCount ?? 0, 'unknown');
           setSpatialAudioMessage('当前音轨没有明确的 2 声道或 6 声道声明，空间音频不可用。');
+          const verification = classifyAudioVerification(createBrowserAudioEvidence({ codec: info.codec, inputChannels: info.channelCount, hasJocMarker: info.hasJocMarker }));
+          setSpatialAudioVerificationMessage(`${verification.label}：${verification.detail}`);
           return;
         }
         if (!engine) {
@@ -657,6 +671,7 @@ export function PlayerShell({
       }
       if (!engine) {
         setSpatialAudioMode('off');
+        setSpatialAudioVerificationMessage('音频输出状态未知：没有创建空间音频处理引擎。');
         return;
       }
       if (mode !== 'off') await engine.resumeFromUserGesture();
@@ -695,6 +710,7 @@ export function PlayerShell({
       const plan = engine.updateInputChannels(0, 'unknown');
       setSpatialAudioMessage(plan.reason);
     }
+    setSpatialAudioVerificationMessage('音频输出状态未知：当前媒体源尚未提供可验证的音轨信息。');
     setSpatialAudioMode('off');
   };
 
@@ -2091,6 +2107,7 @@ export function PlayerShell({
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-white/60">{spatialAudioMessage}</p>
             <p className="mt-1 text-[11px] leading-relaxed text-white/60">{spatialAudioVerificationMessage}</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-white/45">{browserAudioFeatureMessage}</p>
             <p className="mt-1 text-[10px] text-white/45">仅在音轨明确声明声道数且 CORS 安全时启用；不代表 Atmos 对象解码。</p>
           </div>
         )}
