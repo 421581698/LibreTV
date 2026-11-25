@@ -236,6 +236,7 @@ export function PlayerShell({
   const hlsRef = useRef<Hls | null>(null);
   /** Prevent an unsupported native path from looping with hls.js fallback. */
   const nativeDolbyHlsAttemptedRef = useRef<string | null>(null);
+  const nativeDolbyHlsErrorCleanupRef = useRef<(() => void) | null>(null);
   const qualityPreferenceHandlerRef = useRef<(() => void) | null>(null);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
@@ -652,7 +653,10 @@ export function PlayerShell({
    * 自动改走同源 cookie 鉴权的 /api/proxy 重试一次。
    * 注意：不销毁 ArtPlayer，只销毁并重建 hls，从而保留网页全屏等播放器状态。
    */
-  const setupHls = (video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean, forceNativeDolby = false) => {
+  const setupHls = (
+    video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean,
+    forceNativeDolby = false, nativeManifestEvidence?: DolbyVisionFormatReport,
+  ) => {
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
     // remains browser-managed and intentionally exposes no hls.js selector.
     setAudioTrackOptions([]);
@@ -664,6 +668,8 @@ export function PlayerShell({
     clearMetadataWatchdog();
     restoreCleanupRef.current?.();
     restoreCleanupRef.current = null;
+    nativeDolbyHlsErrorCleanupRef.current?.();
+    nativeDolbyHlsErrorCleanupRef.current = null;
     if (qualityPreferenceHandlerRef.current) {
       window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
       qualityPreferenceHandlerRef.current = null;
@@ -672,7 +678,7 @@ export function PlayerShell({
     hlsRef.current = null;
     currentMediaUrlRef.current = mediaUrl;
     const mediaKind = getMediaPlaybackKind(mediaUrl, propsRef.current.mediaType);
-    setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: inspectDolbyVisionFormat({
+    setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: nativeManifestEvidence ?? inspectDolbyVisionFormat({
       url: mediaUrl,
       mimeType: mediaKind === 'hls' ? 'application/vnd.apple.mpegurl' : mediaKind === 'webm' ? 'video/webm' : 'video/mp4',
     }) });
@@ -710,14 +716,16 @@ export function PlayerShell({
       // master playlist separately when CORS allows it; this is diagnostics
       // only and must never interfere with native playback.
       const nativeManifestController = new AbortController();
-      void inspectNativeHlsDolbyVisionManifest(mediaUrl, nativeManifestController.signal)
-        .then((report) => {
-          if (loadGeneration !== mediaLoadGenerationRef.current) return;
-          setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report });
-        })
-        .catch(() => {
-          // Source changes abort the probe; playback continues independently.
-        });
+      if (!nativeManifestEvidence) {
+        void inspectNativeHlsDolbyVisionManifest(mediaUrl, nativeManifestController.signal)
+          .then((report) => {
+            if (loadGeneration !== mediaLoadGenerationRef.current) return;
+            setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report });
+          })
+          .catch(() => {
+            // Source changes abort the probe; playback continues independently.
+          });
+      }
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
       setQualityNotice(forceNativeDolby
@@ -774,10 +782,15 @@ export function PlayerShell({
         // re-enter itself when hls.js fetches the same manifest on fallback.
         setupHls(video, mediaUrl, allowProxyFallback);
       };
-      if (forceNativeDolby) video.addEventListener('error', onNativeDolbyError, { once: true });
+      if (forceNativeDolby) {
+        video.addEventListener('error', onNativeDolbyError, { once: true });
+        // Native readiness cleanup runs as soon as metadata loads. Keep the
+        // fallback error listener alive throughout playback, not just startup.
+        nativeDolbyHlsErrorCleanupRef.current = () =>
+          video.removeEventListener('error', onNativeDolbyError);
+      }
       restoreCleanupRef.current = () => {
         nativeRestoreEvents.forEach((event) => video.removeEventListener(event, onNativeRestoreEvent));
-        video.removeEventListener('error', onNativeDolbyError);
         nativeManifestController.abort();
       };
       video.src = mediaUrl;
@@ -900,7 +913,7 @@ export function PlayerShell({
         alreadyAttemptedNative: nativeDolbyHlsAttemptedRef.current === mediaUrl,
       })) {
         nativeDolbyHlsAttemptedRef.current = mediaUrl;
-        setupHls(video, mediaUrl, allowProxyFallback, true);
+        setupHls(video, mediaUrl, allowProxyFallback, true, manifestFormat);
         return;
       }
       const qualityResult = applyHlsQualityPreference(hls!, readQualityPreference(), video);
@@ -1784,6 +1797,8 @@ export function PlayerShell({
       if (controlHideTimer) clearTimeout(controlHideTimer);
       restoreCleanupRef.current?.();
       restoreCleanupRef.current = null;
+      nativeDolbyHlsErrorCleanupRef.current?.();
+      nativeDolbyHlsErrorCleanupRef.current = null;
       Artplayer.CONTROL_HIDE_TIME = ART_DEFAULT_CONTROL_HIDE_MS;
       if (qualityPreferenceHandlerRef.current) {
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
