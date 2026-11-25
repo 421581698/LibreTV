@@ -218,3 +218,13 @@ test('rejects an orphan AV1 frame before an otherwise aligned temporal unit', ()
   ]);
   assert.throws(() => extractDolbyRpuFromObuStream(stream), /frame appeared before a temporal delimiter/);
 });
+
+
+test('rejects malformed AV1 temporal delimiters before accepting RPU alignment', () => {
+  const { bytes } = validT35Payload();
+  const metadata = obu(5, Buffer.concat([leb(4), bytes]));
+  const frame = obu(6, Buffer.from([0]));
+  for (const delimiter of [obu(2, Buffer.from([0])), Buffer.from([0x16, 0, 0])]) {
+    assert.throws(() => extractDolbyRpuFromObuStream(Buffer.concat([delimiter, metadata, frame])), /temporal delimiter must have an empty payload and no extension header/);
+  }
+});
