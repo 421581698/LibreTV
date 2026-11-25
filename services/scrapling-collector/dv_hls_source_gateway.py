@@ -151,6 +151,7 @@ def _fetch_member(
         digest = hashlib.sha256()
         received = 0
         last_checkpoint = 0
+        last_checkpoint_at = time.monotonic()
         with destination.open("xb") as target_file:
             while received < expected_length:
                 if cancelled():
@@ -165,7 +166,8 @@ def _fetch_member(
                     raise HlsSourceGatewayError("HLS origin exceeded the declared member length")
                 digest.update(chunk)
                 target_file.write(chunk)
-                if received - last_checkpoint >= 8 * CHUNK_SIZE:
+                now = time.monotonic()
+                if received - last_checkpoint >= 8 * CHUNK_SIZE or now - last_checkpoint_at >= 30:
                     checkpoint({
                         "stage": "authorized_hls_member_download",
                         "members_downloaded": progress["members_downloaded"],
@@ -174,6 +176,7 @@ def _fetch_member(
                         "member_bytes_total": expected_length,
                     })
                     last_checkpoint = received
+                    last_checkpoint_at = now
             target_file.flush()
             os.fsync(target_file.fileno())
         if response.read(1):
