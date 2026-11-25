@@ -1017,3 +1017,24 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
+
+/* V3: artwork-first, native color preservation, compact Apple TV reference geometry. */
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__poster { filter: none; transform: none; }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__shade {
+  background: linear-gradient(to top, #08090c 0%, rgba(8,9,12,.76) 12%, rgba(8,9,12,.30) 30%, transparent 65%);
+}
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-bottom-fade { height: 10%; }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1.ipad-cinema-title--logo { width: fit-content; max-width: min(200px, 100%); margin-bottom: 0; }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content .ipad-cinema-title-logo { width: auto; height: auto; max-width: min(200px, 100%); max-height: 72px; object-fit: contain; filter: none; }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content h1:not(.ipad-cinema-title--logo) { font-size: clamp(24px, 2.5vw, 28px); }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-original,
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-meta { font-size: 12px; color: rgba(255,255,255,.92); }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-overview-wrap .ipad-cinema-overview { font-size: 13px; color: rgba(255,255,255,.94); }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content { text-shadow: 0 1px 5px rgba(0,0,0,.8); }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-actions { margin-top: 16px; flex-wrap: wrap; text-shadow: none; }
+.ipad-edition [data-ipad-detail="true"] .ipad-cinema-add[aria-pressed="true"] { color: #fff; background: rgba(255,255,255,.18); }
+@media (orientation: landscape) and (min-width: 901px) {
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero { height: clamp(490px, 80svh, 840px); }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content { width: min(440px, 35vw); }
+  .ipad-edition [data-ipad-detail="true"] .ipad-cinema-details { padding-inline: clamp(24px, 2.9vw, 48px); }
+}
