@@ -352,7 +352,10 @@ describe('首页与播放页回归契约', () => {
     expect(watchStyles).toContain('.netflix-watch-shell:fullscreen');
     expect(watchStyles).toContain('.netflix-watch-shell:fullscreen .watch-cinema-info');
     expect(player).toContain('if (!art.fullscreenWeb) art.fullscreenWeb = true;');
-    expect(player).toContain('playbackRate: true');
+    expect(player).toContain('playbackRate: !cinemaMode');
+    expect(watch).toContain('cinemaMode={isIpadEditionPlayback}');
+    expect(watch).toContain('nextCinemaPlaybackRate(');
+    expect(watch).toContain('playerApiRef.current?.setPlaybackRate(next)');
     expect(watchPlaybackState).toContain("video.addEventListener('ratechange', sync)");
     expect(watch).toContain('bindWatchPlaybackState(frame,');
     expect(watch).toContain('setWatchRate(playbackRate)');
