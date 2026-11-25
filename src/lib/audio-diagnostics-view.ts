@@ -9,6 +9,8 @@
  *  - No playback decision, no callback, no side effect. Formatting only.
  *  - Never claims Dolby Atmos object decode, native Dolby decode or bitstream
  *    passthrough. JOC / Dolby metadata is shown strictly as a *signal*.
+ *  - Non-Dolby codecs may be recognized internally for safe classification,
+ *    but are not exposed as product audio formats in this Dolby-only UI.
  *  - Never emits media URLs, tokens, rendition names or free-form notes — the
  *    input is already whitelisted, and this module only reads known fields.
  */
@@ -60,15 +62,15 @@ const CODEC_LABELS: Record<string, string> = {
   ac3: 'AC-3 / Dolby Digital',
   truehd: 'Dolby TrueHD',
   'dolby-mat': 'Dolby MAT（传输格式标记）',
-  iamf: 'IAMF',
-  pcm: 'PCM / LPCM',
-  'dts-x': 'DTS:X',
-  'dts-hd': 'DTS-HD',
-  dts: 'DTS',
-  aac: 'AAC',
-  opus: 'Opus',
-  flac: 'FLAC',
-  alac: 'Apple Lossless',
+  iamf: '非 Dolby 音频编码（仅识别）',
+  pcm: '非 Dolby 音频编码（仅识别）',
+  'dts-x': '非 Dolby 音频编码（仅识别）',
+  'dts-hd': '非 Dolby 音频编码（仅识别）',
+  dts: '非 Dolby 音频编码（仅识别）',
+  aac: '非 Dolby 音频编码（仅识别）',
+  opus: '非 Dolby 音频编码（仅识别）',
+  flac: '非 Dolby 音频编码（仅识别）',
+  alac: '非 Dolby 音频编码（仅识别）',
   unknown: '未知',
 };
 
@@ -173,7 +175,7 @@ function capabilityGroup(diag: PlaybackDiagnostics): DiagnosticsViewGroup | null
       row('输出最大声道数', cap.outputMaxChannels == null ? '未知' : String(cap.outputMaxChannels), cap.outputMaxChannels == null ? 'unknown' : 'neutral'),
       row('输出延迟', cap.outputLatencyMs == null ? '未知' : `${cap.outputLatencyMs} ms`, cap.outputLatencyMs == null ? 'unknown' : 'neutral'),
       row('输出设备名称', cap.outputDeviceName === 'not-exposed' ? '浏览器未公开设备名称' : '未知', 'unknown'),
-      row('空间渲染接入', cap.spatialRendering === 'not-integrated' ? '播放器尚未接入（保持原始播放）' : '未知', 'unknown'),
+      row('Dolby Atmos 渲染接入', cap.spatialRendering === 'not-integrated' ? '播放器尚未接入（保持原始播放）' : '未知', 'unknown'),
       row('默认播放路径', '浏览器原生媒体播放', 'positive'),
     ],
   };
@@ -208,7 +210,7 @@ function toPlainText(view: Omit<DiagnosticsView, 'plainText'>): string {
     lines.push('');
   }
   lines.push('诊断模式：只读（不自动换源 / 不降画质 / 不重启）');
-  return lines.join('\n').trimEnd();
+  return lines.join('\\n').trimEnd();
 }
 
 /**
