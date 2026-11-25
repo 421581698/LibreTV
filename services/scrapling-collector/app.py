@@ -2218,7 +2218,7 @@ def record_playback_evidence(
             # Long media transfers run in the durable worker, not in the
             # browser's playback-confirmation request.
             source_version = hashlib.sha256(
-                (str(row["url"]) + "\\0" + str(row["validation"] or "")).encode("utf-8")
+                (str(row["url"]) + "\0" + str(row["validation"] or "")).encode("utf-8")
             ).hexdigest()[:24]
             job = registry_store.submit_job(
                 "dv_media_ingest",
