@@ -34,18 +34,30 @@ def _open_asset(object_root: Path, asset: dict) -> BinaryIO:
     expected_key = f"sha256/{digest[:2]}/{digest}"
     if asset["object_key"] != expected_key or not re.fullmatch(r"[a-f0-9]{64}", digest):
         raise HlsAssemblyError("Registered HLS member has an invalid content-addressed object key.")
-    path = object_root / expected_key
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    file_flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    root_descriptor = None
+    hash_descriptor = None
+    shard_descriptor = None
     try:
-        descriptor = os.open(path, flags)
+        root_descriptor = os.open(object_root, directory_flags)
+        hash_descriptor = os.open("sha256", directory_flags, dir_fd=root_descriptor)
+        shard_descriptor = os.open(digest[:2], directory_flags, dir_fd=hash_descriptor)
+        descriptor = os.open(digest, file_flags, dir_fd=shard_descriptor)
     except OSError as exc:
-        raise HlsAssemblyError("Registered HLS member object is unavailable.") from exc
+        raise HlsAssemblyError("Registered HLS member object or its content-addressed directory is unavailable or unsafe.") from exc
+    finally:
+        if shard_descriptor is not None:
+            os.close(shard_descriptor)
+        if hash_descriptor is not None:
+            os.close(hash_descriptor)
+        if root_descriptor is not None:
+            os.close(root_descriptor)
     info = os.fstat(descriptor)
     if not stat.S_ISREG(info.st_mode) or info.st_size != asset["byte_length"]:
         os.close(descriptor)
-        raise HlsAssemblyError("Registered HLS member size or file type does not match.")
+        raise HlsAssemblyError("Registered media object size or file type does not match.")
     return os.fdopen(descriptor, "rb")
-
 
 def _read_verified_bytes(object_root: Path, asset: dict, maximum: int) -> bytes:
     if asset["byte_length"] > maximum:
