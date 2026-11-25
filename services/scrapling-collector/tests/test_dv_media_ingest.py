@@ -212,6 +212,15 @@ class DolbyVisionMediaIngestionTests(unittest.TestCase):
         playlist.write_text('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n', encoding="utf-8")
         with self.assertRaises(HlsIngestionError):
             ingest_hls_directory(resource["id"], staging, playlist, self.object_root)
+        playlist.write_text('#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n', encoding="utf-8")
+        with self.assertRaises(HlsIngestionError):
+            ingest_hls_directory(resource["id"], staging, playlist, self.object_root)
+        with registry.connect() as connection:
+            incomplete_count = connection.execute(
+                "SELECT COUNT(*) FROM registry_media_assets WHERE resource_id=?", (resource["id"],)
+            ).fetchone()[0]
+        self.assertEqual(incomplete_count, 0)
+
         playlist.write_text('#EXTM3U\n#EXTINF:4.0,\n../outside.ts\n', encoding="utf-8")
         with self.assertRaises(HlsIngestionError):
             ingest_hls_directory(resource["id"], staging, playlist, self.object_root)
