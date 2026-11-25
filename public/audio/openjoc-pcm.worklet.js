@@ -2,36 +2,41 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.capacity = 48000;
-    this.left = new Float32Array(this.capacity);
-    this.right = new Float32Array(this.capacity);
-    this.readIndex = 0;
-    this.writeIndex = 0;
-    this.available = 0;
+    this.queue = [];
+    this.queuedFrames = 0;
     this.droppedFrames = 0;
+    this.playing = false;
+    this.clockPtsSamples = null;
+    this.expectedPtsSamples = null;
+    this.maxQueueFrames = 48000;
     this.port.onmessage = event => {
       const data = event.data;
-      if (!data || data.type !== 'pcm' || !(data.samples instanceof Float32Array)) return;
-      const samples = data.samples;
-      if (samples.length === 0 || samples.length % 2 !== 0 || data.sampleRate !== 48000 || data.channels !== 2) return;
-      const frames = samples.length / 2;
-      if (frames > this.capacity) {
-        this.droppedFrames += frames;
+      if (!data) return;
+      if (data.type === 'start') {
+        this.playing = true;
         return;
       }
-      const overflow = Math.max(0, this.available + frames - this.capacity);
-      if (overflow) {
-        this.readIndex = (this.readIndex + overflow) % this.capacity;
-        this.available -= overflow;
-        this.droppedFrames += overflow;
+      if (data.type === 'stop') {
+        this.playing = false;
+        return;
       }
-      for (let i = 0; i < frames; i += 1) {
-        const index = (this.writeIndex + i) % this.capacity;
-        this.left[index] = samples[i * 2];
-        this.right[index] = samples[i * 2 + 1];
+      if (data.type === 'clock' && Number.isFinite(data.ptsSamples)) {
+        this.clockPtsSamples = data.ptsSamples;
+        if (this.expectedPtsSamples === null) this.expectedPtsSamples = data.ptsSamples;
+        return;
       }
-      this.writeIndex = (this.writeIndex + frames) % this.capacity;
-      this.available += frames;
-      this.port.postMessage({ type: 'queued', frames: this.available, droppedFrames: this.droppedFrames });
+      if (data.type !== 'pcm' || !(data.samples instanceof Float32Array)) return;
+      const samples = data.samples;
+      if (samples.length === 0 || samples.length % 2 !== 0 || data.sampleRate !== 48000 ||
+          data.channels !== 2 || !Number.isFinite(data.ptsSamples)) return;
+      const frames = samples.length / 2;
+      if (frames > this.maxQueueFrames || this.queuedFrames + frames > this.maxQueueFrames) {
+        this.port.postMessage({ type: 'overflow', frames: this.queuedFrames, rejectedFrames: frames });
+        return;
+      }
+      this.queue.push({ samples, offset: 0, ptsSamples: data.ptsSamples });
+      this.queuedFrames += frames;
+      this.port.postMessage({ type: 'queued', frames: this.queuedFrames });
     };
   }
 
@@ -40,16 +45,49 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
     if (!output || output.length < 2) return true;
     const left = output[0];
     const right = output[1];
-    const count = Math.min(left.length, this.available);
-    for (let i = 0; i < count; i += 1) {
-      const index = (this.readIndex + i) % this.capacity;
-      left[i] = this.left[index];
-      right[i] = this.right[index];
+    left.fill(0);
+    right.fill(0);
+    if (!this.playing || this.clockPtsSamples === null || this.expectedPtsSamples === null) return true;
+
+    // Follow the video media clock gently. A large seek/discontinuity reanchors
+    // the queue; small drift is corrected gradually to avoid audible jumps.
+    const drift = this.clockPtsSamples - this.expectedPtsSamples;
+    if (Math.abs(drift) > 2400) this.expectedPtsSamples = this.clockPtsSamples;
+    else this.expectedPtsSamples += Math.max(-120, Math.min(120, drift * 0.1));
+
+    let written = 0;
+    while (written < left.length && this.queue.length > 0) {
+      const chunk = this.queue[0];
+      const chunkFrames = chunk.samples.length / 2;
+      const chunkPts = chunk.ptsSamples + chunk.offset;
+      const delta = chunkPts - this.expectedPtsSamples;
+
+      // Do not play future audio early. Drop late audio only beyond the 20 ms tolerance.
+      if (delta > 960) break;
+      if (delta < -960) {
+        const skip = Math.min(chunkFrames - chunk.offset, Math.ceil(-delta));
+        chunk.offset += skip;
+        this.queuedFrames -= skip;
+        this.droppedFrames += skip;
+        if (chunk.offset >= chunkFrames) this.queue.shift();
+        continue;
+      }
+
+      const available = chunkFrames - chunk.offset;
+      const count = Math.min(left.length - written, available);
+      for (let i = 0; i < count; i += 1) {
+        const source = (chunk.offset + i) * 2;
+        left[written + i] = chunk.samples[source];
+        right[written + i] = chunk.samples[source + 1];
+      }
+      chunk.offset += count;
+      written += count;
+      this.queuedFrames -= count;
+      this.expectedPtsSamples += count;
+      if (chunk.offset >= chunkFrames) this.queue.shift();
     }
-    left.fill(0, count);
-    right.fill(0, count);
-    this.readIndex = (this.readIndex + count) % this.capacity;
-    this.available -= count;
+
+    this.port.postMessage({ type: 'queued', frames: this.queuedFrames, droppedFrames: this.droppedFrames });
     return true;
   }
 }
