@@ -26,10 +26,21 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
   const [verifiedEvidence, setVerifiedEvidence] = useState<{ assetId: string; evidence: VerifiedDolbyVisionEvidenceResponse } | null>(null);
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [analysisError, setAnalysisError] = useState('');
-  const [hlsGraph, setHlsGraph] = useState<{ resourceId: string; memberCount: number; playlistCount: number; initializationCount: number; segmentCount: number } | null>(null);
+  const [hlsGraph, setHlsGraph] = useState<{ resourceId: string; memberCount: number; playlistCount: number; initializationCount: number; segmentCount: number; variantAssetIds: string[] } | null>(null);
   const [hlsGraphState, setHlsGraphState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [hlsGraphError, setHlsGraphError] = useState('');
+  const [hlsAnalysisState, setHlsAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [hlsAnalysisError, setHlsAnalysisError] = useState('');
+  const [hlsEvidence, setHlsEvidence] = useState<{
+    resourceId: string;
+    variantAssetId: string;
+    profile: number | null;
+    frameCount: number;
+    metadataLevels: number[];
+    graphSha256: string;
+  } | null>(null);
   const hlsGraphRequestRef = useRef<AbortController | null>(null);
+  const hlsAnalysisRequestRef = useRef<AbortController | null>(null);
   const requestRef = useRef<AbortController | null>(null);
   // Hide evidence synchronously on the render where the asset changes; the effect below
   // performs cleanup, but effects run after paint and alone permit one stale render.
@@ -51,6 +62,11 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     hlsGraphRequestRef.current = null;
     setHlsGraph(null);
     setHlsGraphError('');
+    hlsAnalysisRequestRef.current?.abort();
+    hlsAnalysisRequestRef.current = null;
+    setHlsEvidence(null);
+    setHlsAnalysisState('idle');
+    setHlsAnalysisError('');
     if (sourceKind !== 'registry' || report?.container !== 'hls' ||
         !sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity)) {
       setHlsGraphState('idle');
@@ -76,6 +92,15 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
       }
       const edges = data.edges.filter((edge): edge is Record<string, unknown> =>
         Boolean(edge) && typeof edge === 'object' && !Array.isArray(edge));
+      const rootAsset = data.rootAsset && typeof data.rootAsset === 'object' && !Array.isArray(data.rootAsset)
+        ? data.rootAsset as Record<string, unknown>
+        : null;
+      const rootAssetId = typeof rootAsset?.assetId === 'string' ? rootAsset.assetId : '';
+      const directVariants = edges
+        .filter((edge) => edge.parentAssetId === data.graphId && edge.role === 'playlist' &&
+          typeof edge.childAssetId === 'string')
+        .map((edge) => String(edge.childAssetId));
+      const variantAssetIds = directVariants.length > 0 ? directVariants : rootAssetId ? [rootAssetId] : [];
       if (!controller.signal.aborted) {
         setHlsGraph({
           resourceId: sourceIdentity,
@@ -83,6 +108,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
           playlistCount: edges.filter((edge) => edge.role === 'playlist').length,
           initializationCount: edges.filter((edge) => edge.role === 'initialization').length,
           segmentCount: edges.filter((edge) => edge.role === 'segment').length,
+          variantAssetIds,
         });
         setHlsGraphState('idle');
       }
@@ -93,6 +119,62 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
     });
     return () => controller.abort();
   }, [sourceKind, sourceIdentity, report?.container]);
+
+  async function analyzeHlsVariant(variantAssetId: string) {
+    if (!sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity) ||
+        !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId) ||
+        hlsAnalysisState === 'loading') return;
+    hlsAnalysisRequestRef.current?.abort();
+    const controller = new AbortController();
+    hlsAnalysisRequestRef.current = controller;
+    setHlsAnalysisState('loading');
+    setHlsAnalysisError('');
+    setHlsEvidence(null);
+    try {
+      const response = await fetch(
+        `/api/dolby-vision/resources/${encodeURIComponent(sourceIdentity)}/hls-analysis/${encodeURIComponent(variantAssetId)}`,
+        { method: 'POST', cache: 'no-store', credentials: 'same-origin', signal: controller.signal },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        throw new Error(response.status === 503
+          ? '可信 HLS 分析服务尚未配置或当前不可用'
+          : response.status === 409
+            ? '该 HLS 变体不是受支持的清晰 fMP4 VOD 资产图'
+            : 'HLS RPU 分析或签名证据验证失败');
+      }
+      const data = payload as Record<string, unknown>;
+      const evidence = data.evidence && typeof data.evidence === 'object' && !Array.isArray(data.evidence)
+        ? data.evidence as Record<string, unknown>
+        : null;
+      const graph = data.graph && typeof data.graph === 'object' && !Array.isArray(data.graph)
+        ? data.graph as Record<string, unknown>
+        : null;
+      if (data.verified !== true || data.analysisScope !== 'hls-fmp4' ||
+          data.resourceId !== sourceIdentity || data.variantAssetId !== variantAssetId ||
+          typeof graph?.graphSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(graph.graphSha256) ||
+          evidence?.source !== 'dovi_tool' || evidence.rpuPresent !== true ||
+          !Number.isSafeInteger(evidence.frameCount) || !Array.isArray(evidence.metadataLevels) ||
+          !evidence.metadataLevels.every((level) => Number.isSafeInteger(level))) {
+        throw new Error('HLS 签名证据与当前资产图不匹配');
+      }
+      if (!controller.signal.aborted) {
+        setHlsEvidence({
+          resourceId: sourceIdentity,
+          variantAssetId,
+          profile: typeof evidence.profile === 'number' ? evidence.profile : null,
+          frameCount: Number(evidence.frameCount),
+          metadataLevels: evidence.metadataLevels as number[],
+          graphSha256: graph.graphSha256,
+        });
+        setHlsAnalysisState('idle');
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setHlsAnalysisError(error instanceof Error ? error.message : 'HLS RPU 分析暂不可用');
+      setHlsAnalysisState('error');
+    }
+  }
 
   async function analyzeRegisteredAsset() {
     if (!assetId || !/^[A-Za-z0-9:_-]{1,200}$/.test(assetId) || analysisState === 'loading') return;
