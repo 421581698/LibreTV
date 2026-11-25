@@ -96,6 +96,7 @@ export interface VerifiedHlsRpuSegmentSet {
   totalRpuFrameCount: number;
   timelineContinuity: 'contiguous';
   rpuProfileContinuity: 'consistent';
+  rpuFrameAlignment: 'one-rpu-per-video-sample';
   rpuSemanticContinuity: 'not-established';
 }
 
@@ -176,7 +177,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
       expectedAnalysisContext: analysisContext,
       now: options.now,
     });
-    if (!result) return null;
+    if (!result || result.report.frameCount !== expected.sampleCount) return null;
     const profiles = result.report.profiles;
     if (commonProfiles === null) commonProfiles = profiles;
     else if (profiles.length !== commonProfiles.length ||
@@ -191,6 +192,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     totalRpuFrameCount,
     timelineContinuity: 'contiguous',
     rpuProfileContinuity: 'consistent',
+    rpuFrameAlignment: 'one-rpu-per-video-sample',
     rpuSemanticContinuity: 'not-established',
   };
 }
