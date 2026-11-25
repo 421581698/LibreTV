@@ -152,6 +152,18 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
                     "resource-missing", "variant-missing", authorization=None,
                 )
 
+    def test_rejects_symlinked_content_addressed_shard_directory(self):
+        variant_id, ingested = self.prepare_graph()
+        digest = ingested["assets"]["seg1.m4s"]["sha256"]
+        shard = self.object_root / "sha256" / digest[:2]
+        moved = self.root / "moved-shard"
+        shard.rename(moved)
+        shard.symlink_to(moved, target_is_directory=True)
+        with self.assertRaises(HlsAssemblyError):
+            assemble_registered_hls_fmp4(
+                self.resource["id"], variant_id, self.root / "bad.mp4", self.object_root,
+            )
+
     def test_rejects_playlist_not_bound_to_selected_resource(self):
         variant_id, _ = self.prepare_graph()
         other = queue.upsert_resource({
