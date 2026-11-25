@@ -228,3 +228,21 @@ test('rejects malformed AV1 temporal delimiters before accepting RPU alignment',
     assert.throws(() => extractDolbyRpuFromObuStream(Buffer.concat([delimiter, metadata, frame])), /temporal delimiter must have an empty payload and no extension header/);
   }
 });
+
+test('rejects empty and oversized demux output without producing RPU evidence', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-demux-bound-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const input = resolve(directory, 'input.mp4');
+  const probe = resolve(directory, 'ffprobe');
+  const demux = resolve(directory, 'ffmpeg');
+  await writeFile(input, 'fixture');
+  await writeFile(probe, '#!/usr/bin/env node\nconsole.log("av1");\n', { mode: 0o755 });
+  await writeFile(demux, '#!/usr/bin/env node\nconst fs = require("node:fs"); const p = process.argv.at(-1); fs.writeFileSync(p, ""); fs.truncateSync(p, Number(process.env.TEST_DEMUX_SIZE));\n', { mode: 0o755 });
+  for (const size of [0, 512 * 1024 * 1024 + 1]) {
+    const output = resolve(directory, size + '.rpu');
+    assert.throws(() => execFileSync(process.execPath, [resolve('scripts/dolby-vision/extract-av1-rpu.mjs'), '--kind', 'mp4', '--input', input, '--output', output], {
+      env: { ...process.env, FFPROBE_BIN: probe, FFMPEG_BIN: demux, TEST_DEMUX_SIZE: String(size), AV1_RPU_CONVERTER_BIN: '' }, stdio: 'pipe',
+    }), /Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit/);
+    await assert.rejects(readFile(output), { code: 'ENOENT' });
+  }
+});
