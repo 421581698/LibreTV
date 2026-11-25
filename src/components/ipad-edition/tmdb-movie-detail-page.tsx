@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { db, addFavorite, removeFavorite } from '@/lib/db';
+import { favoriteIdFor } from '@/lib/favorite-id';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { api } from '@/lib/client-api';
 import { SmartImage } from '@/components/smart-image';
 import { IpadCinemaDetailLayout } from '@/components/ipad-edition/IpadCinemaDetailLayout';
@@ -53,7 +56,13 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
   const [playbackStatus, setPlaybackStatus] = useState('');
   const [person, setPerson] = useState<TmdbPersonDetails | null>(null);
   const [personLoading, setPersonLoading] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const favoriteSource = `tmdb:${type}`;
+  const saved = useLiveQuery(async () => Boolean(await db.favorites.get(favoriteIdFor(favoriteSource, id))), [favoriteSource, id]);
+  const [saving, setSaving] = useState(false);
+  const personRequest = useRef<AbortController | null>(null);
+  const playbackRequest = useRef<AbortController | null>(null);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => () => { personRequest.current?.abort(); playbackRequest.current?.abort(); }, []);
 
   const sources = useMemo(() => selectedKeys.map((key) => resolveSource({ customAPIs, envSources }, key))
     .filter((source): source is SourceConfig => Boolean(source && validateSourceUrl(source.url)
@@ -75,20 +84,28 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       .catch((error) => { if (!controller.signal.aborted) setMetadataError(error instanceof Error ? error.message : '无法获取影片资料'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [id, type]);
+  }, [id, type, retry]);
 
   useEffect(() => {
-    try { setSaved(window.localStorage.getItem(`libretv:watchlist:${type}:${id}`) === '1'); } catch { setSaved(false); }
-  }, [id, type]);
+    if (!movie) return;
+    const key = `libretv:watchlist:${type}:${id}`;
+    void (async () => {
+      try {
+        if (localStorage.getItem(key) !== '1') return;
+        await addFavorite({ sourceKey: favoriteSource, sourceName: 'TMDB', vodId: id, title: movie.title || movie.name || titleFallback, pic: imageUrl(movie.poster_path) || posterFallback });
+        localStorage.removeItem(key);
+      } catch { setPlaybackStatus('旧片单迁移失败，请稍后重试。'); }
+    })();
+  }, [movie, favoriteSource, id, type, titleFallback, posterFallback]);
 
-  const toggleSaved = () => {
-    const next = !saved;
-    setSaved(next);
+  const toggleSaved = async () => {
+    if (saving || saved === undefined) return;
+    setSaving(true);
     try {
-      const key = `libretv:watchlist:${type}:${id}`;
-      if (next) window.localStorage.setItem(key, '1');
-      else window.localStorage.removeItem(key);
-    } catch { /* The control remains usable for this session when storage is unavailable. */ }
+      if (saved) await removeFavorite(favoriteSource, id);
+      else await addFavorite({ sourceKey: favoriteSource, sourceName: 'TMDB', vodId: id, title: movie?.title || movie?.name || titleFallback, pic: imageUrl(movie?.poster_path) || posterFallback });
+    } catch { setPlaybackStatus('片单保存失败，请重试。'); }
+    finally { setSaving(false); }
   };
 
   const startPlayback = async () => {
@@ -97,6 +114,9 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       setPlaybackStatus('尚未启用可用点播源。请先在设置中启用点播源，再点击开始播放。');
       return;
     }
+    const controller = new AbortController();
+    playbackRequest.current?.abort();
+    playbackRequest.current = controller;
     setStartingPlayback(true);
     setPlaybackStatus('正在查找资源并评估历史播放流畅度…');
     try {
@@ -110,7 +130,8 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       const seen = new Set<string>();
       const failures = new Set<string>();
       for (const term of terms) {
-        const response = await api.search(term, sources, yellowFilter);
+        const response = await api.search(term, sources, yellowFilter, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         response.failures.forEach((failure) => failures.add(failure.sourceKey));
         for (const item of response.list) {
           if (!findMovieMatch(primaryTitle, [item]) && !findMovieMatch(term, [item])) continue;
@@ -140,25 +161,30 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
         sourceKey: match.source.key, vodId: match.item.vodId, index: 0, title: primaryTitle,
         sourceUrl: match.item.sourceUrl || match.source.url,
       }).replace('/watch?', '/ipad-edition/watch?');
-      router.push(watchUrl);
+      if (!controller.signal.aborted) router.push(watchUrl);
     } catch (error) {
-      setPlaybackStatus(error instanceof Error ? error.message : '播放资源查询失败，请稍后重试。');
+      if (!controller.signal.aborted) setPlaybackStatus(error instanceof Error ? error.message : '播放资源查询失败，请稍后重试。');
     } finally {
-      setStartingPlayback(false);
+      if (!controller.signal.aborted) setStartingPlayback(false);
     }
   };
 
+  const closePerson = () => { personRequest.current?.abort(); setPerson(null); setPersonLoading(false); };
   const openPerson = async (personId: number) => {
+    personRequest.current?.abort();
+    const controller = new AbortController();
+    personRequest.current = controller;
     setPersonLoading(true);
     setPerson(null);
     try {
-      const response = await fetch('/api/tmdb/person?' + new URLSearchParams({ id: String(personId) }));
+      const response = await fetch('/api/tmdb/person?' + new URLSearchParams({ id: String(personId) }), { signal: controller.signal });
       if (!response.ok) throw new Error('人物资料暂时不可用');
-      setPerson(await response.json() as TmdbPersonDetails);
+      const value = await response.json() as TmdbPersonDetails;
+      if (!controller.signal.aborted) setPerson(value);
     } catch {
-      setPerson({ id: personId, name: '人物资料暂时不可用' });
+      if (!controller.signal.aborted) setPerson({ id: personId, name: '人物资料暂时不可用' });
     } finally {
-      setPersonLoading(false);
+      if (!controller.signal.aborted) setPersonLoading(false);
     }
   };
 
@@ -187,7 +213,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
 
 
   if (loading) return <main className="ipad-detail-state">正在加载电影资料…</main>;
-  if (!movie) return <main className="ipad-detail-state"><button type="button" onClick={() => router.back()}>‹ 返回</button><p>{metadataError || '电影资料暂时不可用'}</p></main>;
+  if (!movie) return <main className="ipad-detail-state"><button type="button" onClick={() => router.back()}>‹ 返回</button><p>{metadataError || '电影资料暂时不可用'}</p><button type="button" onClick={() => setRetry((n) => n + 1)}>重试</button></main>;
 
   return (
     <IpadCinemaDetailLayout
@@ -219,7 +245,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
           <button type="button" onClick={() => void startPlayback()} disabled={startingPlayback} className="ipad-cinema-play" aria-label="▶ 开始播放">
             {startingPlayback ? '正在查找资源…' : '▶ 开始播放'}
           </button>
-          <button type="button" onClick={toggleSaved} className="ipad-cinema-add" aria-label={saved ? '从片单移除' : '加入片单'} aria-pressed={saved}>
+          <button type="button" onClick={() => void toggleSaved()} disabled={saving || saved === undefined} className="ipad-cinema-add" aria-label={saved ? '从片单移除' : '加入片单'} aria-pressed={saved}>
             {saved ? '✓' : '+'}
           </button>
           {playbackStatus ? <span className="ipad-cinema-status" role="status" aria-live="polite">{playbackStatus}</span> : null}
@@ -251,10 +277,10 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
         customImageProxy={customImageProxy}
         onSelect={openPerson}
       />
-      {(person || personLoading) && <div className="ipad-cinema-person-backdrop" onClick={() => setPerson(null)}>
+      {(person || personLoading) && <div className="ipad-cinema-person-backdrop" onClick={closePerson}>
         <section className="ipad-cinema-person" onClick={(event) => event.stopPropagation()}>
           {personLoading ? <p>正在加载人物资料…</p> : person && <>
-            <button type="button" className="ipad-cinema-person__close" onClick={() => setPerson(null)}>关闭 ✕</button>
+            <button type="button" className="ipad-cinema-person__close" onClick={closePerson}>关闭 ✕</button>
             <div className="ipad-cinema-person__heading"><SmartImage url={imageUrl(person.profile_path, 'w500') || '/placeholder.svg'} mode={imageProxyMode} customProxy={customImageProxy} alt={person.name} /><div><h2>{person.name}</h2><p>{person.known_for_department} · {person.birthday || ''} · {person.place_of_birth || ''}</p></div></div>
             <p className="ipad-cinema-person__bio">{person.biography || '暂无人物简介'}</p>
             <h3>代表作品</h3>
