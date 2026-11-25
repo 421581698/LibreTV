@@ -29,7 +29,7 @@ import { useAuth } from '@/components/auth';
 import { resolveSource, useAppStore } from '@/lib/store';
 import { qualityKey } from '@/lib/quality';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
-import { bindWatchPlaybackState, toggleWatchPlayback } from '@/lib/watch-playback-state';
+import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from '@/lib/watch-playback-state';
 import { useFridayGlassPlayback } from '@/components/friday/FridayGlassProvider';
 import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } from '@/lib/cinema-v4-controls';
 import {
@@ -1130,7 +1130,7 @@ function WatchContent() {
             <div className="cinema-center-controls" aria-label="播放控制">
               <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-skip-control" aria-label="后退 10 秒" onClick={() => {
                 const video = playerFrameRef.current?.querySelector('video');
-                if (video) video.currentTime = Math.max(0, video.currentTime - 10);
+                if (video) skipWatchPlayback(video, -10);
               }}>
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 8L8 16l10 8M10 17a17 17 0 1 0 8-8" /><text x="24" y="29">10</text></svg>
               </button>
@@ -1157,7 +1157,7 @@ function WatchContent() {
               </button>
               <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-skip-control" aria-label="前进 10 秒" onClick={() => {
                 const video = playerFrameRef.current?.querySelector('video');
-                if (video) video.currentTime = Math.min(video.duration || Infinity, video.currentTime + 10);
+                if (video) skipWatchPlayback(video, 10);
               }}>
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8l10 8-10 8M38 17a17 17 0 1 1-8-8" /><text x="24" y="29">10</text></svg>
               </button>
