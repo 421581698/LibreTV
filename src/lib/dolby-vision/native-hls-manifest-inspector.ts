@@ -1,4 +1,5 @@
 import { inspectDolbyVisionFormat, type DolbyVisionFormatReport } from './format-inspector';
+import { inspectHlsDolbyVisionManifestEvidence } from './hls-manifest-evidence';
 
 /**
  * Safari can play cross-origin native HLS without exposing its manifest to
@@ -82,9 +83,12 @@ export async function inspectNativeHlsDolbyVisionManifest(
       mimeType: 'application/vnd.apple.mpegurl',
       manifest,
     });
+    const variantEvidence = inspectHlsDolbyVisionManifestEvidence(manifest);
     return {
       ...report,
       notes: [
+        `HLS 变体检查：${variantEvidence.variants.length} 个变体，其中 ${variantEvidence.declaredVariantCount} 个声明 Dolby Vision。`,
+        ...variantEvidence.notes,
         ...report.notes,
         report.detected
           ? '已从 Safari 原生 HLS 可读取的清单中发现 Dolby Vision codec 声明；仍未验证媒体分片 RPU 或实际解码输出。'
