@@ -4,10 +4,14 @@
  * Accepts one AV1 T.35 metadata payload or a raw low-overhead AV1 OBU stream.
  * This is not an AV1 container demuxer or a video decoder.
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { tmpdir } from 'node:os';
 import { resolve, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+const execFileAsync = promisify(execFile);
 const T35_HEADER = Buffer.from([0x00, 0x3b, 0x00, 0x00, 0x08, 0x00, 0x37, 0xcd, 0x08]);
 const ANNEX_B_START_CODE = Buffer.from([0x00, 0x00, 0x00, 0x01]);
 const COUNTRY_CODE_US = 0xb5;
@@ -94,6 +98,7 @@ export function extractDolbyRpuFromObuStream(inputValue) {
   const rpuTemporalUnits = new Set();
   let offset = 0, obuCount = 0, temporalUnit = -1, temporalDelimiterCount = 0, frameUnitCount = 0;
   const framesByTemporalUnit = new Map();
+  const rpuUnits = [];
   while (offset < data.length) {
     if (obuCount >= MAX_OBUS) throw new Error('AV1 OBU count exceeds configured limit.');
     const header = data[offset++];
@@ -122,8 +127,10 @@ export function extractDolbyRpuFromObuStream(inputValue) {
       if (metadataType.value === 4) {
         if (temporalUnit < 0) throw new Error('Dolby T.35 metadata appeared before a temporal delimiter.');
         if (rpus.length >= MAX_RPU_UNITS) throw new Error('AV1 Dolby RPU count exceeds configured limit.');
-        rpus.push(extractDolbyRpuFromT35(payload.subarray(metadataType.next)));
+        const rpu = extractDolbyRpuFromT35(payload.subarray(metadataType.next));
+        rpus.push(rpu);
         rpuTemporalUnits.add(temporalUnit);
+        rpuUnits.push({ ordinal: rpuUnits.length, temporalUnitIndex: temporalUnit });
       }
     }
   }
@@ -135,7 +142,7 @@ export function extractDolbyRpuFromObuStream(inputValue) {
   }
   return {
     rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
-    report: { obuCount, temporalDelimiterCount, temporalUnitCount: temporalDelimiterCount, frameUnitCount, dolbyRpuCount: rpus.length, rpuTemporalUnitCount: rpuTemporalUnits.size },
+    report: { obuCount, temporalDelimiterCount, temporalUnitCount: temporalDelimiterCount, frameUnitCount, dolbyRpuCount: rpus.length, rpuTemporalUnitCount: rpuTemporalUnits.size, rpuUnits: rpuUnits.map((unit) => ({ ...unit, frameUnitCount: framesByTemporalUnit.get(unit.temporalUnitIndex) || 0 })) },
   };
 }
 
@@ -145,32 +152,70 @@ function parseArgs(argv) {
     if (argv[index] === '--input') options.input = argv[++index];
     else if (argv[index] === '--output') options.output = argv[++index];
     else if (argv[index] === '--kind') options.kind = argv[++index];
+    else if (argv[index] === '--ffmpeg') options.ffmpeg = argv[++index];
+    else if (argv[index] === '--ffprobe') options.ffprobe = argv[++index];
     else if (argv[index] === '--help' || argv[index] === '-h') options.help = true;
     else throw new Error('Unknown command-line option.');
   }
-  if (!options.help && (!options.input || !options.output || !['obu', 't35'].includes(options.kind))) {
+  if (!options.help && (!options.input || !options.output || !['obu', 't35', 'mp4', 'ivf'].includes(options.kind))) {
     throw new Error('Usage: extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35]');
   }
   return options;
 }
 
+async function demuxAv1Container(inputPath, directory, options) {
+  const ffprobe = options.ffprobe || process.env.FFPROBE_BIN || 'ffprobe';
+  const ffmpeg = options.ffmpeg || process.env.FFMPEG_BIN || 'ffmpeg';
+  const { stdout: probe } = await execFileAsync(ffprobe, [
+    '-v', 'error', '-select_streams', 'v', '-show_entries', 'stream=codec_name',
+    '-of', 'default=noprint_wrappers=1:nokey=1', inputPath,
+  ], { encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024, windowsHide: true });
+  const codecs = probe.trim().split(/\r?\n/).filter(Boolean);
+  if (codecs.length !== 1 || codecs[0] !== 'av1') {
+    throw new Error('AV1 container analysis requires exactly one AV1 video track.');
+  }
+  const obuPath = resolve(directory, 'video.obu');
+  await execFileAsync(ffmpeg, [
+    '-nostdin', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
+    '-c:v', 'copy', '-f', 'obu', obuPath,
+  ], { encoding: 'utf8', timeout: 15 * 60 * 1000, maxBuffer: 1024 * 1024, windowsHide: true });
+  const bytes = await readFile(obuPath);
+  if (bytes.length === 0 || bytes.length > 512 * 1024 * 1024) {
+    throw new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.');
+  }
+  return bytes;
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  if (options.help) { process.stdout.write('Usage: node extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35]\n'); return; }
-  const input = await readFile(resolve(options.input));
+  if (options.help) {
+    process.stdout.write('Usage: node extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--ffmpeg PATH] [--ffprobe PATH]\n');
+    return;
+  }
+  const inputPath = resolve(options.input);
+  const input = await readFile(inputPath);
   let rpuBytes, report;
   if (options.kind === 't35') {
-    rpuBytes = Buffer.concat([ANNEX_B_START_CODE, extractDolbyRpuFromT35(input)]);
-    report = { source: basename(options.input), extractedRpuCount: 1, inputKind: 'av1-t35-payload' };
-  } else {
+    rpuBytes = extractDolbyRpuFromT35(input);
+    report = { source: basename(inputPath), extractedRpuCount: 1, inputKind: 'av1-t35-payload' };
+  } else if (options.kind === 'obu') {
     const result = extractDolbyRpuFromObuStream(input);
     rpuBytes = result.rpuBytes;
     report = result.report;
+  } else {
+    const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-demux-'));
+    try {
+      const obuBytes = await demuxAv1Container(inputPath, directory, options);
+      const result = extractDolbyRpuFromObuStream(obuBytes);
+      rpuBytes = result.rpuBytes;
+      report = { ...result.report, inputKind: options.kind, containerDemux: 'ffmpeg-copy', sourceByteLength: input.length };
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }
   await writeFile(resolve(options.output), rpuBytes, { flag: 'wx', mode: 0o600 });
   process.stdout.write(JSON.stringify({ ...report, rpuByteLength: rpuBytes.length }, null, 2) + '\n');
 }
-
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   main().catch((error) => {
     process.stderr.write('AV1 Dolby RPU extraction failed: ' + error.message + '\n');
