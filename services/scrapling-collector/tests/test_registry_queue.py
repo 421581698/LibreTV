@@ -42,7 +42,7 @@ class RegistryQueueTests(unittest.TestCase):
 
     def test_seedhub_collection_job_types_are_rejected_by_api(self):
         from fastapi import HTTPException
-        for job_type in ("seedhub_sync", "seedhub_detail_sync"):
+        for job_type in ("seedhub_sync", "seedhub_detail_sync", "dv_media_ingest"):
             with self.subTest(job_type=job_type), patch.object(queue, "require_auth"), self.assertRaises(HTTPException):
                 queue.api_submit_job(
                     {"job_type": job_type, "payload": {"category": "movies"}, "idempotency_key": "retired:" + job_type},
