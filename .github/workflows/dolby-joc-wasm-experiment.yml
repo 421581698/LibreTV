@@ -61,8 +61,57 @@ jobs:
         working-directory: openjoc
         run: node scripts/test-wasm.mjs target/wasm32-unknown-unknown/release/openjoc_wasm.wasm external "$RUNNER_TEMP/custom.sofa"
 
+      - name: Verify LibreTV adapter against real pinned WASM and JOC fixture
+        run: |
+          node --experimental-strip-types --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { readFile } from 'node:fs/promises';
+          import { OpenJocExperimentalDecoder } from './src/lib/dolby/openjoc-experimental-decoder.ts';
+          const bytes = await readFile('openjoc/target/wasm32-unknown-unknown/release/openjoc_wasm.wasm');
+          const { instance } = await WebAssembly.instantiate(bytes, {
+            env: { openjoc_wasm_clock_now_ms: () => performance.now() }
+          });
+          const input = await readFile('openjoc/crates/openjoc-wasm/testdata/joc.ec3');
+          const decoder = new OpenJocExperimentalDecoder(instance.exports);
+          function decode() {
+            let samples = 0;
+            let nonzero = false;
+            function drain() {
+              for (let i = 0; i < 32; i++) {
+                const frame = decoder.receive();
+                if (!frame) return;
+                assert.equal(frame.pcm.length, frame.samples * frame.channels);
+                samples += frame.samples;
+                nonzero ||= frame.pcm.some(x => x !== 0);
+              }
+              throw new Error('PCM drain limit exceeded');
+            }
+            for (let offset = 0; offset < input.length; offset += 97) {
+              decoder.push(input.subarray(offset, offset + 97));
+              drain();
+            }
+            for (let i = 0; i < 32; i++) {
+              const status = decoder.flush();
+              drain();
+              if (status === 3) {
+                assert.ok(samples > 0 && nonzero);
+                return samples;
+              }
+            }
+            throw new Error('Flush did not terminate');
+          }
+          try {
+            const first = decode();
+            decoder.reset();
+            assert.equal(decode(), first);
+            console.log('LibreTV adapter decoded real fixture:', first, 'samples');
+          } finally {
+            decoder.close();
+          }
+          JS
+
       - name: Research-only completion marker
         if: success()
         run: |
-          echo "OpenJOC upstream pinned WASM self-test passed."
+          echo "OpenJOC upstream and LibreTV adapter pinned WASM fixture tests passed."
           echo "This is NOT LibreTV playback integration, certified Dolby Atmos, or physical iPad output verification."
