@@ -21,7 +21,8 @@ export function FridayNativeOptics({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { backend, preferences, reducedMotion } = useFridayGlass();
-  const enabled = (backend === 'webkit' || backend === 'native') &&
+  // Native fallback also means playback/CPU-pressure protection: never animate then.
+  const enabled = backend === 'webkit' &&
     !reducedMotion && preferences.intensity > 0 &&
     material !== 'solid' && material !== 'cinema';
 
