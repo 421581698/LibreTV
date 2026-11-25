@@ -54,8 +54,13 @@ export function authorizeBearer(header, expectedToken) {
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
-export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, now = Math.floor(Date.now() / 1000)) {
+export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expectedSourceMediaSha256, now = Math.floor(Date.now() / 1000)) {
   if (!isValidAssetId(assetId)) throw new Error('Invalid stable asset ID.');
+  if (!/^[a-f0-9]{64}$/i.test(expectedSourceMediaSha256 || '') ||
+      typeof report?.sourceMediaSha256 !== 'string' ||
+      report.sourceMediaSha256.toLowerCase() !== expectedSourceMediaSha256.toLowerCase()) {
+    throw new Error('The signed report must match the exact uploaded source media SHA-256.');
+  }
   if (!keyId || keyId.length > 128) throw new Error('Invalid signing key ID.');
   if (!report || report.source !== 'dovi_tool' || report.verified !== true || report.rpuPresent !== true ||
       report.inputKind !== 'hevc' || report.extractionScope?.frameLimit !== null ||
@@ -210,6 +215,7 @@ async function analyzeUpload(request, response, env) {
       assetId,
       env.DV_SIGNING_KEY_ID,
       env.DV_SIGNING_PRIVATE_KEY_PEM,
+      actualSha256,
     );
     sendJson(response, 200, envelope);
   } catch {
