@@ -53,22 +53,24 @@ class WorkerPipelineTests(unittest.TestCase):
             "url": "https://media.example/new.mp4",
             "validation": json.dumps({"media_format": "progressive", "content_type": "video/mp4"}),
         }
+        checkpoints = []
         with (
             patch.object(worker, "require_egress_firewall"),
             patch("dv_source_gateway._read_candidate", return_value=changed_candidate),
             patch("dv_source_gateway.ingest_authorized_candidate") as ingest,
         ):
-            with self.assertRaisesRegex(RuntimeError, "candidate_changed_after_queue"):
-                worker.handle(
-                    {
-                        "_job_type": "dv_media_ingest",
-                        "candidate_id": "c" * 32,
-                        "resource_id": "r_" + "d" * 28,
-                        "source_version": expected_version,
-                    },
-                    lambda _event: None,
-                    lambda: False,
-                )
+            result = worker.handle(
+                {
+                    "_job_type": "dv_media_ingest",
+                    "candidate_id": "c" * 32,
+                    "resource_id": "r_" + "d" * 28,
+                    "source_version": expected_version,
+                },
+                checkpoints.append,
+                lambda: False,
+            )
+        self.assertEqual(result, {"status": "skipped", "reason": "candidate_changed_after_queue"})
+        self.assertIn("authorized_media_ingest_skipped", [item["stage"] for item in checkpoints])
         ingest.assert_not_called()
 
     def test_crawl_job_preflights_pending_direct_media_into_registry(self):
