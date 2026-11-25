@@ -1303,6 +1303,35 @@ function WatchContent() {
                   <div className="min-w-0"><h3 className="font-semibold text-content">{videoTitle}</h3><p className="text-xs text-muted mt-1">{source.name}</p><p className="text-xs text-faint mt-2">{episodes.length} 集</p></div>
                 </div>
                 <p className="text-sm text-muted leading-6 mt-4">{'影片详情可在影片资料页查看。'}</p>
+                {isIpadEditionPlayback && (
+                  <div className="cinema-v4-advanced-actions">
+                    <h4>高级播放操作</h4>
+                    <button type="button" onClick={() => { setShowPlayerPanel(false); setSkipPanelOpen(true); }}>
+                      跳过片段标记{markedCount > 0 ? `（${markedCount}）` : ''}
+                    </button>
+                    <button type="button" disabled={!currentUrl} onClick={() => {
+                      if (!currentUrl) return;
+                      const downloadTitle = `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`;
+                      if (/\\.m3u8(?:$|[?#])/i.test(currentUrl)) {
+                        enqueueDownload({ url: currentUrl, title: downloadTitle, format: 'MP4' });
+                        return;
+                      }
+                      const anchor = document.createElement('a');
+                      anchor.href = currentUrl;
+                      anchor.download = suggestDownloadFilename(downloadTitle, currentUrl);
+                      anchor.target = '_blank';
+                      anchor.rel = 'noopener noreferrer';
+                      document.body.appendChild(anchor);
+                      anchor.click();
+                      anchor.remove();
+                      toast('已打开直链。Safari 可通过分享菜单保存；跨域站点不保证自动下载。', 'info');
+                    }}>下载本集</button>
+                    <label>
+                      <input type="checkbox" checked={store.autoplayNext} onChange={(event) => store.updateSettings({ autoplayNext: event.target.checked })} />
+                      自动播放下一集
+                    </label>
+                  </div>
+                )}
               </div>
             )}
 
