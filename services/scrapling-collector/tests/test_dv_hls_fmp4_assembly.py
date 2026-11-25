@@ -200,6 +200,39 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(response.headers["x-dv-hls-fragment-sequence-continuity"], "sequential")
         Path(response.path).unlink(missing_ok=True)
 
+    def test_authenticated_api_streams_one_fragment_with_complete_provenance_headers(self):
+        variant_id, _ = self.prepare_graph()
+        staging_root = self.root / "segment-api-staging"
+        with patch.object(queue, "DV_MEDIA_OBJECT_ROOT", self.object_root), \\
+                patch.object(queue, "DV_MEDIA_STAGING_ROOT", staging_root), \\
+                patch.object(queue, "require_auth") as require_auth:
+            response = queue.api_assemble_hls_fmp4_segment(
+                self.resource["id"], variant_id, 1, authorization="Bearer collector",
+            )
+        require_auth.assert_called_once_with("Bearer collector")
+        expected = init_segment() + media_fragment(2)
+        self.assertEqual(response.media_type, "video/mp4")
+        self.assertEqual(Path(response.path).read_bytes(), expected)
+        self.assertEqual(response.headers["x-dv-analysis-scope"], "hls-fmp4-segment")
+        self.assertEqual(response.headers["x-dv-hls-fragment-ordinal"], "1")
+        self.assertEqual(response.headers["x-dv-hls-fragment-sequence-number"], "2")
+        self.assertEqual(response.headers["x-dv-hls-decode-time"], "4000")
+        self.assertEqual(response.headers["x-dv-hls-sample-duration"], "4000")
+        self.assertEqual(response.headers["x-dv-hls-sample-count"], "1")
+        self.assertEqual(
+            response.headers["x-dv-asset-sha256"],
+            hashlib.sha256(expected).hexdigest(),
+        )
+        self.assertEqual(
+            response.headers["x-dv-hls-assembled-segment-sha256"],
+            hashlib.sha256(expected).hexdigest(),
+        )
+        self.assertEqual(response.headers["x-dv-hls-temporal-continuity"], "contiguous")
+        awaitable = response.background()
+        if hasattr(awaitable, "__await__"):
+            import asyncio
+            asyncio.run(awaitable)
+
     def test_assembly_api_rejects_missing_collector_auth(self):
         from fastapi import HTTPException
         with patch.object(queue, "require_auth", side_effect=HTTPException(status_code=401)):
