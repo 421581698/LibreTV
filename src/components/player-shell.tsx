@@ -18,6 +18,9 @@ import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/nativ
 import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native-player/subtitle-style';
 import { sanitizePlaybackSnapshot } from '@/lib/native-player/snapshot-sanitizer';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
+import { parseFmp4InitSegment } from '@/lib/native-player/fmp4-fragment-parser';
+import { JocCmafPacketExtractor } from '@/lib/native-player/joc-cmaf-packets';
+import { HlsJocFragmentTap } from '@/lib/native-player/hls-joc-fragment-tap';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
@@ -1078,6 +1081,69 @@ export function PlayerShell({
     const hls = new Hls(buildHlsConfig());
     hlsRef.current = hls;
     setQualityControlMode('hls');
+
+    // Explicit diagnostics opt-in only. This read-only tap observes hls.js's
+    // already-loaded CMAF payloads; it does not replace the loader or MSE path.
+    const jocTapEnabled = new URLSearchParams(window.location.search).get('jocTap') === '1';
+    if (jocTapEnabled) {
+      let jocExtractor: JocCmafPacketExtractor | null = null;
+      const jocTap = new HlsJocFragmentTap({
+        isCurrent: () => hlsRef.current === hls,
+        onRejected: (reason) => {
+          window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
+            detail: { type: 'rejected', reason },
+          }));
+        },
+        onFragment: (fragment) => {
+          try {
+            if (fragment.kind === 'init') {
+              const init = parseFmp4InitSegment(fragment.bytes);
+              const audioTrack = init.tracks.find(track =>
+                track.handlerType === 'soun' && track.sampleEntries.includes('ec-3')
+              );
+              if (!audioTrack) {
+                jocExtractor = null;
+                return;
+              }
+              const extractor = new JocCmafPacketExtractor(audioTrack.trackId);
+              extractor.updateInitSegment(fragment.bytes);
+              jocExtractor = extractor;
+              window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
+                detail: { type: 'eac3-init', trackId: audioTrack.trackId, timescale: audioTrack.timescale },
+              }));
+              return;
+            }
+            if (!jocExtractor) return;
+            const result = jocExtractor.extractMediaSegment(fragment.bytes);
+            window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
+              detail: {
+                type: 'eac3-samples-extracted',
+                trackId: result.trackId,
+                packetCount: result.packets.length,
+                totalPayloadBytes: result.totalPayloadBytes,
+                discontinuityCount: result.discontinuities.length,
+                codecHint: result.codecHint,
+              },
+            }));
+          } catch (error) {
+            jocExtractor = null;
+            window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', {
+              detail: {
+                type: 'rejected',
+                reason: error instanceof Error ? error.message : 'CMAF extraction failed.',
+              },
+            }));
+          }
+        },
+      });
+      hls.on(Hls.Events.FRAG_LOADED, jocTap.handle);
+      const disposeJocTap = () => {
+        jocTap.dispose();
+        hls.off(Hls.Events.FRAG_LOADED, jocTap.handle);
+        jocExtractor = null;
+      };
+      hls.on(Hls.Events.DESTROYING, disposeJocTap);
+    }
     const handleQualityPreferenceChange = () => {
       qualityGuardRef.current.reset();
       const preference = readQualityPreference();
