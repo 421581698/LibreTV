@@ -13,6 +13,6 @@ export function canAnalyzeDolbyVisionRpuAsset(
     assetId
     && report?.container === 'mp4'
     && report.codecFamilies.length === 1
-    && ['hevc', 'av1'].includes(report.codecFamilies[0]),
+    && (report.codecFamilies[0] === 'hevc' || report.codecFamilies[0] === 'av1'),
   );
 }
