@@ -477,3 +477,15 @@ html:not(.dark) .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netf
 .ipad-edition[data-ipad-player="true"] .cinema-native-fallback video { width: 100%; height: 100%; object-fit: contain; }
 .ipad-edition[data-ipad-player="true"] .cinema-native-status { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); max-width: 85%; padding: 8px 12px; background: rgba(0,0,0,.8); color: white; z-index: 20; pointer-events: auto; }
 .ipad-edition[data-ipad-player="true"] .cinema-native-status button { padding: 8px; text-decoration: underline; }
+
+/* Cinema Connect: one system device-picker entry, no duplicate transport actions. */
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-topbar-right .cinema-connect {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.045));
+  border: 1px solid rgba(255,255,255,.24);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 4px 16px rgba(0,0,0,.22);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+}
+.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-connect:active { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) { .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-connect:active { transform: none; } }
+@media (prefers-reduced-transparency: reduce) { .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-topbar-right .cinema-connect { background: #242424; backdrop-filter: none; -webkit-backdrop-filter: none; } }

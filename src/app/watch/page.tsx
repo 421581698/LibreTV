@@ -954,10 +954,10 @@ function WatchContent() {
             {isIpadEditionPlayback && <span className="cinema-v4-heading" title={videoTitle}>{videoTitle}</span>}
           </div>
           <div className="watch-topbar-right">
-            <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={requestWatchFullscreen}>
+            {!isIpadEditionPlayback && <button type="button" className="cinema-glass-control" aria-label="全屏播放" title="全屏播放" onClick={requestWatchFullscreen}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
-            </button>
-            <button type="button" className="cinema-glass-control" aria-label="投屏" title="投屏 / AirPlay" onClick={() => {
+            </button>}
+            <button type="button" className={`cinema-glass-control${isIpadEditionPlayback ? " cinema-connect" : ""}`} aria-label="投屏" title={isIpadEditionPlayback ? "Cinema Connect · AirPlay / 投屏" : "投屏 / AirPlay"} onClick={() => {
               const video = playerFrameRef.current?.querySelector('video') as (HTMLVideoElement & {
                 webkitShowPlaybackTargetPicker?: () => void;
                 remote?: { prompt?: () => Promise<void> };
@@ -980,11 +980,11 @@ function WatchContent() {
               }
               toast('当前浏览器不支持 AirPlay 或远程播放投屏', 'info');
             }}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3zM8 20l4-4 4 4M8 9h8" /></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12h-5M8 16H3V4M8 20l4-5 4 5z" /></svg>
             </button>
-            <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => { setCinemaPanel(null); setShowPlayerPanel((value) => !value); }}>
+            {!isIpadEditionPlayback && <button type="button" className="cinema-glass-control cinema-utility-control" aria-expanded={showPlayerPanel} aria-controls="netflix-watch-utility-panel" aria-label="选集与换源" onClick={() => { setCinemaPanel(null); setShowPlayerPanel((value) => !value); }}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
-            </button>
+            </button>}
           </div>
         </div>
       </header>
@@ -1249,7 +1249,7 @@ function WatchContent() {
               <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'quality'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'quality')); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l4-4 3 3 3-4"/></svg><span>画质</span>
               </button>
-              <button type="button" className="cinema-v4-tool" onClick={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}>
+              <button type="button" className="cinema-v4-tool cinema-v4-source-control" aria-expanded={showPlayerPanel && sidebarTab === 'sources'} aria-controls="netflix-watch-utility-panel" onClick={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="5" rx="1"/><rect x="3" y="14" width="18" height="5" rx="1"/></svg><span>播放源</span>
               </button>
               <button type="button" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'diagnostics'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'diagnostics')); }}>

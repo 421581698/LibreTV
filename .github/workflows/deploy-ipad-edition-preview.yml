@@ -1714,7 +1714,7 @@ jobs:
                 await page.locator(".netflix-player-frame").waitFor({ state: "visible", timeout: 30000 });
                 await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
                 await page.locator(".cinema-center-controls").waitFor({ state: "visible", timeout: 30000 });
-                await page.locator(".cinema-utility-control").waitFor({ state: "visible", timeout: 30000 });
+                await page.locator(".cinema-v4-source-control").waitFor({ state: "visible", timeout: 30000 });
 
                 // Wait for the asynchronously loaded PlayerShell to mount its own media element.
                 // Appending an unrelated <video> here would bypass ArtPlayer's native event
@@ -2038,7 +2038,7 @@ jobs:
                     },
                   });
                 });
-                await page.locator('.watch-topbar-right button[aria-label="全屏播放"]').click();
+                await page.locator('.cinema-v4-actions button:has-text("全屏")').click();
                 await page.waitForFunction(() => window.__shellFullscreenRequests === 1, undefined, { timeout: 3000 });
                 await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
                 await page.keyboard.press("f");
@@ -2086,7 +2086,7 @@ jobs:
 
                 for (const panelState of ["closed", "open"]) {
                   if (panelState === "open") {
-                    await page.locator(".cinema-utility-control").click();
+                    await page.locator(".cinema-v4-source-control").click();
                     await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
                   } else {
                     await page.locator(".netflix-watch-utility-panel").waitFor({ state: "attached", timeout: 10000 });
@@ -2200,7 +2200,7 @@ jobs:
                     });
                     if (!closeButtonDismissed) failures += 1;
 
-                    await page.locator(".cinema-utility-control").click();
+                    await page.locator(".cinema-v4-source-control").click();
                     await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
                     await page.locator(".netflix-watch-panel-scrim").click({ position: { x: 48, y: 200 } });
                     await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
