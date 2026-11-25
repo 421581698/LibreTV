@@ -770,6 +770,94 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
     if not row: raise HTTPException(status_code=404,detail="Resource not found")
     return {"resource":dict(row),"media_assets":[dict(a) for a in media_assets],"hls_graphs":[dict(g) for g in hls_graphs],"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
 
+@router.get("/v1/registry/resources/{resource_id}/hls-graph")
+def api_get_hls_asset_graph(resource_id: str, authorization: str | None = Header(default=None)):
+    """Return the exact immutable HLS member graph for downstream byte-level analysis."""
+    require_auth(authorization)
+    with connect() as c:
+        resource = c.execute(
+            """SELECT id,resource_type,access_state,validation_state,playback_state,media_format
+               FROM registry_resources WHERE id=?""",
+            (resource_id,),
+        ).fetchone()
+        if not resource:
+            raise HTTPException(status_code=404, detail="Resource not found")
+        if (resource["resource_type"] != "DIRECT_MEDIA" or resource["access_state"] != "PUBLIC" or
+                resource["validation_state"] != "validated" or resource["playback_state"] != "PLAYER_CONFIRMED" or
+                resource["media_format"] != "hls"):
+            raise HTTPException(status_code=409, detail="HLS graph requires a validated PUBLIC player-confirmed HLS resource")
+        graph = c.execute(
+            """SELECT graph_id,resource_id,root_asset_id,created_at
+               FROM registry_hls_asset_graphs WHERE resource_id=?
+               ORDER BY created_at DESC, graph_id DESC LIMIT 1""",
+            (resource_id,),
+        ).fetchone()
+        if not graph:
+            raise HTTPException(status_code=404, detail="HLS asset graph not found")
+        root = c.execute(
+            """SELECT asset_id,resource_id,sha256,byte_length,content_type,object_key,created_at
+               FROM registry_media_assets WHERE asset_id=? AND resource_id=?""",
+            (graph["root_asset_id"], resource_id),
+        ).fetchone()
+        if not root or root["content_type"] != "application/vnd.apple.mpegurl":
+            raise HTTPException(status_code=409, detail="HLS graph root binding is invalid")
+        rows = c.execute(
+            """WITH RECURSIVE reachable(asset_id,depth) AS (
+                 SELECT ?,0
+                 UNION
+                 SELECT edge.child_asset_id, reachable.depth+1
+                 FROM registry_hls_asset_edges edge
+                 JOIN reachable ON edge.parent_asset_id=reachable.asset_id
+                 WHERE reachable.depth < 16
+               )
+               SELECT edge.parent_asset_id,edge.child_asset_id,edge.relative_uri,edge.role,edge.ordinal,
+                      parent.resource_id AS parent_resource_id,
+                      child.asset_id,child.resource_id,child.sha256,child.byte_length,
+                      child.content_type,child.object_key,child.created_at
+               FROM registry_hls_asset_edges edge
+               JOIN reachable ON reachable.asset_id=edge.parent_asset_id
+               JOIN registry_media_assets parent ON parent.asset_id=edge.parent_asset_id
+               JOIN registry_media_assets child ON child.asset_id=edge.child_asset_id
+               WHERE parent.resource_id=? AND child.resource_id=?
+               ORDER BY reachable.depth,edge.parent_asset_id,edge.ordinal""",
+            (graph["root_asset_id"], resource_id, resource_id),
+        ).fetchall()
+    members = {}
+    edges = []
+    for row in rows:
+        member = {
+            "assetId": row["asset_id"],
+            "resourceId": row["resource_id"],
+            "sha256": row["sha256"],
+            "byteLength": row["byte_length"],
+            "contentType": row["content_type"],
+            "objectKey": row["object_key"],
+            "createdAt": row["created_at"],
+        }
+        members[member["assetId"]] = member
+        edges.append({
+            "parentAssetId": row["parent_asset_id"],
+            "childAssetId": row["child_asset_id"],
+            "relativeUri": row["relative_uri"],
+            "role": row["role"],
+            "ordinal": row["ordinal"],
+        })
+    return {
+        "resourceId": resource_id,
+        "graph": dict(graph),
+        "rootAsset": {
+            "assetId": root["asset_id"],
+            "resourceId": root["resource_id"],
+            "sha256": root["sha256"],
+            "byteLength": root["byte_length"],
+            "contentType": root["content_type"],
+            "objectKey": root["object_key"],
+            "createdAt": root["created_at"],
+        },
+        "members": list(members.values()),
+        "edges": edges,
+    }
+
 
 @router.post("/v1/registry/resources/{resource_id}/media-assets")
 def api_register_dv_media_asset(resource_id: str, payload: DolbyVisionMediaAssetRegistration, x_dv_ingestion_token: str | None = Header(default=None)):
