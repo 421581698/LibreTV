@@ -14,11 +14,40 @@ function join(...parts: Uint8Array[]): Uint8Array {
 function box(type: string, payload: Uint8Array): Uint8Array {
   return join(u32(payload.length + 8), new Uint8Array([...type].map(char => char.charCodeAt(0))), payload);
 }
+function makeDec3Box(): Uint8Array {
+  const bits: number[] = [];
+  const push = (value: number, width: number) => {
+    for (let shift = width - 1; shift >= 0; shift -= 1) bits.push((value >> shift) & 1);
+  };
+  push(768, 13);
+  push(0, 3);
+  push(0, 2);
+  push(16, 5);
+  push(0, 1);
+  push(0, 1);
+  push(0, 3);
+  push(7, 3);
+  push(0, 1);
+  push(0, 3);
+  push(0, 4);
+  push(0, 1);
+  push(0, 7);
+  push(1, 1);
+  push(8, 8);
+  const payload = new Uint8Array(bits.length / 8);
+  bits.forEach((bit, index) => { payload[index >> 3] |= bit << (7 - (index & 7)); });
+  return box('dec3', payload);
+}
 function makeInitSegment(handler = 'soun', sampleEntry = 'ec-3'): Uint8Array {
   const tkhd = box('tkhd', join(u32(0), u32(0), u32(0), u32(7), u32(0)));
   const mdhd = box('mdhd', join(u32(0), u32(0), u32(0), u32(48_000), u32(0)));
   const hdlr = box('hdlr', join(u32(0), u32(0), new Uint8Array([...handler].map(char => char.charCodeAt(0))), new Uint8Array(12)));
-  const stsd = box('stsd', join(u32(0), u32(1), box(sampleEntry, new Uint8Array(4))));
+  const audioEntry = new Uint8Array(28);
+  audioEntry.set(u32(48_000 * 65_536), 24);
+  const sampleEntryBox = sampleEntry === 'ec-3'
+    ? box(sampleEntry, join(audioEntry, makeDec3Box()))
+    : box(sampleEntry, new Uint8Array(4));
+  const stsd = box('stsd', join(u32(0), u32(1), sampleEntryBox));
   const stbl = box('stbl', stsd);
   const minf = box('minf', stbl);
   const mdia = box('mdia', join(mdhd, hdlr, minf));
