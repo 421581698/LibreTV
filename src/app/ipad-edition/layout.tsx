@@ -4,6 +4,7 @@ import { IpadEditionShell } from '@/components/ipad-edition/IpadEditionShell';
 import './ipad-edition.css';
 import './poster-engine.css';
 import './responsive-system.css';
+import './cinema-v4.css';
 
 export const viewport: Viewport = {
   width: 'device-width',
