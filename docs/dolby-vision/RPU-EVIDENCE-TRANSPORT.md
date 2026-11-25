@@ -28,7 +28,7 @@ Therefore:
 ## Implemented parser service and verification primitive
 
 - `services/dolby-vision-parser/` contains a private Node service and Docker image pinned to `dovi_tool 2.3.4`.
-- The service accepts raw media bytes only; it does not fetch caller-provided URLs. For MP4 it probes the first video stream, requires HEVC, uses FFmpeg stream-copy plus `hevc_mp4toannexb` to extract the bitstream without re-encoding, hashes that parser input separately, and signs both the HEVC input hash and original MP4 source hash. It requires a backend bearer token, stable asset ID and catalogue SHA-256, and bounds upload size/concurrency/runtime.
+- The service accepts raw media bytes only; it does not fetch caller-provided URLs. For MP4 it enumerates every video stream and requires exactly one HEVC video track; multi-video-track containers are rejected rather than silently analyzing only `v:0`. It uses FFmpeg stream-copy plus `hevc_mp4toannexb` to extract that bitstream without re-encoding, hashes the parser input separately, and signs both the HEVC input hash and original MP4 source hash. It requires a backend bearer token, stable asset ID and catalogue SHA-256, and bounds upload size/concurrency/runtime.
 - Service secrets are runtime-only and must be stored in a deployment secret manager. The service must sit behind private ingress, not be exposed directly to browsers.
 - The trusted media gateway must resolve the immutable asset ID to the digest and stream those exact bytes. The service cannot independently infer the catalogue relationship from a client-supplied ID.
 
