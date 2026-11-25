@@ -99,6 +99,7 @@ export function observeNativeVideoPlayback(
   let observation = emptyNativePlaybackObservation();
   let closed = false;
   const publish = (next: NativePlaybackObservation) => {
+    if (next === observation) return;
     observation = next;
     if (!closed) onUpdate(observation);
   };
@@ -139,7 +140,8 @@ export function observeNativeVideoPlayback(
     video.addEventListener('seeking', reset);
     video.addEventListener('seeked', reset);
     video.addEventListener('error', error);
-    sample();
+    if (video.error) error();
+    else sample();
   };
   const observer = new MutationObserver(attach);
   observer.observe(container, { childList: true, subtree: true });
