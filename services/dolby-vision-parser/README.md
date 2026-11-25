@@ -96,3 +96,12 @@ node --test services/dolby-vision-parser/server.test.mjs
 ```
 
 The backend analysis route is wired to the trusted registry and parser transport, and the player panel invokes it only for immutable MP4 assets. The asset must already have been ingested by the trusted local-file worker; never send client-supplied digests as trusted expectations.
+
+
+### HLS fragment-scoped RPU evidence
+
+The collector exposes each selected HLS fMP4 fragment as an independently hashed `init + fragment` MP4 input. The private parser accepts the `hls-fmp4-segment` analysis scope and signs the exact uploaded segment-input SHA-256 together with the resource/graph/root/variant identity, fragment ordinal and immutable fragment ID/hash, initialization ID/hash, `mfhd` sequence number, `tfdt`, summed sample duration/count, and timescale. Segment-scoped reports cannot be substituted for ordinary MP4 evidence or for the full-rendition `hls-fmp4` scope.
+
+The server-only application route `POST /api/dolby-vision/resources/{resourceId}/hls-analysis/{variantAssetId}/segments` requests every fragment in order, streams each collector response directly to the private parser, and verifies each Ed25519 envelope against the expected graph member and exact assembled init+fragment digest. The set verifier rejects missing/duplicate fragments, sequence gaps, timestamp gaps, changed graph identities, digest mismatches, and invalid signatures. It reports the sum of per-fragment RPU frame counts only after every fragment verifies.
+
+The result proves fragment-level signed RPU evidence and container decode-timeline continuity. It intentionally reports `rpuSemanticContinuity=not-established`: `dovi_tool` summary output does not by itself expose the per-frame metadata needed to prove semantic RPU continuity across fragment boundaries. A complete authorized movie and per-frame RPU alignment remain required for that final claim.
