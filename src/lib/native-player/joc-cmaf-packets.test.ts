@@ -66,7 +66,7 @@ describe('JocCmafPacketExtractor', () => {
     expect(() => validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(), ...eac3Frame(1, 1)]))).toThrow(/D0/i);
     expect(() => validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(), ...eac3Frame(0)]))).toThrow(/D0/i);
     expect(() => validateCmafEac3AccessUnit(new Uint8Array(eac3Frame(0, 0, 2)))).toThrow(/six audio blocks/i);
-    expect(() => validateCmafEac3AccessUnit(new Uint8Array(eac3Frame()).subarray(0, 5))).toThrow(/truncated/i);
+    expect(() => validateCmafEac3AccessUnit(new Uint8Array(eac3Frame()).subarray(0, 6))).toThrow(/truncated/i);
     expect(() => validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(), ...eac3Frame(1), ...eac3Frame(1)]))).toThrow(/only I0 and optional D0/i);
   });
 
