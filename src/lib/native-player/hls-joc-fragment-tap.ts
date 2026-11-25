@@ -56,7 +56,7 @@ export class HlsJocFragmentTap {
     if (this.disposed || !this.options.isCurrent()) return;
     const frag = data.frag;
     if (!frag || (frag.type !== 'main' && frag.type !== 'audio')) return;
-    if (frag.sn === undefined || frag.level === undefined || !Number.isInteger(frag.level) || frag.level < 0) {
+    if (frag.sn === undefined || frag.level === undefined || !Number.isInteger(frag.level) || frag.level < -1) {
       this.options.onRejected?.('Fragment metadata is incomplete.');
       return;
     }
