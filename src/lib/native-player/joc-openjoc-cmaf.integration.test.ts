@@ -213,7 +213,7 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
     expect(mediaSegments.length).toBeGreaterThan(0);
 
     const packets = mediaSegments.flatMap(segment => extractor.extractMediaSegment(segment).packets);
-    expect(packets.length).toBeGreaterThan(0);
+    expect(packets).toHaveLength(7);
     expect(packets.every(packet => packet.sampleEntry === 'ec-3')).toBe(true);
     console.info('CMAF E-AC-3 samples:', packets.map(packet => ({
       size: packet.bytes.byteLength,
@@ -315,18 +315,18 @@ describe.skipIf(!cmafFixture || !wasmFixture)('OpenJOC real E-AC-3 CMAF integrat
       }
       expect(reachedEos).toBe(true);
       expect(totalFrames).toBeGreaterThan(0);
-      expect(totalSamples).toBeGreaterThan(0);
+      expect(totalSamples).toBe(1568);
       expect(pcmParts.some(part => part.some(value => value !== 0))).toBe(true);
-      expect(decodedUnits(handle)).toBeGreaterThan(0);
+      expect(decodedUnits(handle)).toBe(7);
       const profileSize = profileLength(handle);
       expect(profileSize).toBeGreaterThan(0);
       const profile = new TextDecoder().decode(
         new Uint8Array(wasmMemory.buffer, profilePointer(handle), profileSize).slice(),
       );
-      expect(profile.length).toBeGreaterThan(0);
+      expect(profile).toBe('etsi-strict');
       expect(objectCount(handle)).not.toBe(0xffff_ffff);
       const pcmHash = createHash('sha256').update(Buffer.concat(pcmParts.map(part => Buffer.from(part)))).digest('hex');
-      expect(pcmHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(pcmHash).toBe('7e8dc2f9a3671fc9e14e5c9ead03c7d88dcd5ee51fa9ab99f27f58b00b0a8318');
       console.info(`OpenJOC CMAF integration: ${packets.length} samples, ${decodedUnits(handle)} access units, ${totalSamples} PCM frames, profile=${profile}, SHA256=${pcmHash}`);
     } finally {
       destroy(handle);
