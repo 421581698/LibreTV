@@ -487,9 +487,13 @@ class RegistryQueueTests(unittest.TestCase):
         resource = queue.upsert_resource({
             "resource_key": "resource:cms-binding-unverified", "source_key": "provider",
             "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/asset.mp4",
-            "title": "Unverified MP4", "access_state": "PUBLIC", "media_format": "mp4",
+            "title": "Verified MP4 before revocation", "access_state": "PUBLIC", "media_format": "mp4",
         })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
         asset = queue.register_dolby_vision_media_asset(resource["id"], "e" * 64, 1234, "video/mp4")
+        with queue.connect() as c:
+            c.execute("UPDATE registry_resources SET validation_state='unverified' WHERE id=?", (resource["id"],))
         binding = queue.CmsAssetBindingRegistration(
             source_key="custom_1", vod_id="167277", episode_index=0,
             provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
