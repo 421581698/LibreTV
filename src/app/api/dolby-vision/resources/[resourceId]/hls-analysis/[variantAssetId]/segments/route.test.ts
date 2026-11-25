@@ -29,9 +29,9 @@ const fragments = fragmentBytes.map((bytes, ordinal) => ({
   initializationSha256: 'a'.repeat(64),
   assembledSegmentSha256: createHash('sha256').update(bytes).digest('hex'),
   fragmentSequenceNumber: ordinal + 1,
-  decodeTime: ordinal * 4000,
-  sampleDuration: 4000,
-  sampleCount: 100,
+  decodeTime: ordinal * 9600,
+  sampleDuration: 9600,
+  sampleCount: 240,
   timescale: 1000,
 }));
 const report = {
@@ -153,6 +153,7 @@ describe('POST HLS fragment-set analysis', () => {
       totalRpuFrameCount: 480,
       timelineContinuity: 'contiguous',
       rpuProfileContinuity: 'consistent',
+      rpuFrameAlignment: 'one-rpu-per-video-sample',
       rpuSemanticContinuity: 'not-established',
     });
     expect(fetchDolbyVisionHlsAssemblySegment).toHaveBeenCalledTimes(2);
@@ -163,7 +164,7 @@ describe('POST HLS fragment-set analysis', () => {
     expect(firstParserHeaders.get('X-DV-HLS-Fragment-Ordinal')).toBe('0');
     expect(firstParserHeaders.get('X-DV-HLS-Decode-Time')).toBe('0');
     expect(secondParserHeaders.get('X-DV-HLS-Fragment-Ordinal')).toBe('1');
-    expect(secondParserHeaders.get('X-DV-HLS-Decode-Time')).toBe('4000');
+    expect(secondParserHeaders.get('X-DV-HLS-Decode-Time')).toBe('9600');
   });
 
   it('rejects a fragment whose parser signature belongs to a different graph', async () => {
