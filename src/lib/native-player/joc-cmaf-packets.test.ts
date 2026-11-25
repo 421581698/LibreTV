@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { JocCmafPacketExtractor, mapJocPresentationTimeToMediaSamples } from './joc-cmaf-packets';
 import { validateCmafEac3AccessUnit } from './joc-cmaf-validation';
+import { parseEc3SpecificBox } from './joc-dec3-config';
 
 function u32(value: number): Uint8Array {
   return new Uint8Array([(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255]);
@@ -14,7 +15,7 @@ function join(...parts: Uint8Array[]): Uint8Array {
 function box(type: string, payload: Uint8Array): Uint8Array {
   return join(u32(payload.length + 8), new Uint8Array([...type].map(char => char.charCodeAt(0))), payload);
 }
-function makeDec3Box(): Uint8Array {
+function makeDec3Box(dependent = 0, chanLoc = 0): Uint8Array {
   const bits: number[] = [];
   const push = (value: number, width: number) => {
     for (let shift = width - 1; shift >= 0; shift -= 1) bits.push((value >> shift) & 1);
@@ -29,8 +30,9 @@ function makeDec3Box(): Uint8Array {
   push(7, 3);
   push(0, 1);
   push(0, 3);
-  push(0, 4);
-  push(0, 1);
+  push(dependent, 4);
+  if (dependent > 0) push(chanLoc, 9);
+  else push(0, 1);
   push(0, 7);
   push(1, 1);
   push(8, 8);
@@ -56,16 +58,43 @@ function makeInitSegment(handler = 'soun', sampleEntry = 'ec-3'): Uint8Array {
   return box('moov', join(trak, box('mvex', trex)));
 }
 function eac3Frame(streamType = 0, substreamId = 0, blocksCode = 3, bsid = 16): number[] {
-  return [0x0b, 0x77, (streamType << 6) | (substreamId << 3), 0x03, (blocksCode << 4) | 0x04, bsid << 3, 0, 0];
+  const bits: number[] = [];
+  const push = (value: number, width: number) => {
+    for (let shift = width - 1; shift >= 0; shift -= 1) bits.push((value >> shift) & 1);
+  };
+  push(0x0b77, 16);
+  push(streamType, 2);
+  push(substreamId, 3);
+  push(4, 11); // 10-byte syncframe
+  push(0, 2); // 48 kHz
+  push(blocksCode, 2);
+  push(7, 3); // acmod
+  push(0, 1); // lfeon
+  push(bsid, 5);
+  push(31, 5); // dialnorm
+  push(0, 1); // compre
+  if (streamType === 1) {
+    push(1, 1); // chanmape
+    push(0x0002, 16); // D0 channel map -> dec3 chan_loc bit 8
+  }
+  push(0, 1); // mixmdate
+  push(0, 1); // infomdate
+  push(0, 1); // addbsie
+  while (bits.length < 80) bits.push(0);
+  const bytes = new Uint8Array(10);
+  bits.forEach((bit, index) => { bytes[index >> 3] |= bit << (7 - (index & 7)); });
+  return [...bytes];
 }
 function makeMediaSegment(payload = [...eac3Frame(), ...eac3Frame()]): Uint8Array {
-  const tfhd = box('tfhd', join(u32(0x00020000 | 0x000008 | 0x000010 | 0x000020), u32(7), u32(1536), u32(8), u32(0)));
+  const sampleBytes = 10;
+  const sampleCount = payload.length / sampleBytes;
+  const tfhd = box('tfhd', join(u32(0x00020000 | 0x000008 | 0x000010 | 0x000020), u32(7), u32(1536), u32(sampleBytes), u32(0)));
   const tfdt = box('tfdt', join(u32(0x01000000), u32(0), u32(0)));
   const makeTrun = (offset: number) => box('trun', join(
     u32(0x000001 | 0x000100 | 0x000200),
-    u32(payload.length / 8),
+    u32(sampleCount),
     u32(offset),
-    ...Array.from({ length: payload.length / 8 }, () => join(u32(1536), u32(8))),
+    ...Array.from({ length: sampleCount }, () => join(u32(1536), u32(sampleBytes))),
   ));
   const makeMoof = (offset: number) => box('moof', box('traf', join(tfhd, tfdt, makeTrun(offset))));
   const first = makeMoof(0);
@@ -82,12 +111,19 @@ describe('JocCmafPacketExtractor', () => {
 
 
   it('accepts one complete CMAF I0 access unit with optional dependent D0', () => {
-    expect(validateCmafEac3AccessUnit(new Uint8Array(eac3Frame()))).toEqual({
+    expect(validateCmafEac3AccessUnit(
+      new Uint8Array(eac3Frame()), parseEc3SpecificBox(makeDec3Box()),
+    )).toEqual({
       syncframes: 1, hasDependentD0: false, independentBsid: 16,
     });
-    expect(validateCmafEac3AccessUnit(new Uint8Array([...eac3Frame(0, 0, 3, 8), ...eac3Frame(1)]))).toEqual({
+    const dependentConfig = parseEc3SpecificBox(makeDec3Box(1, 0x100));
+    const dependentSample = new Uint8Array([...eac3Frame(0, 0, 3, 8), ...eac3Frame(1)]);
+    expect(validateCmafEac3AccessUnit(dependentSample, dependentConfig)).toEqual({
       syncframes: 2, hasDependentD0: true, independentBsid: 8,
     });
+    expect(() => validateCmafEac3AccessUnit(
+      dependentSample, parseEc3SpecificBox(makeDec3Box(1, 0x001)),
+    )).toThrow(/chanmap disagrees/i);
   });
 
   it('rejects invalid CMAF substream order, IDs, profiles and truncated frames', () => {
