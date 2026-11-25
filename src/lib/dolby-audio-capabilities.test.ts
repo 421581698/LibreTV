@@ -77,4 +77,25 @@ describe('classifyAudioVerification', () => {
     expect(classifyAudioVerification(createBrowserAudioEvidence({ inputChannels: 2 })).status)
       .toBe('stereo-input');
   });
+
+  it('does not infer native Dolby output from an E-AC-3 codec or multichannel declaration', () => {
+    const report = classifyAudioVerification(createBrowserAudioEvidence({
+      codec: 'ec-3',
+      inputChannels: 6,
+      hasJocMarker: false,
+    }));
+    expect(report.status).toBe('unknown');
+    expect(report.label).toBe('音频输出状态未知');
+  });
+
+  it('gives verified native output precedence over metadata-only and DSP hints', () => {
+    const base = createBrowserAudioEvidence({
+      codec: 'ec-3',
+      inputChannels: 6,
+      hasJocMarker: true,
+      binauralProcessing: 'configured',
+    });
+    expect(classifyAudioVerification({ ...base, nativeDolbyOutput: 'verified' }).status)
+      .toBe('native-dolby-output-verified');
+  });
 });
