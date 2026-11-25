@@ -652,8 +652,6 @@ html:has(.ipad-edition) body > nav.v4-mobile-tabbar {
   height: 100%;
   border: 0;
   background: rgba(0, 0, 0, .38);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
 }
 .ipad-edition__home,
 .ipad-edition__page { scroll-margin-top: 94px; }
@@ -1042,11 +1040,9 @@ body:has(.ipad-edition[data-environment="light"]) {
   line-height: 1;
 }
 
-/* The drawer scrim visibly lowers the page's visual priority. */
+/* Keep the full-screen dimmer cheap. The drawer retains its own glass blur. */
 .ipad-nav__scrim {
   background: rgba(0,0,0,.56) !important;
-  -webkit-backdrop-filter: blur(4px) brightness(.68) !important;
-  backdrop-filter: blur(4px) brightness(.68) !important;
 }
 .ipad-nav__links a i {
   display: block;
