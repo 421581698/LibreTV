@@ -1847,7 +1847,7 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
-      <DolbyVisionDiagnosticsPanel key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} />
+      <DolbyVisionDiagnosticsPanel key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} />
       {audioTrackOptions.length > 1 && (
         <div className="absolute right-3 top-14 z-20 flex flex-col items-end gap-2" data-testid="audio-track-controls">
           <button
