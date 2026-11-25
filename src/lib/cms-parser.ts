@@ -264,8 +264,8 @@ export function isAdultContent(typeName: string | undefined): boolean {
   return ADULT_KEYWORDS.some((k) => typeName.includes(k));
 }
 
-export function filterAdultResults<T extends { typeName?: string }>(items: T[], enabled: boolean): T[] {
-  if (!enabled) return items;
+export function filterAdultResults<T extends { typeName?: string }>(items: T[], _enabled: boolean): T[] {
+  // Safety filtering is server-enforced; a client preference cannot disable it.
   return items.filter((item) => !isAdultContent(item.typeName));
 }
 
