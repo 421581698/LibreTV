@@ -128,6 +128,7 @@ export function FridayGlassProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.dataset.fridayGlass = backend;
     root.dataset.fridayTheme = resolvedTheme;
+    root.dataset.fridayMaterialSetting = preferences.material;
     root.dataset.fridayMotion = reducedMotion ? 'reduced' : 'full';
     root.dataset.fridayAmbient = preferences.ambient ? 'on' : 'off';
     root.dataset.fridayCinemaDark = String(preferences.cinemaDark);
