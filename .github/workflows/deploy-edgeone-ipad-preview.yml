@@ -1,6 +1,6 @@
-name: Deploy LibreTV iPad Edition Preview to EdgeOne
-# PR #99 pushes deploy only after all five exact-SHA PR checks succeed.
-# Re-run after repository deployment secret refresh; Preview only.
+name: Verify EdgeOne GitHub Preview readiness
+# Existing nks GitHub integration owns deployment; this workflow verifies readiness only.
+# It does not trigger or attest an external deployment.
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm_preview_deploy:
-        description: "Type yes to deploy this branch to the nks Preview environment (never Production)"
+        description: "Type yes to verify this branch for nks GitHub Preview"
         required: true
         type: string
 
@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify-and-deploy:
+  verify-readiness:
     if: ${{ github.ref == 'refs/heads/feature/libretv-ipad-edition-product' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm_preview_deploy == 'yes')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -105,95 +105,11 @@ jobs:
       - name: Production build
         run: npm run build
 
-      # Install the CLI before exposing the deployment credential to any process.
-      - name: Install EdgeOne Makers CLI
-        env:
-          PAGES_SOURCE: skills
+      - name: Record GitHub integration handoff
         run: |
-          npm install --global edgeone@latest
-          CLI_VERSION="$(edgeone -v | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)"
-          if [ -z "$CLI_VERSION" ]; then
-            echo "::error::Unable to determine EdgeOne CLI version."
-            exit 1
-          fi
-          node - "$CLI_VERSION" <<'NODE'
-          const [major, minor, patch] = process.argv[2].split('.').map(Number);
-          const actual = [major, minor, patch];
-          const minimum = [1, 7, 0];
-          const lower = actual.some((value, index) => value < minimum[index] &&
-            actual.slice(0, index).every((part, prior) => part === minimum[prior]));
-          if (lower) {
-            console.error(`EdgeOne CLI ${process.argv[2]} is below required 1.7.0.`);
-            process.exit(1);
-          }
-          NODE
-
-      # Separate authentication from deployment to identify token/workspace failures.
-      # Login output is suppressed so the credential can never appear in Actions logs.
-      - name: Authenticate and identify EdgeOne Workspace
-        env:
-          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${EDGEONE_PAGES_API_TOKEN:-}" ]; then
-            echo "::error::Missing repository secret EDGEONE_PAGES_API_TOKEN."
-            exit 1
-          fi
-          if ! edgeone login --site china -t "$EDGEONE_PAGES_API_TOKEN" >/dev/null 2>&1; then
-            echo "::error::EdgeOne token authentication failed. Check the existing repository secret and its Makers Workspace/site; do not create another token yet."
-            exit 1
-          fi
-          echo "EdgeOne token authentication succeeded."
-          echo "Authenticated Workspace:"
-          edgeone whoami
-          echo "Workspace associations:"
-          edgeone workspace ls
-
-      - name: Deploy to EdgeOne nks Preview only
-        id: deploy
-        env:
-          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
-          EDGEONE_PAGES_API_REGION: china
-          PAGES_SOURCE: skills
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${EDGEONE_PAGES_API_TOKEN:-}" ]; then
-            echo "::error::Missing repository secret EDGEONE_PAGES_API_TOKEN."
-            exit 1
-          fi
-          set +e
-          OUTPUT="$(edgeone makers deploy ./.next -n nks -e preview --site china --json -t "$EDGEONE_PAGES_API_TOKEN" 2>&1)"
-          DEPLOY_EXIT=$?
-          set -e
-          LAST_LINE="$(printf '%s\n' "$OUTPUT" | tail -n 1)"
-          if [ "$DEPLOY_EXIT" -ne 0 ]; then
-            EDGEONE_SAFE_TOKEN="$EDGEONE_PAGES_API_TOKEN" node - "$LAST_LINE" <<'NODE'
-          let result;
-          try { result = JSON.parse(process.argv[2] || ''); } catch {}
-          const token = process.env.EDGEONE_SAFE_TOKEN || '';
-          let message = String(result?.error || result?.message || 'EdgeOne CLI returned a non-zero exit code.');
-          if (token) message = message.split(token).join('[REDACTED]');
-          console.error(`EdgeOne deploy error: ${message}`);
-          if (result?.errorCode || result?.code) console.error(`Error code: ${result.errorCode || result.code}`);
-          NODE
-            exit "$DEPLOY_EXIT"
-          fi
-          node - "$LAST_LINE" "$GITHUB_OUTPUT" "$GITHUB_STEP_SUMMARY" <<'NODE'
-          const fs = require('node:fs');
-          let result;
-          try { result = JSON.parse(process.argv[2]); }
-          catch { console.error('EdgeOne CLI did not return valid JSON.'); process.exit(1); }
-          if (result.status !== 'success' || !result.url) {
-            console.error(result.error || 'EdgeOne did not confirm a successful Preview deployment.');
-            process.exit(1);
-          }
-          const url = result.url;
-          process.stdout.write(`::add-mask::${url}\\n`);
-          const output = process.argv[3];
-          const summary = process.argv[4];
-          fs.appendFileSync(output, `preview_url=${url}\\nproject_id=${result.projectId || ''}\\nconsole_url=${result.consoleUrl || ''}\\n`);
-          fs.appendFileSync(summary, `## EdgeOne Preview deployment\\n\\n- Project: \`nks\`\\n- Environment: **Preview**\\n- URL: ${url}\\n- Project ID: ${result.projectId || 'not returned'}\\n`);
-          console.log('EdgeOne confirmed a successful Preview deployment for project nks.');
-          NODE
+          echo "## EdgeOne GitHub Preview readiness" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "All required CI checks and local build passed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Existing nks GitHub integration must deploy this branch as Preview." >> "$GITHUB_STEP_SUMMARY"
+          echo "External deployment is NOT verified by this workflow." >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Verify nks Preview branch configuration and matching deployment SHA in EdgeOne console."
