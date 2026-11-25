@@ -15,6 +15,7 @@ const v4Styles = source('src/app/v4-homepage.css');
 const watch = source('src/app/watch/page.tsx');
 const watchPlaybackState = source('src/lib/watch-playback-state.ts');
 const watchStyles = source('src/app/pr84-watch-mobile-fix.css');
+const ipadCinemaStyles = source('src/app/ipad-edition/cinema-v4.css');
 const hero = source('src/components/friday/FridayHero.tsx');
 const canvas = source('src/components/home/HomeIntentCanvas.tsx');
 const orb = source('src/components/friday/FridayOrb.tsx');
@@ -315,8 +316,8 @@ describe('首页与播放页回归契约', () => {
     expect(customSeek).toContain('setPointerCapture(event.pointerId)');
     expect(customSeek).toContain('hasPointerCapture(event.pointerId)');
     expect(customSeek).toContain('role="slider"');
-    expect(watchStyles).toContain('.cinema-seek-surface');
-    expect(watchStyles).toContain('touch-action: none;');
+    expect(ipadCinemaStyles).toContain('.cinema-seek-surface');
+    expect(ipadCinemaStyles).toContain('touch-action: none;');
     expect(watch.slice(watch.indexOf('className="watch-cinema-progress"'))).not.toContain('setPointerCapture(event.pointerId)');
     expect(watch).toContain('onPointerDown={() => {');
     expect(watchStyles).toContain('touch-action: none !important;');
