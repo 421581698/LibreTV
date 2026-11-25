@@ -40,9 +40,11 @@ function readVariableBits(reader, groupBits) {
   let value = 0;
   for (let groups = 0; groups < 4; groups += 1) {
     const part = reader.readBits(groupBits);
-    if (value > Math.floor((65535 - part) / (2 ** groupBits))) throw new Error('Dolby EMDF variable-bit value overflows 16-bit bound.');
-    value = value * (2 ** groupBits) + part;
+    if (value > 65535 - part) throw new Error('Dolby EMDF variable-bit value overflows 16-bit bound.');
+    value += part;
     if (reader.readBits(1) === 0) return value;
+    if (value > Math.floor((65535 - (2 ** groupBits)) / (2 ** groupBits))) throw new Error('Dolby EMDF variable-bit value overflows 16-bit bound.');
+    value = value * (2 ** groupBits) + (2 ** groupBits);
   }
   throw new Error('Dolby EMDF variable-bit value is overlong.');
 }
@@ -54,7 +56,7 @@ export function extractDolbyRpuFromT35(value) {
   if (data.length < T35_HEADER.length || !data.subarray(0, T35_HEADER.length).equals(T35_HEADER)) {
     throw new Error('AV1 T.35 country/provider header is not the Dolby Vision identifier.');
   }
-  const reader = new BitReader(data.subarray(T35_HEADER.length));
+  const reader = new BitReader(data);
   if (reader.readBits(16) !== 0x003b) throw new Error('Unexpected Dolby T.35 terminal provider code.');
   if (reader.readBits(32) !== 0x00000800) throw new Error('Unexpected Dolby T.35 provider-oriented code.');
   if (reader.readBits(2) !== 0) throw new Error('Unsupported Dolby EMDF version.');
