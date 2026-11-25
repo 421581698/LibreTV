@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reproducible browser decoder build. OpenJOC is pinned to the reviewed release commit.
 readonly OPENJOC_COMMIT="f9b54bbbb8e1b44c746a72e1b14b289cad418cf9"
 readonly OPENJOC_REPOSITORY="https://github.com/chyinan/OpenJOC.git"
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,4 +27,9 @@ cargo build --manifest-path "${WORK_DIR}/Cargo.toml" --locked --release \
 mkdir -p "${OUTPUT_DIR}"
 install -m 0644 "${WORK_DIR}/target/wasm32-unknown-unknown/release/openjoc_wasm.wasm" \
   "${OUTPUT_DIR}/openjoc_wasm.wasm"
+install -m 0644 "${WORK_DIR}/LICENSE" "${OUTPUT_DIR}/OPENJOC-LICENSE"
+cargo tree --manifest-path "${WORK_DIR}/Cargo.toml" --locked -p openjoc-wasm \
+  --target wasm32-unknown-unknown > "${OUTPUT_DIR}/openjoc-dependency-tree.txt"
+printf '{"project":"OpenJOC","version":"0.20.2","commit":"%s","target":"wasm32-unknown-unknown","features":["embedded-builtin-hrtf"]}\n' \
+  "${OPENJOC_COMMIT}" > "${OUTPUT_DIR}/openjoc-build-manifest.json"
 sha256sum "${OUTPUT_DIR}/openjoc_wasm.wasm" | tee "${OUTPUT_DIR}/openjoc_wasm.wasm.sha256"
