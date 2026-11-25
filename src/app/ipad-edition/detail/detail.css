@@ -997,15 +997,10 @@
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero__content {
     width: min(540px, 80vw);
   }
+  /* The full cast/metadata section below the hero remains available in portrait.
+     Avoid positioning a second credit block above the absolutely-positioned title. */
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-hero-credits {
-    position: relative;
-    right: auto;
-    bottom: auto;
-    width: auto;
-    max-width: min(540px, 80vw);
-    margin: 0 0 38px clamp(24px, 5vw, 64px);
-    padding-top: 18px;
-    font-size: 11px;
+    display: none;
   }
   .ipad-edition [data-ipad-detail="true"] .ipad-cinema-title-logo { max-height: 105px; }
 }
