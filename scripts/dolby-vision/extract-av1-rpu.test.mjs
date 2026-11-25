@@ -246,3 +246,22 @@ test('rejects empty and oversized demux output without producing RPU evidence', 
     await assert.rejects(readFile(output), { code: 'ENOENT' });
   }
 });
+
+test('rejects invalid libdovi output sizes without publishing RPU evidence', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-converter-bound-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const input = resolve(directory, 'input.t35');
+  const converter = resolve(directory, 'converter');
+  await writeFile(input, validT35Payload().bytes);
+  await writeFile(converter, '#!/usr/bin/env node\nconst fs = require("node:fs"); const p = process.argv.at(-1); fs.writeFileSync(p, ""); fs.truncateSync(p, Number(process.env.TEST_RPU_SIZE));\n', { mode: 0o755 });
+  for (const size of [0, 26, 1024 * 1024 + 1]) {
+    const output = resolve(directory, size + '.rpu');
+    assert.throws(() => execFileSync(process.execPath, [
+      resolve('scripts/dolby-vision/extract-av1-rpu.mjs'), '--kind', 't35', '--input', input, '--output', output,
+    ], {
+      env: { ...process.env, AV1_RPU_CONVERTER_BIN: converter, TEST_RPU_SIZE: String(size) },
+      stdio: 'pipe',
+    }), /libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit/);
+    await assert.rejects(readFile(output), { code: 'ENOENT' });
+  }
+});
