@@ -344,12 +344,15 @@ def assemble_registered_hls_fmp4(
         "initializationAssetId": map_ids[0],
         "segmentAssetIds": segment_ids,
         "fragmentSequenceNumbers": sequence_numbers,
+        "fragmentSequenceContinuity": "sequential",
+        "temporalContinuity": "unknown",
         "assembledByteLength": total,
         "assembledSha256": digest.hexdigest(),
         "outputPath": str(destination),
         "rpuPresence": "unknown",
         "notes": [
             "Assembled from SHA-256-verified registered clear fMP4 HLS members.",
+            "Fragment sequence numbers are sequential; tfdt/sample-duration timestamp continuity has not been validated.",
             "This is a parser input preparation step, not Dolby Vision RPU extraction or cross-segment RPU validation.",
         ],
     }
