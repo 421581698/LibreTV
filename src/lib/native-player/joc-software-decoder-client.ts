@@ -249,13 +249,15 @@ export class JocSoftwareDecoderClient {
         return;
       }
       const samples = new Float32Array(message.samples);
-      if (samples.length !== message.sampleFrames * 2 || samples.length === 0) {
+      if (samples.length !== message.sampleFrames * 2 || samples.length === 0 ||
+          samples.some(sample => !Number.isFinite(sample))) {
         this.fail(new Error('OpenJOC PCM frame length is invalid.'));
         return;
       }
       this.queuedFrames = Math.min(MAX_QUEUED_FRAMES, this.queuedFrames + message.sampleFrames);
+      const observerSamples = samples.slice();
       this.node.port.postMessage({ type: 'pcm', samples, sampleRate: 48000, channels: 2, ptsSamples: message.ptsSamples }, [samples.buffer]);
-      for (const listener of this.pcmListeners) listener({ samples, sampleFrames: message.sampleFrames, ptsSamples: message.ptsSamples });
+      for (const listener of this.pcmListeners) listener({ samples: observerSamples, sampleFrames: message.sampleFrames, ptsSamples: message.ptsSamples });
       this.emitStatus();
     } else if (message.type === 'need-input') {
       this.settle('need-input');
@@ -269,6 +271,11 @@ export class JocSoftwareDecoderClient {
   };
 
   private onWorkletMessage = (event: MessageEvent<{ type?: string; frames?: number }>): void => {
+    if (event.data?.type === 'overflow') {
+      this.fail(new Error('OpenJOC PCM queue overflowed; software output was stopped.'));
+      this.disconnectOutput();
+      return;
+    }
     if (event.data?.type !== 'queued' || typeof event.data.frames !== 'number') return;
     this.queuedFrames = Math.max(0, Math.min(MAX_QUEUED_FRAMES, event.data.frames));
     this.emitStatus();
