@@ -247,3 +247,17 @@ describe('iPad Edition end-to-end cinema navigation contracts', () => {
     expect(styles).toContain('padding-block-start: 0;');
   });
 });
+
+
+describe('iPad Edition state regression contracts', () => {
+  it('synchronizes search when browser history changes the URL and aborts stale requests on unmount', () => {
+    expect(searchPage).toContain('}, [initial]);');
+    expect(searchPage).toContain('useEffect(() => () => activeController.current?.abort(), []);');
+    expect(searchPage).toContain("router.replace('/ipad-edition/search?' + next.toString(), { scroll: false });");
+  });
+
+  it('does not lock body scroll for hidden navigation on the immersive player route', () => {
+    expect(shell).toContain('if (isChromeHidden || (!sidebarOpen && !(wideLayout && !navigationCollapsed))) return;');
+    expect(shell).toContain('[sidebarOpen, wideLayout, navigationCollapsed, isChromeHidden]');
+  });
+});
