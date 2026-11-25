@@ -2025,7 +2025,8 @@ jobs:
                     const selectors = {
                       shell: ".netflix-watch-shell",
                       topbar: ".netflix-watch-overlay-topbar",
-                      qualityControls: ".netflix-player-frame .player-quality-controls",
+                      sourceControls: ".netflix-watch-utility-panel .netflix-source-card",
+                      qualityControls: ".netflix-player-frame .cinema-v4-quality-panel",
                       frame: ".netflix-player-frame",
                       player: ".netflix-player-frame .artplayer, .netflix-player-frame .art-video-player",
                       video: ".netflix-player-frame video",
@@ -2068,7 +2069,7 @@ jobs:
                       overlaps: {
                         infoWithCenterControls: intersects(boxes.info,boxes.centerControls),
                         topbarWithInfo: intersects(boxes.topbar,boxes.info),
-                        topbarWithQualityControls: intersects(boxes.topbar,boxes.qualityControls),
+                        topbarWithSourceControls: intersects(boxes.topbar,boxes.sourceControls),
                       },
                       videoWithinFrame: video ? within(videoRect,frame) : null,
                       frameCoversViewport: Boolean(frame && frame.x <= 1 && frame.y <= 1 && frame.right >= innerWidth - 1 && frame.bottom >= innerHeight - 1),
@@ -2085,7 +2086,7 @@ jobs:
                     metrics.overlaps.infoWithCenterControls || metrics.overlaps.topbarWithInfo ||
                     (metrics.videoWithinFrame === false) ||
                     (panelState === "closed" && (!metrics.visibility.info || !metrics.visibility.centerControls || metrics.visibility.utilityPanel)) ||
-                    (panelState === "open" && (!metrics.boxes.qualityControls || metrics.overlaps.topbarWithQualityControls || !metrics.visibility.qualityControls || !metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.visibility.panelClose || !metrics.visibility.panelScrim || !metrics.panelWithinViewport)) ||
+                    (panelState === "open" && (!metrics.boxes.sourceControls || metrics.overlaps.topbarWithSourceControls || !metrics.visibility.sourceControls || metrics.visibility.qualityControls || !metrics.visibility.utilityPanel || metrics.visibility.info || metrics.visibility.centerControls || !metrics.visibility.panelClose || !metrics.visibility.panelScrim || !metrics.panelWithinViewport)) ||
                     errors.length > 0;
                   const name = viewport.name + "-" + colorScheme + "-panel-" + panelState;
                   await page.screenshot({
