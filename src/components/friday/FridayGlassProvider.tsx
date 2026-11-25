@@ -22,6 +22,7 @@ export function FridayGlassProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState(GLASS_DEFAULTS);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [systemDark, setSystemDark] = useState(false);
   const [failed, setFailed] = useState(false);
   const attemptedRecovery = useRef(false);
   const [underPressure, setUnderPressure] = useState(false);
@@ -63,6 +64,20 @@ export function FridayGlassProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Match the application's current theme, including its manual dark-mode override.
+    const refresh = () => setSystemDark(document.documentElement.classList.contains('dark'));
+    refresh();
+    const observer = new MutationObserver(refresh);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    const scheme = window.matchMedia?.('(prefers-color-scheme: dark)');
+    scheme?.addEventListener?.('change', refresh);
+    return () => {
+      observer.disconnect();
+      scheme?.removeEventListener?.('change', refresh);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!ready) return;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences)); } catch {}
   }, [preferences, ready]);
@@ -100,6 +115,7 @@ export function FridayGlassProvider({ children }: { children: ReactNode }) {
 
   const backend = selectGlassBackend({ ...capabilities, preferences, playing, underPressure, failed });
   const reducedMotion = capabilities.reducedMotion || !preferences.motion;
+  const resolvedTheme = preferences.theme === 'system' ? (systemDark ? 'dark' : 'light') : preferences.theme;
   const update = useCallback((changes: Partial<GlassPreferences>) => setPreferences((current) => ({ ...current, ...changes })), []);
   const reset = useCallback(() => {
     attemptedRecovery.current = false;
@@ -111,12 +127,13 @@ export function FridayGlassProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.fridayGlass = backend;
+    root.dataset.fridayTheme = resolvedTheme;
     root.dataset.fridayMotion = reducedMotion ? 'reduced' : 'full';
     root.dataset.fridayAmbient = preferences.ambient ? 'on' : 'off';
     root.dataset.fridayCinemaDark = String(preferences.cinemaDark);
     root.dataset.fridayPlayback = playing && preferences.playbackProtection ? 'protected' : 'normal';
     root.style.setProperty('--friday-intensity', String(preferences.intensity / 100));
-  }, [backend, playing, preferences, reducedMotion]);
+  }, [backend, playing, preferences, reducedMotion, resolvedTheme]);
 
   return <GlassContext.Provider value={{ backend, preferences, reducedMotion, update, reset, reportFailure, setPlaying }}>{children}</GlassContext.Provider>;
 }
