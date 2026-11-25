@@ -915,6 +915,26 @@ def api_get_dolby_vision_media_asset_content(
         os.close(descriptor)
         raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
 
+    # Validate the complete immutable object before serving either a full body
+    # or a partial Range. pread() hashes the exact opened descriptor without
+    # changing the file offset later consumed by the streaming response.
+    object_digest = hashlib.sha256()
+    verified_bytes = 0
+    try:
+        while verified_bytes < total_size:
+            chunk = os.pread(descriptor, min(1024 * 1024, total_size - verified_bytes), verified_bytes)
+            if not chunk:
+                break
+            object_digest.update(chunk)
+            verified_bytes += len(chunk)
+        unchanged_size = os.fstat(descriptor).st_size == total_size
+    except OSError as exc:
+        os.close(descriptor)
+        raise HTTPException(status_code=409, detail="Registered media object could not be integrity-checked") from exc
+    if verified_bytes != total_size or not unchanged_size or object_digest.hexdigest() != digest:
+        os.close(descriptor)
+        raise HTTPException(status_code=409, detail="Registered media object digest or length mismatch")
+
     response_headers = {
         "Content-Length": str(end - start + 1),
         "Accept-Ranges": "bytes",
