@@ -54,6 +54,24 @@ function readVariableBits(reader, groupBits) {
   throw new Error('Dolby EMDF variable-bit value is overlong.');
 }
 
+export function regularRpuToHevcUnspec62Nalu(value) {
+  const rpu = Buffer.from(value);
+  if (rpu.length < 7 || rpu[0] !== 0x19) {
+    throw new Error('Regular Dolby RPU must start with the 0x19 prefix.');
+  }
+  const escaped = [];
+  let zeroCount = 0;
+  for (const byte of rpu) {
+    if (zeroCount >= 2 && byte <= 0x03) {
+      escaped.push(0x03);
+      zeroCount = 0;
+    }
+    escaped.push(byte);
+    zeroCount = byte === 0 ? zeroCount + 1 : 0;
+  }
+  return Buffer.concat([Buffer.from([0x7c, 0x01]), Buffer.from(escaped)]);
+}
+
 export function extractDolbyRpuFromT35(value) {
   const input = Buffer.from(value);
   if (input.length < 34 || input.length > 1024 * 1024) throw new Error('AV1 Dolby T.35 metadata payload length is outside supported bounds.');
@@ -155,9 +173,10 @@ function parseDolbyRpuObuStream(inputValue) {
 
 export function extractDolbyRpuFromObuStream(inputValue) {
   const parsed = parseDolbyRpuObuStream(inputValue);
-  const rpus = parsed.t35Payloads.map((payload) => extractDolbyRpuFromT35(payload));
+  const rpus = parsed.t35Payloads.map((payload) =>
+    regularRpuToHevcUnspec62Nalu(extractDolbyRpuFromT35(payload)));
   return {
-    rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
+    rpuBytes: Buffer.concat(rpus.map((nalu) => Buffer.concat([ANNEX_B_START_CODE, nalu]))),
     report: parsed.report,
   };
 }
@@ -174,9 +193,9 @@ async function convertT35PayloadWithLibdovi(payload, directory, ordinal, options
   const rpu = await readFile(outputPath);
   let lastNonZero = rpu.length - 1;
   while (lastNonZero >= 0 && rpu[lastNonZero] === 0) lastNonZero -= 1;
-  if (rpu.length < 25 || rpu.length > 1024 * 1024 || rpu[0] !== 0x19 ||
-      lastNonZero < 0 || rpu[lastNonZero] !== 0x80) {
-    throw new Error('libdovi returned an invalid regular RPU payload.');
+  if (rpu.length < 27 || rpu.length > 1024 * 1024 || rpu[0] !== 0x7c ||
+      rpu[1] !== 0x01 || lastNonZero < 0 || rpu[lastNonZero] !== 0x80) {
+    throw new Error('libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit.');
   }
   let converterReport;
   try { converterReport = JSON.parse(stdout); } catch {
@@ -196,7 +215,7 @@ async function extractDolbyRpuFromObuStreamWithLibdovi(inputValue, directory, op
     rpus.push(await convertT35PayloadWithLibdovi(parsed.t35Payloads[ordinal], directory, ordinal, options));
   }
   return {
-    rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
+    rpuBytes: Buffer.concat(rpus.map((nalu) => Buffer.concat([ANNEX_B_START_CODE, nalu]))),
     report: parsed.report,
   };
 }
@@ -259,10 +278,10 @@ async function main() {
   if (options.kind === 't35') {
     const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-t35-'));
     try {
-      const rpu = converterConfigured
+      const nalu = converterConfigured
         ? await convertT35PayloadWithLibdovi(input, directory, 0, options)
-        : extractDolbyRpuFromT35(input);
-      rpuBytes = Buffer.concat([ANNEX_B_START_CODE, rpu]);
+        : regularRpuToHevcUnspec62Nalu(extractDolbyRpuFromT35(input));
+      rpuBytes = Buffer.concat([ANNEX_B_START_CODE, nalu]);
       report = { source: basename(inputPath), extractedRpuCount: 1, inputKind: 'av1-t35-payload', extractionBackend: converterConfigured ? 'libdovi' : 'javascript' };
     } finally {
       await rm(directory, { recursive: true, force: true });
