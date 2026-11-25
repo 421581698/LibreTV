@@ -344,7 +344,7 @@ def assemble_registered_hls_fmp4(
             {
                 "role": role,
                 "ordinal": ordinal,
-                "assetId": asset["asset_id"],
+                "assetId": asset.get("asset_id", asset.get("child_asset_id")),
                 "sha256": asset["sha256"],
                 "byteLength": asset["byte_length"],
                 "contentType": asset["content_type"],
