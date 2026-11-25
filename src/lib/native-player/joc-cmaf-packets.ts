@@ -6,6 +6,7 @@ import {
 } from './fmp4-fragment-parser';
 import { Fmp4StreamSession } from './fmp4-stream-session';
 import { validateCmafEac3AccessUnit } from './joc-cmaf-validation';
+import { validateCmafJocTrackConfiguration } from './joc-dec3-config';
 
 export interface JocCmafPacket {
   readonly trackId: number;
@@ -107,10 +108,23 @@ export class JocCmafPacketExtractor {
     const bytes = bytesOf(input);
     const parsed: Fmp4InitSegment = parseFmp4InitSegment(bytes);
     const track = parsed.tracks.find(candidate => candidate.trackId === this.trackId);
-    if (!track || !isEac3AudioTrack(track)) {
+    if (!track || !isEac3AudioTrack(track) || track.sampleEntry !== 'ec-3') {
       this.activeTrack = null;
       this.stream.recover();
-      throw new Error('Selected CMAF track is not an E-AC-3 audio track.');
+      throw new Error('Selected CMAF track is not an E-AC-3 audio track using the active ec-3 sample description.');
+    }
+    try {
+      validateCmafJocTrackConfiguration({
+        sampleEntry: track.sampleEntry,
+        timescale: track.timescale,
+        sampleRate: track.sampleRate ?? 0,
+        decoderConfig: track.decoderConfig,
+      });
+    } catch (error) {
+      this.activeTrack = null;
+      this.stream.recover();
+      const detail = error instanceof Error ? error.message : 'unknown dec3 profile error';
+      throw new Error(`Selected E-AC-3 track is not a supported CMAF JOC track: ${detail}`);
     }
     const result = this.stream.updateInitSegment(bytes);
     this.activeTrack = track;
