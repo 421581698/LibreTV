@@ -128,7 +128,7 @@ export async function POST(
         !/^[A-Za-z0-9:_-]{1,200}$/.test(rootAssetId) || returnedVariantId !== variantAssetId ||
         !/^[a-f0-9]{64}$/.test(assembledSha256) ||
         !Number.isSafeInteger(fragmentCount) || fragmentCount < 1 || fragmentCount > 10_000 ||
-        sequenceContinuity !== 'sequential' || temporalContinuity !== 'unknown' ||
+        sequenceContinuity !== 'sequential' || temporalContinuity !== 'contiguous' ||
         rpuPresence !== 'unknown' || contentType !== 'video/mp4' ||
         !Number.isSafeInteger(contentLength) || contentLength <= 0 ||
         contentLength > 512 * 1024 * 1024 || !assembly.body) {
@@ -145,7 +145,7 @@ export async function POST(
       variantAssetId,
       fragmentCount,
       fragmentSequenceContinuity: 'sequential' as const,
-      temporalContinuity: 'unknown' as const,
+      temporalContinuity: 'contiguous' as const,
     };
     const syntheticAssetId = `hls:${createHash('sha256').update(`${resourceId}\\0${variantAssetId}`).digest('hex')}`;
     const parserResponse = await fetch(`${parserUrl}/v1/analyze`, {
@@ -165,7 +165,7 @@ export async function POST(
         'X-DV-HLS-Variant-Asset-ID': variantAssetId,
         'X-DV-HLS-Fragment-Count': String(fragmentCount),
         'X-DV-HLS-Fragment-Sequence-Continuity': 'sequential',
-        'X-DV-HLS-Temporal-Continuity': 'unknown',
+        'X-DV-HLS-Temporal-Continuity': 'contiguous',
       },
       body: assembly.body,
       duplex: 'half',
@@ -213,7 +213,7 @@ export async function POST(
       expiresAt: verified.expiresAt,
       sourceHashBinding: verified.sourceHashBinding,
       evidence: verified.evidence,
-      temporalContinuity: 'unknown',
+      temporalContinuity: 'contiguous',
       crossSegmentRpuContinuity: 'not-verified',
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
