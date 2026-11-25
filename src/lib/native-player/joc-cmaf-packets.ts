@@ -169,7 +169,7 @@ export class JocCmafPacketExtractor {
         if (payload.byteLength !== sample.size) {
           throw new Error('E-AC-3 CMAF sample payload length does not match its declared size.');
         }
-        validateCmafEac3AccessUnit(payload);
+        validateCmafEac3AccessUnit(payload, track.decoderConfig);
         packets.push({
           trackId: this.trackId,
           sampleIndex: sample.index,
