@@ -37,7 +37,9 @@ def _stat_fingerprint(info: os.stat_result) -> tuple[int, int, int, int, int]:
     return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
-def _verify_media_object_digest(descriptor: int, expected_digest: str, expected_size: int) -> None:
+def _verify_media_object_digest(
+    descriptor: int, expected_digest: str, expected_size: int
+) -> tuple[int, int, int, int, int]:
     before = os.fstat(descriptor)
     if not stat.S_ISREG(before.st_mode) or before.st_size != expected_size:
         raise HTTPException(status_code=409, detail="Registered media object size or type mismatch")
@@ -45,8 +47,12 @@ def _verify_media_object_digest(descriptor: int, expected_digest: str, expected_
     with _DV_VERIFIED_OBJECTS_LOCK:
         cached_digest = _DV_VERIFIED_OBJECTS.get(fingerprint)
         if cached_digest == expected_digest:
+            # Re-stat after acquiring the cache lock so a concurrent mutation
+            # cannot reuse a fingerprint observed before the lock was taken.
+            if _stat_fingerprint(os.fstat(descriptor)) != fingerprint:
+                raise HTTPException(status_code=409, detail="Registered media object changed during verification")
             _DV_VERIFIED_OBJECTS.move_to_end(fingerprint)
-            return
+            return fingerprint
 
     digest = hashlib.sha256()
     verified_bytes = 0
@@ -70,6 +76,7 @@ def _verify_media_object_digest(descriptor: int, expected_digest: str, expected_
         _DV_VERIFIED_OBJECTS.move_to_end(fingerprint)
         while len(_DV_VERIFIED_OBJECTS) > _DV_VERIFIED_OBJECTS_MAX:
             _DV_VERIFIED_OBJECTS.popitem(last=False)
+    return fingerprint
 
 
 def _bounded_env_integer(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -778,14 +785,25 @@ def api_register_dv_media_asset(resource_id: str, payload: DolbyVisionMediaAsset
         raise HTTPException(status_code=422, detail=str(exc))
 
 
-def _stream_dv_object(file_descriptor: int, start: int = 0, length: int | None = None):
-    """Stream a bounded byte range and always close the already-validated descriptor."""
+def _stream_dv_object(
+    file_descriptor: int,
+    start: int = 0,
+    length: int | None = None,
+    expected_fingerprint: tuple[int, int, int, int, int] | None = None,
+):
+    """Stream only while the opened immutable object retains its verified identity."""
     with os.fdopen(file_descriptor, "rb", closefd=True) as media_file:
         media_file.seek(start)
         remaining = length
         while remaining is None or remaining > 0:
+            before = os.fstat(media_file.fileno())
+            if expected_fingerprint is not None and _stat_fingerprint(before) != expected_fingerprint:
+                raise HTTPException(status_code=409, detail="Registered media object changed during playback")
             chunk_size = 1024 * 1024 if remaining is None else min(1024 * 1024, remaining)
             chunk = media_file.read(chunk_size)
+            after = os.fstat(media_file.fileno())
+            if expected_fingerprint is not None and _stat_fingerprint(after) != expected_fingerprint:
+                raise HTTPException(status_code=409, detail="Registered media object changed during playback")
             if not chunk:
                 break
             if remaining is not None:
@@ -962,7 +980,7 @@ def api_get_dolby_vision_media_asset_content(
     # requests reuse only a fingerprint-matched verification result, avoiding
     # a full multi-gigabyte read for every seek while detecting normal writes.
     try:
-        _verify_media_object_digest(descriptor, digest, total_size)
+        verified_fingerprint = _verify_media_object_digest(descriptor, digest, total_size)
     except HTTPException:
         os.close(descriptor)
         raise
@@ -979,7 +997,7 @@ def api_get_dolby_vision_media_asset_content(
     if status_code == 206:
         response_headers["Content-Range"] = f"bytes {start}-{end}/{total_size}"
     return StreamingResponse(
-        _stream_dv_object(descriptor, start, end - start + 1),
+        _stream_dv_object(descriptor, start, end - start + 1, verified_fingerprint),
         status_code=status_code,
         media_type=row["content_type"],
         headers=response_headers,
