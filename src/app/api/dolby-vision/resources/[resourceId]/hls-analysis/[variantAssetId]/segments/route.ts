@@ -159,12 +159,13 @@ export async function POST(
           !/^[a-f0-9]{64}$/.test(initializationSha256) ||
           !/^[a-f0-9]{64}$/.test(assembledSegmentSha256) ||
           fragmentSequenceNumber === null || decodeTime === null || sampleDuration === null ||
-          sampleCount === null || timescale === null || contentLength === null ||
+          sampleCount === null || timescale === null ||
           assetIdHeader !== fragmentAssetId || assetShaHeader !== assembledSegmentSha256 ||
           fragment.headers.get('x-dv-analysis-scope') !== 'hls-fmp4-segment' ||
           fragment.headers.get('x-dv-hls-fragment-sequence-continuity') !== 'sequential' ||
           fragment.headers.get('x-dv-hls-temporal-continuity') !== 'contiguous' ||
-          contentType !== 'video/mp4' || contentLength > 512 * 1024 * 1024 || !fragment.body) {
+          contentType !== 'video/mp4' ||
+          (contentLength !== null && contentLength > 512 * 1024 * 1024) || !fragment.body) {
         await fragment.body?.cancel();
         return NextResponse.json({ code: 'DV_HLS_SEGMENT_BINDING_INVALID' }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
       }
@@ -202,7 +203,7 @@ export async function POST(
         headers: {
           Authorization: `Bearer ${parserToken}`,
           'Content-Type': 'application/octet-stream',
-          'Content-Length': String(contentLength),
+          ...(contentLength !== null ? { 'Content-Length': String(contentLength) } : {}),
           'X-DV-Asset-ID': fragmentAssetId,
           'X-DV-Asset-SHA256': assembledSegmentSha256,
           'X-DV-Source-Content-Type': 'video/mp4',
