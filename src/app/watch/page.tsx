@@ -454,6 +454,12 @@ function WatchContent() {
       shell.classList.add('cinema-controls-hidden');
       setControlsVisible(false);
     };
+    const cancelScrubbing = () => {
+      if (!scrubbingRef.current) return;
+      resetScrubbing();
+      if (video && !video.paused && !video.ended) scheduleHide();
+      else keepControlsVisible();
+    };
     const endScrubbing = () => {
       if (!scrubbingRef.current) return;
       // Commit at the window-level release, so lifting a finger outside the
@@ -481,9 +487,9 @@ function WatchContent() {
     shell.addEventListener('click', onShellClick, true);
     shell.addEventListener('keydown', revealControls, true);
     window.addEventListener('pointerup', endScrubbing, true);
-    window.addEventListener('pointercancel', endScrubbing, true);
+    window.addEventListener('pointercancel', cancelScrubbing, true);
     window.addEventListener('touchend', endScrubbing, true);
-    window.addEventListener('touchcancel', endScrubbing, true);
+    window.addEventListener('touchcancel', cancelScrubbing, true);
     const observer = new MutationObserver(attachVideo);
     observer.observe(frame, { childList: true, subtree: true });
     attachVideo();
@@ -498,9 +504,9 @@ function WatchContent() {
       shell.removeEventListener('click', onShellClick, true);
       shell.removeEventListener('keydown', revealControls, true);
       window.removeEventListener('pointerup', endScrubbing, true);
-      window.removeEventListener('pointercancel', endScrubbing, true);
+      window.removeEventListener('pointercancel', cancelScrubbing, true);
       window.removeEventListener('touchend', endScrubbing, true);
-      window.removeEventListener('touchcancel', endScrubbing, true);
+      window.removeEventListener('touchcancel', cancelScrubbing, true);
       scrubbingRef.current = false;
       scrubbingPositionRef.current = null;
     };
@@ -1162,6 +1168,11 @@ function WatchContent() {
                     const position = Number(event.target.value);
                     scrubbingPositionRef.current = position;
                     setScrubbingPosition(position);
+                    // WebKit can deliver the final range change after touchend.
+                    if (!scrubbingRef.current) {
+                      playerApiRef.current?.seek(position);
+                      setWatchClock((current) => ({ ...current, position }));
+                    }
                   }}
                   onPointerDown={() => {
                     // The shell capture listener starts the scrub lifecycle.
