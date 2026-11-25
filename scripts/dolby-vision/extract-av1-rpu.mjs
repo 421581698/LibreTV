@@ -172,7 +172,10 @@ async function convertT35PayloadWithLibdovi(payload, directory, ordinal, options
     encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024, windowsHide: true,
   });
   const rpu = await readFile(outputPath);
-  if (rpu.length < 25 || rpu.length > 1024 * 1024 || rpu[0] !== 0x19 || rpu[rpu.length - 1] !== 0x80) {
+  let lastNonZero = rpu.length - 1;
+  while (lastNonZero >= 0 && rpu[lastNonZero] === 0) lastNonZero -= 1;
+  if (rpu.length < 25 || rpu.length > 1024 * 1024 || rpu[0] !== 0x19 ||
+      lastNonZero < 0 || rpu[lastNonZero] !== 0x80) {
     throw new Error('libdovi returned an invalid regular RPU payload.');
   }
   let converterReport;
