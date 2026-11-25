@@ -120,7 +120,10 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
       setHlsGraphError(error instanceof Error ? error.message : 'HLS 资产图读取失败');
       setHlsGraphState('error');
     });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      hlsAnalysisRequestRef.current?.abort();
+    };
   }, [sourceKind, sourceIdentity, report?.container]);
 
   async function analyzeHlsVariant(variantAssetId: string) {
@@ -315,7 +318,9 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                 )}
                 {hlsGraphError && <p role="alert" className="mt-1 text-amber-200">{hlsGraphError}</p>}
                 <p className="mt-1 text-[10px] leading-snug text-white/45">
-                  这里只核对不可变资产身份与分片关系；分片级 RPU、帧数和跨分片连续性仍未分析。
+                  {currentHlsEvidence
+                    ? '已完成此变体的签名 RPU 分析；时间戳与跨分片 RPU 连续性仍未验证。'
+                    : '这里只核对不可变资产身份与分片关系；分片级 RPU 尚未分析。'}
                 </p>
               </div>
             )}
@@ -342,8 +347,9 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
             <div className="flex justify-between gap-3">
               <span className="text-white/55">帧级动态元数据</span>
               <span className="text-right">
-                {currentVerifiedEvidence
-                  ? currentVerifiedEvidence.evidence.metadataLevels.some((level) => level === 1 || level === 2)
+                {currentVerifiedEvidence || currentHlsEvidence
+                  ? (currentVerifiedEvidence?.evidence.metadataLevels ?? currentHlsEvidence?.metadataLevels ?? [])
+                    .some((level) => level === 1 || level === 2)
                     ? '已验证 L1/L2'
                     : 'RPU 已存在，动态元数据未确认'
                   : '未验证'}
@@ -396,9 +402,14 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
                 : '当前 MP4 未能确认是单一 HEVC 视频编码；服务端 RPU 分析目前仅支持 MP4 + 单一 HEVC 视频轨道。'}
             </p>
           )}
-          {assetId && report?.container !== 'mp4' && (
+          {assetId && report?.container !== 'mp4' && report?.container !== 'hls' && (
             <p className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/45">
-              当前媒体已绑定不可变资产 ID；服务端 RPU 分析目前仅支持 MP4 + HEVC，HLS/WebM 的 RPU 分析保持未验证。
+              当前媒体已绑定不可变资产 ID；服务端 RPU 分析目前仅支持 MP4 + HEVC，WebM 的 RPU 分析保持未验证。
+            </p>
+          )}
+          {sourceKind === 'registry' && report?.container === 'hls' && !currentHlsEvidence && (
+            <p className="mt-3 border-t border-white/10 pt-3 text-[10px] leading-snug text-white/45">
+              当前 HLS 尚未取得已签名的变体 RPU 分析结果；只有清晰 VOD fMP4 变体可进入分析，MPEG-TS、加密及不连续流会失败关闭。
             </p>
           )}
           {report?.notes.map((note) => (
