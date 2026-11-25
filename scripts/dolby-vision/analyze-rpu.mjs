@@ -80,15 +80,6 @@ export function normalizeRpuInput(value) {
     return regularToAnnexBRegular(input);
   }
 
-  if (input.subarray(0, 4).equals(startCode) && input[4] === 0x19) {
-    const regular = input.subarray(4);
-    validateRegular(regular);
-    if (regular.indexOf(startCode) >= 0) {
-      throw new Error('Annex-B regular RPU contains an ambiguous internal start-code sequence; provide a raw regular RPU or UNSPEC62 NAL stream.');
-    }
-    return input;
-  }
-
   // Keep UNSPEC62 NALs escaped and intact. dovi_tool owns EPB removal.
   const units = [];
   let offset = 0;
