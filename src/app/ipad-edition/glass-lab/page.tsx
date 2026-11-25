@@ -2,6 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
+import { FridayRefractionLab } from '@/components/friday/FridayRefractionLab';
+import { LiquidGlassSurface } from '@/components/ui/liquid-glass';
+import { useFridayGlass } from '@/components/friday/FridayGlassProvider';
+import { GLASS_MATERIALS, type GlassMaterial } from '@/lib/friday-glass/runtime';
 
 const LiquidGlass = dynamic(() => import('liquid-glass-react'), { ssr: false });
 
@@ -9,6 +13,15 @@ type RefractionMode = 'standard' | 'polar' | 'prominent' | 'shader';
 
 export default function IpadGlassLabPage() {
   const environmentRef = useRef<HTMLDivElement>(null);
+  const { preferences, update, backend } = useFridayGlass();
+  const materialLabels: Record<GlassMaterial, string> = {
+    regular: 'Regular · 标准',
+    clear: 'Clear · 晶透',
+    frosted: 'Frosted · 磨砂',
+    cinema: 'Cinema · 影院',
+    ambient: 'Ambient · 环境',
+    solid: 'Solid · 实色',
+  };
   const [mode, setMode] = useState<RefractionMode>('standard');
   const [light, setLight] = useState(false);
   const [globalMousePos, setGlobalMousePos] = useState({ x: 0, y: 0 });
@@ -74,6 +87,12 @@ export default function IpadGlassLabPage() {
             <p style={{ margin: '8px 0 0', opacity: 0.7 }}>原版 liquid-glass-react 独立验证页，不影响正式导航与页面。</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select aria-label="Friday 玻璃主题" style={buttonStyle} value={preferences.theme}
+              onChange={event => update({ theme: event.target.value as typeof preferences.theme })}>
+              <option value="system">跟随系统</option>
+              <option value="light">浅色</option>
+              <option value="dark">深色</option>
+            </select>
             <button type="button" style={buttonStyle} onClick={() => setLight(value => !value)}>{light ? '切换深色环境' : '切换浅色环境'}</button>
             <select aria-label="折射模式" value={mode} onChange={event => setMode(event.target.value as RefractionMode)} style={{ ...buttonStyle, appearance: 'none' }}>
               <option value="standard">Standard</option>
@@ -83,6 +102,29 @@ export default function IpadGlassLabPage() {
             </select>
           </div>
         </div>
+
+        <FridayRefractionLab light={light} />
+
+        <section style={{ marginTop: 28 }}>
+          <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>六种材质 · 同一彩色背景对照</h2>
+          <p style={{ fontSize: 13, opacity: .72, margin: '0 0 12px' }}>
+            直接比较透明度、模糊强度、反光及文字对比。当前后端：{backend}。
+          </p>
+          <div style={{
+            display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+            padding: 20, borderRadius: 24,
+            background: 'repeating-linear-gradient(130deg, #1756a4 0 35px, #e8b46b 35px 70px, #a445a7 70px 105px, #29a792 105px 140px)',
+          }}>
+            {GLASS_MATERIALS.map(material => (
+              <LiquidGlassSurface key={material} material={material} variant="panel" disableEngine
+                ambientTone={light ? 'light' : 'dark'}
+                style={{ minHeight: 106, display: 'grid', alignContent: 'center', gap: 6, borderRadius: 20, padding: 18 }}>
+                <strong>{materialLabels[material]}</strong>
+                <span style={{ fontSize: 12 }}>Friday · V1.2</span>
+              </LiquidGlassSurface>
+            ))}
+          </div>
+        </section>
 
         <section style={{ marginTop: 28 }}>
           <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>01 · 外部容器鼠标追踪</h2>
