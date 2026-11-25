@@ -417,6 +417,8 @@ export function PlayerShell({
   });
   const resetPlaybackMetrics = () => {
     resetDiagnostics();
+    // Do not carry the previous source's diagnostic snapshot into a new episode/source.
+    setDiagnosticsSnapshot(null);
     setSelectedHlsRendition(null);
     setObservedMediaBitrateKbps(0);
     setObservedThroughputKbps(0);
