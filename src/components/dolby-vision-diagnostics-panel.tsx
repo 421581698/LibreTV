@@ -100,7 +100,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, assetId, sourceKin
         : null;
       const rootAssetId = typeof rootAsset?.assetId === 'string' ? rootAsset.assetId : '';
       const directVariants = edges
-        .filter((edge) => edge.parentAssetId === data.graphId && edge.role === 'playlist' &&
+        .filter((edge) => edge.parentAssetId === rootAssetId && edge.role === 'playlist' &&
           typeof edge.childAssetId === 'string')
         .map((edge) => String(edge.childAssetId));
       const variantAssetIds = directVariants.length > 0 ? directVariants : rootAssetId ? [rootAssetId] : [];
