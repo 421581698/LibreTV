@@ -676,7 +676,7 @@ export function PlayerShell({
       }
       if (mode !== 'off') await engine.resumeFromUserGesture();
       const plan = mode === 'off'
-        ? (engine.disable(), { label: '原始音轨', reason: '空间处理已关闭' })
+        ? (engine.disable(), { route: 'bypass' as const, label: '原始音轨', reason: '空间处理已关闭' })
         : engine.setMode(mode);
       setSpatialAudioMode(mode);
       setSpatialAudioMessage(`${plan.label}：${plan.reason}`);
