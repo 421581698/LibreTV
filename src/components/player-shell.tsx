@@ -1200,6 +1200,10 @@ export function PlayerShell({
             decodeQueue = decodeQueue.then(async () => {
               if (decodeFailed || hlsRef.current !== hls || packetGeneration !== decodeGeneration) return;
               const client = await ensureDecoder();
+              if (result.discontinuities.length > 0) {
+                client.fallbackToMediaAudio();
+                await client.reset();
+              }
               for (let index = 0; index < result.packets.length; index += 1) {
                 if (packetGeneration !== decodeGeneration) return;
                 const packet = result.packets[index];
