@@ -85,6 +85,8 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(result["assembledByteLength"], len(expected))
         self.assertEqual(result["assembledSha256"], hashlib.sha256(expected).hexdigest())
         self.assertEqual(result["fragmentSequenceNumbers"], [1, 2])
+        self.assertEqual(result["fragmentSequenceContinuity"], "sequential")
+        self.assertEqual(result["temporalContinuity"], "unknown")
         self.assertEqual(result["segmentAssetIds"], [
             ingested["assets"]["seg1.m4s"]["asset_id"],
             ingested["assets"]["seg2.m4s"]["asset_id"],
