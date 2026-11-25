@@ -46,6 +46,12 @@ The collector image also packages the verified clear fMP4 HLS assembly module an
 
 These profiles start the collector and private parser. The local-file ingestion worker and authenticated Range-capable object-streaming route are available. The registry player switches to the registered immutable MP4/WebM object when available; the diagnostics panel requests RPU analysis for immutable HEVC MP4 assets and trusted clear fMP4 HLS variants through separate analysis scopes. The parser rejects non-HEVC MP4 video tracks rather than treating arbitrary MP4 bytes as HEVC. Browser-native Dolby Vision decode and display output remain unverified. Do not configure the browser to call the parser or collector directly.
 
+## AV1 Dolby metadata extraction foundation
+
+`scripts/dolby-vision/extract-av1-rpu.mjs` is a bounded offline adapter for raw low-overhead AV1 OBU streams or one AV1 ITU-T T.35 Dolby metadata payload. It checks the Dolby provider identifiers and supported EMDF fields, extracts regular RPU units, and requires Dolby metadata to be associated with a frame in a temporal unit. The extracted RPU bytes can then be passed to the existing pinned `analyze-rpu.mjs --kind rpu` adapter for dovi_tool parsing and Profile/metadata-level validation.
+
+This does not yet demux AV1 MP4/IVF containers, create source-hash-bound signed AV1 reports, or prove full-video frame/temporal alignment for a real AV1 movie. The current browser-facing AV1 OBU inspector remains structural-only and must continue to report RPU presence as unknown until those integration gates are complete.
+
 ## Build
 
 ```sh
