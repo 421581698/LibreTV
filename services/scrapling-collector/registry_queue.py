@@ -919,6 +919,8 @@ def api_assemble_hls_fmp4(
                 "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
                 "X-DV-HLS-GRAPH-ID": result["graphId"],
+                "X-DV-HLS-GRAPH-SHA256": result["graphDigest"],
+                "X-DV-HLS-ROOT-ASSET-ID": result["rootAssetId"],
                 "X-DV-HLS-VARIANT-ASSET-ID": result["variantAssetId"],
                 "X-DV-HLS-ASSEMBLED-SHA256": result["assembledSha256"],
                 "X-DV-HLS-FRAGMENT-COUNT": str(len(result["segmentAssetIds"])),
