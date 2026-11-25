@@ -111,6 +111,8 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
         self.assertEqual(result["fragmentSequenceContinuity"], "sequential")
         self.assertEqual(result["temporalContinuity"], "contiguous")
         self.assertEqual([entry["decodeTime"] for entry in result["videoTimeline"]], [0, 4000])
+        self.assertEqual([entry["sampleCount"] for entry in result["videoTimeline"]], [1, 1])
+        self.assertEqual([entry["sampleDuration"] for entry in result["videoTimeline"]], [4000, 4000])
         self.assertEqual(result["segmentAssetIds"], [
             ingested["assets"]["seg1.m4s"]["asset_id"],
             ingested["assets"]["seg2.m4s"]["asset_id"],
