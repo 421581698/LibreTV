@@ -52,13 +52,13 @@ describe('iPad Edition poster navigation and explicit playback', () => {
     expect(bangumiDetail).toContain("fetch('/api/bangumi/subject?'");
     const startIndex = bangumiDetail.indexOf('const startPlayback = async () => {');
     expect(bangumiDetail.slice(0, startIndex)).not.toContain('api.search(');
-    expect(bangumiDetail.slice(startIndex)).toContain('api.search(title, sources, yellowFilter)');
+    expect(bangumiDetail.slice(startIndex)).toContain('api.search(title, sources, yellowFilter, { signal: controller.signal })');
   });
 
   it('both TMDB and Bangumi detail pages search only after the Start Playback button is tapped', () => {
     const tmdbStart = tmdbDetail.indexOf('const startPlayback = async () => {');
     expect(tmdbDetail.slice(0, tmdbStart)).not.toContain('api.search(');
-    expect(tmdbDetail.slice(tmdbStart)).toContain('api.search(term, sources, yellowFilter)');
+    expect(tmdbDetail.slice(tmdbStart)).toContain('api.search(term, sources, yellowFilter, { signal: controller.signal })');
     expect(tmdbDetail).toContain('▶ 开始播放');
     expect(bangumiDetail).toContain('▶ 开始播放');
     expect(hero).toContain('查看详情');

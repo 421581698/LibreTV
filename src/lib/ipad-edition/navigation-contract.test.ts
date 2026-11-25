@@ -230,10 +230,10 @@ describe('iPad Edition end-to-end cinema navigation contracts', () => {
     expect(detailRoute).toContain('<TmdbMovieDetailPage');
     expect(detailRoute).toContain('<BangumiSubjectDetailPage');
     expect(tmdbDetail).toContain('const startPlayback = async () => {');
-    expect(tmdbDetail).toContain('api.search(term, sources, yellowFilter)');
+    expect(tmdbDetail).toContain('api.search(term, sources, yellowFilter, { signal: controller.signal })');
     expect(tmdbDetail).toContain('▶ 开始播放');
     expect(bangumiDetail).toContain('const startPlayback = async () => {');
-    expect(bangumiDetail).toContain('api.search(title, sources, yellowFilter)');
+    expect(bangumiDetail).toContain('api.search(title, sources, yellowFilter, { signal: controller.signal })');
     expect(bangumiDetail).toContain('▶ 开始播放');
     expect(tmdbDetail.slice(0, tmdbDetail.indexOf('const startPlayback'))).not.toContain('api.search(');
     expect(bangumiDetail.slice(0, bangumiDetail.indexOf('const startPlayback'))).not.toContain('api.search(');
@@ -261,7 +261,7 @@ describe('iPad Edition state regression contracts', () => {
   it('synchronizes search when browser history changes the URL and aborts stale requests on unmount', () => {
     expect(searchPage).toContain('}, [initial]);');
     expect(searchPage).toContain('useEffect(() => () => activeController.current?.abort(), []);');
-    expect(searchPage).toContain("router.replace('/ipad-edition/search?' + next.toString(), { scroll: false });");
+    expect(searchPage).toContain("router.replace('/ipad-edition/search?' + new URLSearchParams({ q: value }).toString(), { scroll: false });");
   });
 
   it('does not lock body scroll for hidden navigation on the immersive player route', () => {

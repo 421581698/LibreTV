@@ -314,7 +314,7 @@ describe('POST /api/search', () => {
     expect(lines[lines.length - 1].type).toBe('done');
   });
 
-  it.each([true, false])('逐源、最终与缓存结果使用相同过滤规则（成人过滤：%s）', async (filterAdult) => {
+  it.each([true, false])('逐源、最终与失败后重试使用相同过滤规则（成人过滤：%s）', async (filterAdult) => {
     const sources: SourceConfig[] = [
       { key: 'good', name: '有效源', url: `https://cms.example.com/consistent-${filterAdult}` },
       { key: 'bad', name: '失败源', url: `https://cms.example.com/failed-${filterAdult}` },
@@ -342,15 +342,17 @@ describe('POST /api/search', () => {
     expect(failed).toMatchObject({ type: 'source', sourceKey: 'bad', ok: false, list: [], error: 'HTTP 500' });
     expect(done).toMatchObject({ type: 'done', list: good?.list, failures: [{ sourceKey: 'bad', error: 'HTTP 500' }] });
 
-    // 同一缓存同时服务 JSON 和流式客户端，不能重新引入原始杂项。
+    // 含失败源的结果不得缓存；重试必须重新请求上游并保留过滤规则。
     const calls = fetchSpy.mock.calls.length;
     const json = await POST(makeRequest(body));
     const cached = await json.json() as SearchResponse;
     expect(cached.list).toEqual(good?.list);
     expect(cached.failures).toEqual(done?.type === 'done' ? done.failures : undefined);
     const cachedStream = await POST(makeRequest(body, true));
-    expect((await cachedStream.text()).trim().split('\n').map((line) => JSON.parse(line))).toEqual([done]);
-    expect(fetchSpy).toHaveBeenCalledTimes(calls);
+    const retriedEvents = (await cachedStream.text()).trim().split('\n').map((line) => JSON.parse(line) as SearchStreamEvent);
+    expect(retriedEvents.filter((event) => event.type === 'source')).toHaveLength(2);
+    expect(retriedEvents.find((event) => event.type === 'done')).toMatchObject({ type: 'done', list: good?.list, failures: [{ sourceKey: 'bad', error: 'HTTP 500' }] });
+    expect(fetchSpy.mock.calls.length).toBeGreaterThan(calls);
 
     // 新地址走非缓存 JSON 分支，仍须得到相同的筛选结果。
     const fresh = await POST(makeRequest({ ...body, sources: sources.map((source) => ({ ...source, url: source.url + '/fresh' })) }));
