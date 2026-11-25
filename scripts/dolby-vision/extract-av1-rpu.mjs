@@ -173,10 +173,9 @@ function parseDolbyRpuObuStream(inputValue) {
 
 export function extractDolbyRpuFromObuStream(inputValue) {
   const parsed = parseDolbyRpuObuStream(inputValue);
-  const rpus = parsed.t35Payloads.map((payload) =>
-    regularRpuToHevcUnspec62Nalu(extractDolbyRpuFromT35(payload)));
+  const rpus = parsed.t35Payloads.map((payload) => extractDolbyRpuFromT35(payload));
   return {
-    rpuBytes: Buffer.concat(rpus.map((nalu) => Buffer.concat([ANNEX_B_START_CODE, nalu]))),
+    rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
     report: parsed.report,
   };
 }
@@ -187,15 +186,15 @@ async function convertT35PayloadWithLibdovi(payload, directory, ordinal, options
   const inputPath = resolve(directory, `t35-${ordinal.toString().padStart(6, '0')}.bin`);
   const outputPath = resolve(directory, `rpu-${ordinal.toString().padStart(6, '0')}.bin`);
   await writeFile(inputPath, payload, { flag: 'wx', mode: 0o600 });
-  const { stdout } = await execFileAsync(converter, [inputPath, outputPath], {
+  const { stdout } = await execFileAsync(converter, [inputPath, outputPath, '--regular'], {
     encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024, windowsHide: true,
   });
   const rpu = await readFile(outputPath);
   let lastNonZero = rpu.length - 1;
   while (lastNonZero >= 0 && rpu[lastNonZero] === 0) lastNonZero -= 1;
-  if (rpu.length < 27 || rpu.length > 1024 * 1024 || rpu[0] !== 0x7c ||
-      rpu[1] !== 0x01 || lastNonZero < 0 || rpu[lastNonZero] !== 0x80) {
-    throw new Error('libdovi returned an invalid HEVC UNSPEC62 RPU NAL unit.');
+  if (rpu.length < 7 || rpu.length > 1024 * 1024 || rpu[0] !== 0x19 ||
+      lastNonZero < 0 || rpu[lastNonZero] !== 0x80) {
+    throw new Error('libdovi returned an invalid regular RPU unit.');
   }
   let converterReport;
   try { converterReport = JSON.parse(stdout); } catch {
@@ -215,7 +214,7 @@ async function extractDolbyRpuFromObuStreamWithLibdovi(inputValue, directory, op
     rpus.push(await convertT35PayloadWithLibdovi(parsed.t35Payloads[ordinal], directory, ordinal, options));
   }
   return {
-    rpuBytes: Buffer.concat(rpus.map((nalu) => Buffer.concat([ANNEX_B_START_CODE, nalu]))),
+    rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
     report: parsed.report,
   };
 }
@@ -278,10 +277,10 @@ async function main() {
   if (options.kind === 't35') {
     const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-t35-'));
     try {
-      const nalu = converterConfigured
+      const regularRpu = converterConfigured
         ? await convertT35PayloadWithLibdovi(input, directory, 0, options)
-        : regularRpuToHevcUnspec62Nalu(extractDolbyRpuFromT35(input));
-      rpuBytes = Buffer.concat([ANNEX_B_START_CODE, nalu]);
+        : extractDolbyRpuFromT35(input);
+      rpuBytes = Buffer.concat([ANNEX_B_START_CODE, regularRpu]);
       report = { source: basename(inputPath), extractedRpuCount: 1, inputKind: 'av1-t35-payload', extractionBackend: converterConfigured ? 'libdovi' : 'javascript' };
     } finally {
       await rm(directory, { recursive: true, force: true });
