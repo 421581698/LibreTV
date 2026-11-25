@@ -1152,6 +1152,41 @@ function WatchContent() {
                   <span>{formatWatchTime(displayedPosition)}</span>
                   <span>{watchClock.duration > 0 ? `-${formatWatchTime(Math.max(0, watchClock.duration - displayedPosition))}` : '--:--'}</span>
                 </div>
+                {isIpadEditionPlayback ? (
+                  <div className="watch-cinema-progress cinema-seek-surface" role="slider" tabIndex={hasFiniteDuration ? 0 : -1}
+                    aria-label="播放进度" aria-disabled={!hasFiniteDuration} aria-valuemin={0}
+                    aria-valuemax={hasFiniteDuration ? watchClock.duration : 1} aria-valuenow={safeDisplayedPosition}
+                    style={{ '--watch-progress': `${progressPercent}%`, touchAction: 'none', pointerEvents: 'auto', position: 'relative', height: 48, cursor: 'pointer' } as CSSProperties}
+                    onPointerDown={(event) => {
+                      if (!hasFiniteDuration || !event.isPrimary || event.button !== 0) return;
+                      event.preventDefault();
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      scrubbingRef.current = true;
+                      setIsScrubbing(true);
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      const position = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * watchClock.duration;
+                      scrubbingPositionRef.current = position;
+                      setScrubbingPosition(position);
+                    }}
+                    onPointerMove={(event) => {
+                      if (!event.currentTarget.hasPointerCapture(event.pointerId) || !scrubbingRef.current) return;
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      const position = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * watchClock.duration;
+                      scrubbingPositionRef.current = position;
+                      setScrubbingPosition(position);
+                    }}
+                    onKeyDown={(event) => {
+                      if (!hasFiniteDuration || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const position = Math.max(0, Math.min(watchClock.duration, event.key === 'Home' ? 0 : event.key === 'End' ? watchClock.duration : safeDisplayedPosition + (event.key === 'ArrowLeft' ? -5 : 5)));
+                      playerApiRef.current?.seek(position);
+                      setWatchClock(current => ({ ...current, position }));
+                    }}>
+                    <span aria-hidden="true" style={{position:'absolute',left:0,right:0,top:'50%',height:3,transform:'translateY(-50%)',borderRadius:3,background:'linear-gradient(to right,#f5f5f7 var(--watch-progress),rgba(255,255,255,.36) var(--watch-progress))',pointerEvents:'none'}} />
+                    <span aria-hidden="true" style={{position:'absolute',left:`${progressPercent}%`,top:'50%',width:13,height:13,borderRadius:'50%',background:'#fff',transform:'translate(-50%,-50%)',pointerEvents:'none'}} />
+                  </div>
+                ) : (
                 <input
                   className="watch-cinema-progress"
                   type="range"
@@ -1214,7 +1249,8 @@ function WatchContent() {
                   }}
                   disabled={!hasFiniteDuration}
                 />
-                {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
+
+                )}                {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
                 <button
                   type="button"
                   className="watch-cinema-rate"
