@@ -54,6 +54,31 @@ export function authorizeBearer(header, expectedToken) {
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
+function hasValidMetadataCoverage(report) {
+  const allowedLevels = new Set([1, 2, 3, 4, 5, 6, 8, 9, 10, 11]);
+  if (!Array.isArray(report?.metadataLevels) || !report.metadataLevelFrameCounts ||
+      typeof report.metadataLevelFrameCounts !== 'object' || Array.isArray(report.metadataLevelFrameCounts)) {
+    return false;
+  }
+  const levels = report.metadataLevels;
+  if (levels.length === 0 || levels.some((level) =>
+    !Number.isSafeInteger(level) || !allowedLevels.has(level)
+  ) || new Set(levels).size !== levels.length) return false;
+  const counts = report.metadataLevelFrameCounts;
+  const countLevels = Object.keys(counts).map(Number);
+  if (countLevels.some((level) => !Number.isSafeInteger(level)) ||
+      countLevels.length !== levels.length ||
+      [...countLevels].sort((a, b) => a - b).some((level, index) =>
+        level !== [...levels].sort((a, b) => a - b)[index]
+      )) return false;
+  return Object.entries(counts).every(([level, count]) =>
+    String(Number(level)) === level &&
+    Number.isSafeInteger(count) &&
+    count > 0 &&
+    count <= report.frameCount
+  );
+}
+
 export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expectedSourceMediaSha256, now = Math.floor(Date.now() / 1000)) {
   if (!isValidAssetId(assetId)) throw new Error('Invalid stable asset ID.');
   if (!/^[a-f0-9]{64}$/i.test(expectedSourceMediaSha256 || '') ||
@@ -70,8 +95,7 @@ export function createSignedEnvelope(report, assetId, keyId, privateKeyPem, expe
       !/^[a-f0-9]{64}$/i.test(report.rpuSha256 || '') ||
       !Number.isSafeInteger(report.frameCount) || report.frameCount <= 0 ||
       !Array.isArray(report.profiles) || report.profiles.length === 0 ||
-      !Array.isArray(report.metadataLevels) || !report.metadataLevelFrameCounts ||
-      typeof report.metadataLevelFrameCounts !== 'object') {
+      !hasValidMetadataCoverage(report)) {
     throw new Error('Only structurally valid full-scope dovi_tool HEVC reports can be signed.');
   }
   const payload = {
