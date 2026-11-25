@@ -13,6 +13,7 @@ import { DEFAULT_SUBTITLE_PREFERENCES, loadSubtitlePreferences, saveSubtitlePref
 import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from '@/lib/native-player/subtitle-track-controller';
 import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
 import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
+import { classifyAudioVerification, createBrowserAudioEvidence } from '@/lib/dolby-audio-capabilities';
 import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/native-player/jassub-renderer';
 import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native-player/subtitle-style';
 import { sanitizePlaybackSnapshot } from '@/lib/native-player/snapshot-sanitizer';
@@ -240,6 +241,7 @@ export function PlayerShell({
   const [spatialAudioPanelOpen, setSpatialAudioPanelOpen] = useState(false);
   const [spatialAudioMode, setSpatialAudioMode] = useState<SpatialAudioMode>('off');
   const [spatialAudioMessage, setSpatialAudioMessage] = useState('空间音频默认关闭，不改变原始音轨。');
+  const [spatialAudioVerificationMessage, setSpatialAudioVerificationMessage] = useState('Dolby 原生输出与 JOC 对象解码尚未验证。');
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -624,6 +626,7 @@ export function PlayerShell({
   const setSpatialAudio = async (mode: SpatialAudioMode) => {
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video) return;
+    let selectedTrackInfo: ReturnType<typeof inspectHlsAudioTrack> | null = null;
     try {
       let engine = spatialAudioEngineRef.current;
       if (mode !== 'off') {
@@ -636,6 +639,7 @@ export function PlayerShell({
           return;
         }
         const info = inspectHlsAudioTrack(selectedTrack);
+        selectedTrackInfo = info;
         if (info.channelCount !== 2 && info.channelCount !== 6) {
           engine?.updateInputChannels(info.channelCount ?? 0, 'unknown');
           setSpatialAudioMessage('当前音轨没有明确的 2 声道或 6 声道声明，空间音频不可用。');
@@ -661,8 +665,16 @@ export function PlayerShell({
         : engine.setMode(mode);
       setSpatialAudioMode(mode);
       setSpatialAudioMessage(`${plan.label}：${plan.reason}`);
+      const verification = classifyAudioVerification(createBrowserAudioEvidence({
+        codec: selectedTrackInfo?.codec,
+        inputChannels: selectedTrackInfo?.channelCount,
+        hasJocMarker: selectedTrackInfo?.hasJocMarker,
+        binauralProcessing: plan.route !== 'bypass' ? 'configured' : 'not-configured',
+      }));
+      setSpatialAudioVerificationMessage(`${verification.label}：${verification.detail}`);
     } catch (error) {
       setSpatialAudioMessage(error instanceof Error ? error.message : '空间音频初始化失败，已保持原始播放。');
+      setSpatialAudioVerificationMessage('音频输出状态未知：处理链初始化失败，已回退。');
       setSpatialAudioMode('off');
     }
   };
@@ -2078,6 +2090,7 @@ export function PlayerShell({
               ))}
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-white/60">{spatialAudioMessage}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/60">{spatialAudioVerificationMessage}</p>
             <p className="mt-1 text-[10px] text-white/45">仅在音轨明确声明声道数且 CORS 安全时启用；不代表 Atmos 对象解码。</p>
           </div>
         )}
