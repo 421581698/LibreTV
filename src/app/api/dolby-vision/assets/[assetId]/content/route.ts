@@ -76,14 +76,40 @@ export async function GET(
         ? /^bytes (\d+)-(\d+)\/(\d+)$/.exec(contentRange)
         : null;
       const rangeNumbers = rangeMatch?.slice(1).map(Number) ?? [];
-      const invalidPartialRange = upstream.status === 206 && (
+      let requestedRangeMatches = upstream.status !== 206 && !rangeHeader;
+      if (upstream.status === 206 && rangeHeader && rangeMatch) {
+        const requested = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+        const [actualStart, actualEnd, total] = rangeNumbers;
+        if (requested && total > 0) {
+          const [, first, last] = requested;
+          let expectedStart = 0;
+          let expectedEnd = total - 1;
+          if (!first && last) {
+            const suffixLength = Number(last);
+            if (Number.isSafeInteger(suffixLength) && suffixLength > 0) {
+              expectedStart = Math.max(0, total - suffixLength);
+            } else {
+              expectedStart = total;
+            }
+          } else if (first) {
+            expectedStart = Number(first);
+            expectedEnd = last ? Math.min(Number(last), total - 1) : total - 1;
+          } else {
+            expectedStart = total;
+          }
+          requestedRangeMatches = actualStart === expectedStart && actualEnd === expectedEnd;
+        }
+      }
+      const invalidPartialRange = (upstream.status === 206 && (
+        !rangeHeader ||
         !rangeMatch ||
+        !requestedRangeMatches ||
         !Number.isSafeInteger(contentLength) ||
         rangeNumbers.some((value) => !Number.isSafeInteger(value)) ||
         rangeNumbers[0] > rangeNumbers[1] ||
         rangeNumbers[1] >= rangeNumbers[2] ||
         contentLength !== rangeNumbers[1] - rangeNumbers[0] + 1
-      );
+      )) || Boolean(rangeHeader && upstream.status === 200);
       if (upstream.headers.get('x-dv-asset-id') !== assetId ||
           !/^[a-f0-9]{64}$/.test(digest) ||
           upstream.headers.get('etag') !== expectedEtag ||
