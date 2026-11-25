@@ -187,15 +187,27 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertIn("authorized_media_ingest_skipped", [item["stage"] for item in checkpoints])
 
     def test_worker_dispatches_hls_candidate_to_graph_source_gateway(self):
+        import hashlib
         import worker
-        from dv_hls_source_gateway import ingest_authorized_hls_candidate
 
+        with registry_queue.connect() as db:
+            candidate = db.execute(
+                "SELECT url,validation FROM candidates WHERE id=?", (self.candidate_id,)
+            ).fetchone()
+        source_version = hashlib.sha256(
+            (candidate["url"] + "\0" + candidate["validation"]).encode("utf-8")
+        ).hexdigest()[:24]
         with (
             patch.object(worker, "require_egress_firewall"),
             patch("dv_hls_source_gateway.ingest_authorized_hls_candidate", return_value={"status": "registered"}) as ingest,
         ):
             result = worker.handle(
-                {"_job_type": "dv_media_ingest", "candidate_id": self.candidate_id, "resource_id": self.resource_id},
+                {
+                    "_job_type": "dv_media_ingest",
+                    "candidate_id": self.candidate_id,
+                    "resource_id": self.resource_id,
+                    "source_version": source_version,
+                },
                 lambda _event: None,
                 lambda: False,
             )
