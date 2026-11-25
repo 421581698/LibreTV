@@ -8,6 +8,9 @@ interface Props {
   onApi: (api: PlayerSkipApi | null) => void;
   onClock: (position: number, duration: number) => void;
   onSwitch: () => void;
+  onProgress: (position: number, duration: number) => void;
+  onEnded: () => void;
+  getRestorePosition: () => number | Promise<number>;
   panel: 'audio' | 'subtitles' | 'quality' | 'diagnostics' | null;
   onClosePanel: () => void;
 }
@@ -23,6 +26,28 @@ export function NativeCinemaFallback(props: Props) {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    let disposed = false;
+    let restored = false;
+    let lastSaved = 0;
+    const save = () => {
+      if (restored && !video.ended && Number.isFinite(video.duration) && video.duration > 0) latest.current.onProgress(video.currentTime, video.duration);
+    };
+    const tick = () => {
+      if (Date.now() - lastSaved >= 5000) { lastSaved = Date.now(); save(); }
+    };
+    const ended = () => latest.current.onEnded();
+    const restore = async () => {
+      try {
+        const position = await latest.current.getRestorePosition();
+        if (!disposed && Number.isFinite(position) && position > 0 && Number.isFinite(video.duration) && position < video.duration && video.currentTime === 0) video.currentTime = position;
+      } catch { /* Continue without saved progress. */ }
+      finally { if (!disposed) restored = true; }
+    };
+    video.addEventListener('loadedmetadata', restore, { once: true });
+    if (video.readyState >= 1) { video.removeEventListener('loadedmetadata', restore); void restore(); }
+    video.addEventListener('timeupdate', tick);
+    video.addEventListener('pause', save);
+    video.addEventListener('ended', ended);
     const sync = () => {
       latest.current.onClock(video.currentTime, Number.isFinite(video.duration) ? video.duration : 0);
       setSize(video.videoHeight > 0 ? video.videoWidth + ' × ' + video.videoHeight : '');
@@ -40,6 +65,11 @@ export function NativeCinemaFallback(props: Props) {
     });
     sync();
     return () => {
+      disposed = true;
+      video.removeEventListener('loadedmetadata', restore);
+      video.removeEventListener('timeupdate', tick);
+      video.removeEventListener('pause', save);
+      video.removeEventListener('ended', ended);
       events.forEach(event => video.removeEventListener(event, sync));
       latest.current.onApi(null);
       video.pause();

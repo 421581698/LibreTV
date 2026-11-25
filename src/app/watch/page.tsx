@@ -825,6 +825,7 @@ function WatchContent() {
       updateHistoryProgress(sourceKey, progressId, 0, 0, currentIndex).catch(() => {});
     }
     if (store.autoplayNext && currentIndex < episodes.length - 1) {
+      if (autoNextTimer.current !== null) return;
       setShowAutoNext(true);
       autoNextTimer.current = setTimeout(() => {
         autoNextTimer.current = null;
@@ -1009,6 +1010,9 @@ function WatchContent() {
                   <NativeCinemaFallback url={playerUrl} retry={retry}
                     onApi={(api) => { playerApiRef.current = api; }}
                     onClock={(position, duration) => setWatchClock({ position, duration })}
+                    onProgress={(position, duration) => handleProgress(position, duration, currentEpisodeKey)}
+                    onEnded={() => handleEnded(currentEpisodeKey)}
+                    getRestorePosition={getRestorePosition}
                     onSwitch={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}
                     panel={cinemaPanel} onClosePanel={() => setCinemaPanel(null)} />
                 ) : undefined}>

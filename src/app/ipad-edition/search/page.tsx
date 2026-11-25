@@ -23,6 +23,7 @@ function IpadSearchContent() {
   const [hasSearched, setHasSearched] = useState(false);
   const activeController = useRef<AbortController | null>(null);
   const requestId = useRef(0);
+  const ownUrlUpdate = useRef<string | null>(null);
   const customAPIs = useAppStore((s) => s.customAPIs);
   const envSources = useAppStore((s) => s.envSources);
   const selectedKeys = useAppStore((s) => s.selectedKeys);
@@ -67,7 +68,10 @@ function IpadSearchContent() {
       if (currentRequest !== requestId.current) return;
       setResults(response.list ?? []);
       const next = new URLSearchParams({ q: value });
-      router.replace('/ipad-edition/search?' + next.toString(), { scroll: false });
+      if (value !== initial) {
+        ownUrlUpdate.current = value;
+        router.replace('/ipad-edition/search?' + next.toString(), { scroll: false });
+      }
     } catch (reason) {
       if (controller.signal.aborted || currentRequest !== requestId.current) return;
       setResults([]);
@@ -82,6 +86,11 @@ function IpadSearchContent() {
 
   useEffect(() => {
     // Keep search state synchronized with browser Back/Forward navigation.
+    if (ownUrlUpdate.current === initial) {
+      ownUrlUpdate.current = null;
+      return;
+    }
+    ownUrlUpdate.current = null;
     if (initial.trim()) {
       void runSearch(initial);
     } else {

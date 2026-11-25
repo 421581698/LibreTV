@@ -66,10 +66,10 @@ export function toggleWatchPlayback(
       void video.play().then(() => {
         if (isCurrent(video)) onChange(!video.paused && !video.ended);
       }).catch(() => {
-        if (isCurrent(video)) onChange(false);
+        if (isCurrent(video)) onChange(!video.paused && !video.ended);
       });
     } catch {
-      if (isCurrent(video)) onChange(false);
+      if (isCurrent(video)) onChange(!video.paused && !video.ended);
     }
     return;
   }

@@ -40,8 +40,8 @@ export async function GET(req: Request) {
   if (year && !/^\d{4}$/.test(year)) return NextResponse.json({ error: '年份格式无效' }, { status: 400 });
 
   const cacheKey = `tmdb-poster:${type}:${normalizeTitle(title)}:${year}`;
-  const cached = getCache<string | null>(cacheKey);
-  if (cached !== undefined) return NextResponse.json({ poster: cached });
+  const cached = getCache<{ poster: string | null; tmdbId: number | null }>(cacheKey + ':v2');
+  if (cached !== undefined) return NextResponse.json(cached);
 
   try {
     const data = await fetchTmdbJson<TmdbSearchResponse>(`/search/${type}`, {
@@ -61,8 +61,9 @@ export async function GET(req: Request) {
     });
     const imageBase = result?.poster_path ? await getTmdbPosterBase() : '';
     const poster = result?.poster_path ? `${imageBase}${result.poster_path}` : null;
-    setCache(cacheKey, poster, CACHE_TTL);
-    return NextResponse.json({ poster, tmdbId: result?.id ?? null });
+    const payload = { poster, tmdbId: result?.id ?? null };
+    setCache(cacheKey + ':v2', payload, CACHE_TTL);
+    return NextResponse.json(payload);
   } catch (error) {
     const notConfigured = error instanceof Error && error.message === 'TMDB_NOT_CONFIGURED';
     return NextResponse.json(
