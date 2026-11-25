@@ -362,18 +362,23 @@ class AuthorizedHlsSourceGatewayTests(unittest.TestCase):
         self.assertFalse(any(self.staging_root.iterdir()))
 
     def test_rejects_live_hls_playlist_before_fetching_segments(self):
-        manifest = b"#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n"
-        responses = {
-            ("media.example", "/master.m3u8"): (200, {
-                "Content-Type": "application/vnd.apple.mpegurl",
-                "Content-Length": str(len(manifest)),
-            }, manifest),
-        }
-        result, connection = self.run_gateway(responses)
-        self.assertEqual(result["status"], "failed")
-        self.assertIn("finalized HLS", result["reason"])
-        self.assertEqual(connection.requests, [("media.example", "GET", "/master.m3u8")])
-        self.assertFalse(any(self.staging_root.iterdir()))
+        manifests = (
+            b"#EXTM3U\n#EXTINF:4.0,\nsegment.ts\n",
+            b'#EXTM3U\n#EXT-X-PART:DURATION=0.5,URI="part-1.m4s"\n#EXT-X-PRELOAD-HINT:TYPE=PART,URI="part-2.m4s"\n',
+        )
+        for manifest in manifests:
+            with self.subTest(manifest=manifest):
+                responses = {
+                    ("media.example", "/master.m3u8"): (200, {
+                        "Content-Type": "application/vnd.apple.mpegurl",
+                        "Content-Length": str(len(manifest)),
+                    }, manifest),
+                }
+                result, connection = self.run_gateway(responses)
+                self.assertEqual(result["status"], "failed")
+                self.assertIn("finalized HLS", result["reason"])
+                self.assertEqual(connection.requests, [("media.example", "GET", "/master.m3u8")])
+                self.assertFalse(any(self.staging_root.iterdir()))
 
     def test_rejects_hls_path_traversal_before_fetching_child(self):
         manifest = b"#EXTM3U\n#EXTINF:4.0,\n%25252e%25252e/private.ts\n#EXT-X-ENDLIST\n"
