@@ -6,6 +6,7 @@ from collections import OrderedDict
 import json
 import os
 import sqlite3
+import shutil
 import stat
 import tempfile
 import threading
@@ -914,7 +915,7 @@ def api_assemble_hls_fmp4(
             temporary_path,
             media_type="video/mp4",
             filename="hls-rpu-parser-input.mp4",
-            background=BackgroundTask(lambda: temporary_path.unlink(missing_ok=True)),
+            background=BackgroundTask(lambda: (temporary_path.unlink(missing_ok=True), shutil.rmtree(temporary_path.with_name(temporary_path.name + ".segments"), ignore_errors=True))),
             headers={
                 "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
@@ -934,6 +935,80 @@ def api_assemble_hls_fmp4(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except Exception:
         temporary_path.unlink(missing_ok=True)
+        raise
+
+
+@router.post("/v1/registry/resources/{resource_id}/hls-assembly/{variant_asset_id}/segments/{fragment_ordinal}")
+def api_assemble_hls_fmp4_segment(
+    resource_id: str,
+    variant_asset_id: str,
+    fragment_ordinal: int,
+    authorization: str | None = Header(default=None),
+):
+    """Stream one independently parseable init+fragment input with signed-provenance headers."""
+    require_auth(authorization)
+    from dv_hls_fmp4_assembly import HlsAssemblyError, assemble_registered_hls_fmp4
+
+    if fragment_ordinal < 0 or fragment_ordinal >= 10_000:
+        raise HTTPException(status_code=422, detail="Invalid HLS fragment ordinal")
+    DV_MEDIA_STAGING_ROOT.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix="dv-hls-segment-parser-input-", suffix=".mp4", dir=DV_MEDIA_STAGING_ROOT
+    )
+    os.close(descriptor)
+    temporary_path = Path(temporary_name)
+    segment_dir = temporary_path.with_name(temporary_path.name + ".segments")
+    try:
+        result = assemble_registered_hls_fmp4(
+            resource_id, variant_asset_id, temporary_path, DV_MEDIA_OBJECT_ROOT
+        )
+        if fragment_ordinal >= len(result["segmentInputs"]):
+            raise HTTPException(status_code=404, detail="HLS fragment ordinal not found")
+        segment = result["segmentInputs"][fragment_ordinal]
+        segment_path = Path(segment["outputPath"])
+        headers = {
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "X-DV-Asset-ID": segment["fragmentAssetId"],
+            "X-DV-Asset-SHA256": segment["assembledSegmentSha256"],
+            "X-DV-Source-Content-Type": "video/mp4",
+            "X-DV-Analysis-Scope": "hls-fmp4-segment",
+            "X-DV-HLS-RESOURCE-ID": result["resourceId"],
+            "X-DV-HLS-GRAPH-ID": result["graphId"],
+            "X-DV-HLS-GRAPH-SHA256": result["graphDigest"],
+            "X-DV-HLS-ROOT-ASSET-ID": result["rootAssetId"],
+            "X-DV-HLS-VARIANT-ASSET-ID": result["variantAssetId"],
+            "X-DV-HLS-FRAGMENT-COUNT": str(len(result["segmentInputs"])),
+            "X-DV-HLS-FRAGMENT-SEQUENCE-CONTINUITY": result["fragmentSequenceContinuity"],
+            "X-DV-HLS-TEMPORAL-CONTINUITY": result["temporalContinuity"],
+            "X-DV-HLS-FRAGMENT-ORDINAL": str(segment["ordinal"]),
+            "X-DV-HLS-FRAGMENT-ASSET-ID": segment["fragmentAssetId"],
+            "X-DV-HLS-FRAGMENT-SHA256": segment["fragmentSha256"],
+            "X-DV-HLS-INITIALIZATION-ASSET-ID": segment["initializationAssetId"],
+            "X-DV-HLS-INITIALIZATION-SHA256": segment["initializationSha256"],
+            "X-DV-HLS-ASSEMBLED-SEGMENT-SHA256": segment["assembledSegmentSha256"],
+            "X-DV-HLS-FRAGMENT-SEQUENCE-NUMBER": str(segment["fragmentSequenceNumber"]),
+            "X-DV-HLS-DECODE-TIME": str(segment["decodeTime"]),
+            "X-DV-HLS-SAMPLE-DURATION": str(segment["sampleDuration"]),
+            "X-DV-HLS-SAMPLE-COUNT": str(segment["sampleCount"]),
+            "X-DV-HLS-TIMESCALE": str(segment["timescale"]),
+        }
+        return FileResponse(
+            segment_path,
+            media_type="video/mp4",
+            filename=f"hls-fragment-{fragment_ordinal:06d}.mp4",
+            background=BackgroundTask(
+                lambda: (temporary_path.unlink(missing_ok=True), shutil.rmtree(segment_dir, ignore_errors=True))
+            ),
+            headers=headers,
+        )
+    except HlsAssemblyError as exc:
+        temporary_path.unlink(missing_ok=True)
+        shutil.rmtree(segment_dir, ignore_errors=True)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception:
+        temporary_path.unlink(missing_ok=True)
+        shutil.rmtree(segment_dir, ignore_errors=True)
         raise
 
 
