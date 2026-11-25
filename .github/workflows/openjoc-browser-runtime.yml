@@ -3,7 +3,8 @@ name: OpenJOC Browser Runtime
 on:
   pull_request:
     paths:
-      - 'src/lib/native-player/joc-*'
+      - 'src/lib/native-player/**'
+      - 'src/components/player-shell.tsx'
       - 'public/audio/openjoc-pcm.worklet.js'
       - 'scripts/build-openjoc-wasm.sh'
       - 'package.json'
