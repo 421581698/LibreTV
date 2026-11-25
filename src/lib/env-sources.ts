@@ -1,66 +1,10 @@
 import type { SourceConfig } from './types';
 
 /**
- * 内置 Apple CMS 点播源。
- * 这些地址来自项目维护者显式配置；实际请求仍统一经过 fetchUpstream 与 SSRF/DNS 校验。
- * weight 越小，默认展示/搜索顺序越靠前；健康排序可在运行时调整。
+ * No external CMS provider is enabled by default.
+ * Add only sources that have completed an explicit content and security review.
  */
-export const BUILTIN_SOURCES: SourceConfig[] = [
-  {
-    key: 'gsm3u8',
-    name: '光速资源',
-    type: 1,
-    api: 'https://api.guangsuapi.com/api.php/provide/vod/?ac=list',
-    url: 'https://api.guangsuapi.com/api.php/provide/vod',
-    from: 'https://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8/',
-    weight: 1,
-  },
-  {
-    key: 'jsm3u8',
-    name: '极速资源',
-    type: 1,
-    api: 'https://jszyapi.com/api.php/provide/vod/?ac=list',
-    url: 'https://jszyapi.com/api.php/provide/vod',
-    from: 'https://jszyapi.com/api.php/provide/vod/from/jsm3u8/',
-    weight: 2,
-  },
-  {
-    key: 'wjm3u8',
-    name: '无尽资源',
-    type: 1,
-    api: 'https://api.wujinapi.com/api.php/provide/vod/?ac=list',
-    url: 'https://api.wujinapi.com/api.php/provide/vod',
-    from: 'https://api.wujinapi.com/api.php/provide/vod/from/wjm3u8/',
-    weight: 3,
-  },
-  {
-    key: 'hnm3u8',
-    name: '红牛资源',
-    type: 1,
-    api: 'https://www.hongniuzy2.com/api.php/provide/vod/?ac=list',
-    url: 'https://www.hongniuzy2.com/api.php/provide/vod',
-    from: 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/',
-    weight: 4,
-  },
-  {
-    key: 'dbm3u8',
-    name: '百度资源',
-    type: 1,
-    api: 'https://api.apibdzy.com/api.php/provide/vod/?ac=list',
-    url: 'https://api.apibdzy.com/api.php/provide/vod',
-    from: 'https://api.apibdzy.com/api.php/provide/vod/from/dbm3u8/',
-    weight: 5,
-  },
-  {
-    key: 'zuidam3u8',
-    name: '最大资源',
-    type: 1,
-    api: 'https://api.zuidapi.com/api.php/provide/vod/?ac=list',
-    url: 'https://api.zuidapi.com/api.php/provide/vod',
-    from: 'https://api.zuidapi.com/api.php/provide/vod/from/zuidam3u8/',
-    weight: 6,
-  },
-];
+export const BUILTIN_SOURCES: SourceConfig[] = [];
 
 /**
  * 部署者通过 DEFAULT_SOURCES 环境变量额外预置的采集站。
