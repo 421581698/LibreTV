@@ -11,8 +11,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends gosu libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN python -m pip install --no-cache-dir uv \\
-    && uv pip install --system --no-cache -r requirements.txt \\
+RUN python -m pip install --no-cache-dir uv \
+    && uv pip install --system --no-cache -r requirements.txt \
     && mkdir -p /data /opt/collector-browsers \
     && useradd --create-home --uid 10001 collector \
     && chown -R collector:collector /data \
