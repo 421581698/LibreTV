@@ -206,6 +206,26 @@ function validateSources(
       source.detail = item.detail.slice(0, 2048);
     }
 
+    // Preserve trusted CMS metadata supplied by the built-in source registry.
+    // Metadata URLs are constrained to the same HTTPS origin as the validated API URL.
+    for (const field of ['api', 'from'] as const) {
+      if (typeof item[field] !== 'string' || item[field].length > 2048) continue;
+      try {
+        const metadataUrl = new URL(item[field] as string);
+        if (metadataUrl.protocol === 'https:' && metadataUrl.origin === parsed.origin) {
+          source[field] = metadataUrl.toString();
+        }
+      } catch {
+        // Ignore malformed optional metadata; the validated API URL remains usable.
+      }
+    }
+    if (typeof item.type === 'number' && Number.isInteger(item.type) && item.type >= 1 && item.type <= 10) {
+      source.type = item.type;
+    }
+    if (typeof item.weight === 'number' && Number.isFinite(item.weight) && item.weight >= 0 && item.weight <= 1000) {
+      source.weight = item.weight;
+    }
+
     sources.push(source);
   }
 
