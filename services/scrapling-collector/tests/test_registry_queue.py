@@ -384,5 +384,66 @@ class RegistryQueueTests(unittest.TestCase):
 
 
 
+
+    def test_hls_graph_api_returns_ordered_trusted_init_and_segment_members(self):
+        from fastapi import HTTPException
+        import hashlib
+        from pathlib import Path
+        resource = queue.upsert_resource({
+            "resource_key": "resource:hls-graph-api", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/master.m3u8",
+            "title": "HLS graph fixture", "access_state": "PUBLIC", "media_format": "hls",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        payloads = [
+            ("root", b"#EXTM3U\\nvariant.m3u8\\n", "application/vnd.apple.mpegurl"),
+            ("variant", b'#EXTM3U\\n#EXT-X-MAP:URI="init.mp4"\\n#EXTINF:4,\\nseg.m4s\\n#EXT-X-ENDLIST\\n', "application/vnd.apple.mpegurl"),
+            ("init", b"init-bytes", "video/mp4"),
+            ("segment", b"segment-bytes", "video/iso.segment"),
+        ]
+        assets = []
+        for label, body, content_type in payloads:
+            digest = hashlib.sha256(body).hexdigest()
+            asset = queue.register_dolby_vision_media_asset(resource["id"], digest, len(body), content_type)
+            assets.append(asset)
+        with queue.connect() as c:
+            c.execute(
+                "INSERT INTO registry_hls_asset_graphs(graph_id,resource_id,root_asset_id,created_at) VALUES(?,?,?,?)",
+                ("hls-graph-api", resource["id"], assets[0]["asset_id"], 10),
+            )
+            c.executemany(
+                """INSERT INTO registry_hls_asset_edges(parent_asset_id,child_asset_id,relative_uri,role,ordinal)
+                   VALUES(?,?,?,?,?)""",
+                [
+                    (assets[0]["asset_id"], assets[1]["asset_id"], "variant.m3u8", "playlist", 0),
+                    (assets[1]["asset_id"], assets[2]["asset_id"], "init.mp4", "initialization", 0),
+                    (assets[1]["asset_id"], assets[3]["asset_id"], "seg.m4s", "segment", 1),
+                ],
+            )
+        with patch.object(queue, "require_auth"):
+            result = queue.api_get_hls_asset_graph(resource["id"], authorization="Bearer test")
+        self.assertEqual(result["rootAsset"]["assetId"], assets[0]["asset_id"])
+        self.assertEqual({item["assetId"] for item in result["members"]}, {a["asset_id"] for a in assets[1:]})
+        self.assertEqual([edge["role"] for edge in result["edges"]], ["playlist", "initialization", "segment"])
+        self.assertEqual(result["edges"][-1]["childAssetId"], assets[3]["asset_id"])
+        self.assertTrue(all(item["resourceId"] == resource["id"] for item in result["members"]))
+
+    def test_hls_graph_api_fails_closed_for_unverified_resources_and_missing_graphs(self):
+        from fastapi import HTTPException
+        resource = queue.upsert_resource({
+            "resource_key": "resource:hls-graph-unverified", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/master.m3u8",
+            "title": "Unverified HLS", "access_state": "PUBLIC", "media_format": "hls",
+        })
+        with patch.object(queue, "require_auth"), self.assertRaises(HTTPException) as blocked:
+            queue.api_get_hls_asset_graph(resource["id"], authorization="Bearer test")
+        self.assertEqual(blocked.exception.status_code, 409)
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        with patch.object(queue, "require_auth"), self.assertRaises(HTTPException) as missing:
+            queue.api_get_hls_asset_graph(resource["id"], authorization="Bearer test")
+        self.assertEqual(missing.exception.status_code, 404)
+
 if __name__ == "__main__":
     unittest.main()
