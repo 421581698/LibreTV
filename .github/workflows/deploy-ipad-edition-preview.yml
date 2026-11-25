@@ -414,7 +414,7 @@ jobs:
                 await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false');
                 await page.waitForFunction(() => !document.querySelector('.ipad-nav__sidebar')?.classList.contains('is-open'));
                 sidebarInteraction.scrimClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                // Verify genuine touch-pointer edge-swipe open and only attempt close after a proven open.
+                // Verify the accepted capsule-only navigation: edge gestures must not open the sidebar.
                 const touchSession = await context.newCDPSession(page);
                 sidebarInteraction.diagnostics = await page.evaluate(() => {
                   const edge = document.querySelector('.ipad-nav__edge-swipe-zone');
@@ -440,27 +440,10 @@ jobs:
                   await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 96, y: 260, id: 1, force: 1 }] });
                   await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 180, y: 260, id: 1, force: 1 }] });
                   await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-                  await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'true', undefined, { timeout: 5000 });
-                  // Wait for the rendered CSS state, not only React's aria-expanded state.
-                  await page.waitForFunction(() => {
-                    const sidebar = document.querySelector('.ipad-nav__sidebar');
-                    if (!sidebar) return false;
-                    const style = getComputedStyle(sidebar);
-                    const rect = sidebar.getBoundingClientRect();
-                    return style.display !== 'none' && style.visibility === 'visible' && rect.width > 0;
-                  }, undefined, { timeout: 1200 }).catch(() => {});
-                  sidebarInteraction.edgeSwipeOpened = await page.locator('.ipad-nav__sidebar.is-open').isVisible();
-                  if (sidebarInteraction.edgeSwipeOpened) {
-                    await touchSession.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 220, y: 260, id: 1, force: 1 }] });
-                    await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 120, y: 260, id: 1, force: 1 }] });
-                    await touchSession.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 32, y: 260, id: 1, force: 1 }] });
-                    await touchSession.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-                    await page.waitForFunction(() => document.querySelector('.ipad-nav__menu-button')?.getAttribute('aria-expanded') === 'false', undefined, { timeout: 5000 });
-                    sidebarInteraction.edgeSwipeClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0;
-                  } else {
-                    sidebarInteraction.edgeSwipeClosed = false;
-                    sidebarInteraction.closeSkippedBecauseOpenFailed = true;
-                  }
+                  await page.waitForTimeout(350);
+                  sidebarInteraction.edgeSwipeStayedClosed = await page.locator('.ipad-nav__sidebar.is-open').count() === 0 &&
+                    await menuButton.getAttribute('aria-expanded') === 'false' &&
+                    await page.locator('.ipad-nav__edge-swipe-zone').count() === 0;
                 } finally {
                   await touchSession.detach();
                   sidebarInteraction.diagnostics.trace = await page.evaluate(() => window.__ipadTouchTrace ?? []);
@@ -490,7 +473,7 @@ jobs:
                   }));
                 }
                 sidebarInteractionPassed = sidebarInteraction.opened && sidebarInteraction.escapeClosed &&
-                  sidebarInteraction.scrimClosed && sidebarInteraction.edgeSwipeOpened && sidebarInteraction.edgeSwipeClosed;
+                  sidebarInteraction.scrimClosed && sidebarInteraction.edgeSwipeStayedClosed;
               } catch (error) {
                 sidebarInteraction.error = String(error);
                 sidebarInteractionPassed = false;
@@ -1877,7 +1860,7 @@ jobs:
                 // pointer capture on iPad-like mobile Chromium.
                 const touchControlBounds = await seekControl.boundingBox();
                 if (!touchControlBounds) throw new Error("Missing seek surface for touch stream.");
-                const touchY = touchControlBounds.y + touchControlBounds.height / 2;
+                const seekTouchY = touchControlBounds.y + touchControlBounds.height / 2;
                 const touchXStart = touchControlBounds.x + touchControlBounds.width * 0.25;
                 const touchXEnd = touchControlBounds.x + touchControlBounds.width * 0.65;
                 const expectedTouchTime = duration * 0.65;
@@ -1886,12 +1869,12 @@ jobs:
                 try {
                   await touchSession.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
                   await touchSession.send("Input.dispatchTouchEvent", {
-                    type: "touchStart", touchPoints: [{ x: touchXStart, y: touchY, id: 1, force: 1 }],
+                    type: "touchStart", touchPoints: [{ x: touchXStart, y: seekTouchY, id: 1, force: 1 }],
                   });
                   for (let step = 1; step <= 6; step += 1) {
                     await touchSession.send("Input.dispatchTouchEvent", {
                       type: "touchMove",
-                      touchPoints: [{ x: touchXStart + (touchXEnd - touchXStart) * step / 6, y: touchY, id: 1, force: 1 }],
+                      touchPoints: [{ x: touchXStart + (touchXEnd - touchXStart) * step / 6, y: seekTouchY, id: 1, force: 1 }],
                     });
                   }
                   await page.waitForFunction(({ expected }) => {
