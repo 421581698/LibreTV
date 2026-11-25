@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   extractDolbyRpuFromObuStream,
   extractDolbyRpuFromT35,
+  regularRpuToHevcUnspec62Nalu,
 } from './extract-av1-rpu.mjs';
 
 function writeBits(bits, value, count) {
@@ -91,7 +92,10 @@ test('extracts Dolby RPU metadata from a temporally aligned raw AV1 OBU stream',
     obu(6, Buffer.from([0])),
   ]);
   const result = extractDolbyRpuFromObuStream(stream);
-  assert.deepEqual(result.rpuBytes, Buffer.concat([Buffer.from([0, 0, 0, 1, 0x19]), rpu]));
+  assert.deepEqual(result.rpuBytes, Buffer.concat([
+    Buffer.from([0, 0, 0, 1, 0x7c, 0x01, 0x19]),
+    rpu,
+  ]));
   assert.deepEqual(result.report, {
     obuCount: 3,
     temporalDelimiterCount: 1,
@@ -101,6 +105,12 @@ test('extracts Dolby RPU metadata from a temporally aligned raw AV1 OBU stream',
     rpuTemporalUnitCount: 1,
     rpuUnits: [{ ordinal: 0, temporalUnitIndex: 0, frameUnitCount: 1 }],
   });
+});
+
+
+test('inserts HEVC emulation-prevention bytes in the UNSPEC62 RPU NAL unit', () => {
+  const nalu = regularRpuToHevcUnspec62Nalu(Buffer.from([0x19, 0x00, 0x00, 0x01, 0x80]));
+  assert.deepEqual(nalu, Buffer.from([0x7c, 0x01, 0x19, 0x00, 0x00, 0x03, 0x01, 0x80]));
 });
 
 test('rejects Dolby metadata without a preceding temporal delimiter or frame', () => {
