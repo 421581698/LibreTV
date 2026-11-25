@@ -16,10 +16,10 @@ function parserBase(): string | null {
         (parsed.pathname !== '' && parsed.pathname !== '/')) return null;
     if (parsed.protocol === 'http:' && parsed.hostname === 'dolby-vision-parser' && parsed.port === '8788') return parsed.origin;
     const hostname = parsed.hostname.toLowerCase();
-    const ipLiteral = /^\d{1,3}(?:\\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
+    const ipLiteral = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
     if (parsed.protocol !== 'https:' || (parsed.port && parsed.port !== '443') ||
         ipLiteral || hostname === 'localhost' || !hostname.includes('.') ||
-        /(^|\\.)(local|internal|localhost|test|invalid)$/.test(hostname)) return null;
+        /(^|\.)(local|internal|localhost|test|invalid)$/.test(hostname)) return null;
     return parsed.origin;
   } catch {
     return null;
