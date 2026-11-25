@@ -66,8 +66,8 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
             (self.stage / "seg1.m4s").write_bytes(media_fragment(1))
             (self.stage / "seg2.m4s").write_bytes(media_fragment(second_sequence))
         else:
-            (self.stage / "seg1.ts").write_bytes(b"not-an-fmp4-fragment")
-            (self.stage / "seg2.ts").write_bytes(b"not-an-fmp4-fragment")
+            (self.stage / "seg1.ts").write_bytes(b"not-an-fmp4-fragment-one")
+            (self.stage / "seg2.ts").write_bytes(b"not-an-fmp4-fragment-two")
         ingested = ingest_hls_directory(
             self.resource["id"], self.stage, "master.m3u8", self.object_root,
         )
