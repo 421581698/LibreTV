@@ -234,7 +234,7 @@ export class JocSoftwareDecoderClient {
     this.assertActive();
     const context = this.context;
     if (!this.outputEnabled || !this.node || !this.gainNode || !context || !this.ready ||
-        !this.decodedProfile || this.decodedAccessUnits <= 0 || video.paused || video.ended ||
+        !this.decodedProfile || this.decodedAccessUnits <= 0 || video.paused || video.ended || video.muted ||
         this.ownsMediaMute || this.activationInFlight) return false;
     const requiredFrames = Math.ceil(48000 * Math.max(128, minimumPrerollMs) / 1000);
     if (this.queuedFrames < requiredFrames) return false;
