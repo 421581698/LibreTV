@@ -269,14 +269,14 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           as="aside"
           disableEngine
           variant="panel"
-          cornerRadius={0}
+          cornerRadius={24}
           className={`ipad-nav__sidebar${sidebarOpen || isExpandedSidebar ? ' is-open' : ''}`}
           id="ipad-edition-sidebar"
           aria-label="主导航"
-          aria-hidden={!sidebarOpen && !isExpandedSidebar}
-          inert={!sidebarOpen && !isExpandedSidebar}
+          aria-hidden={!wideLayout && !sidebarOpen}
+          inert={!wideLayout && !sidebarOpen}
         >
-          <Link className="ipad-nav__brand" href="/ipad-edition" tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}>
+          <Link className="ipad-nav__brand" aria-label="LibreTV 首页" href="/ipad-edition" tabIndex={wideLayout || sidebarOpen ? 0 : -1}>
             <span className="ipad-nav__brand-mark">L</span>
             <span className="ipad-nav__brand-copy">
               <strong>LibreTV</strong>
@@ -286,15 +286,15 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             className="ipad-nav__collapse-button"
-            aria-label="关闭侧边栏"
-            title="关闭侧边栏"
+            aria-label={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}
+            title={wideLayout && navigationCollapsed ? "展开侧边栏" : "收起侧边栏"}
+            aria-expanded={sidebarOpen || isExpandedSidebar}
             onClick={() => {
               setSidebarOpen(false);
-              setNavigationCollapsed(true);
+              setNavigationCollapsed((collapsed) => !collapsed);
             }}
           >
-            <NavigationIcon name="x" />
-            <span>关闭</span>
+            <svg className="ipad-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d={wideLayout && navigationCollapsed ? "m9 6 6 6-6 6" : "m15 6-6 6 6 6"} /></svg>
           </button>
 
           <p className="ipad-nav__section-label">主导航</p>
@@ -303,7 +303,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}
+                aria-label={item.label}
+                title={item.label}
+                tabIndex={wideLayout || sidebarOpen ? 0 : -1}
                 className={activeHref === item.href ? 'is-active' : ''}
                 aria-current={activeHref === item.href ? 'page' : undefined}
               >
@@ -320,7 +322,9 @@ export function IpadEditionShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                tabIndex={sidebarOpen || isExpandedSidebar ? 0 : -1}
+                aria-label={item.label}
+                title={item.label}
+                tabIndex={wideLayout || sidebarOpen ? 0 : -1}
                 className={activeHref === item.href ? 'is-active' : ''}
                 aria-current={activeHref === item.href ? 'page' : undefined}
               >
