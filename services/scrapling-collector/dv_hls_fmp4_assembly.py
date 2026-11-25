@@ -530,6 +530,7 @@ def assemble_registered_hls_fmp4(
 
     init_asset = assets[map_ids[0]]
     _validate_init(root_dir, init_asset)
+    timeline = _validate_video_timeline(root_dir, init_asset, segment_assets)
 
     sequence_numbers = []
     previous_sequence = None
@@ -616,6 +617,7 @@ def assemble_registered_hls_fmp4(
         "fragmentSequenceNumbers": sequence_numbers,
         "fragmentSequenceContinuity": "sequential",
         "temporalContinuity": "contiguous",
+        "videoTimeline": timeline,
         "assembledByteLength": total,
         "assembledSha256": digest.hexdigest(),
         "outputPath": str(destination),
