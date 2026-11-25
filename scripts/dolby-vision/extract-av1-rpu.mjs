@@ -9,6 +9,7 @@ import { resolve, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const T35_HEADER = Buffer.from([0x00, 0x3b, 0x00, 0x00, 0x08, 0x00, 0x37, 0xcd, 0x08]);
+const ANNEX_B_START_CODE = Buffer.from([0x00, 0x00, 0x00, 0x01]);
 const COUNTRY_CODE_US = 0xb5;
 const MAX_OBU_BYTES = 16 * 1024 * 1024;
 const MAX_OBUS = 1_000_000;
@@ -133,7 +134,7 @@ export function extractDolbyRpuFromObuStream(inputValue) {
     if ((framesByTemporalUnit.get(unit) || 0) === 0) throw new Error('Dolby RPU metadata is not aligned with a frame in its temporal unit.');
   }
   return {
-    rpuBytes: Buffer.concat(rpus),
+    rpuBytes: Buffer.concat(rpus.map((rpu) => Buffer.concat([ANNEX_B_START_CODE, rpu]))),
     report: { obuCount, temporalDelimiterCount, temporalUnitCount: temporalDelimiterCount, frameUnitCount, dolbyRpuCount: rpus.length, rpuTemporalUnitCount: rpuTemporalUnits.size },
   };
 }
@@ -159,7 +160,7 @@ async function main() {
   const input = await readFile(resolve(options.input));
   let rpuBytes, report;
   if (options.kind === 't35') {
-    rpuBytes = extractDolbyRpuFromT35(input);
+    rpuBytes = Buffer.concat([ANNEX_B_START_CODE, extractDolbyRpuFromT35(input)]);
     report = { source: basename(options.input), extractedRpuCount: 1, inputKind: 'av1-t35-payload' };
   } else {
     const result = extractDolbyRpuFromObuStream(input);
