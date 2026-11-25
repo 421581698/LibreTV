@@ -62,7 +62,7 @@ describe('Dolby Vision parser service security primitives', () => {
   });
 
   it('signs full-scope parser reports with Ed25519', () => {
-    const envelope = createSignedEnvelope(report, 'catalog:episode-123', 'dv-key-1', privateKeyPem, 1800000000);
+    const envelope = createSignedEnvelope(report, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256, 1800000000);
     const { signature, ...payload } = envelope;
     assert.equal(verify(null, Buffer.from(canonicalize(payload)), publicKeyPem, Buffer.from(signature, 'base64url')), true);
     assert.deepEqual({ version: envelope.version, keyId: envelope.keyId, assetId: envelope.assetId, issuedAt: envelope.issuedAt, expiresAt: envelope.expiresAt }, {
@@ -75,8 +75,19 @@ describe('Dolby Vision parser service security primitives', () => {
   });
 
   it('refuses partial reports and detached RPU files', () => {
-    assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: null, frameLimit: 50 } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem));
-    assert.throws(() => createSignedEnvelope({ ...report, inputKind: 'rpu' }, 'catalog:episode-123', 'dv-key-1', privateKeyPem));
+    assert.throws(() => createSignedEnvelope({ ...report, extractionScope: { track: null, frameLimit: 50 } }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
+    assert.throws(() => createSignedEnvelope({ ...report, inputKind: 'rpu' }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256));
+  });
+
+  it('refuses to sign a report whose source digest is detached from the uploaded object', () => {
+    assert.throws(
+      () => createSignedEnvelope({ ...report, sourceMediaSha256: 'c'.repeat(64) }, 'catalog:episode-123', 'dv-key-1', privateKeyPem, report.sourceMediaSha256),
+      /exact uploaded source media SHA-256/,
+    );
+    assert.throws(
+      () => createSignedEnvelope(report, 'catalog:episode-123', 'dv-key-1', privateKeyPem, 'invalid'),
+      /exact uploaded source media SHA-256/,
+    );
   });
 
   it('runs the full upload-to-parser-to-signed-envelope HTTP path', async () => {
