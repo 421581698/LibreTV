@@ -319,10 +319,10 @@ class CollectorTests(unittest.TestCase):
                 (result["media_ingestion"]["job_id"],),
             ).fetchone()
         self.assertEqual(job["job_type"], "dv_media_ingest")
-        self.assertEqual(collector.json.loads(job["payload"]), {
-            "candidate_id": candidate_id,
-            "resource_id": result["resource"]["id"],
-        })
+        job_payload = collector.json.loads(job["payload"])
+        self.assertEqual(job_payload["candidate_id"], candidate_id)
+        self.assertEqual(job_payload["resource_id"], result["resource"]["id"])
+        self.assertRegex(job_payload["source_version"], r"^[a-f0-9]{24}$")
 
     def test_source_gateway_skips_non_allowlisted_host_without_network_access(self):
         from unittest.mock import patch
