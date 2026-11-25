@@ -62,6 +62,12 @@ describe('dovi_tool RPU report parsing', () => {
     expect(normalizeRpuInput(regular)).toEqual(doviToolChunk);
   });
 
+  it('preserves dovi_tool Annex-B regular RPU chunks from HEVC extraction', () => {
+    const regular = Buffer.from([0x19, 0x11, 0x22, 0x33, 0x44, 0x55, 0x80]);
+    const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), regular]);
+    expect(normalizeRpuInput(annexB)).toEqual(annexB);
+  });
+
   it('normalizes multiple Annex-B RPU NAL units without losing unit boundaries', () => {
     const first = Buffer.from([0x7c, 0x01, 0x19, 0x11, 0x80]);
     const second = Buffer.from([0x7c, 0x01, 0x19, 0x22, 0x80]);
