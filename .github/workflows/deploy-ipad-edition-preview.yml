@@ -2283,3 +2283,5 @@ jobs:
 # [deploy-ipad-edition-preview] Verify the upstream product baseline on isolated iPad Preview.
 
 # [deploy-ipad-edition-preview] Capture recommendation API failure diagnostics per iPad viewport/theme.
+
+# PR #99: authorized isolated Preview refresh after Cinema Detail V2 validation.
