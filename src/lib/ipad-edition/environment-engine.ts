@@ -61,9 +61,11 @@ export function attachEnvironmentEngine(
   ];
   const media = queries.map((query) => window.matchMedia(query));
   const update = () => {
-    const systemDark = root.closest('.dark') !== null || document.documentElement.classList.contains('dark') || media[0].matches;
+    const fridayTheme = document.documentElement.dataset.fridayTheme;
+    const explicitTheme = fridayTheme === 'light' || fridayTheme === 'dark' ? fridayTheme : undefined;
+    const systemDark = media[0].matches;
     const profile = resolveEnvironmentProfile({
-      appearance: options.appearance ?? 'system',
+      appearance: options.appearance ?? explicitTheme ?? 'system',
       systemDark,
       contrast: media[1].matches ? 'more' : 'normal',
       reducedTransparency: media[2].matches,
@@ -81,7 +83,7 @@ export function attachEnvironmentEngine(
   };
   media.forEach((query) => query.addEventListener('change', update));
   const themeObserver = new MutationObserver(update);
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-friday-theme'] });
   update();
   return () => {
     media.forEach((query) => query.removeEventListener('change', update));

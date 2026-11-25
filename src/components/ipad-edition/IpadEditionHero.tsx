@@ -15,7 +15,7 @@ interface IpadEditionHeroProps {
 /** Homepage-only cinematic feature; source artwork is navigable by swipe, keys and controls. */
 export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingTitle }: IpadEditionHeroProps) {
   const item = items[activeIndex];
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const pointerStart = useRef<{ x: number; y: number; pointerId: number } | null>(null);
   if (!item) return null;
 
   const selectRelative = (direction: -1 | 1) => {
@@ -24,13 +24,13 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     if (event.pointerType === 'mouse' || !event.isPrimary) return;
-    pointerStart.current = { x: event.clientX, y: event.clientY };
+    pointerStart.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLElement>) => {
     const start = pointerStart.current;
+    if (!start || start.pointerId !== event.pointerId || event.pointerType === 'mouse') return;
     pointerStart.current = null;
-    if (!start || event.pointerType === 'mouse') return;
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
@@ -56,7 +56,7 @@ export function IpadEditionHero({ items, activeIndex, onSelect, onOpen, pendingT
       tabIndex={0}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
-      onPointerCancel={() => { pointerStart.current = null; }}
+      onPointerCancel={(event) => { if (pointerStart.current?.pointerId === event.pointerId) pointerStart.current = null; }}
       onKeyDown={handleKeyDown}
     >
       <IpadEditionHeroArtwork item={item} key={item.id || item.title} />

@@ -32,8 +32,8 @@ function mergeLatestRegionalReleases(usItems: DoubanItem[], cnItems: DoubanItem[
       // The same movie can have different US/CN release dates. Do not
       // mislabel the later date as if it were identical in both countries.
       const preferred = item.releaseDate > (existing.releaseDate ?? '') ? item : existing;
-      const combinedRegion = existing.releaseRegion === item.releaseRegion
-        ? existing.releaseRegion
+      const combinedRegion = existing.releaseRegion === item.releaseRegion || existing.releaseDate !== item.releaseDate
+        ? preferred.releaseRegion
         : 'BOTH';
       byId.set(item.id, { ...preferred, releaseRegion: combinedRegion });
     }
@@ -154,7 +154,7 @@ export function IpadEditionHome() {
           </div>
         ) : null}
       </div>
-      {loading ? (
+      {loading && !items.length ? (
         <div id={id + '-track'} className="ipad-edition__poster-grid" aria-label={title + '加载中'} aria-busy="true">
           {Array.from({ length: 6 }).map((_, index) => (
             <div className="ipad-edition__poster-skeleton" key={index} />
@@ -198,7 +198,7 @@ export function IpadEditionHome() {
             <p className="ipad-edition__cinema-hero-kicker">LIBRETV · 精选推荐</p>
             <h1>{featured.isLoading ? '正在为你准备影院' : '精选内容暂不可用'}</h1>
             <p>{featured.isLoading ? '正在获取全球热门影视…' : 'TMDB 推荐服务暂时不可用，请稍后重试。'}</p>
-            {featured.isError ? (
+            {!featured.isLoading ? (
               <button type="button" onClick={() => void featured.refetch()}>重新加载</button>
             ) : null}
           </div>
@@ -211,7 +211,7 @@ export function IpadEditionHome() {
 
       <IpadEditionContinueWatching />
 
-      {renderRail('ipad-popular-series', '热门剧集', series.data?.items ?? [], series.isLoading, series.isError, series.refetch)}
+      {renderRail('ipad-popular-series', '热门剧集', (series.data?.items ?? []).filter((item, index, list) => Boolean(item.id && item.title?.trim() && item.cover?.trim()) && list.findIndex((candidate) => candidate.id === item.id) === index), series.isLoading, series.isError, series.refetch)}
       {renderRail('ipad-new-releases', '美国 · 中国最新上映', latestItems, latestUS.isLoading || latestCN.isLoading || spiderManUS.isLoading || spiderManCN.isLoading || odysseyUS.isLoading || odysseyCN.isLoading, latestUS.isError && latestCN.isError && spiderManUS.isError && spiderManCN.isError && odysseyUS.isError && odysseyCN.isError, async () => { await Promise.all([latestUS.refetch(), latestCN.refetch(), spiderManUS.refetch(), spiderManCN.refetch(), odysseyUS.refetch(), odysseyCN.refetch()]); }, true, LATEST_RELEASE_RAIL_SIZE)}
 
       <section className="ipad-edition__rail-section" id="ipad-anime-calendar" aria-labelledby="ipad-anime-title">
@@ -221,7 +221,7 @@ export function IpadEditionHome() {
         {calendar.isLoading ? (
           <div className="ipad-edition__rail-message" role="status">正在读取每日放送…</div>
         ) : calendar.isError ? (
-          <div className="ipad-edition__rail-message" role="status">新番日历暂时不可用。</div>
+          <div className="ipad-edition__rail-message" role="status">新番日历暂时不可用。<button type="button" onClick={() => void calendar.refetch()}>重新加载</button></div>
         ) : todayItems.length ? (
           <div className="ipad-edition__anime-grid">
             {todayItems.slice(0, 5).map((item) => (
