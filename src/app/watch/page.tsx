@@ -964,6 +964,7 @@ function WatchContent() {
                   cinemaMode={isIpadEditionPlayback}
                   cinemaPanel={cinemaPanel}
                   onCloseCinemaPanel={() => setCinemaPanel(null)}
+                  onCinemaPanelChange={setCinemaPanel}
                   mediaType={activeCmsAssetBinding ? 'mp4' : undefined}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
