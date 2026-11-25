@@ -94,7 +94,7 @@ export function extractEpisodesFromPlayUrl(playUrl: string): string[] {
 export function extractM3u8FromText(text: string): string[] {
   if (!text) return [];
   const matches = text.match(M3U8_PATTERN) || [];
-  return matches.map((link) => link.replace(/^\\$/, '')).filter(isSafePlaybackUrl);
+  return matches.map((link) => link.replace(/^\$/, '')).filter(isSafePlaybackUrl);
 }
 
 /** 根据 CMS 分类识别电影；不能只依赖「电影」二字，因为 Apple CMS 常用「动作片/科幻片」等类型名。 */
