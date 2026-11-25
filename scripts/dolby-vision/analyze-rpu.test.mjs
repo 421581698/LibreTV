@@ -58,14 +58,15 @@ describe('dovi_tool RPU report parsing', () => {
     const escaped = Buffer.from([0x19, 0x00, 0x00, 0x03, 0x01, 0x80, 0x55, 0x66, 0x80]);
     const nalu = Buffer.concat([Buffer.from([0x7c, 0x01]), escaped]);
     const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), nalu]);
-    expect(normalizeRpuInput(annexB)).toEqual(annexB);
-    expect(normalizeRpuInput(regular)).toEqual(annexB);
+    const parserInput = Buffer.concat([Buffer.from([0, 0, 0, 1]), escaped]);
+    expect(normalizeRpuInput(annexB)).toEqual(parserInput);
+    expect(normalizeRpuInput(regular)).toEqual(parserInput);
   });
 
   it('escapes Annex-B-looking byte sequences inside a raw regular RPU', () => {
     const regular = Buffer.from([0x19, 0x00, 0x00, 0x00, 0x01, 0x22, 0x80]);
     expect(normalizeRpuInput(regular)).toEqual(Buffer.from([
-      0x00, 0x00, 0x00, 0x01, 0x7c, 0x01, 0x19, 0x00, 0x00, 0x03, 0x00, 0x01, 0x22, 0x80,
+      0x00, 0x00, 0x00, 0x01, 0x19, 0x00, 0x00, 0x03, 0x00, 0x01, 0x22, 0x80,
     ]));
   });
 
@@ -76,16 +77,16 @@ describe('dovi_tool RPU report parsing', () => {
       Buffer.from([0, 0, 0, 1]), first,
       Buffer.from([0, 0, 0, 1]), second,
     ]);
-    expect(normalizeRpuInput(annexB)).toEqual(annexB);
+    expect(normalizeRpuInput(annexB)).toEqual(Buffer.concat([
+      Buffer.from([0, 0, 0, 1, 0x19, 0x11, 0x22, 0x33, 0x44, 0x55, 0x80]),
+      Buffer.from([0, 0, 0, 1, 0x19, 0x22, 0x33, 0x44, 0x55, 0x66, 0x80]),
+    ]));
   });
 
   it('preserves already-normalized Annex-B regular RPU chunks', () => {
     const regular = Buffer.from([0x19, 0x11, 0x22, 0x33, 0x44, 0x55, 0x80]);
     const annexB = Buffer.concat([Buffer.from([0, 0, 0, 1]), regular]);
-    expect(normalizeRpuInput(annexB)).toEqual(Buffer.concat([
-      Buffer.from([0, 0, 0, 1, 0x7c, 0x01]),
-      regular,
-    ]));
+    expect(normalizeRpuInput(annexB)).toEqual(annexB);
   });
 
   it('rejects malformed NAL headers, malformed RPU payloads and invalid emulation-prevention bytes', () => {
