@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync, verify } from 'node:crypto';
+import { createHash, createPublicKey, generateKeyPairSync, verify } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createDolbyVisionParserServer, canonicalize } from '../../services/dolby-vision-parser/server.mjs';
 
@@ -9,31 +9,60 @@ if (!inputPath) throw new Error('Usage: node verify-parser-service-fixture.mjs <
 const media = await readFile(inputPath);
 assert.ok(media.length > 0, 'fixture MP4 must not be empty');
 const mediaSha256 = createHash('sha256').update(media).digest('hex');
-const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 const assetId = 'ci:dolby-vision-real-rpu-fixture';
+const externalBaseUrl = process.env.DV_PARSER_BASE_URL;
+let publicKey;
+let serviceToken;
+let keyId;
+let baseUrl;
+let server;
 
-const server = createDolbyVisionParserServer({
-  DV_SERVICE_TOKEN: 'ci-real-fixture-token',
-  DV_SIGNING_KEY_ID: 'ci-real-fixture-key',
-  DV_SIGNING_PRIVATE_KEY_PEM: privateKeyPem,
-  DOVI_TOOL_BIN: process.env.DOVI_TOOL_BIN || '/usr/local/bin/dovi_tool',
-  FFPROBE_BIN: process.env.FFPROBE_BIN || 'ffprobe',
-  FFMPEG_BIN: process.env.FFMPEG_BIN || 'ffmpeg',
-});
-await new Promise((resolve, reject) => {
-  server.once('error', reject);
-  server.listen(0, '127.0.0.1', resolve);
-});
-const address = server.address();
-assert.ok(address && typeof address === 'object');
+if (externalBaseUrl) {
+  const endpoint = new URL(externalBaseUrl);
+  assert.equal(endpoint.protocol, 'http:', 'CI external parser endpoint must use loopback HTTP only');
+  assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname),
+    'external parser endpoint must resolve to loopback');
+  assert.ok(process.env.DV_CI_PUBLIC_KEY_FILE, 'DV_CI_PUBLIC_KEY_FILE is required for container verification');
+  publicKey = createPublicKey(await readFile(process.env.DV_CI_PUBLIC_KEY_FILE, 'utf8'));
+  serviceToken = process.env.DV_CI_SERVICE_TOKEN;
+  keyId = process.env.DV_CI_KEY_ID;
+  baseUrl = endpoint.toString().replace(/\/$/, '');
+  assert.ok(serviceToken && keyId, 'container verification token and key ID are required');
+} else {
+  const pair = generateKeyPairSync('ed25519');
+  const privateKeyPem = pair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+  publicKey = pair.publicKey;
+  serviceToken = 'ci-real-fixture-token';
+  keyId = 'ci-real-fixture-key';
+  server = createDolbyVisionParserServer({
+    DV_SERVICE_TOKEN: serviceToken,
+    DV_SIGNING_KEY_ID: keyId,
+    DV_SIGNING_PRIVATE_KEY_PEM: privateKeyPem,
+    DOVI_TOOL_BIN: process.env.DOVI_TOOL_BIN || '/usr/local/bin/dovi_tool',
+    FFPROBE_BIN: process.env.FFPROBE_BIN || 'ffprobe',
+    FFMPEG_BIN: process.env.FFMPEG_BIN || 'ffmpeg',
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+  baseUrl = `http://127.0.0.1:${address.port}`;
+}
 
 try {
-  const response = await fetch(`http://127.0.0.1:${address.port}/v1/analyze`, {
+  const unauthorized = await fetch(`${baseUrl}/v1/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: new Uint8Array(),
+  });
+  assert.equal(unauthorized.status, 401, 'parser service must reject requests without its bearer token');
+
+  const response = await fetch(`${baseUrl}/v1/analyze`, {
     method: 'POST',
     headers: {
-      Authorization: 'Bearer ci-real-fixture-token',
+      Authorization: `Bearer ${serviceToken}`,
       'Content-Type': 'application/octet-stream',
       'X-DV-Asset-ID': assetId,
       'X-DV-Asset-SHA256': mediaSha256,
@@ -47,7 +76,7 @@ try {
   const { signature, ...payload } = envelope;
 
   assert.equal(envelope.version, 1);
-  assert.equal(envelope.keyId, 'ci-real-fixture-key');
+  assert.equal(envelope.keyId, keyId);
   assert.equal(envelope.assetId, assetId);
   assert.equal(verify(
     null,
@@ -78,7 +107,7 @@ try {
   }
 
   process.stdout.write(`${JSON.stringify({
-    result: 'real-mp4-full-rpu-analysis-passed',
+    result: externalBaseUrl ? 'docker-container-mp4-full-rpu-analysis-passed' : 'in-process-mp4-full-rpu-analysis-passed',
     parserVersion: report.parserVersion,
     profiles: report.profiles,
     frameCount: report.frameCount,
@@ -87,8 +116,9 @@ try {
     hevcInputSha256: report.inputSha256,
     rpuSha256: report.rpuSha256,
     signatureVerified: true,
+    unauthorizedRequestRejected: true,
     extractionScope: report.extractionScope,
-  }, null, 2)}\n`);
+  }, null, 2)}\\n`);
 } finally {
-  await new Promise((resolve) => server.close(resolve));
+  if (server) await new Promise((resolve) => server.close(resolve));
 }
