@@ -96,7 +96,8 @@ export interface VerifiedHlsRpuSegmentSet {
   totalRpuFrameCount: number;
   timelineContinuity: 'contiguous';
   rpuProfileContinuity: 'consistent';
-  rpuFrameAlignment: 'one-rpu-per-video-sample';
+  /** Signed aggregate frame count equals registered video sample count; this does NOT prove a per-sample RPU mapping. */
+  rpuFrameAlignment: 'frame-count-matches-video-samples';
   rpuSemanticContinuity: 'not-established';
   /** End-to-end RPU order/semantics cannot be proved from aggregate signed summaries. */
   semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed';
@@ -197,7 +198,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     totalRpuFrameCount,
     timelineContinuity: 'contiguous',
     rpuProfileContinuity: 'consistent',
-    rpuFrameAlignment: 'one-rpu-per-video-sample',
+    rpuFrameAlignment: 'frame-count-matches-video-samples',
     rpuSemanticContinuity: 'not-established',
     semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed',
     verifiedDecodeEnd: previousEnd!,
