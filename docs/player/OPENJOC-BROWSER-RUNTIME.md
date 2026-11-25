@@ -36,7 +36,8 @@ The opt-in modes are experimental. Do not use them as evidence of native Dolby/A
 
 - Existing ArtPlayer + hls.js MSE ownership remains unchanged.
 - The HLS fragment tap is read-only and is available only on the hls.js path. Safari native-HLS does not expose these fragments to this tap.
-- CMAF ec-3 is only a codec hint. OpenJOC must report its decoded profile and access-unit counters before the software output can be activated.
+- CMAF ec-3 is only a codec hint. Before decode, each sample must pass a bounded syncframe-envelope check for exactly one 1536-sample I0 access unit, optionally followed by D0; non-48-kHz, non-six-block, reordered, truncated, extra-substream, and unsupported-profile envelopes are rejected. OpenJOC must still report its decoded profile and access-unit counters before software output can be activated.
+- The browser-side I0/D0 check is structural only. It does not yet validate the full `dec3` configuration, D0 channel-map/`chan_loc` agreement, JOC EMDF semantics, or dependent-substream PCM against a reference fixture. A structurally admitted D0 sample is not proof that D0 was correctly decoded.
 - The Worker copies PCM out of WASM memory before releasing the decoder frame.
 - PCM is Float32 stereo at 48 kHz. The bounded AudioWorklet queue is capped at one second; the decoder applies backpressure at 500 ms. Worker input samples are capped at 1 MiB and WASM linear memory is capped at 256 MiB.
 - CMAF PTS is mapped to the hls.js fragment timeline using frag.start as an anchor. If that anchor is absent, the sample is rejected rather than guessed.
@@ -46,7 +47,7 @@ The opt-in modes are experimental. Do not use them as evidence of native Dolby/A
 ## Acceptance still required
 
 Before enabling this outside opt-in testing:
-1. Run the generated WASM against authorized real E-AC-3 JOC CMAF fixtures, including dependent substreams, seek, discontinuity, preroll, and malformed samples.
+1. Run the generated WASM against authorized real E-AC-3 JOC CMAF fixtures, including a CMAF sample containing I0+D0 with matching `dec3` channel metadata, and verify dependent-substream PCM against an independent reference; also cover seek, discontinuity, preroll, and malformed samples.
 2. Verify profile/object evidence and reference PCM against an independently checked decode.
 3. Measure A/V drift, queue pressure, underrun recovery, CPU, memory, and long-play behavior in Safari and Chromium on actual devices.
 4. Verify that the native audio route is restored on every failure path.
