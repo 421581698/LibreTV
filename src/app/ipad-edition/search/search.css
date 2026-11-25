@@ -266,3 +266,44 @@
     padding-inline: 12px;
   }
 }
+
+
+/* Friday V1.2 search chrome: six materials and coherent theme, geometry unchanged. */
+html:is([data-friday-glass="webkit"],[data-friday-glass="native"],[data-friday-glass="optical"])
+.ipad-edition .ipad-edition__search-page :is(.ipad-edition__search-form,.ipad-edition__category-grid button)[data-friday-material] {
+  background-color: rgb(var(--friday-fill) / var(--friday-alpha)) !important;
+  -webkit-backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(160%) !important;
+  backdrop-filter: blur(calc(var(--friday-blur) * var(--friday-intensity, .65))) saturate(160%) !important;
+  border-color: rgb(255 255 255 / .27) !important;
+}
+html[data-friday-theme="light"] .ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+  color: #192735;
+}
+html[data-friday-theme="light"] .ipad-edition .ipad-edition__search-page .ipad-edition__search-form input::placeholder {
+  color: rgb(24 39 54 / .62);
+}
+html[data-friday-theme="light"] .ipad-edition .ipad-edition__search-page :is(.ipad-edition__search-form button,.ipad-edition__category-grid button) {
+  color: #192735;
+}
+html[data-friday-theme="dark"] .ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+  color: #f5f5f7;
+}
+html[data-friday-glass="safe"] .ipad-edition .ipad-edition__search-page :is(.ipad-edition__search-form,.ipad-edition__category-grid button)[data-friday-material],
+html[data-friday-material-setting="solid"] .ipad-edition .ipad-edition__search-page :is(.ipad-edition__search-form,.ipad-edition__category-grid button)[data-friday-material] {
+  background: rgb(var(--friday-fill)) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (forced-colors: active), (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  html .ipad-edition .ipad-edition__search-page :is(.ipad-edition__search-form,.ipad-edition__category-grid button)[data-friday-material] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+@media (forced-colors: active) {
+  html .ipad-edition .ipad-edition__search-page :is(.ipad-edition__search-form,.ipad-edition__category-grid button)[data-friday-material] {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border-color: CanvasText !important;
+  }
+}
