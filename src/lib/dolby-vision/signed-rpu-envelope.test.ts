@@ -298,6 +298,23 @@ describe('signed Dolby Vision RPU envelope', () => {
     expect(verifySignedDolbyVisionRpuSegmentSet(av1Envelopes, trusted)).not.toBeNull();
     expect(verifySignedDolbyVisionRpuSegmentSet([envelopes[0], av1Envelopes[1]], trusted)).toBeNull();
     expect(verifySignedDolbyVisionRpuSegmentSet([av1Envelopes[0], envelopes[1]], trusted)).toBeNull();
+    for (const changedInitialization of [
+      { initializationAssetId: 'init:002' },
+      { initializationSha256: 'b'.repeat(64) },
+    ]) {
+      const changedSegment = { ...expectedSegments[1], ...changedInitialization };
+      const { signature: _signature, ...originalPayload } = envelopes[1];
+      const payload = { ...originalPayload, analysisContext: { ...originalPayload.analysisContext, ...changedInitialization } };
+      const signed = { ...payload, signature: sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(payload)), privateKey).toString('base64url') };
+      expect(verifySignedDolbyVisionRpuEnvelope(signed, {
+        ...options, expectedAssetId: changedSegment.fragmentAssetId,
+        expectedMediaSha256: changedSegment.assembledSegmentSha256,
+        expectedAnalysisContext: payload.analysisContext,
+      })).not.toBeNull();
+      expect(verifySignedDolbyVisionRpuSegmentSet([envelopes[0], signed], {
+        ...trusted, expectedSegments: [expectedSegments[0], changedSegment],
+      })).toBeNull();
+    }
     const misalignedReport = {
       ...envelopes[0],
       report: {
