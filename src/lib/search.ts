@@ -527,7 +527,7 @@ export async function searchSources(
           effectiveSignal,
         );
 
-        // 过滤掉明显非影视类别；成人内容只在用户开启过滤时移除。
+        // Filter irrelevant categories and enforce content-safety rules on the server for every request.
         if (outcome.ok) {
           const seenVodIds = new Set<string>();
           outcome.list = outcome.list.filter((item) => {
