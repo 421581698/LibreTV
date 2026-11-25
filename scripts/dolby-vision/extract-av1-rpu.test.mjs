@@ -208,3 +208,13 @@ test('fails closed when AV1 temporal-unit counts do not prove one-to-one RPU ali
     assert.throws(() => extractDolbyRpuFromObuStream(stream), /exactly one frame and one RPU/);
   }
 });
+
+test('rejects an orphan AV1 frame before an otherwise aligned temporal unit', () => {
+  const { bytes } = validT35Payload();
+  const frame = obu(6, Buffer.from([0]));
+  const stream = Buffer.concat([
+    frame, obu(2, Buffer.alloc(0)),
+    obu(5, Buffer.concat([leb(4), bytes])), frame,
+  ]);
+  assert.throws(() => extractDolbyRpuFromObuStream(stream), /frame appeared before a temporal delimiter/);
+});
