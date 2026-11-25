@@ -1664,11 +1664,37 @@ jobs:
                   // state observer receives a deterministic initial paused state.
                   video.dispatchEvent(new Event("pause"));
                 });
-                await page.waitForFunction(() => {
-                  const video = document.querySelector(".netflix-player-frame video");
-                  const button = document.querySelector(".cinema-play-control");
-                  return Boolean(video?.paused && button?.getAttribute("data-playback-state") === "paused");
-                }, undefined, { timeout: 10000 });
+                try {
+                  await page.waitForFunction(() => {
+                    const video = document.querySelector(".netflix-player-frame video");
+                    const button = document.querySelector(".cinema-play-control");
+                    return Boolean(video?.paused && button?.getAttribute("data-playback-state") === "paused");
+                  }, undefined, { timeout: 10000 });
+                } catch (error) {
+                  // Preserve the strict state assertion. Report the actual video and
+                  // React control state instead of an unactionable wait timeout.
+                  const snapshot = await page.evaluate(() => {
+                    const video = document.querySelector(".netflix-player-frame video");
+                    const button = document.querySelector(".cinema-play-control");
+                    return {
+                      videoCount: document.querySelectorAll(".netflix-player-frame video").length,
+                      videoPaused: video?.paused ?? null,
+                      videoEnded: video?.ended ?? null,
+                      videoReadyState: video?.readyState ?? null,
+                      videoNetworkState: video?.networkState ?? null,
+                      videoConnected: video?.isConnected ?? false,
+                      buttonPresent: Boolean(button),
+                      buttonPlaybackState: button?.getAttribute("data-playback-state") ?? null,
+                      buttonAriaLabel: button?.getAttribute("aria-label") ?? null,
+                      playerErrorVisible: Boolean(document.body.textContent?.includes("播放器初始化失败，请重试或切换片源。")),
+                    };
+                  });
+                  await page.screenshot({
+                    path: `artifacts/ipad-visual-audit/player-geometry/${viewport.name}-${colorScheme}-initial-playback-failure.png`,
+                    fullPage: true,
+                  }).catch(() => {});
+                  throw new Error(`Initial native/React playback state failed: ${JSON.stringify(snapshot)}; ${error.message}`);
+                }
                 const playButton = page.locator(".cinema-play-control");
                 await playButton.click();
                 await page.waitForFunction(() => {
