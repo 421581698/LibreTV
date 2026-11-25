@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && chown -R collector:collector /data \
     && scrapling install
 COPY app.py registry_queue.py stats.py worker.py seedhub.py dv_media_ingest.py dv_hls_ingest.py dv_hls_fmp4_assembly.py dv_source_gateway.py dv_hls_source_gateway.py ./
+RUN python -c "import dv_hls_fmp4_assembly" && python dv_hls_fmp4_assembly.py --help >/dev/null
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 EXPOSE 10000
