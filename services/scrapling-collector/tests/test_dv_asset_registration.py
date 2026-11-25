@@ -120,6 +120,39 @@ class MediaAssetRegistrationEligibilityTests(unittest.TestCase):
 
         self.assertEqual(asyncio.run(collect_body()), payload)
 
+    def test_verified_digest_cache_avoids_rehashing_each_range_and_invalidates_after_write(self):
+        payload = b"cached-integrity-fixture"
+        digest = hashlib.sha256(payload).hexdigest()
+        resource = self.make_resource("dv-registration:stream-cache")
+        asset = self.register(resource, digest=digest, byte_length=len(payload))
+        object_path = self.object_root / asset["object_key"]
+        object_path.parent.mkdir(parents=True, exist_ok=True)
+        object_path.write_bytes(payload)
+        with registry._DV_VERIFIED_OBJECTS_LOCK:
+            registry._DV_VERIFIED_OBJECTS.clear()
+
+        with patch.object(registry.os, "pread", wraps=os.pread) as pread:
+            first = registry.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], f"Bearer {registry.TOKEN}", "bytes=0-2"
+            )
+            self.assertEqual(first.status_code, 206)
+            first_read_count = pread.call_count
+            self.assertGreater(first_read_count, 0)
+
+            second = registry.api_get_dolby_vision_media_asset_content(
+                asset["asset_id"], f"Bearer {registry.TOKEN}", "bytes=3-5"
+            )
+            self.assertEqual(second.status_code, 206)
+            self.assertEqual(pread.call_count, first_read_count)
+
+            object_path.write_bytes(b"X" * len(payload))
+            with self.assertRaises(registry.HTTPException) as error:
+                registry.api_get_dolby_vision_media_asset_content(
+                    asset["asset_id"], f"Bearer {registry.TOKEN}", "bytes=6-8"
+                )
+            self.assertEqual(error.exception.status_code, 409)
+            self.assertGreater(pread.call_count, first_read_count)
+
     def test_media_content_endpoint_rejects_same_length_digest_mismatch_for_full_and_range_reads(self):
         expected = b"original-media-bytes"
         tampered = b"replaced-media-bytes"
