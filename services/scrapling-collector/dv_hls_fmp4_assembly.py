@@ -144,6 +144,220 @@ def _fragment_sequence(source: BinaryIO, moof: tuple[str, int, int, int]) -> int
     raise HlsAssemblyError("Fragment is missing its mfhd sequence number.")
 
 
+def _child_boxes(source: BinaryIO, parent: tuple[str, int, int, int]) -> list[tuple[str, int, int, int]]:
+    _, offset, size, header = parent
+    cursor = offset + header
+    end = offset + size
+    children = []
+    while cursor < end:
+        source.seek(cursor)
+        raw = source.read(8)
+        if len(raw) != 8:
+            raise HlsAssemblyError("Truncated nested ISO BMFF box header.")
+        size32 = int.from_bytes(raw[:4], "big")
+        kind = raw[4:8].decode("ascii", errors="strict")
+        header_size = 8
+        if size32 == 1:
+            extended = source.read(8)
+            if len(extended) != 8:
+                raise HlsAssemblyError("Truncated extended nested box header.")
+            box_size = int.from_bytes(extended, "big")
+            header_size = 16
+        elif size32 == 0:
+            box_size = end - cursor
+        else:
+            box_size = size32
+        if box_size < header_size or cursor + box_size > end:
+            raise HlsAssemblyError("Nested ISO BMFF box length is invalid.")
+        children.append((kind, cursor, box_size, header_size))
+        cursor += box_size
+    if cursor != end:
+        raise HlsAssemblyError("Nested ISO BMFF boxes do not cover their parent.")
+    return children
+
+
+def _box_payload(source: BinaryIO, box: tuple[str, int, int, int]) -> bytes:
+    _, offset, size, header = box
+    source.seek(offset + header)
+    payload = source.read(size - header)
+    if len(payload) != size - header:
+        raise HlsAssemblyError("Truncated ISO BMFF box payload.")
+    return payload
+
+
+def _read_video_track_timing(object_root: Path, asset: dict) -> tuple[int, int, int]:
+    """Return (video track ID, mdhd timescale, trex default sample duration)."""
+    with _open_asset(object_root, asset) as source:
+        top = _top_level_boxes(source, asset["byte_length"])
+        moov = next((item for item in top if item[0] == "moov"), None)
+        if moov is None:
+            raise HlsAssemblyError("Initialization segment is missing moov.")
+        moov_children = _child_boxes(source, moov)
+        tracks = []
+        for trak in (item for item in moov_children if item[0] == "trak"):
+            trak_children = _child_boxes(source, trak)
+            tkhd = next((item for item in trak_children if item[0] == "tkhd"), None)
+            mdia = next((item for item in trak_children if item[0] == "mdia"), None)
+            if tkhd is None or mdia is None:
+                continue
+            tkhd_data = _box_payload(source, tkhd)
+            if len(tkhd_data) < 20:
+                raise HlsAssemblyError("Track header is truncated.")
+            tkhd_version = tkhd_data[0]
+            track_id_offset = 20 if tkhd_version == 1 else 12
+            if len(tkhd_data) < track_id_offset + 4:
+                raise HlsAssemblyError("Track ID is missing from tkhd.")
+            track_id = int.from_bytes(tkhd_data[track_id_offset:track_id_offset + 4], "big")
+            mdia_children = _child_boxes(source, mdia)
+            hdlr = next((item for item in mdia_children if item[0] == "hdlr"), None)
+            mdhd = next((item for item in mdia_children if item[0] == "mdhd"), None)
+            if hdlr is None or mdhd is None:
+                continue
+            hdlr_data = _box_payload(source, hdlr)
+            if len(hdlr_data) < 12:
+                raise HlsAssemblyError("Handler declaration is truncated.")
+            if hdlr_data[8:12] != b"vide":
+                continue
+            mdhd_data = _box_payload(source, mdhd)
+            if len(mdhd_data) < 20:
+                raise HlsAssemblyError("Media header is truncated.")
+            mdhd_version = mdhd_data[0]
+            timescale_offset = 20 if mdhd_version == 1 else 12
+            if len(mdhd_data) < timescale_offset + 4:
+                raise HlsAssemblyError("Video media timescale is missing.")
+            timescale = int.from_bytes(mdhd_data[timescale_offset:timescale_offset + 4], "big")
+            if track_id <= 0 or timescale <= 0:
+                raise HlsAssemblyError("Video track ID and media timescale must be positive.")
+            tracks.append((track_id, timescale))
+        if len(tracks) != 1:
+            raise HlsAssemblyError("Exactly one video track is required for HLS temporal continuity validation.")
+        track_id, timescale = tracks[0]
+        trex_defaults = []
+        mvex = next((item for item in moov_children if item[0] == "mvex"), None)
+        if mvex is not None:
+            for trex in (item for item in _child_boxes(source, mvex) if item[0] == "trex"):
+                data = _box_payload(source, trex)
+                if len(data) < 24:
+                    raise HlsAssemblyError("trex default sample declaration is truncated.")
+                if int.from_bytes(data[4:8], "big") == track_id:
+                    trex_defaults.append(int.from_bytes(data[12:16], "big"))
+        if len(trex_defaults) > 1:
+            raise HlsAssemblyError("Video track has ambiguous trex defaults.")
+        return track_id, timescale, trex_defaults[0] if trex_defaults else 0
+
+
+def _fragment_video_timing(
+    object_root: Path,
+    asset: dict,
+    track_id: int,
+    trex_default_duration: int,
+) -> tuple[int, int]:
+    """Return (tfdt decode time, total video sample duration) for one fragment."""
+    with _open_asset(object_root, asset) as source:
+        top = _top_level_boxes(source, asset["byte_length"])
+        moof = next((item for item in top if item[0] == "moof"), None)
+        if moof is None:
+            raise HlsAssemblyError("Media fragment is missing moof.")
+        matching = []
+        for traf in (item for item in _child_boxes(source, moof) if item[0] == "traf"):
+            children = _child_boxes(source, traf)
+            tfhd = next((item for item in children if item[0] == "tfhd"), None)
+            tfdt = next((item for item in children if item[0] == "tfdt"), None)
+            truns = [item for item in children if item[0] == "trun"]
+            if tfhd is None or tfdt is None or not truns:
+                continue
+            tfhd_data = _box_payload(source, tfhd)
+            if len(tfhd_data) < 8:
+                raise HlsAssemblyError("tfhd is truncated.")
+            flags = int.from_bytes(tfhd_data[1:4], "big")
+            fragment_track_id = int.from_bytes(tfhd_data[4:8], "big")
+            if fragment_track_id != track_id:
+                continue
+            cursor = 8
+            if flags & 0x000001:
+                cursor += 8
+            if flags & 0x000002:
+                cursor += 4
+            default_duration = trex_default_duration
+            if flags & 0x000008:
+                if len(tfhd_data) < cursor + 4:
+                    raise HlsAssemblyError("tfhd default sample duration is truncated.")
+                default_duration = int.from_bytes(tfhd_data[cursor:cursor + 4], "big")
+            tfdt_data = _box_payload(source, tfdt)
+            if len(tfdt_data) < 8:
+                raise HlsAssemblyError("tfdt is truncated.")
+            tfdt_version = tfdt_data[0]
+            decode_offset = 4
+            decode_size = 8 if tfdt_version == 1 else 4
+            if tfdt_version not in (0, 1) or len(tfdt_data) < decode_offset + decode_size:
+                raise HlsAssemblyError("tfdt version or decode timestamp is invalid.")
+            decode_time = int.from_bytes(tfdt_data[decode_offset:decode_offset + decode_size], "big")
+            duration_sum = 0
+            for trun in truns:
+                data = _box_payload(source, trun)
+                if len(data) < 8:
+                    raise HlsAssemblyError("trun is truncated.")
+                trun_flags = int.from_bytes(data[1:4], "big")
+                sample_count = int.from_bytes(data[4:8], "big")
+                if sample_count <= 0 or sample_count > 1_000_000:
+                    raise HlsAssemblyError("trun sample count is invalid.")
+                position = 8
+                if trun_flags & 0x000001:
+                    position += 4
+                if trun_flags & 0x000004:
+                    position += 4
+                for _ in range(sample_count):
+                    if trun_flags & 0x000100:
+                        if len(data) < position + 4:
+                            raise HlsAssemblyError("trun sample duration is truncated.")
+                        duration = int.from_bytes(data[position:position + 4], "big")
+                        position += 4
+                    else:
+                        duration = default_duration
+                    if trun_flags & 0x000200:
+                        position += 4
+                    if trun_flags & 0x000400:
+                        position += 4
+                    if trun_flags & 0x000800:
+                        position += 4
+                    if duration <= 0 or position > len(data):
+                        raise HlsAssemblyError("Every video sample must have a known positive duration.")
+                    duration_sum += duration
+                    if duration_sum > 2**64 - 1:
+                        raise HlsAssemblyError("Fragment sample duration overflows the media timeline.")
+                if position != len(data):
+                    raise HlsAssemblyError("trun contains unsupported trailing or malformed sample data.")
+            matching.append((decode_time, duration_sum))
+        if len(matching) != 1:
+            raise HlsAssemblyError("Each media fragment must contain exactly one timed video traf.")
+        return matching[0]
+
+
+def _validate_video_timeline(
+    object_root: Path,
+    init_asset: dict,
+    segment_assets: list[dict],
+) -> list[dict[str, int]]:
+    track_id, timescale, trex_default = _read_video_track_timing(object_root, init_asset)
+    timeline = []
+    previous_end = None
+    for index, asset in enumerate(segment_assets):
+        decode_time, duration = _fragment_video_timing(object_root, asset, track_id, trex_default)
+        if previous_end is not None and decode_time != previous_end:
+            raise HlsAssemblyError("Video tfdt timestamps are not continuous with preceding sample durations.")
+        previous_end = decode_time + duration
+        if previous_end > 2**64 - 1:
+            raise HlsAssemblyError("Video decode timeline overflows its supported range.")
+        timeline.append({
+            "ordinal": index,
+            "decodeTime": decode_time,
+            "sampleDuration": duration,
+            "endDecodeTime": previous_end,
+            "timescale": timescale,
+        })
+    return timeline
+
+
 def _validate_init(object_root: Path, asset: dict) -> None:
     with _open_asset(object_root, asset) as source:
         boxes = _top_level_boxes(source, asset["byte_length"])
@@ -359,6 +573,7 @@ def assemble_registered_hls_fmp4(
             )
         ],
         "fragmentSequenceNumbers": sequence_numbers,
+        "videoTimeline": timeline,
     }
     graph_digest = hashlib.sha256(
         json.dumps(graph_manifest, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
@@ -400,14 +615,14 @@ def assemble_registered_hls_fmp4(
         "segmentAssetIds": segment_ids,
         "fragmentSequenceNumbers": sequence_numbers,
         "fragmentSequenceContinuity": "sequential",
-        "temporalContinuity": "unknown",
+        "temporalContinuity": "contiguous",
         "assembledByteLength": total,
         "assembledSha256": digest.hexdigest(),
         "outputPath": str(destination),
         "rpuPresence": "unknown",
         "notes": [
             "Assembled from SHA-256-verified registered clear fMP4 HLS members.",
-            "Fragment sequence numbers are sequential; tfdt/sample-duration timestamp continuity has not been validated.",
+            "Video tfdt decode timestamps exactly follow the preceding fragment's summed sample durations.",
             "This is a parser input preparation step, not Dolby Vision RPU extraction or cross-segment RPU validation.",
         ],
     }
