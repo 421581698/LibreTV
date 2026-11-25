@@ -46,6 +46,10 @@ Native media audio   Web Audio HRTF   Future native adapter
 
 ## Added in this 4.0 upgrade slice
 
+- Added a version-1 native bridge snapshot validator with session/freshness checks, bounded values, enum validation and unknown-field stripping.
+- Added isolated Swift and Kotlin native adapter libraries plus a platform build/test workflow definition. They report limited platform facts only; complete app-shell integration and physical-device acceptance remain external gates.
+- Reviewed OpenJOC v0.20.2 as a candidate software JOC decoder (Apache-2.0 core); it is not vendored or integrated. See `docs/player/JOC-DECODER-ADOPTION-REVIEW.md`.
+
 - A typed browser audio feature inventory for Web Audio, MediaElementAudioSourceNode, HRTF PannerNode, AudioWorklet, MediaCapabilities and WebCodecs AudioDecoder API presence.
 - Evidence-based output classification with distinct states for native Dolby output, JOC decode plus object rendering, configured binaural processing, JOC-marker-only, stereo and unknown.
 - Browser-only evidence deliberately leaves native Dolby output unknown and JOC/object decoding not integrated.
@@ -59,11 +63,11 @@ The browser can expose API availability and media metadata. It cannot reliably e
 
 ### iOS / iPadOS native adapter
 
-A native Swift/AVFoundation adapter is a separate application target. It must report actual asset/track format, decoder status, audio session route and system output evidence. Safari JavaScript cannot impersonate this adapter. No native adapter is included in this web-only repository slice.
+An isolated Swift Package now exists at `native/ios`. It reads the current AVAudioSession output route and emits the version-1 snapshot shape. It does not create a complete iOS app target, inspect a native player decoder, or prove Dolby/JOC/object rendering. Safari JavaScript cannot impersonate this adapter; a trusted native shell and real-device acceptance are still required.
 
 ### Android native adapter
 
-A native Kotlin/Media3 adapter is a separate application target. It must query platform decoder support and Spatializer availability/enabled state, then report the actual selected output route. Browser JavaScript cannot query or assert these native states.
+An isolated Kotlin library now exists at `native/android`. It checks platform decoder capability for E-AC-3 JOC, reads Spatializer availability/enabled state where supported, and accepts the active output device from its host player. It is not a complete Android app target, is not yet wired to Media3 playback, and does not prove active JOC decoding or Dolby output. Browser JavaScript cannot query or assert these native states.
 
 ### JOC decoding
 
