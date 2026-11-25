@@ -60,6 +60,30 @@ describe('signed Dolby Vision RPU envelope', () => {
     });
   });
 
+  it('verifies an AV1 RPU report against the original MP4 digest', () => {
+    const av1Report = {
+      ...report,
+      input: 'video-track.rpu',
+      inputSha256: 'd'.repeat(64),
+      inputKind: 'av1',
+      extractionScope: { track: null, frameLimit: null },
+      sourceMediaSha256: hash,
+    };
+    const payload = {
+      version: 1,
+      keyId: options.expectedKeyId,
+      assetId: options.expectedAssetId,
+      issuedAt: now - 10,
+      expiresAt: now + 3600,
+      report: av1Report,
+    };
+    const signature = sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(payload)), privateKey).toString('base64url');
+    expect(verifySignedDolbyVisionRpuEnvelope({ ...payload, signature }, options)).toMatchObject({
+      sourceHashBinding: 'matched',
+      report: { inputKind: 'av1', sourceMediaSha256: hash },
+    });
+  });
+
   it('rejects tampered payloads and signatures', () => {
     const envelope = makeEnvelope();
     expect(verifySignedDolbyVisionRpuEnvelope({ ...envelope, report: { ...report, profile: 7 } }, options)).toBeNull();
