@@ -11,7 +11,7 @@ describe('Cinema V4 control policy', () => {
     expect(toggleCinemaPanel('quality', 'quality')).toBeNull();
     expect(toggleCinemaPanel('quality', 'diagnostics')).toBe('diagnostics');
     expect(toggleCinemaPanel('audio', 'subtitles')).toBe('subtitles');
-    expect(toggleCinemaPanel('subtitles', 'audio')).toBeNull();
+    expect(toggleCinemaPanel('subtitles', 'audio')).toBe('audio');
   });
   it('never hides the transport while scrubbing, a sheet is open, or playback is paused', () => {
     expect(shouldHoldCinemaControls(true, false, false, false)).toBe(true);
