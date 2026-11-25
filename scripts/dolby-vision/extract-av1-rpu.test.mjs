@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { execFileSync } from 'node:child_process';
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
 import {
   extractDolbyRpuFromObuStream,
   extractDolbyRpuFromT35,
@@ -111,6 +115,70 @@ test('extracts Dolby RPU metadata from a temporally aligned raw AV1 OBU stream',
 test('inserts HEVC emulation-prevention bytes in the UNSPEC62 RPU NAL unit', () => {
   const nalu = regularRpuToHevcUnspec62Nalu(Buffer.from([0x19, 0x00, 0x00, 0x01, 0x80]));
   assert.deepEqual(nalu, Buffer.from([0x7c, 0x01, 0x19, 0x00, 0x00, 0x03, 0x01, 0x80]));
+});
+
+
+test('demuxes one AV1 video track from MP4 and IVF containers without re-encoding', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-container-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { bytes } = validT35Payload();
+  const obuFixture = Buffer.concat([
+    obu(2, Buffer.alloc(0)),
+    obu(5, Buffer.concat([leb(4), bytes])),
+    obu(6, Buffer.from([0])),
+  ]);
+  const fixturePath = resolve(directory, 'fixture.obu');
+  const inputPath = resolve(directory, 'input.container');
+  const ffprobePath = resolve(directory, 'ffprobe');
+  const ffmpegPath = resolve(directory, 'ffmpeg');
+  await writeFile(fixturePath, obuFixture);
+  await writeFile(inputPath, Buffer.from('container fixture'));
+  await writeFile(ffprobePath, '#!/usr/bin/env node\\nprocess.stdout.write(process.env.TEST_AV1_STREAMS || "av1\\n");\\n');
+  await writeFile(ffmpegPath, '#!/usr/bin/env node\\nconst fs=require("node:fs"); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, process.argv.at(-1));\\n');
+  await chmod(ffprobePath, 0o755);
+  await chmod(ffmpegPath, 0o755);
+
+  for (const kind of ['mp4', 'ivf']) {
+    const outputPath = resolve(directory, kind + '.rpu');
+    execFileSync(process.execPath, [
+      resolve('scripts/dolby-vision/extract-av1-rpu.mjs'),
+      '--kind', kind, '--input', inputPath, '--output', outputPath,
+    ], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        FFPROBE_BIN: ffprobePath,
+        FFMPEG_BIN: ffmpegPath,
+        TEST_AV1_OBU_FIXTURE: fixturePath,
+        TEST_AV1_STREAMS: 'av1\\n',
+        AV1_RPU_CONVERTER_BIN: '',
+      },
+      stdio: 'pipe',
+    });
+    const output = await readFile(outputPath);
+    assert.deepEqual(output, Buffer.concat([
+      Buffer.from([0, 0, 0, 1, 0x7c, 0x01, 0x19]),
+      Buffer.alloc(22, 0x55).subarray(0, 21),
+      Buffer.from([0x80]),
+    ]));
+  }
+
+  const rejectedOutput = resolve(directory, 'ambiguous.rpu');
+  assert.throws(() => execFileSync(process.execPath, [
+    resolve('scripts/dolby-vision/extract-av1-rpu.mjs'),
+    '--kind', 'mp4', '--input', inputPath, '--output', rejectedOutput,
+  ], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      FFPROBE_BIN: ffprobePath,
+      FFMPEG_BIN: ffmpegPath,
+      TEST_AV1_OBU_FIXTURE: fixturePath,
+      TEST_AV1_STREAMS: 'av1\\nav1\\n',
+      AV1_RPU_CONVERTER_BIN: '',
+    },
+    stdio: 'pipe',
+  }));
 });
 
 test('rejects Dolby metadata without a preceding temporal delimiter or frame', () => {
