@@ -5,8 +5,6 @@ import {
   extractDolbyRpuFromT35,
 } from './extract-av1-rpu.mjs';
 
-const header = Buffer.from([0xb5, 0x00, 0x3b, 0x00, 0x00, 0x08, 0x00, 0x37, 0xcd, 0x08]);
-
 function writeBits(bits, value, count) {
   for (let index = count - 1; index >= 0; index -= 1) bits.push((value >> index) & 1);
 }
@@ -39,7 +37,7 @@ function packBits(bits) {
 }
 
 function validT35Payload() {
-  const rpu = Buffer.alloc(20, 0x55);
+  const rpu = Buffer.alloc(22, 0x55);
   rpu[rpu.length - 1] = 0x80;
   const bits = [];
   writeBits(bits, 0x003b, 16);
