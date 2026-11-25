@@ -322,7 +322,7 @@ process.exit(2);
 
       const hlsContextHeaders = {
         ...headers,
-        'X-DV-Asset-ID': 'hls:graph-bound-test',
+        'X-DV-Asset-Id': 'hls:graph-bound-test',
         'X-DV-Analysis-Scope': 'hls-fmp4',
         'X-DV-HLS-Resource-ID': 'resource_hls_1',
         'X-DV-HLS-Graph-ID': 'root:playlist',
