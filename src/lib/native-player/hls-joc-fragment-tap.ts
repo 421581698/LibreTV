@@ -55,7 +55,11 @@ export class HlsJocFragmentTap {
   handle = (_event: string, data: HlsFragmentLoadedLike): void => {
     if (this.disposed || !this.options.isCurrent()) return;
     const frag = data.frag;
-    if (!frag || (frag.type !== 'main' && frag.type !== 'audio')) return;
+    if (!frag) {
+      this.options.onRejected?.('Fragment metadata is unavailable.');
+      return;
+    }
+    if (frag.type !== 'main' && frag.type !== 'audio') return;
     if (frag.sn === undefined || frag.level === undefined || !Number.isInteger(frag.level) || frag.level < -1) {
       this.options.onRejected?.('Fragment metadata is incomplete.');
       return;
