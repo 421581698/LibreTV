@@ -134,6 +134,22 @@ class HlsFmp4AssemblyTests(unittest.TestCase):
             self.assertEqual(item["sampleCount"], 1)
 
 
+    def test_fragment_only_assembly_writes_only_requested_init_and_fragment(self):
+        variant_id, _ = self.prepare_graph()
+        output = self.root / "single-fragment.mp4"
+        result = assemble_registered_hls_fmp4(
+            self.resource["id"], variant_id, output, self.object_root, fragment_ordinal=1,
+        )
+        expected = init_segment() + media_fragment(2)
+        self.assertEqual(output.read_bytes(), expected)
+        self.assertFalse(output.with_name(output.name + ".segments").exists())
+        self.assertEqual(len(result["segmentInputs"]), 1)
+        self.assertEqual(result["segmentInputs"][0]["ordinal"], 1)
+        self.assertEqual(result["segmentInputs"][0]["fragmentSequenceNumber"], 2)
+        self.assertEqual(result["segmentInputs"][0]["assembledSegmentSha256"], hashlib.sha256(expected).hexdigest())
+        self.assertEqual(result["assembledSha256"], hashlib.sha256(expected).hexdigest())
+        self.assertEqual(result["assembledByteLength"], len(expected))
+
     def test_rejects_non_contiguous_tfdt_timestamps_even_when_mfhd_is_sequential(self):
         variant_id, _ = self.prepare_graph(second_decode_time=4500)
         with self.assertRaisesRegex(HlsAssemblyError, "tfdt timestamps"):
