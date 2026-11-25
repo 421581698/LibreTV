@@ -269,9 +269,9 @@ def ingest_hls_directory(
                 rewritten.append(line)
                 continue
             if stripped.startswith("#"):
-                if re.search(r"\\bURI\\s*=", line, re.IGNORECASE):
+                if re.search(r"\bURI\s*=", line, re.IGNORECASE):
                     matches = list(URI_ATTRIBUTE.finditer(line))
-                    uri_attribute_count = len(re.findall(r"\\bURI\\s*=", line, re.IGNORECASE))
+                    uri_attribute_count = len(re.findall(r"\bURI\s*=", line, re.IGNORECASE))
                     if not matches or len(matches) != uri_attribute_count:
                         raise HlsIngestionError("HLS URI attributes must use the exact quoted RFC format.")
                     def replace_uri(match):
