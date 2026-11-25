@@ -74,6 +74,28 @@ describe('Dolby Vision parser service security primitives', () => {
     });
   });
 
+  it('signs AV1 RPU reports only when bound to the exact original MP4 digest', () => {
+    const av1Report = {
+      ...report,
+      input: 'video-track.rpu',
+      inputSha256: 'd'.repeat(64),
+      inputKind: 'av1',
+      extractionScope: { track: null, frameLimit: null },
+      sourceMediaSha256: report.sourceMediaSha256,
+    };
+    const envelope = createSignedEnvelope(
+      av1Report, 'catalog:av1-episode-1', 'dv-key-1', privateKeyPem,
+      report.sourceMediaSha256, 1800000000,
+    );
+    assert.equal(envelope.report.inputKind, 'av1');
+    assert.equal(envelope.report.sourceMediaSha256, report.sourceMediaSha256);
+    assert.throws(() => createSignedEnvelope(
+      { ...av1Report, sourceMediaSha256: 'c'.repeat(64) },
+      'catalog:av1-episode-1', 'dv-key-1', privateKeyPem,
+      report.sourceMediaSha256, 1800000000,
+    ));
+  });
+
   it('signs canonical HLS fMP4 graph provenance and rejects malformed context', () => {
     const context = {
       scope: 'hls-fmp4',
