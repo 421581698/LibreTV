@@ -1,7 +1,7 @@
 import {describe,expect,it,vi} from 'vitest';
 import {cinemaPackP010,createCinemaP010VideoFrameRenderer} from './cinema-v51-frame-renderer';
 const frame={
-  width:2,height:2,y:Uint16Array.from([64<<6,200<<6,400<<6,940<<6]),
+  range:'limited' as const,width:2,height:2,y:Uint16Array.from([64<<6,200<<6,400<<6,940<<6]),
   uv:Uint16Array.from([512<<6,512<<6]),
 };
 class FakeFrame {
