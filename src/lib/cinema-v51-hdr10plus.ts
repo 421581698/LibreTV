@@ -61,7 +61,8 @@ export function cinemaParseHdr10PlusT35(data:Uint8Array):CinemaHdr10PlusPayload 
   const windowCount=bits.take(2);
   if(windowCount<1||windowCount>3) throw new Error('HDR10+ invalid window count');
   for(let w=1;w<windowCount;w++)bits.skip(153);
-  const targetedDisplayNits=bits.take(27);
+  // SMPTE ST 2094-40 encodes targeted peak in 0.0001 cd/m² units.
+  const targetedDisplayNits=bits.take(27)/10000;
   if(targetedDisplayNits<=0||targetedDisplayNits>10000)
     throw new Error('HDR10+ invalid targeted peak luminance');
   if(bits.take(1))skipLuminanceGrid(bits);
@@ -76,6 +77,8 @@ export function cinemaParseHdr10PlusT35(data:Uint8Array):CinemaHdr10PlusPayload 
     colorSaturationWeight:number|null;
   }>=[];
   for(let w=0;w<windowCount;w++){
+    // MaxSCL/average/distribution are normalized to 0..1 at 1/100000;
+    // mapping to PQ's 10000-nit absolute reference equals raw/10.
     const rawMax:[number,number,number]=[bits.take(17),bits.take(17),bits.take(17)];
     const average=bits.take(17);
     if(rawMax.some(n=>n>100000)||average>100000)throw new Error('HDR10+ invalid MaxSCL luminance');
