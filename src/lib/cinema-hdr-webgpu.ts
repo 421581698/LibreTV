@@ -233,7 +233,7 @@ export async function startCinemaSdrEnhancedGpu(
           if (processedWebGpuFrame) {
             // A previously illuminated card is still valid only if WebGL
             // subsequently confirms a newly processed frame.
-            onStatus('unavailable','WebGPU 已停止，正在尝试 WebGL 重新处理视频帧。');
+            onStatus('recovering','WebGPU 已停止，正在尝试 WebGL 重新处理视频帧。');
           }
         } else if (!processedWebGpuFrame) {
           onStatus(status,message);
