@@ -44,8 +44,14 @@ export function bindExperimentalHlsAudio(options: {
     hls.off(Hls.Events.AUDIO_TRACK_SWITCHING, close);
     hls.off(Hls.Events.DESTROYING, close);
     hls.off(Hls.Events.ERROR, onHlsError);
-    for (const event of ['pause', 'seeking', 'ratechange', 'emptied', 'error', 'waiting', 'volumechange']) video.removeEventListener(event, close);
+    for (const event of ['pause', 'seeking', 'ratechange', 'emptied', 'error', 'waiting']) video.removeEventListener(event, close);
+    video.removeEventListener('volumechange', onVolumeChange);
     session.close();
+  };
+  const onVolumeChange = () => {
+    // The first valid PCM schedules a native mute and emits volumechange;
+    // do not mistake that ownership transition for a user interruption.
+    if (!video.muted || video.volume === 0) close();
   };
   const onHlsError = (_event: Events.ERROR, data: { fatal?: boolean }) => {
     if (data.fatal) fail();
