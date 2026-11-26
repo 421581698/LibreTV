@@ -29,7 +29,7 @@ interface CapturableVideo extends HTMLVideoElement {
 const RAMP_SECONDS=.045;
 export function cinemaSoundRouting(audio:boolean,spatial:boolean) {
   return {
-    native:audio||spatial?0:1,
+    native:0,
     eq:audio&&!spatial?1:0,
     spatialRaw:spatial&&!audio?1:0,
     spatialEq:spatial&&audio?1:0,
@@ -137,11 +137,10 @@ export async function createCinemaSoundSession(
     const onVolumeChange=()=>{
       if(stopped||!capturing)return;
       if(!video.muted){
-        // User explicitly resumed native playback while our captured path
-        // was active. Switch off DSP to prevent parallel sound.
+        // Native output became audible while DSP is active; restore a single path.
         session.stop();
         onState({audio:false,spatial:false,output:'native',
-          reason:'检测到播放器已恢复原生音轨，自动关闭 DSP 以防双重声音。'});
+          reason:'原生音轨恢复，DSP 自动关闭以防止双重播放。'});
         return;
       }
       safeGain(master.gain,video.volume,context);
