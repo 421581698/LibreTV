@@ -265,6 +265,7 @@ export function PlayerShell({
   const cinemaHdrNativeConfirmationRef = useRef<(() => void) | null>(null);
   const cinemaSoundSessionRef = useRef<CinemaSoundSession | null>(null);
   const cinemaV51PlaybackRef = useRef<CinemaV51PlaybackMount | null>(null);
+  const cinemaV51MountGenerationRef = useRef(0);
   const cinemaSoundRequestRef = useRef(0);
   const cinemaSoundRequestedRef = useRef<{url:string;audio:boolean;spatial:boolean}>({
     url:'',audio:false,spatial:false,
@@ -897,6 +898,9 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    cinemaV51MountGenerationRef.current += 1;
+    cinemaV51PlaybackRef.current?.stop();
+    cinemaV51PlaybackRef.current = null;
     cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrNativeConfirmationRef.current?.();
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
@@ -988,6 +992,9 @@ export function PlayerShell({
     forceNativeDolby = false, nativeManifestEvidence?: DolbyVisionFormatReport,
     nativeAudioFallback?: NativeAudioFallbackSnapshot,
   ) => {
+    cinemaV51MountGenerationRef.current += 1;
+    cinemaV51PlaybackRef.current?.stop();
+    cinemaV51PlaybackRef.current = null;
     cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrNativeConfirmationRef.current?.();
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
@@ -2356,6 +2363,7 @@ export function PlayerShell({
     let cancelled = false;
     let mounting = false;
     let announced = false;
+    const mountGeneration = cinemaV51MountGenerationRef.current;
     const mount = () => {
       if (cancelled || mounting) return;
       mounting = true;
@@ -2370,7 +2378,7 @@ export function PlayerShell({
           setDolbyCardStatus(reason);
         }
       }, url).then(session => {
-        if (cancelled) session?.stop();
+        if (cancelled || mountGeneration !== cinemaV51MountGenerationRef.current) session?.stop();
         else cinemaV51PlaybackRef.current = session;
       }).catch(() => {
         if (!cancelled) setDolbyCardStatus('Cinema 10-bit 解码路径不兼容，已保留 Safari 原生播放。');
@@ -2380,6 +2388,7 @@ export function PlayerShell({
     else video.addEventListener('loadeddata', mount, { once: true });
     return () => {
       cancelled = true;
+      cinemaV51MountGenerationRef.current += 1;
       video.removeEventListener('loadeddata', mount);
       cinemaV51PlaybackRef.current?.stop();
       cinemaV51PlaybackRef.current = null;
