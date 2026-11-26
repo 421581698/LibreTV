@@ -100,7 +100,13 @@ export async function createCinemaSoundSession(
   // A disposable audio element can be routed through Web Audio without
   // permanently binding the reusable ArtPlayer video to an AudioContext.
   const url=video.currentSrc;
-  const useElement=!stream && /^https?:/i.test(url) && !video.mediaKeys && video.seekable.length>0 && !video.currentSrc.startsWith('blob:');
+  // Never fetch an untrusted internal/loopback resource or a playlist whose
+  // auth/variant selection is controlled by the original media loader.
+  const parsed=(()=>{try{return new URL(url,window.location.href);}catch{return null;}})();
+  const isPrivateHost=Boolean(parsed && /^(?:localhost|127(?:\\.\\d+){3}|0\\.0\\.0\\.0|169\\.254\\.|192\\.168\\.|10\\.|172\\.(?:1[6-9]|2\\d|3[01])\\.|\\[::1\\])/.test(parsed.hostname));
+  const useElement=!stream && Boolean(parsed && parsed.protocol==='https:' && !isPrivateHost &&
+    !/\\.(?:m3u8|mpd)(?:$|[?#])/i.test(parsed.pathname) && !video.mediaKeys &&
+    video.seekable.length>0 && video.duration>0 && Number.isFinite(video.duration));
   const mirror=useElement?document.createElement('audio'):null;
   if(!stream&&!mirror) {
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：当前浏览器或媒体未提供可读取的 PCM 音轨。'});
