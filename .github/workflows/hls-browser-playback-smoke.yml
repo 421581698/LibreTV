@@ -6,6 +6,11 @@ on:
       - feature/homepage-cinema-lobby-order-2026-11-11
       - feature/libretv-ipad-edition-product
     paths:
+      - ".github/workflows/hls-browser-playback-smoke.yml"
+      - ".github/workflows/hls-external-smoke.yml"
+      - ".github/workflows/scrapling-collector.yml"
+      - ".github/workflows/resource-playback-verification.yml"
+      - ".github/workflows/ipad-edition-verify.yml"
       - 'src/lib/dolby/**'
       - 'src/lib/dolby-vision/**'
       - 'scripts/dolby-vision/**'
@@ -21,6 +26,11 @@ on:
       - main
       - feature/libretv-ipad-edition-foundation
     paths:
+      - ".github/workflows/hls-browser-playback-smoke.yml"
+      - ".github/workflows/hls-external-smoke.yml"
+      - ".github/workflows/scrapling-collector.yml"
+      - ".github/workflows/resource-playback-verification.yml"
+      - ".github/workflows/ipad-edition-verify.yml"
       - 'src/lib/dolby/**'
       - 'src/lib/dolby-vision/**'
       - 'scripts/dolby-vision/**'

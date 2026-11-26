@@ -8,6 +8,11 @@ on:
       - feature/libretv-ipad-edition-product
       - integration/**
     paths:
+      - ".github/workflows/hls-browser-playback-smoke.yml"
+      - ".github/workflows/hls-external-smoke.yml"
+      - ".github/workflows/scrapling-collector.yml"
+      - ".github/workflows/resource-playback-verification.yml"
+      - ".github/workflows/ipad-edition-verify.yml"
       - "src/lib/dolby/**"
       - "src/lib/dolby-vision/**"
       - "scripts/dolby-vision/**"
@@ -32,6 +37,11 @@ on:
       - ".github/workflows/scrapling-collector.yml"
   pull_request:
     paths:
+      - ".github/workflows/hls-browser-playback-smoke.yml"
+      - ".github/workflows/hls-external-smoke.yml"
+      - ".github/workflows/scrapling-collector.yml"
+      - ".github/workflows/resource-playback-verification.yml"
+      - ".github/workflows/ipad-edition-verify.yml"
       - "src/lib/dolby/**"
       - "src/lib/dolby-vision/**"
       - "scripts/dolby-vision/**"
