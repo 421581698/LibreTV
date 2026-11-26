@@ -19,16 +19,21 @@ export function bindExperimentalHlsAudio(options: {
 }): () => void {
   const { hls, video, abi, context, origin90k, isCurrent } = options;
   if (context.state !== 'running' || video.paused || video.muted ||
+      !Number.isFinite(video.volume) || video.volume <= 0 || video.volume > 1 ||
       !Number.isSafeInteger(origin90k) || origin90k < 0 || !isCurrent()) {
     throw new Error('Experimental audio prerequisites not met');
   }
   const session = new ExperimentalAudioSession(video);
   const input = new ExperimentalHlsAudioInput(session);
   const generation = input.begin();
+  const gain = context.createGain();
+  gain.gain.value = video.volume;
+  gain.connect(context.destination);
   const decoder = new OpenJocExperimentalDecoder(abi);
-  const output = new ExperimentalPcmOutput(context, context.destination);
+  const output = new ExperimentalPcmOutput(context, gain);
   if (!session.arm(decoder, output)) {
     decoder.close();
+    gain.disconnect();
     throw new Error('Experimental audio activation rejected');
   }
   let closed = false;
@@ -47,11 +52,13 @@ export function bindExperimentalHlsAudio(options: {
     for (const event of ['pause', 'seeking', 'ratechange', 'emptied', 'error', 'waiting']) video.removeEventListener(event, close);
     video.removeEventListener('volumechange', onVolumeChange);
     session.close();
+    try { gain.disconnect(); } catch { /* context may already be closing */ }
   };
   const onVolumeChange = () => {
     // The first valid PCM schedules a native mute and emits volumechange;
     // do not mistake that ownership transition for a user interruption.
-    if (!video.muted || video.volume === 0) fail();
+    if (!video.muted || !Number.isFinite(video.volume) || video.volume <= 0) fail();
+    else gain.gain.value = Math.min(1, Math.max(0, video.volume));
   };
   const onHlsError = (_event: Events.ERROR, data: { fatal?: boolean }) => {
     if (data.fatal) fail();
@@ -73,5 +80,6 @@ export function bindExperimentalHlsAudio(options: {
   hls.on(Hls.Events.DESTROYING, close);
   hls.on(Hls.Events.ERROR, onHlsError);
   for (const event of ['pause', 'seeking', 'ratechange', 'emptied', 'error', 'waiting']) video.addEventListener(event, close);
+  video.addEventListener('volumechange', onVolumeChange);
   return close;
 }

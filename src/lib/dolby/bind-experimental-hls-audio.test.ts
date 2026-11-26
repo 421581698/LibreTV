@@ -44,16 +44,17 @@ function fixture() {
     paused: false, muted: false, volume: 1, currentTime: 0, playbackRate: 1,
   }) as HTMLVideoElement;
   const onFailure = vi.fn();
+  const gain = { gain: { value: 0 }, connect: vi.fn(), disconnect: vi.fn() };
   const close = bindExperimentalHlsAudio({
     hls: hls as unknown as Hls, video,
     abi: {} as Parameters<typeof bindExperimentalHlsAudio>[0]['abi'],
-    context: { state: 'running', destination: {} } as AudioContext,
+    context: { state: 'running', destination: {}, createGain: () => gain } as unknown as AudioContext,
     origin90k: 0, isCurrent: () => true, onFailure,
   });
   const emit = (event: string, payload: unknown) => {
     listeners.get(event)?.forEach(cb => cb(event, payload));
   };
-  return { video, close, hls, emit, onFailure, listeners };
+  return { video, close, hls, emit, onFailure, listeners, gain };
 }
 describe('real HLS event / experimental PCM lifecycle wiring', () => {
   it('muting native audio after a scheduled PCM frame does not close its own session', () => {
@@ -82,6 +83,23 @@ describe('real HLS event / experimental PCM lifecycle wiring', () => {
     });
     expect(f.video.muted).toBe(false);
     expect(f.onFailure).toHaveBeenCalledTimes(1);
+  });
+  it('matches native volume and fails safely when the user reaches zero volume', () => {
+    const f = fixture();
+    f.emit(Hls.Events.FRAG_LOADED, {
+      frag: { type: 'audio', sn: 0, level: 0, cc: 0 },
+      payload: new Uint8Array(188).buffer,
+    });
+    expect(f.video.muted).toBe(true);
+    f.video.volume = 0.4;
+    f.video.dispatchEvent(new Event('volumechange'));
+    expect(f.gain.gain.value).toBe(0.4);
+    expect(f.onFailure).not.toHaveBeenCalled();
+    f.video.volume = 0;
+    f.video.dispatchEvent(new Event('volumechange'));
+    expect(f.onFailure).toHaveBeenCalledOnce();
+    expect(f.video.muted).toBe(false);
+    expect(f.gain.disconnect).toHaveBeenCalled();
   });
   it('rejects encrypted HLS audio and restores native audio once', () => {
     const f = fixture();

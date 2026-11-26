@@ -67,7 +67,9 @@ export class ExperimentalAudioSession {
         if (!frame) return true;
         const decision = this.output.enqueue(frame, this.media.currentTime, this.media.playbackRate);
         if (decision === 'reset') { this.fail(); return false; }
-        if (decision === 'wait') return true;
+        // Queue exhaustion cannot silently drop an already-decoded frame:
+        // doing so would desynchronize sound from the video timeline.
+        if (decision === 'wait') { this.fail(); return false; }
         if (decision === 'schedule' && !this.ownsMute) {
           if (this.media.paused || this.media.muted) {
             this.fail();

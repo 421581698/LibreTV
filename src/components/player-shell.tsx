@@ -2054,7 +2054,7 @@ export function PlayerShell({
       {cinemaMode && cinemaPanel === 'audio' && (
         <div className="cinema-v4-empty-panel" role="group" aria-label="实验性 Dolby 音频">
           <h3>实验性 EC-3 / OpenJOC PCM（手动授权）</h3>
-          <p>默认使用原生音频。仅支持已授权、未加密的单节目 MPEG-TS，且需自行核对 90kHz PTS 基准。不是经过认证的 Atmos 输出。</p>
+          <p>默认使用原生音频。仅支持已授权、未加密的独立音频 MPEG-TS，且需自行核对 90kHz PTS 基准。实验音量遵循播放器音量，队列过载将回退原生音频。这不是经过认证的 Atmos 输出。</p>
           <label>本地 OpenJOC WASM 文件（不上传）
             <input type="file" accept=".wasm,application/wasm" aria-label="选择本地 OpenJOC WASM" onChange={(event) => {
               experimentalHlsControllerRef.current?.disable();

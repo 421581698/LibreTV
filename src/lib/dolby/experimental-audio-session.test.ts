@@ -94,6 +94,15 @@ describe('explicit experimental audio lifecycle', () => {
     expect(session.push(packet, 96000n)).toBe(false);
   });
 
+  it('falls back on full output queues rather than silently dropping decoded audio', () => {
+    const { media, decoder, output, session } = fixture();
+    output.enqueue.mockReturnValueOnce('wait' as never);
+    expect(session.arm(decoder, output)).toBe(true);
+    expect(session.push(packet, 96000n)).toBe(false);
+    expect(media.muted).toBe(false);
+    expect(session.state).toBe('failed');
+    expect(decoder.close).toHaveBeenCalledTimes(1);
+  });
   it('never unmutes normal native sound when Web Audio rejects a PCM frame', () => {
     const { media, decoder, output, session } = fixture();
     output.enqueue.mockReturnValueOnce('reset' as never);
