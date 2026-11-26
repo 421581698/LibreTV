@@ -10,6 +10,12 @@ describe('experimental PCM clock', () => {
     expect(planExperimentalPcm({ ...base, mediaTime: 2 })).toEqual({ action: 'drop' });
     expect(planExperimentalPcm({ ...base, mediaTime: 0 })).toEqual({ action: 'wait' });
   });
+  it('rejects unsupported sample rates, extreme playback rates and negative queue clocks', () => {
+    for (const sampleRate of [7999, 48000.5, 192001]) expect(planExperimentalPcm({ ...base, sampleRate })).toEqual({ action: 'reset' });
+    for (const playbackRate of [0.1, 5]) expect(planExperimentalPcm({ ...base, playbackRate })).toEqual({ action: 'reset' });
+    expect(planExperimentalPcm({ ...base, queuedUntil: -1 })).toEqual({ action: 'reset' });
+    expect(planExperimentalPcm({ ...base, ptsSamples: 9007199254740992n })).toEqual({ action: 'reset' });
+  });
   it('resets on invalid clock or queue overlap', () => {
     expect(planExperimentalPcm({ ...base, playbackRate: 0 })).toEqual({ action: 'reset' });
     expect(planExperimentalPcm({ ...base, queuedUntil: 11 })).toEqual({ action: 'reset' });
