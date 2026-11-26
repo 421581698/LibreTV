@@ -195,6 +195,29 @@ jobs:
           PLAYWRIGHT_DOWNLOAD_NO_PROGRESS: "1"
         run: |
           "$RUNNER_TEMP/ipad-audit/node_modules/.bin/playwright" install chromium
+      - name: Playwright CMS source-switch and Cinema UI regression
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
+        timeout-minutes: 8
+        run: |
+          mkdir -p artifacts/ipad-visual-audit/cms-playback
+          node scripts/ipad-cinema-cms-playwright-smoke.mjs
+      - name: TestSprite CLI Preview acceptance (configured workspaces only)
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' }}
+        timeout-minutes: 20
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
+          TESTSPRITE_NO_UPDATE_NOTIFIER: '1'
+          TESTSPRITE_NO_TELEMETRY: '1'
+        run: |
+          if [ -z "${TESTSPRITE_API_KEY:-}" ] || [ -z "${TESTSPRITE_PROJECT_ID:-}" ]; then
+            echo "::notice title=TestSprite::NOT RUN: configure TESTSPRITE_API_KEY secret and TESTSPRITE_PROJECT_ID variable for the isolated Preview."
+            echo "TestSprite was not executed; this is not a passing TestSprite acceptance result." >> "$GITHUB_STEP_SUMMARY"
+          else
+            npm install -g @testsprite/testsprite-cli@0.17.0
+            testsprite setup --from-env --yes
+            testsprite ci run --project "$TESTSPRITE_PROJECT_ID" --env preview --target-url "https://libretv-ipad-edition-preview.bggdbh.workers.dev"
+          fi
       - name: Audit Friday glass appearance and capsule motion
         shell: bash
         timeout-minutes: 7
