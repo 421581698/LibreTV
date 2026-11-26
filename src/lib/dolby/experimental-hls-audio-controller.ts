@@ -104,7 +104,12 @@ export class ExperimentalHlsAudioController {
       const abi = await loadUserOpenJocWasm(file);
       if (attempt !== this.attempt || this.disposed || !this.authorized ||
           this.hls !== hls || this.video !== video || !current() ||
-          video.paused || video.muted || context.state !== 'running') return;
+          video.paused || video.muted || context.state !== 'running') {
+        // Cancellation may happen between resume and WASM instantiation.
+        // Never keep an orphaned Web Audio context after a rejected start.
+        if (attempt === this.attempt) this.stop(true);
+        return;
+      }
       this.cleanup = bindExperimentalHlsAudio({
         hls, video, abi, context, origin90k: this.origin90k,
         isCurrent: () => this.authorized && this.hls === hls && current(),

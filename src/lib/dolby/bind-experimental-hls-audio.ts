@@ -51,7 +51,7 @@ export function bindExperimentalHlsAudio(options: {
   const onVolumeChange = () => {
     // The first valid PCM schedules a native mute and emits volumechange;
     // do not mistake that ownership transition for a user interruption.
-    if (!video.muted || video.volume === 0) close();
+    if (!video.muted || video.volume === 0) fail();
   };
   const onHlsError = (_event: Events.ERROR, data: { fatal?: boolean }) => {
     if (data.fatal) fail();
