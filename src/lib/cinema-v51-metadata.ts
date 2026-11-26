@@ -1,5 +1,6 @@
 import {
   cinemaToneMapNits,cinemaInverseToneMapNits,cinemaTransformPixel,
+  cinemaDecodeLuminance,cinemaEncodeLuminance,cinemaConvertGamut,
   cinemaQuantize10,cinemaUnpack10,type CinemaPixelOptions,
   type CinemaRgb,
 } from './cinema-v51-color';
@@ -27,6 +28,10 @@ export interface CinemaDynamicToneFrame {
   averageMaxRgbNits:number;
   /** Optional knee onset normalized within target peak. */
   kneePoint?:number;
+  /** Normalized knee output and Bezier anchors from the parsed payload. */
+  kneePointY?:number;
+  bezierAnchors?:readonly number[];
+  saturationWeight?:number;
   /** Derived from a checked HDR10+ provider payload, never guessed. */
   provenance:'verified-st2094-40';
 }
@@ -56,7 +61,12 @@ export function cinemaValidateMetadata(input:CinemaMetadataEnvelope):CinemaMetad
        !Number.isFinite(frame.targetedPeakNits)||frame.targetedPeakNits<=0||frame.targetedPeakNits>10000||
        !Number.isFinite(frame.averageMaxRgbNits)||frame.averageMaxRgbNits<0||frame.averageMaxRgbNits>10000||
        frame.maxSclNits.length!==3||frame.maxSclNits.some(v=>!Number.isFinite(v)||v<0||v>10000)||
-       (frame.kneePoint!==undefined&&(!Number.isFinite(frame.kneePoint)||frame.kneePoint<0||frame.kneePoint>.95))
+       (frame.kneePoint!==undefined&&(!Number.isFinite(frame.kneePoint)||frame.kneePoint<0||frame.kneePoint>.95))||
+       (frame.kneePointY!==undefined&&(!Number.isFinite(frame.kneePointY)||frame.kneePointY<0||frame.kneePointY>1))||
+       (frame.bezierAnchors!==undefined&&
+         (frame.bezierAnchors.length>15||frame.bezierAnchors.some(v=>!Number.isFinite(v)||v<0||v>1)))||
+       (frame.saturationWeight!==undefined&&
+         (!Number.isFinite(frame.saturationWeight)||frame.saturationWeight<0||frame.saturationWeight>7.875))
     ) throw new Error('Invalid or out-of-order HDR10+ metadata');
     lastPts=frame.framePtsUs;
     lastIndex=frame.frameIndex;
@@ -76,6 +86,29 @@ export function cinemaResolveDynamicFrame(
   }
   return result&&ptsUs-result.framePtsUs<=500000?result:null;
 }
+/** HDR10+ curve control points drive a real nonlinear per-frame luminance map.
+ * This is LibreTV's guarded tone-map interpretation, not a Dolby/HDR10+
+ * reference implementation; multi-window positioning is not supported.
+ */
+export function cinemaHdr10PlusToneMap(
+  nits:number,sourcePeak:number,targetPeak:number,
+  frame:CinemaDynamicToneFrame,
+):number {
+  const kneeX=frame.kneePoint, kneeY=frame.kneePointY;
+  if(kneeX===undefined||kneeY===undefined||sourcePeak<=0||targetPeak<=0||
+    !Number.isFinite(nits)) return cinemaToneMapNits(nits,sourcePeak,targetPeak);
+  const x=Math.max(0,Math.min(1,nits/sourcePeak));
+  if(x<=kneeX) return Math.max(0,Math.min(targetPeak,
+    targetPeak*(kneeX>0 ? (x/kneeX)*kneeY : 0)));
+  const t=Math.max(0,Math.min(1,(x-kneeX)/Math.max(1e-9,1-kneeX)));
+  const values=[kneeY,...(frame.bezierAnchors??[]),1];
+  // De Casteljau evaluates a Bezier curve with the registered anchors.
+  // Metadata windows are fully source-scoped; cannot blend unrelated frames.
+  for(let order=values.length-1;order>0;order--){
+    for(let i=0;i<order;i++) values[i]=values[i]*(1-t)+values[i+1]*t;
+  }
+  return targetPeak*Math.max(0,Math.min(1,values[0]));
+}
 /** Tone map using the per-frame source estimate, not the static playlist range. */
 export function cinemaTransformMetadataFrame(
   rgb:CinemaRgb,options:CinemaPixelOptions,mastering:CinemaMasteringMetadata,
@@ -86,10 +119,29 @@ export function cinemaTransformMetadataFrame(
     mastering.maxContentLightNits??mastering.maxDisplayNits));
   const target=Math.max(1,Math.min(options.targetPeakNits,10000));
   const peak=Math.max(1,Math.min(options.sourcePeakNits,Math.max(contentPeak,mastering.maxDisplayNits)));
-  return cinemaTransformPixel(rgb,{
-    ...options,sourcePeakNits:peak,targetPeakNits:target,
-    knee:dynamic?.kneePoint??options.knee,
-  });
+  if(!dynamic||peak<=target||dynamic.kneePoint===undefined||dynamic.kneePointY===undefined) {
+    return cinemaTransformPixel(rgb,{
+      ...options,sourcePeakNits:peak,targetPeakNits:target,
+      knee:dynamic?.kneePoint??options.knee,
+    });
+  }
+  // Reuse the same ST2084/HLG EOTF and XYZ gamut matrices. The dynamic curve
+  // must be applied in absolute nits *before* re-encoding target transfer.
+  // Every decoded channel remains high precision until the final output transfer.
+  const tonal=rgb.map((component)=>
+    cinemaHdr10PlusToneMap(
+      cinemaDecodeLuminance(component,options.sourceTransfer,options.sourceWhiteNits,peak),
+      peak,target,dynamic,
+    )) as [number,number,number];
+  const gamut=cinemaConvertGamut(tonal,options.sourcePrimaries,options.targetPrimaries);
+  const mapped=gamut.map(value=>cinemaEncodeLuminance(
+    Math.max(0,value),options.targetTransfer,options.targetWhiteNits,target,
+  )) as [number,number,number];
+  const weight=dynamic.saturationWeight;
+  if(weight===undefined||weight===1) return mapped;
+  const saturation=Math.max(.8,Math.min(1.2,weight));
+  const luma=mapped[0]*.2126+mapped[1]*.7152+mapped[2]*.0722;
+  return mapped.map(c=>Math.max(0,Math.min(1,luma+(c-luma)*saturation))) as [number,number,number];
 }
 /** Convert actual packed 10-bit RGB samples to packed output; no UI/display claim. */
 export function cinemaTransform10BitFrame(
