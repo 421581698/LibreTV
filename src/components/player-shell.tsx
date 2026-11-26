@@ -32,6 +32,7 @@ import { createHlsLoader } from '@/lib/hls-loader';
 import { inspectCinemaHdrVariants, isSafariNativeHdrCandidate, type CinemaHdrVariant } from '@/lib/cinema-hdr';
 import type { CinemaGpuSession } from '@/lib/cinema-hdr-gpu';
 import { startCinemaSdrEnhancedGpu } from '@/lib/cinema-hdr-webgpu';
+import { observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
@@ -256,7 +257,12 @@ export function PlayerShell({
   const cinemaHdrVariantsRef = useRef<{ url: string; variants: CinemaHdrVariant[] } | null>(null);
   const cinemaHdrGpuRef = useRef<CinemaGpuSession | null>(null);
   const cinemaHdrGpuRequestRef = useRef(0);
-  useEffect(() => () => { cinemaHdrGpuRequestRef.current += 1; cinemaHdrGpuRef.current?.stop(); }, []);
+  const cinemaHdrNativeConfirmationRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => {
+    cinemaHdrGpuRequestRef.current += 1;
+    cinemaHdrGpuRef.current?.stop();
+    cinemaHdrNativeConfirmationRef.current?.();
+  }, []);
   // No experimental decoder is supplied by default. Native audio remains primary.
   const experimentalAudioSessionRef = useRef<ExperimentalAudioSession | null>(null);
   const experimentalHlsControllerRef = useRef<ExperimentalHlsAudioController | null>(null);
@@ -335,6 +341,35 @@ export function PlayerShell({
       'audioCodec' in track && typeof track.audioCodec === 'string' ? track.audioCodec : '') ?? []),
   ].filter(isDolbyAudioCodec);
 
+  const armCinemaHdrNativeConfirmation = (requestedUrl: string) => {
+    cinemaHdrNativeConfirmationRef.current?.();
+    const host = containerRef.current;
+    if (!host) return;
+    const requestId = ++cinemaHdrGpuRequestRef.current;
+    let finished = false;
+    let observerCleanup = () => {};
+    const deadline = window.setTimeout(() => {
+      if (finished || requestId !== cinemaHdrGpuRequestRef.current) return;
+      stop();
+      setDolbyCardStatus('Safari 原生 HDR 路径尚未观察到连续视频帧，未点亮卡片；仍保留现有播放。');
+    }, 18000);
+    const stop = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(deadline);
+      observerCleanup();
+      if (cinemaHdrNativeConfirmationRef.current === stop) cinemaHdrNativeConfirmationRef.current = null;
+    };
+    observerCleanup = observeNativeVideoPlayback(host, observation => {
+      if (finished || requestId !== cinemaHdrGpuRequestRef.current ||
+          hlsRef.current !== null || observation.status !== 'progress-observed') return;
+      stop();
+      setDolbyCardChoice(choice => ({...choice, url: requestedUrl, vision: true}));
+      setDolbyCardStatus('Safari 原生 HDR 视频路径已观察到连续实际画面；HDR10 / HLG / Dolby Vision 的显示输出仍需真机验证。');
+    });
+    cinemaHdrNativeConfirmationRef.current = stop;
+  };
+
   const requestDolbyCard = async (card: 'vision' | 'audio' | 'atmos') => {
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video || !url) {
@@ -346,7 +381,11 @@ export function PlayerShell({
       return;
     }
     if (currentDolbyChoice[card]) {
-      if (card === 'vision') { cinemaHdrGpuRequestRef.current += 1; cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null; }
+      if (card === 'vision') {
+        cinemaHdrGpuRequestRef.current += 1;
+        cinemaHdrNativeConfirmationRef.current?.();
+        cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
+      }
       setDolbyCardChoice((value) => ({ ...value, url, [card]: false }));
       setDolbyCardStatus('已取消 Dolby 优先请求。现有原生媒体通道由 Safari 管理。');
       return;
@@ -447,10 +486,13 @@ export function PlayerShell({
       setupHls(video, currentMediaUrlRef.current || url, true, true,
         dolbyVisionFormatReport ?? undefined, snapshot);
     }
-    setDolbyCardChoice((value) => ({ ...value, url, [card]: true }));
-    setDolbyCardStatus(card === 'vision'
-      ? '已优先请求 Safari 原生 HDR / Dolby Vision 视频路径；HDR10、HLG、杜比及实际显示输出仍需真机验证。'
-      : '已优先请求 Safari 原生 AC-3 / E-AC-3 音频路径；扬声器输出仍需真机验证。');
+    if (card === 'vision') {
+      setDolbyCardStatus('已请求 Safari 原生 HDR 视频路径，正在观察真正播放的视频帧；原生 HDR 输出仍待真机确认。');
+      armCinemaHdrNativeConfirmation(url);
+    } else {
+      setDolbyCardChoice((value) => ({ ...value, url, audio: true }));
+      setDolbyCardStatus('已优先请求 Safari 原生 AC-3 / E-AC-3 音频路径；扬声器输出仍需真机验证。');
+    }
   };
 
   const unsustainableFragmentsRef = useRef(0);
@@ -774,6 +816,7 @@ export function PlayerShell({
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
     cinemaHdrGpuRequestRef.current += 1;
+    cinemaHdrNativeConfirmationRef.current?.();
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
     cinemaHdrVariantsRef.current = null;
     setAudioTrackOptions([]);
@@ -863,6 +906,7 @@ export function PlayerShell({
     nativeAudioFallback?: NativeAudioFallbackSnapshot,
   ) => {
     cinemaHdrGpuRequestRef.current += 1;
+    cinemaHdrNativeConfirmationRef.current?.();
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
     if (cinemaHdrVariantsRef.current?.url !== mediaUrl) cinemaHdrVariantsRef.current = null;
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
