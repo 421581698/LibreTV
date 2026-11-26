@@ -23,3 +23,12 @@ test('binds reordered packets by exact decoded PTS', () => {
     assert.throws(() => bindHevcDecodedFrames(packets,pts,4));
   }
 });
+
+test('accepts header-only EOS and EOB but rejects truncated picture and RPU', () => {
+  const eos = Buffer.from([72,1]);
+  const eob = Buffer.from([74,1]);
+  assert.deepEqual(extractHevcSampleRpu(sample(picture,rpu,eos,eob),4).rpu,rpu.subarray(2));
+  for (const unit of [Buffer.from([2,1]),Buffer.from([124,1]),Buffer.from([64,1])]) {
+    assert.throws(() => extractHevcSampleRpu(sample(picture,rpu,unit),4), /Invalid NAL size/);
+  }
+});

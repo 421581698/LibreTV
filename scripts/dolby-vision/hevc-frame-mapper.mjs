@@ -15,12 +15,13 @@ export function extractHevcSampleRpu(sample, lengthSize) {
     if (++count > 65536 || offset + lengthSize > sample.length) throw new Error('Invalid NAL boundary');
     const size = sample.readUIntBE(offset, lengthSize);
     offset += lengthSize;
-    if (size < 3 || size > sample.length - offset) throw new Error('Invalid NAL size');
+    if (size < 2 || size > sample.length - offset) throw new Error('Invalid NAL size');
     const nal = sample.subarray(offset, offset + size);
     offset += size;
     const type = (nal[0] >> 1) & 63;
     const layer = ((nal[0] & 1) << 5) | (nal[1] >> 3);
     if ((nal[0] & 128) || layer !== 0 || !(nal[1] & 7)) throw new Error('Unsupported HEVC NAL header');
+    if (nal.length === 2 && type !== 36 && type !== 37) throw new Error('Invalid NAL size');
     if (type <= 31) {
       if (nal[2] & 128) pictures++;
       else if (!pictures) throw new Error('Missing first slice');
