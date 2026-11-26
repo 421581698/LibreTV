@@ -212,23 +212,102 @@ function* readIvfObus(path, fileSize, timing) {
       const pts = packetHeader.readBigInt64LE(4);
       if (pts === -(1n << 63n)) throw new Error('AV1 IVF packet is missing its presentation timestamp.');
 
-      const obus = readObus([readExact(size)].values());
-      const first = obus.next();
-      if (first.value.type === 2) {
-        yield { ...first.value, packetPts: pts.toString() };
-      } else {
-        // IVF already supplies a packet boundary even if the OBU delimiter was omitted.
-        yield { type: 2, extensionPresent: false, payload: Buffer.alloc(0),
-          packetPts: pts.toString(), syntheticDelimiter: true };
-        yield first.value;
-      }
-      for (const obu of obus) {
-        if (obu.type === 2) throw new Error('AV1 IVF packet contains multiple temporal units.');
-        yield obu;
-      }
+      yield* readTimedPacketObus(readExact(size), pts.toString(), 'IVF');
     }
     if (readSync(fd, Buffer.alloc(1), 0, 1, null) !== 0) {
       throw new Error('AV1 IVF file size changed during reading.');
+    }
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function* readTimedPacketObus(bytes, packetPts, container) {
+  const obus = readObus([bytes].values());
+  const first = obus.next().value;
+  if (first.type === 2) {
+    yield { ...first, packetPts };
+  } else {
+    yield { type: 2, extensionPresent: false, payload: Buffer.alloc(0),
+      packetPts, syntheticDelimiter: true };
+    yield first;
+  }
+  for (const obu of obus) {
+    if (obu.type === 2) throw new Error('AV1 ' + container + ' packet contains multiple temporal units.');
+    yield obu;
+  }
+}
+
+async function probeMp4Packets(path, fileSize, options) {
+  const ffprobe = options.ffprobe || process.env.FFPROBE_BIN || 'ffprobe';
+  const { stdout, stderr } = await execFileAsync(ffprobe, [
+    '-v', 'error', '-fflags', '+noparse+nofillin', '-protocol_whitelist', 'file', '-f', 'mov', '-enable_drefs', '0',
+    '-select_streams', 'v',
+    '-show_packets', '-show_streams', '-show_entries',
+    'packet=stream_index,pts,pos,size:stream=index,codec_name,time_base',
+    '-of', 'compact=p=1:nk=0', path,
+  ], { encoding: 'utf8', timeout: 120_000, maxBuffer: 16 * 1024 * 1024, windowsHide: true });
+  if (stderr.trim()) throw new Error('FFprobe reported an error reading AV1 MP4 packets.');
+
+  const packets = [];
+  let video;
+  for (const line of stdout.trim().split(/\r?\n/)) {
+    // Compact writer escapes pipes in optional side data and stream tags.
+    const [section, ...fields] = line.split(/(?<!\\)\|/);
+    const values = new Map(fields.map((field) => {
+      const equals = field.indexOf('=');
+      return [field.slice(0, equals), field.slice(equals + 1)];
+    }));
+    if (section === 'stream') {
+      const match = /^(\d+)\/(\d+)$/.exec(values.get('time_base'));
+      if (video || values.get('codec_name') !== 'av1' || !match ||
+          !/^\d+$/.test(values.get('index'))) {
+        throw new Error('MP4 packet timing requires exactly one AV1 video track and a valid time base.');
+      }
+      const numerator = Number(match[1]);
+      const denominator = Number(match[2]);
+      if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) ||
+          numerator <= 0 || denominator <= 0) throw new Error('Invalid AV1 MP4 time base.');
+      video = { index: values.get('index'), timeBase: { numerator, denominator } };
+    } else if (section === 'packet') {
+      const packetPts = values.get('pts');
+      const pos = Number(values.get('pos'));
+      const size = Number(values.get('size'));
+      if (packets.length >= MAX_RPU_UNITS || !/^-?\d{1,19}$/.test(packetPts) ||
+          BigInt(packetPts) <= -(1n << 63n) || BigInt(packetPts) >= (1n << 63n) ||
+          !/^\d+$/.test(values.get('pos')) || !/^\d+$/.test(values.get('size')) ||
+          !Number.isSafeInteger(pos) || !Number.isSafeInteger(size) ||
+          size <= 0 || size > MAX_OBU_BYTES || pos > fileSize - size) {
+        throw new Error('AV1 MP4 packet has invalid bounds or presentation timestamp.');
+      }
+      packets.push({ pos, size, packetPts, streamIndex: values.get('stream_index') });
+    } else if (section) {
+      throw new Error('Unexpected FFprobe AV1 MP4 packet report.');
+    }
+  }
+  if (!video || !packets.length || packets.some((packet) => packet.streamIndex !== video.index)) {
+    throw new Error('AV1 MP4 packet report does not match a single video track.');
+  }
+  let previousEnd = 0;
+  for (const packet of [...packets].sort((a, b) => a.pos - b.pos)) {
+    if (packet.pos < previousEnd) throw new Error('AV1 MP4 packet byte ranges overlap.');
+    previousEnd = packet.pos + packet.size;
+  }
+  return { packets, timeBase: video.timeBase };
+}
+
+function* readMp4PacketObus(path, packets) {
+  const fd = openSync(path, 'r');
+  try {
+    for (const { pos, size, packetPts } of packets) {
+      const bytes = Buffer.allocUnsafe(size);
+      let offset = 0;
+      while (offset < size) {
+        const count = readSync(fd, bytes, offset, size - offset, pos + offset);
+        if (count === 0) throw new Error('Truncated AV1 MP4 packet.');
+        offset += count;
+      }
+      yield* readTimedPacketObus(bytes, packetPts, 'MP4');
     }
   } finally {
     closeSync(fd);
@@ -382,13 +461,15 @@ function parseArgs(argv) {
     if (argv[index] === '--input') options.input = argv[++index];
     else if (argv[index] === '--output') options.output = argv[++index];
     else if (argv[index] === '--kind') options.kind = argv[++index];
+    else if (argv[index] === '--mp4-packet-timing') options.mp4PacketTiming = true;
     else if (argv[index] === '--ffmpeg') options.ffmpeg = argv[++index];
     else if (argv[index] === '--ffprobe') options.ffprobe = argv[++index];
     else if (argv[index] === '--help' || argv[index] === '-h') options.help = true;
     else throw new Error('Unknown command-line option.');
   }
-  if (!options.help && (!options.input || !options.output || !['obu', 't35', 'mp4', 'ivf'].includes(options.kind))) {
-    throw new Error('Usage: extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--ffmpeg PATH] [--ffprobe PATH]');
+  if (!options.help && (!options.input || !options.output || !['obu', 't35', 'mp4', 'ivf'].includes(options.kind) ||
+      (options.mp4PacketTiming && options.kind !== 'mp4'))) {
+    throw new Error('Usage: extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--mp4-packet-timing] [--ffmpeg PATH] [--ffprobe PATH]');
   }
   return options;
 }
@@ -454,7 +535,7 @@ async function demuxAv1Container(inputPath, directory, options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    process.stdout.write('Usage: node extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--ffmpeg PATH] [--ffprobe PATH]\n');
+    process.stdout.write('Usage: node extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--mp4-packet-timing] [--ffmpeg PATH] [--ffprobe PATH]\n');
     return;
   }
   const inputPath = resolve(options.input);
@@ -483,12 +564,19 @@ async function main() {
       const ivf = options.kind === 'ivf';
       const mp4 = options.kind === 'mp4';
       const timing = {};
-      const obuFile = mp4
-        ? await demuxAv1Container(inputPath, directory, options)
-        : { path: inputPath, size: inputStat.size };
-      const obus = ivf
-        ? readIvfObus(inputPath, inputStat.size, timing)
-        : readObuFile(obuFile.path, obuFile.size);
+      let obus;
+      if (ivf) {
+        obus = readIvfObus(inputPath, inputStat.size, timing);
+      } else if (options.mp4PacketTiming) {
+        const { packets, timeBase } = await probeMp4Packets(inputPath, inputStat.size, options);
+        timing.timeBase = timeBase;
+        obus = readMp4PacketObus(inputPath, packets);
+      } else {
+        const obuFile = mp4
+          ? await demuxAv1Container(inputPath, directory, options)
+          : { path: inputPath, size: inputStat.size };
+        obus = readObuFile(obuFile.path, obuFile.size);
+      }
       const parsed = parseDolbyRpuObuStream(obus);
       const result = converterConfigured
         ? await convertParsedObusWithLibdovi(parsed, directory, options)
@@ -497,8 +585,9 @@ async function main() {
       report = { ...result.report, extractionBackend: converterConfigured ? 'libdovi' : 'javascript' };
       if (mp4 || ivf) {
         report.inputKind = options.kind;
-        report.containerDemux = ivf ? 'ivf-packet-reader' : 'ffmpeg-copy';
-        if (ivf) report.packetTimeBase = timing.timeBase;
+        report.containerDemux = ivf ? 'ivf-packet-reader' :
+          options.mp4PacketTiming ? 'ffprobe-mp4-packet-reader' : 'ffmpeg-copy';
+        if (timing.timeBase) report.packetTimeBase = timing.timeBase;
         report.sourceByteLength = inputStat.size;
       }
     } finally {

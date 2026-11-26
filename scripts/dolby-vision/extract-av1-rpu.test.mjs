@@ -363,3 +363,40 @@ test('associates IVF RPU records with their packet PTS and exact time base', asy
   assert.throws(() => execFileSync(process.execPath, args, { stdio: 'pipe' }), /Truncated AV1 IVF/);
   await assert.rejects(readFile(output), { code: 'ENOENT' });
 });
+
+test('maps MP4 packet PTS by sample byte range and rejects ambiguous ranges', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-mp4-timing-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { bytes } = validT35Payload();
+  const sample = Buffer.concat([obu(5, Buffer.concat([leb(4), bytes])), obu(6, Buffer.from([0]))]);
+  const input = resolve(directory, 'input.mp4');
+  const output = resolve(directory, 'output.rpu');
+  const ffprobe = resolve(directory, 'ffprobe');
+  await writeFile(input, Buffer.concat([Buffer.alloc(16), sample, sample]));
+  await writeFile(ffprobe, '#!/usr/bin/env node\nprocess.stdout.write(process.env.TEST_PACKET_REPORT);\n');
+  await chmod(ffprobe, 0o755);
+
+  const args = [resolve('scripts/dolby-vision/extract-av1-rpu.mjs'), '--kind', 'mp4',
+    '--mp4-packet-timing', '--ffprobe', ffprobe, '--input', input, '--output', output];
+  function run(secondPos, secondPts) {
+    const packetLine = (pos, pts) => 'packet|stream_index=0|pts=' + pts +
+      '|size=' + sample.length + '|pos=' + pos;
+    const report = [
+      packetLine(16, '9007199254740993'),
+      packetLine(secondPos, secondPts),
+      'stream|index=0|codec_name=av1|time_base=1/90000',
+    ].join('\n');
+    return execFileSync(process.execPath, args, {
+      encoding: 'utf8', env: { ...process.env, TEST_PACKET_REPORT: report, AV1_RPU_CONVERTER_BIN: '' },
+      stdio: 'pipe',
+    });
+  }
+
+  const timing = JSON.parse(run(16 + sample.length, '-3003'));
+  assert.deepEqual(timing.packetTimeBase, { numerator: 1, denominator: 90000 });
+  assert.deepEqual(timing.rpuUnits.map(({ packetPts }) => packetPts), ['9007199254740993', '-3003']);
+  await rm(output);
+  assert.throws(() => run(16, '12'), /byte ranges overlap/);
+  assert.throws(() => run(16 + sample.length, 'N\/A'), /invalid bounds or presentation timestamp/);
+  await assert.rejects(readFile(output), { code: 'ENOENT' });
+});
