@@ -9,6 +9,7 @@ on:
       - integration/**
     paths:
       - 'src/**'
+      - ".github/workflows/deploy-ipad-edition-preview.yml"
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"
@@ -39,6 +40,7 @@ on:
   pull_request:
     paths:
       - 'src/**'
+      - ".github/workflows/deploy-ipad-edition-preview.yml"
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"

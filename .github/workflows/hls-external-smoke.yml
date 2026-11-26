@@ -7,6 +7,7 @@ on:
       - feature/libretv-ipad-edition-product
     paths:
       - 'src/**'
+      - ".github/workflows/deploy-ipad-edition-preview.yml"
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"
@@ -24,6 +25,7 @@ on:
       - feature/libretv-ipad-edition-foundation
     paths:
       - 'src/**'
+      - ".github/workflows/deploy-ipad-edition-preview.yml"
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"
