@@ -1,11 +1,16 @@
 'use client';
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 
-export class PlaybackErrorBoundary extends Component<{ children: ReactNode; label: string; optional?: boolean; fallback?: (retry: () => void) => ReactNode }, { failed: boolean }> {
+export class PlaybackErrorBoundary extends Component<{ children: ReactNode; label: string; optional?: boolean; resetKey?: string; fallback?: (retry: () => void) => ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[LibreTV] playback component failed:', this.props.label, error, info.componentStack);
+  }
+  componentDidUpdate(previousProps: Readonly<typeof this.props>) {
+    if (this.state.failed && previousProps.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false });
+    }
   }
   render() {
     if (!this.state.failed) return this.props.children;
