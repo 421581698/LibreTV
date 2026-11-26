@@ -413,8 +413,14 @@ export function PlayerShell({
       if (!declaredDolby && !nativeHdr) {
         // Native Safari owns true HDR pixels. Never tone-map a *known* PQ/HLG
         // source into an 8-bit canvas simply because its codec was rejected.
-        if (hdrVariants.some(item => item.transfer === 'pq' || item.transfer === 'hlg')) {
-          setDolbyCardStatus('发现 HDR 片源声明，但未确认可用的原生解码路径；保留原始画质。');
+        if (hdrVariants.some(item => item.transfer === 'pq' || item.transfer === 'hlg') ||
+            dolbyVisionFormatReport?.videoRange === 'PQ' || dolbyVisionFormatReport?.videoRange === 'HLG') {
+          if (isHls && qualityControlMode === 'native' && nativeSafari && nativeHlsSupported) {
+            setDolbyCardStatus('Safari 已采用原生 HLS，正在观察 HDR 声明片源的实际播放帧；屏幕 HDR 输出仍需真机验证。');
+            armCinemaHdrNativeConfirmation(url);
+          } else {
+            setDolbyCardStatus('发现 HDR 片源声明，但未确认可用的原生解码路径；不会用 SDR 画布覆盖 HDR 画面。');
+          }
           return;
         }
         const host = containerRef.current;
