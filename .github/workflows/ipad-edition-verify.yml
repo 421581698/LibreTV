@@ -57,6 +57,8 @@ on:
       - "docs/dolby-vision/**"
       - "src/lib/dolby/**"
       - "src/lib/dolby-vision/**"
+      - "scripts/dolby-vision/**"
+      - "services/dolby-vision-parser/**"
       - "src/app/page.tsx"
       - "src/lib/movie-title-match.ts"
       - "src/lib/movie-title-match.test.ts"
@@ -80,6 +82,8 @@ on:
       - "docs/dolby-vision/**"
       - "src/lib/dolby/**"
       - "src/lib/dolby-vision/**"
+      - "scripts/dolby-vision/**"
+      - "services/dolby-vision-parser/**"
       - "src/components/player-shell.tsx"
       - "src/components/dolby-vision-diagnostics-panel.tsx"
       - "src/lib/format-detector.ts"
@@ -182,6 +186,12 @@ jobs:
           ffprobe -hide_banner -version | head -n 1
       - name: AC-3 and E-AC-3 real FFmpeg encode/decode regression
         run: node scripts/dolby/audio-codec-ffmpeg-smoke.mjs
+      - name: HEVC frame mapper regression
+        run: node --test scripts/dolby-vision/hevc-frame-mapper.test.mjs
+      - name: Parser service syntax checks
+        run: |
+          node --check services/dolby-vision-parser/server.mjs
+          node --check scripts/dolby-vision/hevc-frame-mapper.mjs
       - name: Production build
         env:
           PASSWORD: ci-test-password
