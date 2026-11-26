@@ -273,6 +273,7 @@ export function PlayerShell({
   const [cinemaSoundActive,setCinemaSoundActive] = useState({
     url:'',audio:false,spatial:false,
   });
+  const cinemaSoundActiveRef = useRef({url:'',audio:false,spatial:false});
   useEffect(() => () => {
     cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrGpuRef.current?.stop();
@@ -396,11 +397,14 @@ export function PlayerShell({
     setDolbyCardStatus('正在检查是否可以安全读取 PCM 音轨。Safari 不支持时不会改变原声。');
     const session=await createCinemaSoundSession(video,state=>{
       if(requestId!==cinemaSoundRequestRef.current) return;
-      setCinemaSoundActive(previous=>{
-        if(state.output==='captured-dsp' && state.audio&&!previous.audio) startCinemaAnimation('audio');
-        if(state.output==='captured-dsp' && state.spatial&&!previous.spatial) startCinemaAnimation('spatial');
-        return {url,audio:state.audio,spatial:state.spatial};
-      });
+      // Use the last confirmed routing snapshot, not a React state updater
+      // for side effects; StrictMode may invoke updater callbacks twice.
+      const previous=cinemaSoundActiveRef.current;
+      if(state.output==='captured-dsp' && state.audio&&!previous.audio) startCinemaAnimation('audio');
+      if(state.output==='captured-dsp' && state.spatial&&!previous.spatial) startCinemaAnimation('spatial');
+      const confirmed={url,audio:state.audio,spatial:state.spatial};
+      cinemaSoundActiveRef.current=confirmed;
+      setCinemaSoundActive(confirmed);
       setDolbyCardStatus(state.reason);
       if (state.output === 'native' && cinemaSoundSessionRef.current) {
         // An interrupted capture session has already restored native audio.
