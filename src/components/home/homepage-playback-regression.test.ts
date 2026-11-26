@@ -295,7 +295,10 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain("watchShellRef.current?.classList.remove('cinema-controls-hidden')");
     expect(watch).toContain('}, [sourceKey, vodId, currentIndex, currentUrl]);');
     expect(watch).toContain('}, [sourceKey, vodId, currentUrl, currentIndex, cancelAutoNext]);');
-    expect(watch).toContain('const onSeeked = cancelPendingAutoNext;');
+    expect(watch).toContain('const onSeeked = () => {');
+    expect(watch).toContain('cancelPendingAutoNext();');
+    expect(watch).toContain('if (!video || scrubbingRef.current || !Number.isFinite(video.currentTime)) return;');
+    expect(watch).toContain('setWatchClock((current) => ({ ...current, position: video.currentTime }));');
     expect(watch).toContain("video.addEventListener('seeked', onSeeked)");
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('if (nextUrl !== currentUrl) {');
