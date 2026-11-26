@@ -397,7 +397,9 @@ describe('首页与播放页回归契约', () => {
     expect(player).toContain('if (hintTimerRef.current) clearTimeout(hintTimerRef.current);');
     expect(player).toContain("setHint('');");
     expect(player).toContain('recoveryRef.current?.dispose();\n    recoveryRef.current = new PlaybackRecovery();');
-    expect(player).toContain('artRef.current.currentTime = saved');
+    expect(player).toContain('artRef.current.currentTime = resumeAt');
+    expect(player).toContain('fallbackResumeTime(nativeAudioFallback, currentDuration)');
+    expect(player).toContain('saved > 10 && Number.isFinite(currentDuration) && saved < currentDuration - 2');
     expect(player).toContain('A failed IndexedDB lookup must not strand the player on its poster.');
     expect(player).toContain('An unsupported replacement must not leave the previous episode playing');
     expect(player).toContain("video.removeAttribute('src');\n      video.load();");
