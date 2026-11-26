@@ -103,9 +103,9 @@ export async function createCinemaSoundSession(
   // Never fetch an untrusted internal/loopback resource or a playlist whose
   // auth/variant selection is controlled by the original media loader.
   const parsed=(()=>{try{return new URL(url,window.location.href);}catch{return null;}})();
-  const isPrivateHost=Boolean(parsed && /^(?:localhost|127(?:\\.\\d+){3}|0\\.0\\.0\\.0|169\\.254\\.|192\\.168\\.|10\\.|172\\.(?:1[6-9]|2\\d|3[01])\\.|\\[::1\\])/.test(parsed.hostname));
+  const isPrivateHost=Boolean(parsed && (parsed.hostname==='localhost' || parsed.hostname==='127.0.0.1' || parsed.hostname==='::1' || parsed.hostname==='[::1]' || /^(?:10|127|192\.168|169\.254|172\.(?:1[6-9]|2[0-9]|3[01]))\.[0-9]+\.[0-9]+(?:\.[0-9]+)?$/.test(parsed.hostname)));
   const useElement=!stream && Boolean(parsed && parsed.protocol==='https:' && !isPrivateHost &&
-    !/\\.(?:m3u8|mpd)(?:$|[?#])/i.test(parsed.pathname) && !video.mediaKeys &&
+    !/\.(?:m3u8|mpd)$/i.test(parsed.pathname) && !video.mediaKeys &&
     video.seekable.length>0 && video.duration>0 && Number.isFinite(video.duration));
   const mirror=useElement?document.createElement('audio'):null;
   if(!stream&&!mirror) {
