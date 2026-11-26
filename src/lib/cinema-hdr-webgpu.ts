@@ -90,10 +90,10 @@ async function startWebGpu(
   } catch {
     context.configure({device,format,alphaMode:'opaque'});
   }
-  const module = device.createShaderModule({code:SHADER});
+  const shaderModule = device.createShaderModule({code:SHADER});
   const pipeline = device.createRenderPipeline({
-    layout:'auto',vertex:{module,entryPoint:'vertexMain'},
-    fragment:{module,entryPoint:'fragmentMain',targets:[{format}]},
+    layout:'auto',vertex:{module:shaderModule,entryPoint:'vertexMain'},
+    fragment:{module:shaderModule,entryPoint:'fragmentMain',targets:[{format}]},
     primitive:{topology:'triangle-strip'},
   });
   const sampler = device.createSampler({magFilter:'linear',minFilter:'linear'});
