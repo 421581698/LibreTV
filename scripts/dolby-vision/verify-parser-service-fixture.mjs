@@ -119,6 +119,9 @@ try {
   assert.equal(digest.digest('hex'), mapping.mappingSha256);
   assert.deepEqual(mapping.frames.map(f=>f.rpuSha256).sort(), [...report.rpuUnitEvidence.unitSha256s].sort());
   const duration = report.presentationDurationEvidence;
+  if (process.env.DV_EXPECT_DURATION === 'absent') {
+    assert.equal(duration, undefined, 'original irregular fixture must not claim contiguous presentation duration evidence');
+  } else {
   assert.ok(duration, 'real HEVC fixture must produce signed sample durations');
   assert.equal(duration.durations.length, report.frameCount);
   assert.equal(duration.timescale, mapping.timeBase.denominator);
@@ -130,6 +133,7 @@ try {
     cursor += BigInt(ticks);
   }
   assert.equal(cursor, BigInt(duration.end));
+  }
 
   process.stdout.write(`${JSON.stringify({
     result: externalBaseUrl ? 'docker-container-mp4-full-rpu-analysis-passed' : 'in-process-mp4-full-rpu-analysis-passed',
