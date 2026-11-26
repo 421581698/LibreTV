@@ -947,6 +947,7 @@ export function PlayerShell({
         userAgent: navigator.userAgent,
         nativeHlsTypeSupport: video.canPlayType('application/vnd.apple.mpegurl') ||
           video.canPlayType('application/x-mpegURL'),
+        canPlayDeclaredCodec: (codec) => video.canPlayType(`video/mp4; codecs="${codec}"`),
         qualityPreference: readQualityPreference(),
         playbackStarted: playbackStartedRef.current,
         alreadyAttemptedNative: nativeDolbyHlsAttemptedRef.current === mediaUrl,
