@@ -697,6 +697,8 @@ describe('首页与播放页回归契约', () => {
 
   it('播放器时间轴跟随每次媒体 timeupdate，进度持久化单独节流', () => {
     expect(player).toContain('const syncTimeline = () =>');
+    expect(player).toContain("art.on('video:pause', () => {\n      // A queued pause event");
+    expect(player).toContain('if (art.video && !art.video.paused && !art.video.ended) return;');
     expect(player).toContain("art.on('video:loadedmetadata', syncTimeline)");
     expect(player.indexOf("art.on('video:loadedmetadata', promotePendingEpisodeIdentity)")).toBeGreaterThan(-1);
     expect(player.indexOf("art.on('video:loadedmetadata', promotePendingEpisodeIdentity)")).toBeLessThan(
