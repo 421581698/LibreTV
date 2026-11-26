@@ -274,6 +274,7 @@ export function PlayerShell({
     url:'',audio:false,spatial:false,
   });
   const cinemaSoundActiveRef = useRef({url:'',audio:false,spatial:false});
+  const lastAnimatedVisionRequestRef = useRef(-1);
   useEffect(() => () => {
     cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrGpuRef.current?.stop();
@@ -375,6 +376,7 @@ export function PlayerShell({
     cinemaSoundSessionRef.current?.stop();
     cinemaSoundSessionRef.current = null;
     cinemaSoundRequestedRef.current = {url:'',audio:false,spatial:false};
+    cinemaSoundActiveRef.current={url:'',audio:false,spatial:false};
     setCinemaSoundActive({url:'',audio:false,spatial:false});
   };
   const requestCinemaSound = async (mode:CinemaSoundMode,video:HTMLVideoElement) => {
@@ -530,7 +532,10 @@ export function PlayerShell({
           setDolbyCardStatus(message);
           if (status === 'active') {
             setDolbyCardChoice(choice => ({ ...choice, url, vision: true }));
-            startCinemaAnimation('vision');
+            if(lastAnimatedVisionRequestRef.current !== requestId) {
+              lastAnimatedVisionRequestRef.current=requestId;
+              startCinemaAnimation('vision');
+            }
           }
           else {
             if (status !== 'recovering') cinemaHdrGpuRef.current = null;
