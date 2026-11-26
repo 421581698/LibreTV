@@ -1,6 +1,15 @@
 import type { OpenJocAbi } from './openjoc-experimental-decoder';
 
 const MAX_WASM_BYTES = 8 * 1024 * 1024;
+
+/** The pinned upstream OpenJOC bridge imports only this read-only clock.
+ * Reject WASI, network, memory, tables and any arbitrary host capability.
+ */
+export function allowedOpenJocImports(imports: WebAssembly.ModuleImportDescriptor[]): boolean {
+  return imports.every(item => item.module === 'env' &&
+    item.name === 'openjoc_wasm_clock_now_ms' && item.kind === 'function') &&
+    imports.length <= 1;
+}
 const REQUIRED = [
   'openjoc_wasm_decoder_create', 'openjoc_wasm_decoder_destroy',
   'openjoc_wasm_alloc', 'openjoc_wasm_dealloc',
@@ -25,8 +34,15 @@ export async function loadUserOpenJocWasm(file: File): Promise<OpenJocAbi> {
   if (bytes.byteLength !== file.size || !WebAssembly.validate(bytes)) {
     throw new Error('Invalid OpenJOC WASM bytes');
   }
-  // Do not grant filesystem, browser, or WASI imports to untrusted modules.
-  const { instance } = await WebAssembly.instantiate(bytes, {});
+  const module = await WebAssembly.compile(bytes);
+  if (!allowedOpenJocImports(WebAssembly.Module.imports(module))) {
+    throw new Error('OpenJOC WASM requests unsupported imports');
+  }
+  // The pinned upstream bridge needs this bounded clock callback. All other
+  // host functions (filesystem, networking, WASI, memory) remain unavailable.
+  const instance = await WebAssembly.instantiate(module, {
+    env: { openjoc_wasm_clock_now_ms: () => performance.now() },
+  });
   const exports = instance.exports as Record<string, WebAssembly.ExportValue>;
   if (!(exports.memory instanceof WebAssembly.Memory) ||
       REQUIRED.some(name => typeof exports[name] !== 'function')) {
