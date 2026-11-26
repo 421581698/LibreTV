@@ -1207,7 +1207,7 @@ function WatchContent() {
               </button>
             </div>
 
-            <div className="netflix-title-row">
+            {!isIpadEditionPlayback && <div className="netflix-title-row">
               <div className="min-w-0">
                 <h1 className="text-xl sm:text-2xl font-semibold text-content truncate">{videoTitle}</h1>
                 <p className="text-xs sm:text-sm text-muted mt-1">
@@ -1215,7 +1215,7 @@ function WatchContent() {
                 </p>
               </div>
 
-            </div>
+            </div>}
 
             <section className="watch-cinema-info" aria-label="影片信息">
               <div className="watch-cinema-playback">
@@ -1426,7 +1426,7 @@ function WatchContent() {
 
                 )}
                 {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
-                <button
+                {!isIpadEditionPlayback && <button
                   type="button"
                   className="watch-cinema-rate"
                   aria-label={`播放速度 ${watchRate} 倍`}
@@ -1438,7 +1438,7 @@ function WatchContent() {
                     playerApiRef.current?.setPlaybackRate(next);
                     if (playerApiRef.current) setWatchRate(playerApiRef.current.getPlaybackRate());
                   }}
-                >{watchRate}×</button>
+                >{watchRate}×</button>}
               </div>
             </section>
 
@@ -1478,7 +1478,7 @@ function WatchContent() {
                 </button>
               </>
             )}
-            <div className="netflix-watch-tools">
+            {!isIpadEditionPlayback && <div className="netflix-watch-tools">
               {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
               <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
               <button className="btn-ghost btn-sm" onClick={() => {
@@ -1510,7 +1510,7 @@ function WatchContent() {
                 <input type="checkbox" className="h-3.5 w-3.5 accent-[#2563eb]" checked={store.autoplayNext} onChange={(e) => store.updateSettings({ autoplayNext: e.target.checked })} />
                 自动连播
               </label>
-            </div>
+            </div>}
             <SkipMarkPanel
               open={skipPanelOpen}
               onClose={() => setSkipPanelOpen(false)}
