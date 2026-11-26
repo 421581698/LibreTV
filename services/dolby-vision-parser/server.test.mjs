@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   authorizeBearer,
+  bindPresentationDurations,
   canonicalize,
   createSignedEnvelope,
   createDolbyVisionParserServer,
@@ -491,4 +492,23 @@ process.exit(2);
     }
   });
 
+});
+
+describe('independent presentation duration binding', () => {
+  const mapping = {timeBase:{numerator:1,denominator:90000},frames:[
+    {pts:'0'},{pts:'3000'},{pts:'7500'},
+  ]};
+  const packets = [{pts:'7500',duration:'1500'},{pts:'0',duration:'3000'},{pts:'3000',duration:'4500'}];
+  it('binds independently supplied variable durations in presentation order', () => {
+    assert.deepEqual(bindPresentationDurations(packets,mapping),{
+      scope:'independent-sample-durations',timescale:90000,start:'0',end:'9000',durations:[3000,4500,1500],
+    });
+  });
+  it('rejects missing, duplicate, inferred or inconsistent sample durations', () => {
+    assert.equal(bindPresentationDurations(packets.slice(1),mapping),null);
+    assert.equal(bindPresentationDurations([packets[0],packets[1],packets[1]],mapping),null);
+    assert.equal(bindPresentationDurations([packets[0],{pts:'0',duration:'N/A'},packets[2]],mapping),null);
+    assert.equal(bindPresentationDurations([packets[0],{pts:'0',duration:'3001'},packets[2]],mapping),null);
+    assert.equal(bindPresentationDurations(packets,{...mapping,timeBase:{numerator:2,denominator:90000}}),null);
+  });
 });
