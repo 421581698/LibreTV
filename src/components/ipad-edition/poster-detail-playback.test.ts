@@ -76,3 +76,16 @@ describe('iPad Edition poster navigation and explicit playback', () => {
     expect(watchPage).toContain('if (Number.isFinite(urlPos) && urlPos > 0) return urlPos');
   });
 });
+
+
+describe('source switching preserves the active player edition', () => {
+  it('keeps iPad source switches on the cinema route and ordinary switches on the ordinary route', () => {
+    const modal = read('src/components/switch-source.tsx');
+    expect(modal).toContain('const pathname = usePathname();');
+    expect(modal).toContain("const targetUrl = pathname === '/ipad-edition/watch'");
+    expect(modal).toContain('? `/ipad-edition${watchUrl}`');
+    expect(modal).toContain(': watchUrl;');
+    expect(modal).toContain('router.push(position > 5 ? `${targetUrl}&position=${Math.floor(position)}` : targetUrl);');
+    expect(modal).toContain('targetIndex === currentIndex ? getCurrentPosition?.() ?? 0 : 0');
+  });
+});
