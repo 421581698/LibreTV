@@ -7,8 +7,8 @@
  * Native video sound is preserved until non-silent decoded PCM is scheduled.
  */
 import {
-  createCinemaAacDecoder,CinemaPcmQueue,cinemaPcmTiming,
-  type CinemaPcmPacket,type CinemaPcmFrame,
+  createCinemaAacDecoder,CinemaPcmQueue,
+  type CinemaPcmPacket,
 } from './cinema-v51-pcm';
 import {
   cinemaConfigureEq,cinemaCreatePanner,cinemaSoundRouting,cinemaLoudnessGain,
@@ -138,6 +138,18 @@ export async function createCinemaAuthorizedPcmSoundSession(
       if(stopped)return;
       if(!graph){formatChannels=frame.channels;graph=createGraph(context,formatChannels);}
       if(frame.channels!==formatChannels)throw new Error('Audio channel layout changed');
+      // Validate that decoded PCM is real and non-silent before native takeover.
+      // A digital-silence decoder result cannot justify muting the source.
+      let sum=0,count=0;
+      for(const plane of frame.planes){
+        for(let i=0;i<plane.length;i+=16){
+          const value=plane[i];
+          if(!Number.isFinite(value)||Math.abs(value)>1.25)
+            throw new Error('Non-finite or invalid decoded PCM amplitude');
+          sum+=value*value;count++;
+        }
+      }
+      if(count===0||Math.sqrt(sum/count)<.0025)return;
       queue.enqueue(frame);
       lastDecodedAt=performance.now();
     }catch(error){fail(error instanceof Error?error.message:'Invalid decoded PCM');}
@@ -183,7 +195,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
         node.buffer=buffer;
         node.playbackRate.value=video.playbackRate;
         node.connect(graph.input);
-        const when=Math.max(context.currentTime+.008,context.currentTime+delta);
+        const when=Math.max(context.currentTime+.008,context.currentTime+delta/Math.max(.5,video.playbackRate));
         scheduled.add(node);
         node.onended=()=>scheduled.delete(node);
         node.start(when);
