@@ -89,7 +89,8 @@ export function advanceNativePlaybackObservation(
   // dispatching loadstart. Do not join frame evidence across that boundary.
   const frameCounterReset = frameCount !== null && previous.lastPresentedFrames !== null &&
     frameCount < previous.lastPresentedFrames;
-  const baselineTime = previous.baselineTime === null || jumped || frameCounterReset ? time : previous.baselineTime;
+  const frameCounterLost = frameCount === null && previous.lastPresentedFrames !== null;
+  const baselineTime = previous.baselineTime === null || jumped || frameCounterReset || frameCounterLost ? time : previous.baselineTime;
   // Some Safari builds expose playback-quality counters only after the
   // first decoded frames. Establish the baseline when they first appear;
   // never compare a new counter against an unavailable historic sample.

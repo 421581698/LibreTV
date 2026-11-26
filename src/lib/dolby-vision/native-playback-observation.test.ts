@@ -187,6 +187,21 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(returned.status).toBe('waiting');
   });
 
+  it('invalidates prior visual progression when the frame counter disappears', () => {
+    const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', {
+      ...playing, presentedVideoFrames: 10,
+    });
+    const rendered = advanceNativePlaybackObservation(start, 'sample', {
+      ...playing, currentTime: 2, presentedVideoFrames: 50,
+    });
+    expect(rendered.status).toBe('progress-observed');
+    const lost = advanceNativePlaybackObservation(rendered, 'sample', {
+      ...playing, currentTime: 3, presentedVideoFrames: null,
+    });
+    expect(lost.status).toBe('waiting');
+    expect(lost.progressedSeconds).toBe(0);
+  });
+
   it('fails closed when the video reports an error during sampling', () => {
     const progressed = advanceNativePlaybackObservation(
       advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing),
