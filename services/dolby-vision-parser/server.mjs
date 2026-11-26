@@ -377,7 +377,7 @@ async function analyzeUpload(request, response, env) {
     if (sourceContentType === 'video/mp4' && report.frameMappingEvidence) {
       try {
         const { stdout: timing, stderr } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
-          '-v', 'error', '-fflags', '+noparse+nofillin', '-protocol_whitelist', 'file',
+          '-v', 'error', '-protocol_whitelist', 'file',
           '-f', 'mov', '-enable_drefs', '0', '-select_streams', 'v:0',
           '-show_packets', '-show_streams', '-show_entries', 'packet=pts,duration:stream=time_base',
           '-of', 'compact=p=1:nk=0', inputPath,
@@ -397,7 +397,7 @@ async function analyzeUpload(request, response, env) {
           const stream = fields[0] === 'stream' && /^\d+\/\d+$/.test(base) ? [row, base] : null;
           if (packet) packets.push({ pts: packet[1], duration: packet[2] });
           else if (stream && streamTimeBase === null) streamTimeBase = stream[1];
-          else { valid = false; break; }
+          else { console.warn('Duration probe invalid record:', fields[0] === 'packet' ? 'missing or invalid packet PTS/duration' : fields[0] === 'stream' ? 'duplicate or invalid stream timebase' : 'unexpected record'); valid = false; break; }
         }
         const { numerator, denominator } = report.frameMappingEvidence.timeBase;
         if (valid && streamTimeBase === numerator + '/' + denominator) {
