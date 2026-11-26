@@ -33,6 +33,7 @@ import { inspectCinemaHdrVariants, isSafariNativeHdrCandidate, shouldUseCinemaP3
 import type { CinemaGpuSession } from '@/lib/cinema-hdr-gpu';
 import { startCinemaSdrEnhancedGpu } from '@/lib/cinema-hdr-webgpu';
 import { observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
+import { createCinemaSoundSession, type CinemaSoundSession, type CinemaSoundMode } from '@/lib/cinema-v51-sound';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
@@ -258,10 +259,20 @@ export function PlayerShell({
   const cinemaHdrGpuRef = useRef<CinemaGpuSession | null>(null);
   const cinemaHdrGpuRequestRef = useRef(0);
   const cinemaHdrNativeConfirmationRef = useRef<(() => void) | null>(null);
+  const cinemaSoundSessionRef = useRef<CinemaSoundSession | null>(null);
+  const cinemaSoundRequestRef = useRef(0);
+  const cinemaSoundRequestedRef = useRef<{url:string;audio:boolean;spatial:boolean}>({
+    url:'',audio:false,spatial:false,
+  });
+  const [cinemaSoundActive,setCinemaSoundActive] = useState({
+    url:'',audio:false,spatial:false,
+  });
   useEffect(() => () => {
     cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrGpuRef.current?.stop();
     cinemaHdrNativeConfirmationRef.current?.();
+    cinemaSoundRequestRef.current += 1;
+    cinemaSoundSessionRef.current?.stop();
   }, []);
   // No experimental decoder is supplied by default. Native audio remains primary.
   const experimentalAudioSessionRef = useRef<ExperimentalAudioSession | null>(null);
@@ -341,6 +352,51 @@ export function PlayerShell({
       'audioCodec' in track && typeof track.audioCodec === 'string' ? track.audioCodec : '') ?? []),
   ].filter(isDolbyAudioCodec);
 
+  const stopCinemaSound = () => {
+    cinemaSoundRequestRef.current += 1;
+    cinemaSoundSessionRef.current?.stop();
+    cinemaSoundSessionRef.current = null;
+    cinemaSoundRequestedRef.current = {url:'',audio:false,spatial:false};
+    setCinemaSoundActive({url:'',audio:false,spatial:false});
+  };
+  const requestCinemaSound = async (mode:CinemaSoundMode,video:HTMLVideoElement) => {
+    const requested=cinemaSoundRequestedRef.current.url === url
+      ? cinemaSoundRequestedRef.current
+      : {url,audio:false,spatial:false};
+    const next={...requested,[mode]:!requested[mode]};
+    cinemaSoundRequestedRef.current=next;
+    if(!next.audio&&!next.spatial) {
+      stopCinemaSound();
+      setDolbyCardStatus('已关闭 Cinema Audio / Spatial 自主处理，保留原生音频播放。');
+      return;
+    }
+    if (cinemaSoundSessionRef.current) {
+      cinemaSoundSessionRef.current.enable(mode,next[mode]);
+      setDolbyCardStatus('Cinema 音频处理模式已切换；杜比原生输出不以自主 DSP 代替。');
+      return;
+    }
+    const requestId=++cinemaSoundRequestRef.current;
+    setDolbyCardStatus('正在检查是否可以安全读取 PCM 音轨。Safari 不支持时不会改变原声。');
+    const session=await createCinemaSoundSession(video,state=>{
+      if(requestId!==cinemaSoundRequestRef.current) return;
+      setCinemaSoundActive({url,audio:state.audio,spatial:state.spatial});
+      setDolbyCardStatus(state.reason);
+    });
+    if(requestId!==cinemaSoundRequestRef.current||!video.isConnected) {
+      session?.stop();
+      return;
+    }
+    if(!session) {
+      cinemaSoundRequestedRef.current={url,audio:false,spatial:false};
+      setCinemaSoundActive({url,audio:false,spatial:false});
+      return;
+    }
+    cinemaSoundSessionRef.current=session;
+    const pending=cinemaSoundRequestedRef.current;
+    if(pending.audio) session.enable('audio',true);
+    if(pending.spatial) session.enable('spatial',true);
+  };
+
   const armCinemaHdrNativeConfirmation = (requestedUrl: string) => {
     cinemaHdrNativeConfirmationRef.current?.();
     const host = containerRef.current;
@@ -377,7 +433,11 @@ export function PlayerShell({
       return;
     }
     if (card === 'atmos') {
-      setDolbyCardStatus('无法验证 Atmos 对象音频及设备实际输出，因此不会伪装成已开启杜比全景声。');
+      if(currentDolbyChoice.audio) {
+        setDolbyCardStatus('当前已请求 Safari 原生 Dolby 音频；不能同时接管该音轨做 HRTF 虚拟空间化。');
+        return;
+      }
+      await requestCinemaSound('spatial',video);
       return;
     }
     if (currentDolbyChoice[card]) {
@@ -462,9 +522,12 @@ export function PlayerShell({
       const codecSupported = knownDolbyAudioCodecs.some((codec) =>
         ['maybe', 'probably'].includes(video.canPlayType(`audio/mp4; codecs="${codec}"`)));
       if (!codecSupported) {
-        setDolbyCardStatus('当前片源没有可确认且设备声明支持的 AC-3 / E-AC-3 音轨；无法开启真正的杜比音效。');
+        await requestCinemaSound('audio',video);
         return;
       }
+      // Native Dolby priority: never combine an app-side EQ effect with
+      // bitstream-native Dolby routing (or imply virtual processing is Dolby).
+      stopCinemaSound();
     }
     const hls = hlsRef.current;
     if (card === 'audio' && hls) {
@@ -825,6 +888,7 @@ export function PlayerShell({
     cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrNativeConfirmationRef.current?.();
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
+    stopCinemaSound();
     cinemaHdrVariantsRef.current = null;
     setAudioTrackOptions([]);
     setSelectedAudioTrack(-1);
@@ -915,6 +979,7 @@ export function PlayerShell({
     cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrNativeConfirmationRef.current?.();
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
+    stopCinemaSound();
     if (cinemaHdrVariantsRef.current?.url !== mediaUrl) cinemaHdrVariantsRef.current = null;
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
     // remains browser-managed and intentionally exposes no hls.js selector.
@@ -2246,6 +2311,7 @@ export function PlayerShell({
       // A source identity can change even when two providers share the same URL.
       // Update the identity without needlessly reloading an unchanged media URL.
       // The URL did not change, but the logical episode identity did.
+      stopCinemaSound();
       // Invalidate any asynchronous restore lookup started for the previous identity.
       experimentalHlsControllerRef.current?.onSourceChange();
       mediaLoadGenerationRef.current += 1;
@@ -2335,6 +2401,7 @@ export function PlayerShell({
               <strong>杜比音效</strong><span>Dolby Audio</span>
             </button>
             <button type="button" className="cinema-v4-dolby-card" aria-pressed={false}
+              data-cinema-spatial-processing={cinemaSoundActive.url === url && cinemaSoundActive.spatial ? 'active-virtual-hrtf' : 'inactive'}
               onClick={() => requestDolbyCard('atmos')}>
               <strong>杜比全景声</strong><span>Dolby Atmos</span>
             </button>
