@@ -1,3 +1,4 @@
+import { verifyHlsFramePresentationOrder } from './hls-frame-timeline';
 import { digestRpuFrameMapping } from './frame-mapping-evidence';
 import { createHash, createPublicKey, verify as verifySignature, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
@@ -106,6 +107,7 @@ export interface VerifiedHlsRpuSegmentSet {
   orderedRpuUnitSha256: string | null;
   /** Graph-bound commitment to all signed local mappings, not global PTS continuity. */
   orderedFrameMappingSha256: string | null;
+  framePresentationOrder: 'strictly-increasing' | 'not-established';
   /** Maximum verified end time in the media track's timescale units. */
   verifiedDecodeEnd: number;
   verifiedTimescale: number;
@@ -261,6 +263,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     rpuUnitBoundaryEvidence: allSegmentsHaveUnitEvidence ? 'signed-ordered-per-unit-sha256' : 'not-established',
     orderedRpuUnitSha256: allSegmentsHaveUnitEvidence ? orderedUnitHash.digest('hex') : null,
     orderedFrameMappingSha256: allSegmentsHaveFrameMapping ? orderedMappingHash.digest('hex') : null,
+    framePresentationOrder: allSegmentsHaveFrameMapping && verifyHlsFramePresentationOrder(verified.map(segment => segment.report.frameMappingEvidence!)) ? 'strictly-increasing' : 'not-established',
     verifiedDecodeEnd: previousEnd!,
     verifiedTimescale: commonTimescale!,
     verifiedParserVersion: commonParserVersion!,
