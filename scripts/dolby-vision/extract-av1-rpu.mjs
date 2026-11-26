@@ -6,7 +6,7 @@
  */
 import { readFile, writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
 import { execFile, spawn } from 'node:child_process';
-import { createWriteStream } from 'node:fs';
+import { closeSync, createWriteStream, openSync, readSync } from 'node:fs';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
@@ -115,30 +115,78 @@ function readLeb128(data, offset) {
   throw new Error('AV1 OBU size LEB128 is truncated or overlong.');
 }
 
-function parseDolbyRpuObuStream(inputValue) {
-  // Reuse an existing Buffer instead of duplicating the entire demuxed movie.
-  const data = Buffer.isBuffer(inputValue) ? inputValue : Buffer.from(inputValue);
-  const t35Payloads = [];
-  let totalT35Bytes = 0;
-  const rpuTemporalUnits = new Set();
-  let offset = 0, obuCount = 0, temporalUnit = -1, temporalDelimiterCount = 0, frameUnitCount = 0;
-  const framesByTemporalUnit = new Map();
-  const rpuUnits = [];
-  while (offset < data.length) {
-    if (obuCount >= MAX_OBUS) throw new Error('AV1 OBU count exceeds configured limit.');
+// Keep only a read-ahead chunk and the current OBU in memory.
+function* readObus(chunks) {
+  let data = Buffer.alloc(0);
+  let offset = 0;
+  function available(length) {
+    if (data.length - offset >= length) return true;
+    const parts = [data.subarray(offset)];
+    let size = parts[0].length;
+    while (size < length) {
+      const next = chunks.next();
+      if (next.done) break;
+      parts.push(next.value);
+      size += next.value.length;
+    }
+    data = Buffer.concat(parts, size);
+    offset = 0;
+    return size >= length;
+  }
+
+  while (available(1)) {
     const header = data[offset++];
     if ((header & 0x81) !== 0) throw new Error('AV1 OBU forbidden/reserved header bit is set.');
     const type = (header >> 3) & 0x0f;
     const extensionPresent = (header & 0x04) !== 0;
     if ((header & 0x02) === 0) throw new Error('AV1 OBU without explicit size field is not accepted.');
-    if (extensionPresent && (offset >= data.length || (data[offset++] & 0x07) !== 0)) {
+    if (extensionPresent && (!available(1) || (data[offset++] & 0x07) !== 0)) {
       throw new Error('AV1 OBU extension header is truncated or malformed.');
     }
+    // A short final read is valid if the LEB128 and its payload fit.
+    available(8);
     const length = readLeb128(data, offset);
     offset = length.next;
-    if (length.value > MAX_OBU_BYTES || length.value > data.length - offset) throw new Error('AV1 OBU payload exceeds bounds or is truncated.');
+    if (length.value > MAX_OBU_BYTES || !available(length.value)) {
+      throw new Error('AV1 OBU payload exceeds bounds or is truncated.');
+    }
     const payload = data.subarray(offset, offset + length.value);
     offset += length.value;
+    yield { type, extensionPresent, payload };
+  }
+}
+
+function* readObuFile(path, expectedSize) {
+  const fd = openSync(path, 'r');
+  try {
+    function* chunks() {
+      let total = 0;
+      while (true) {
+        const buffer = Buffer.allocUnsafe(64 * 1024);
+        const length = readSync(fd, buffer, 0, buffer.length, null);
+        total += length;
+        if (total > expectedSize || (length === 0 && total !== expectedSize)) {
+          throw new Error('AV1 OBU file size changed during reading.');
+        }
+        if (length === 0) return;
+        yield buffer.subarray(0, length);
+      }
+    }
+    yield* readObus(chunks());
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function parseDolbyRpuObuStream(obus) {
+  const t35Payloads = [];
+  let totalT35Bytes = 0;
+  const rpuTemporalUnits = new Set();
+  let obuCount = 0, temporalUnit = -1, temporalDelimiterCount = 0, frameUnitCount = 0;
+  const framesByTemporalUnit = new Map();
+  const rpuUnits = [];
+  for (const { type, extensionPresent, payload } of obus) {
+    if (obuCount >= MAX_OBUS) throw new Error('AV1 OBU count exceeds configured limit.');
     obuCount += 1;
     if (type === 2) {
       if (payload.length !== 0 || extensionPresent) {
@@ -171,7 +219,7 @@ function parseDolbyRpuObuStream(inputValue) {
       }
     }
   }
-  if (offset !== data.length || temporalDelimiterCount === 0 || frameUnitCount === 0 || t35Payloads.length === 0) {
+  if (temporalDelimiterCount === 0 || frameUnitCount === 0 || t35Payloads.length === 0) {
     throw new Error('AV1 stream lacks complete temporal delimiters, frame units, or Dolby RPU metadata.');
   }
   for (const unit of rpuTemporalUnits) {
@@ -207,7 +255,11 @@ function parseDolbyRpuObuStream(inputValue) {
 }
 
 export function extractDolbyRpuFromObuStream(inputValue) {
-  const parsed = parseDolbyRpuObuStream(inputValue);
+  const data = Buffer.isBuffer(inputValue) ? inputValue : Buffer.from(inputValue);
+  return convertParsedObus(parseDolbyRpuObuStream(readObus([data].values())));
+}
+
+function convertParsedObus(parsed) {
   const rpus = parsed.t35Payloads.map((payload) =>
     regularRpuToHevcUnspec62Nalu(extractDolbyRpuFromT35(payload)));
   return {
@@ -250,8 +302,7 @@ async function convertT35PayloadWithLibdovi(payload, directory, ordinal, options
   return rpu;
 }
 
-async function extractDolbyRpuFromObuStreamWithLibdovi(inputValue, directory, options = {}) {
-  const parsed = parseDolbyRpuObuStream(inputValue);
+async function convertParsedObusWithLibdovi(parsed, directory, options = {}) {
   const rpus = [];
   for (let ordinal = 0; ordinal < parsed.t35Payloads.length; ordinal += 1) {
     rpus.push(await convertT35PayloadWithLibdovi(parsed.t35Payloads[ordinal], directory, ordinal, options));
@@ -334,9 +385,7 @@ async function demuxAv1Container(inputPath, directory, options) {
   }
   if (streamFailure) throw streamFailure;
   if (size === 0) throw new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.');
-  const bytes = await readFile(obuPath);
-  if (bytes.length !== size) throw new Error('AV1 demux failed before complete output was obtained.');
-  return bytes;
+  return { path: obuPath, size };
 }
 
 async function main() {
@@ -350,11 +399,11 @@ async function main() {
   if (!inputStat.isFile() || inputStat.size <= 0 || inputStat.size > 512 * 1024 * 1024) {
     throw new Error('AV1 input file is empty or exceeds the 512 MiB limit.');
   }
-  let input = null;
-  if (options.kind === 't35' || options.kind === 'obu') input = await readFile(inputPath);
   let rpuBytes, report;
   const converterConfigured = Boolean(process.env.AV1_RPU_CONVERTER_BIN);
   if (options.kind === 't35') {
+    if (inputStat.size > MAX_T35_BYTES) throw new Error('AV1 Dolby T.35 metadata payload length is outside supported bounds.');
+    const input = await readFile(inputPath);
     const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-t35-'));
     try {
       const nalu = converterConfigured
@@ -365,36 +414,24 @@ async function main() {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  } else if (options.kind === 'obu') {
-    if (converterConfigured) {
-      const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-obu-'));
-      try {
-        const result = await extractDolbyRpuFromObuStreamWithLibdovi(input, directory, options);
-        rpuBytes = result.rpuBytes;
-        report = { ...result.report, extractionBackend: 'libdovi' };
-      } finally {
-        await rm(directory, { recursive: true, force: true });
-      }
-    } else {
-      const result = extractDolbyRpuFromObuStream(input);
-      rpuBytes = result.rpuBytes;
-      report = { ...result.report, extractionBackend: 'javascript' };
-    }
   } else {
-    const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-demux-'));
+    const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-obu-'));
     try {
-      const obuBytes = await demuxAv1Container(inputPath, directory, options);
+      const container = options.kind !== 'obu';
+      const obuFile = container
+        ? await demuxAv1Container(inputPath, directory, options)
+        : { path: inputPath, size: inputStat.size };
+      const parsed = parseDolbyRpuObuStream(readObuFile(obuFile.path, obuFile.size));
       const result = converterConfigured
-        ? await extractDolbyRpuFromObuStreamWithLibdovi(obuBytes, directory, options)
-        : extractDolbyRpuFromObuStream(obuBytes);
+        ? await convertParsedObusWithLibdovi(parsed, directory, options)
+        : convertParsedObus(parsed);
       rpuBytes = result.rpuBytes;
-      report = {
-        ...result.report,
-        inputKind: options.kind,
-        containerDemux: 'ffmpeg-copy',
-        extractionBackend: converterConfigured ? 'libdovi' : 'javascript',
-        sourceByteLength: inputStat.size,
-      };
+      report = { ...result.report, extractionBackend: converterConfigured ? 'libdovi' : 'javascript' };
+      if (container) {
+        report.inputKind = options.kind;
+        report.containerDemux = 'ffmpeg-copy';
+        report.sourceByteLength = inputStat.size;
+      }
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
