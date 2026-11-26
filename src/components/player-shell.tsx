@@ -1182,6 +1182,7 @@ export function PlayerShell({
       });
       const preferNativeHdr = isSafariNativeHdrCandidate(cinemaHdrVariants, {
         ...nativeRouteOptions,
+        nativeHlsSupport,
         canPlayVideoCodec: (codec) => video.canPlayType(`video/mp4; codecs="${codec}"`),
       });
       if (preferVision || preferDolbyAudio || preferNativeHdr) {
