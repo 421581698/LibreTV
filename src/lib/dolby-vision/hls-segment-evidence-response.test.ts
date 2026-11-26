@@ -81,6 +81,15 @@ describe('verified HLS segment-set diagnostics response', () => {
       ...valid, verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480, '5': 1 },
     }, resourceId, variantId)).toBeNull();
   });
+  it('bounds metadata coverage to fragments actually declaring that level', () => {
+    const partial = { ...valid, segments: [segment(0), { ...segment(1), metadataLevels: [1, 2] }] };
+    expect(parseVerifiedHlsSegmentEvidenceResponse({
+      ...partial, verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480, '5': 241 },
+    }, resourceId, variantId)).toBeNull();
+    expect(parseVerifiedHlsSegmentEvidenceResponse({
+      ...partial, verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480, '5': 240 },
+    }, resourceId, variantId)).not.toBeNull();
+  });
   it('rejects invalid signed metadata-level coverage', () => {
     expect(parseVerifiedHlsSegmentEvidenceResponse({
       ...valid, verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480 },
