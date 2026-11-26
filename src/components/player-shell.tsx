@@ -30,7 +30,8 @@ import { ExperimentalHlsAudioController } from '@/lib/dolby/experimental-hls-aud
 import { captureNativeAudioFallback, fallbackResumeTime, type NativeAudioFallbackSnapshot } from '@/lib/dolby/native-audio-fallback';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { inspectCinemaHdrVariants, isSafariNativeHdrCandidate, type CinemaHdrVariant } from '@/lib/cinema-hdr';
-import { startCinemaSdrGpu, type CinemaGpuSession } from '@/lib/cinema-hdr-gpu';
+import type { CinemaGpuSession } from '@/lib/cinema-hdr-gpu';
+import { startCinemaSdrEnhancedGpu } from '@/lib/cinema-hdr-webgpu';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
@@ -254,7 +255,8 @@ export function PlayerShell({
   const hlsRef = useRef<Hls | null>(null);
   const cinemaHdrVariantsRef = useRef<{ url: string; variants: CinemaHdrVariant[] } | null>(null);
   const cinemaHdrGpuRef = useRef<CinemaGpuSession | null>(null);
-  useEffect(() => () => cinemaHdrGpuRef.current?.stop(), []);
+  const cinemaHdrGpuRequestRef = useRef(0);
+  useEffect(() => () => { cinemaHdrGpuRequestRef.current += 1; cinemaHdrGpuRef.current?.stop(); }, []);
   // No experimental decoder is supplied by default. Native audio remains primary.
   const experimentalAudioSessionRef = useRef<ExperimentalAudioSession | null>(null);
   const experimentalHlsControllerRef = useRef<ExperimentalHlsAudioController | null>(null);
@@ -333,7 +335,7 @@ export function PlayerShell({
       'audioCodec' in track && typeof track.audioCodec === 'string' ? track.audioCodec : '') ?? []),
   ].filter(isDolbyAudioCodec);
 
-  const requestDolbyCard = (card: 'vision' | 'audio' | 'atmos') => {
+  const requestDolbyCard = async (card: 'vision' | 'audio' | 'atmos') => {
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video || !url) {
       setDolbyCardStatus('播放器尚未就绪，暂时无法切换 Dolby 播放路径。');
@@ -344,7 +346,7 @@ export function PlayerShell({
       return;
     }
     if (currentDolbyChoice[card]) {
-      if (card === 'vision') { cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null; }
+      if (card === 'vision') { cinemaHdrGpuRequestRef.current += 1; cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null; }
       setDolbyCardChoice((value) => ({ ...value, url, [card]: false }));
       setDolbyCardStatus('已取消 Dolby 优先请求。现有原生媒体通道由 Safari 管理。');
       return;
@@ -381,8 +383,13 @@ export function PlayerShell({
           setDolbyCardStatus('播放器画面尚未就绪，无法启用 Cinema Vision 增强。');
           return;
         }
+        cinemaHdrGpuRequestRef.current += 1;
+        const requestId = cinemaHdrGpuRequestRef.current;
         cinemaHdrGpuRef.current?.stop();
-        cinemaHdrGpuRef.current = startCinemaSdrGpu(video, host, (status, message) => {
+        cinemaHdrGpuRef.current = null;
+        setDolbyCardStatus('Cinema Vision 正在准备 GPU 并验证实际 SDR 视频帧，通过后才会点亮卡片。');
+        const session = await startCinemaSdrEnhancedGpu(video, host, (status, message) => {
+          if (cinemaHdrGpuRequestRef.current !== requestId) return;
           setDolbyCardStatus(message);
           if (status === 'active') setDolbyCardChoice(choice => ({ ...choice, url, vision: true }));
           else {
@@ -390,8 +397,13 @@ export function PlayerShell({
             setDolbyCardChoice(choice => choice.url === url ? { ...choice, vision: false } : choice);
           }
         });
-        if (cinemaHdrGpuRef.current) {
-          setDolbyCardStatus('Cinema Vision 正在尝试处理实际 SDR 视频帧，验证成功后才点亮卡片。');
+        if (cinemaHdrGpuRequestRef.current !== requestId || !video.isConnected) {
+          session?.stop();
+          return;
+        }
+        cinemaHdrGpuRef.current = session;
+        if (!session) {
+          setDolbyCardStatus('当前片源不支持 GPU 画质处理，保留 Safari 原始播放。');
         }
         return;
       }
@@ -761,6 +773,7 @@ export function PlayerShell({
 
   /** Native progressive media path for formats the existing HTMLVideoElement can play. */
   const setupDirectMedia = (video: HTMLVideoElement, mediaUrl: string) => {
+    cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
     cinemaHdrVariantsRef.current = null;
     setAudioTrackOptions([]);
@@ -849,6 +862,7 @@ export function PlayerShell({
     forceNativeDolby = false, nativeManifestEvidence?: DolbyVisionFormatReport,
     nativeAudioFallback?: NativeAudioFallbackSnapshot,
   ) => {
+    cinemaHdrGpuRequestRef.current += 1;
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
     if (cinemaHdrVariantsRef.current?.url !== mediaUrl) cinemaHdrVariantsRef.current = null;
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
