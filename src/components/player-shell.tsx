@@ -24,6 +24,7 @@ import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspec
 import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-hls-manifest-inspector';
 import { shouldPreferNativeDolbyVisionHls } from '@/lib/dolby-vision/native-hls-playback-policy';
 import { shouldPreferNativeDolbyAudioHls } from '@/lib/dolby/native-audio-hls-policy';
+import { isDolbyAudioCodec, inspectNativeHlsDolbyAudioCodecs } from '@/lib/dolby/cinema-dolby-audio-manifest';
 import { ExperimentalAudioSession } from '@/lib/dolby/experimental-audio-session';
 import { ExperimentalHlsAudioController } from '@/lib/dolby/experimental-hls-audio-controller';
 import { captureNativeAudioFallback, fallbackResumeTime, type NativeAudioFallbackSnapshot } from '@/lib/dolby/native-audio-fallback';
@@ -252,10 +253,10 @@ export function PlayerShell({
   // No experimental decoder is supplied by default. Native audio remains primary.
   const experimentalAudioSessionRef = useRef<ExperimentalAudioSession | null>(null);
   const experimentalHlsControllerRef = useRef<ExperimentalHlsAudioController | null>(null);
-  const [experimentalAudioStatus, setExperimentalAudioStatus] = useState('原生音频（实验通道关闭）');
-  const [experimentalAudioAuthorized, setExperimentalAudioAuthorized] = useState(false);
-  const [experimentalAudioFile, setExperimentalAudioFile] = useState<File | null>(null);
-  const [experimentalAudioOrigin, setExperimentalAudioOrigin] = useState('0');
+  // A golden card indicates a selected compatible delivery path, not certified speaker/display output.
+  const [dolbyCardChoice, setDolbyCardChoice] = useState<{ url: string; vision: boolean; audio: boolean }>({ url: '', vision: false, audio: false });
+  const [dolbyCardStatus, setDolbyCardStatus] = useState('选择支持的 Dolby 片源后，可优先使用设备原生解码。');
+  const [hlsDolbyAudioCodecs, setHlsDolbyAudioCodecs] = useState<{ url: string; codecs: string[] } | null>(null);
   const pendingAudioTrackRef = useRef<{ hls: Hls; requested: number; previous: number } | null>(null);
   /** Prevent an unsupported native path from looping with hls.js fallback. */
   const nativeDolbyHlsAttemptedRef = useRef<string | null>(null);
@@ -307,6 +308,96 @@ export function PlayerShell({
   const dolbyVisionFormatReport = dolbyVisionFormatReportState?.sourceUrl === url
     ? dolbyVisionFormatReportState.report
     : null;
+  // Read only the bounded master playlist where CORS permits. A fetch failure is UNKNOWN,
+  // never proof that Dolby is absent or that speaker output is active.
+  useEffect(() => {
+    if (!cinemaMode || !url || getMediaPlaybackKind(url, mediaType) !== 'hls') return;
+    const controller = new AbortController();
+    void inspectNativeHlsDolbyAudioCodecs(url, controller.signal).then((codecs) => {
+      if (!controller.signal.aborted) setHlsDolbyAudioCodecs({ url, codecs });
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [cinemaMode, url, mediaType]);
+
+  const currentDolbyChoice = dolbyCardChoice.url === url
+    ? dolbyCardChoice : { url, vision: false, audio: false };
+  const knownDolbyAudioCodecs = [
+    ...(hlsDolbyAudioCodecs?.url === url ? hlsDolbyAudioCodecs.codecs : []),
+    ...(hlsRef.current?.levels.map((level) => level.audioCodec ?? '') ?? []),
+    ...(hlsRef.current?.audioTracks.map((track) =>
+      'audioCodec' in track && typeof track.audioCodec === 'string' ? track.audioCodec : '') ?? []),
+  ].filter(isDolbyAudioCodec);
+
+  const requestDolbyCard = (card: 'vision' | 'audio' | 'atmos') => {
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    if (!video || !url) {
+      setDolbyCardStatus('播放器尚未就绪，暂时无法切换 Dolby 播放路径。');
+      return;
+    }
+    if (card === 'atmos') {
+      setDolbyCardStatus('无法验证 Atmos 对象音频及设备实际输出，因此不会伪装成已开启杜比全景声。');
+      return;
+    }
+    if (currentDolbyChoice[card]) {
+      setDolbyCardChoice((value) => ({ ...value, url, [card]: false }));
+      setDolbyCardStatus('已取消 Dolby 优先请求。现有原生媒体通道由 Safari 管理。');
+      return;
+    }
+    const isHls = getMediaPlaybackKind(url, mediaType) === 'hls';
+    const nativeHlsSupported = Boolean(video.canPlayType('application/vnd.apple.mpegurl') ||
+      video.canPlayType('application/x-mpegURL'));
+    const nativeSafari = /AppleWebKit\\/\\d/.test(navigator.userAgent) &&
+      /Safari\\/\\d/.test(navigator.userAgent) &&
+      !/(?:Chrome|Chromium|CriOS|FxiOS|Edg|EdgiOS|OPR|OPiOS)\\//.test(navigator.userAgent);
+    if (card === 'vision') {
+      const declarations = dolbyVisionFormatReport?.declarations ?? [];
+      if (!isHls || !declarations.length ||
+          !declarations.some((item) => ['maybe', 'probably'].includes(video.canPlayType(`video/mp4; codecs="${item.raw}"`))) ||
+          !nativeSafari || !nativeHlsSupported) {
+        setDolbyCardStatus('未确认可用的杜比视界片源及 Safari 原生解码能力；不改变画质，也不点亮卡片。');
+        return;
+      }
+    } else {
+      const codecSupported = knownDolbyAudioCodecs.some((codec) =>
+        ['maybe', 'probably'].includes(video.canPlayType(`audio/mp4; codecs="${codec}"`)));
+      if (!codecSupported) {
+        setDolbyCardStatus('当前片源没有可确认且设备声明支持的 AC-3 / E-AC-3 音轨；无法开启真正的杜比音效。');
+        return;
+      }
+    }
+    const hls = hlsRef.current;
+    if (card === 'audio' && hls) {
+      const audioIndex = hls.audioTracks.findIndex((track) =>
+        'audioCodec' in track && typeof track.audioCodec === 'string' && isDolbyAudioCodec(track.audioCodec));
+      if (audioIndex >= 0) {
+        if (!selectHlsAudioTrack(hls, audioIndex)) {
+          setDolbyCardStatus('杜比音轨切换被播放器拒绝，仍使用原始音轨。');
+          return;
+        }
+        setSelectedAudioTrack(audioIndex);
+        setDolbyCardChoice((value) => ({ ...value, url, audio: true }));
+        setDolbyCardStatus('已选择 AC-3 / E-AC-3 音轨；扬声器实际输出格式尚需设备确认。');
+        return;
+      }
+    }
+    if (!isHls || !nativeSafari || !nativeHlsSupported) {
+      setDolbyCardStatus('当前播放路径不能切换到 Safari 原生 Dolby 解码，保持原画原音。');
+      return;
+    }
+    if (hls) {
+      const snapshot = captureNativeAudioFallback(video, playbackStartedRef.current);
+      // Rebuild the media delivery path only; preserve the current time, rate and pause intent.
+      restoredRef.current = false;
+      nativeDolbyHlsAttemptedRef.current = null;
+      setupHls(video, currentMediaUrlRef.current || url, true, true,
+        dolbyVisionFormatReport ?? undefined, snapshot);
+    }
+    setDolbyCardChoice((value) => ({ ...value, url, [card]: true }));
+    setDolbyCardStatus(card === 'vision'
+      ? '已优先请求 Safari 原生 Dolby Vision 视频路径；HDR 显示输出仍需真机验证。'
+      : '已优先请求 Safari 原生 AC-3 / E-AC-3 音频路径；扬声器输出仍需真机验证。');
+  };
+
   const unsustainableFragmentsRef = useRef(0);
   const sustainableFragmentsRef = useRef(0);
   const [showPlayFallback, setShowPlayFallback] = useState(false);
@@ -346,10 +437,8 @@ export function PlayerShell({
 
   const getExperimentalHlsController = () => {
     if (!experimentalHlsControllerRef.current) {
-      experimentalHlsControllerRef.current = new ExperimentalHlsAudioController((message, enabled) => {
-        setExperimentalAudioStatus(message);
-        setExperimentalAudioAuthorized(enabled);
-      });
+      // The research-only decoder is never offered as a consumer Dolby or Atmos switch.
+      experimentalHlsControllerRef.current = new ExperimentalHlsAudioController(() => {});
     }
     return experimentalHlsControllerRef.current;
   };
@@ -799,15 +888,20 @@ export function PlayerShell({
         if (!Number.isFinite(duration) || duration <= 0) return;
         nativeRestoreInFlight = true;
         try {
-          const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+          const saved = nativeAudioFallback?.currentTime ?? (await propsRef.current.getRestorePosition?.()) ?? 0;
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
           if (saved > 10 && saved < duration - 2) {
             video.currentTime = saved;
             showHint(`已从 ${formatTime(saved)} 继续播放`);
           }
+          if (nativeAudioFallback) {
+            video.defaultPlaybackRate = nativeAudioFallback.playbackRate;
+            video.playbackRate = nativeAudioFallback.playbackRate;
+          }
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
+          if (nativeAudioFallback && !nativeAudioFallback.shouldPlay) return;
           if (readQualityPreference() === '1080') {
             video.pause();
             setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
@@ -2041,43 +2135,31 @@ export function PlayerShell({
       {cinemaMode && (cinemaPanel === 'audio' || cinemaPanel === 'subtitles') && (
         <div className="cinema-v4-panel-heading" role="group" aria-label="音频与字幕分类">
           <div className="cinema-v4-panel-tabs">
-            <button type="button" aria-pressed={cinemaPanel === 'audio'} onClick={() => onCinemaPanelChange?.('audio')}>音频</button>
+            <button type="button" aria-pressed={cinemaPanel === 'audio'} onClick={() => onCinemaPanelChange?.('audio')}>音画增强</button>
             <button type="button" aria-pressed={cinemaPanel === 'subtitles'} onClick={() => onCinemaPanelChange?.('subtitles')}>字幕</button>
           </div>
           <button type="button" className="cinema-v4-panel-close" aria-label="关闭音频与字幕设置" onClick={onCloseCinemaPanel}>×</button>
         </div>
       )}
-      {cinemaMode && cinemaPanel === 'audio' && audioTrackOptions.length <= 1 && (
-        <div className="cinema-v4-empty-panel" role="status">
-          <h3>音轨</h3>
-          <p>{audioTrackOptions.length === 1 ? `当前音轨：${audioTrackOptions[0].label}` : '当前播放路径没有提供可切换的音轨列表。Safari 原生 HLS 可能由系统管理音轨。'}</p>
-          <p>音轨名称或声道数不能证明 Dolby Atmos 解码或设备输出。</p>
-        </div>
-      )}
       {cinemaMode && cinemaPanel === 'audio' && (
-        <div className="cinema-v4-empty-panel" role="group" aria-label="实验性 Dolby 音频">
-          <h3>实验性 EC-3 / OpenJOC PCM（手动授权）</h3>
-          <p>默认使用原生音频。仅支持已授权、未加密的独立音频 MPEG-TS，且需自行核对 90kHz PTS 基准。实验音量遵循播放器音量，队列过载将回退原生音频。这不是经过认证的 Atmos 输出。</p>
-          <label>本地 OpenJOC WASM 文件（不上传）
-            <input type="file" accept=".wasm,application/wasm" aria-label="选择本地 OpenJOC WASM" onChange={(event) => {
-              experimentalHlsControllerRef.current?.disable();
-              setExperimentalAudioFile(event.target.files?.[0] ?? null);
-            }} />
-          </label>
-          <label>时间轴起点 PTS（90kHz）
-            <input type="number" min="0" step="1" value={experimentalAudioOrigin} aria-label="实验音频 PTS 时间轴起点" onChange={(event) => setExperimentalAudioOrigin(event.target.value)} />
-          </label>
-          <button type="button" aria-pressed={experimentalAudioAuthorized} onClick={() => {
-            const controller = getExperimentalHlsController();
-            if (controller.enabled) {
-              controller.disable();
-            } else if (!experimentalAudioFile) {
-              setExperimentalAudioStatus('请先选择本地 OpenJOC WASM 文件');
-            } else {
-              controller.enable(experimentalAudioFile, Number(experimentalAudioOrigin));
-            }
-          }}>{experimentalAudioAuthorized ? '关闭实验音频' : '授权启用实验音频'}</button>
-          <p role="status">{experimentalAudioStatus}</p>
+        <div className="cinema-v4-dolby-panel" role="group" aria-label="杜比音画增强">
+          <p className="cinema-v4-dolby-section">画质增强</p>
+          <button type="button" className="cinema-v4-dolby-card cinema-v4-dolby-vision"
+            aria-pressed={currentDolbyChoice.vision} onClick={() => requestDolbyCard('vision')}>
+            <strong>杜比视界</strong><span>Dolby Vision</span>
+          </button>
+          <p className="cinema-v4-dolby-section">影院音效</p>
+          <div className="cinema-v4-dolby-audio-grid">
+            <button type="button" className="cinema-v4-dolby-card" aria-pressed={currentDolbyChoice.audio}
+              onClick={() => requestDolbyCard('audio')}>
+              <strong>杜比音效</strong><span>Dolby Audio</span>
+            </button>
+            <button type="button" className="cinema-v4-dolby-card" aria-pressed={false}
+              onClick={() => requestDolbyCard('atmos')}>
+              <strong>杜比全景声</strong><span>Dolby Atmos</span>
+            </button>
+          </div>
+          <p className="cinema-v4-dolby-status" role="status">{dolbyCardStatus}</p>
         </div>
       )}
       {cinemaMode && cinemaPanel === 'subtitles' && (
@@ -2103,7 +2185,7 @@ export function PlayerShell({
           ) : <p>当前媒体没有公开可切换的原生字幕轨道。独立 ASS/SSA 字幕仍由原有播放引擎管理。</p>}
         </div>
       )}
-      {audioTrackOptions.length > 1 && (!cinemaMode || cinemaPanel === 'audio') && (
+      {audioTrackOptions.length > 1 && !cinemaMode && (
         <div className={cinemaMode ? 'cinema-v4-audio-panel' : 'absolute right-3 top-14 z-20 flex flex-col items-end gap-2'} data-testid="audio-track-controls">
           {!cinemaMode && <button
             type="button"
