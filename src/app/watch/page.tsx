@@ -373,7 +373,20 @@ function WatchContent() {
       keepControlsVisible('media-pause');
     };
     const onEnded = () => { resetScrubbing(); keepControlsVisible(); };
-    const onSeeked = cancelPendingAutoNext;
+    const onSeeked = () => {
+      cancelPendingAutoNext();
+      // Safari/HLS can complete a seek asynchronously. Once the native media
+      // confirms the destination, dismiss any temporary drag preview so it
+      // cannot hide the real position for another 1.2 seconds.
+      if (!video || scrubbingRef.current || !Number.isFinite(video.currentTime)) return;
+      if (scrubResetTimerRef.current !== null) {
+        window.clearTimeout(scrubResetTimerRef.current);
+        scrubResetTimerRef.current = null;
+      }
+      scrubbingPositionRef.current = null;
+      setScrubbingPosition(null);
+      setWatchClock((current) => ({ ...current, position: video.currentTime }));
+    };
     const onLoadStart = onMediaReset;
     const onWaiting = (event: Event) => {
       // Buffering can fire many times without a resumed "playing" event.
