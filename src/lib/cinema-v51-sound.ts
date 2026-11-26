@@ -97,17 +97,22 @@ export async function createCinemaSoundSession(
     return null;
   }
   const stream=capturedAudioSource(video);
-  if(!stream) {
+  // A disposable audio element can be routed through Web Audio without
+  // permanently binding the reusable ArtPlayer video to an AudioContext.
+  const url=video.currentSrc;
+  const useElement=!stream && /^https?:/i.test(url) && !video.mediaKeys;
+  const mirror=useElement?document.createElement('audio'):null;
+  if(!stream&&!mirror) {
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：当前浏览器或媒体未提供可读取的 PCM 音轨。'});
     return null;
   }
   const WebkitContext=(window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
   const Constructor=window.AudioContext??WebkitContext;
-  if(!Constructor) {stream.getTracks().forEach(t=>t.stop());return null;}
+  if(!Constructor) {stream?.getTracks().forEach(t=>t.stop());return null;}
   let context:AudioContext;
   try {context=new Constructor({latencyHint:'interactive'});}
   catch {
-    stream.getTracks().forEach(t=>t.stop());
+    stream?.getTracks().forEach(t=>t.stop());
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：无法初始化音频上下文。'});
     return null;
   }
@@ -115,13 +120,21 @@ export async function createCinemaSoundSession(
   let audio=false,spatial=false;
   let capturing=false;
   const previouslyMuted=video.muted;
-  let streamSource:MediaStreamAudioSourceNode;
+  let streamSource:AudioNode;
   let analyser:AnalyserNode;
   let unregisterVolume=()=>{};
   let unregisterRuntime=()=>{};
+  const releaseMirror=()=>{if(mirror){mirror.pause();mirror.removeAttribute('src');mirror.load();}};
   let dry:GainNode,eqOut:GainNode,spatialRaw:GainNode,spatialEq:GainNode,spatialOut:GainNode;
   try {
-    streamSource=context.createMediaStreamSource(stream);
+    if(mirror){
+      mirror.crossOrigin='anonymous';
+      mirror.preload='auto';
+      mirror.src=url;
+      mirror.playbackRate=video.playbackRate;
+      streamSource=context.createMediaElementSource(mirror);
+    }else if(stream) streamSource=context.createMediaStreamSource(stream);
+    else throw new Error('No audio input');
     analyser=context.createAnalyser();
     analyser.fftSize=1024;
     const eq=configureEq(context);
@@ -178,7 +191,8 @@ export async function createCinemaSoundSession(
     dry.gain.value=0;eqOut.gain.value=0;spatialRaw.gain.value=0;spatialEq.gain.value=0;spatialOut.gain.value=0;
   } catch {
     unregisterVolume();
-    stream.getTracks().forEach(t=>t.stop());
+    releaseMirror();
+    stream?.getTracks().forEach(t=>t.stop());
     void context.close().catch(()=>{});
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：音频处理节点创建失败。'});
     return null;
@@ -210,8 +224,11 @@ export async function createCinemaSoundSession(
   const samples=new Uint8Array(analyser.fftSize);
   const check=()=>{
     if(stopped)return;
-    if(video.isConnected===false||stream.getAudioTracks().every(track=>track.readyState!=='live')){
+    if(video.isConnected===false||(stream!==null&&stream.getAudioTracks().every(track=>track.readyState!=='live'))){
       session.stop();return;
+    }
+    if(mirror && mirror.readyState>=2 && Math.abs(mirror.currentTime-video.currentTime)>.25){
+      mirror.currentTime=video.currentTime;
     }
     if(!capturing&&context.state==='running'&&video.readyState>=2&&!video.paused){
       analyser.getByteTimeDomainData(samples);
@@ -222,7 +239,7 @@ export async function createCinemaSoundSession(
       if(frames>=3){
         capturing=true;
         update();
-        return;
+        if(!mirror)return;
       }
     }
     if(!capturing&&performance.now()-started>10000){
@@ -250,6 +267,7 @@ export async function createCinemaSoundSession(
       // Restore native speaker playback before releasing the captured track.
       unregisterVolume();
       unregisterRuntime();
+      releaseMirror();
       if(capturing)video.muted=previouslyMuted;
       stream.getTracks().forEach(track=>track.stop());
       try{streamSource.disconnect();}catch{/* closed */}
@@ -262,7 +280,7 @@ export async function createCinemaSoundSession(
     onState({audio:false,spatial:false,output:'native',
       reason:'检测到音轨结束、切源或音频上下文中断，已恢复原生音频。'});
   };
-  const tracks=stream.getAudioTracks();
+  const tracks=stream?.getAudioTracks()??[];
   const stateChanged=()=>{if(context.state!=='running')onCaptureLost();};
   const onVideoChange=()=>onCaptureLost();
   for(const track of tracks){
@@ -272,6 +290,15 @@ export async function createCinemaSoundSession(
   for(const event of ['emptied','error','seeking'] as const){
     video.addEventListener(event,onVideoChange);
   }
+  const syncPlay=()=>{if(mirror)void mirror.play().catch(onCaptureLost);};
+  const syncPause=()=>mirror?.pause();
+  const syncRate=()=>{if(mirror)mirror.playbackRate=video.playbackRate;};
+  const syncTime=()=>{if(mirror&&mirror.readyState>=2)mirror.currentTime=video.currentTime;};
+  video.addEventListener('play',syncPlay);
+  video.addEventListener('pause',syncPause);
+  video.addEventListener('ratechange',syncRate);
+  mirror?.addEventListener('loadedmetadata',syncTime);
+  mirror?.addEventListener('error',onCaptureLost);
   context.addEventListener('statechange',stateChanged);
   unregisterRuntime=()=>{
     for(const track of tracks){
@@ -281,9 +308,14 @@ export async function createCinemaSoundSession(
     for(const event of ['emptied','error','seeking'] as const){
       video.removeEventListener(event,onVideoChange);
     }
+    video.removeEventListener('play',syncPlay);
+    video.removeEventListener('pause',syncPause);
+    video.removeEventListener('ratechange',syncRate);
+    mirror?.removeEventListener('loadedmetadata',syncTime);
+    mirror?.removeEventListener('error',onCaptureLost);
     context.removeEventListener('statechange',stateChanged);
   };
-  try {await context.resume();} catch {session.stop();return null;}
+  try {const resumed=context.resume();if(mirror&&!video.paused)await Promise.all([resumed,mirror.play()]);else await resumed;} catch {session.stop();return null;}
   if(context.state!=='running'){session.stop();return null;}
   checkRaf=requestAnimationFrame(check);
   return session;
