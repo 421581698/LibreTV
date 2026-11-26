@@ -346,9 +346,9 @@ export function PlayerShell({
     const isHls = getMediaPlaybackKind(url, mediaType) === 'hls';
     const nativeHlsSupported = Boolean(video.canPlayType('application/vnd.apple.mpegurl') ||
       video.canPlayType('application/x-mpegURL'));
-    const nativeSafari = /AppleWebKit\\/\\d/.test(navigator.userAgent) &&
-      /Safari\\/\\d/.test(navigator.userAgent) &&
-      !/(?:Chrome|Chromium|CriOS|FxiOS|Edg|EdgiOS|OPR|OPiOS)\\//.test(navigator.userAgent);
+    const nativeSafari = /AppleWebKit\/\d/.test(navigator.userAgent) &&
+      /Safari\/\d/.test(navigator.userAgent) &&
+      !/(?:Chrome|Chromium|CriOS|FxiOS|Edg|EdgiOS|OPR|OPiOS)\//.test(navigator.userAgent);
     if (card === 'vision') {
       const declarations = dolbyVisionFormatReport?.declarations ?? [];
       if (!isHls || !declarations.length ||
