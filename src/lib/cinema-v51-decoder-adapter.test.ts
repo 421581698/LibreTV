@@ -14,7 +14,9 @@ function rawFrame(
   colorSpace:{fullRange,primaries,transfer:'smpte2084',matrix:'bt2020-ncl'},
   allocationSize:()=>24,
   copyTo:async(out:AllowSharedBufferSource)=>{
-   new Uint8Array(out as ArrayBuffer).set(raw);
+   const target=out instanceof ArrayBuffer ? new Uint8Array(out) :
+     new Uint8Array(out.buffer,out.byteOffset,out.byteLength);
+   target.set(raw);
    return [{offset:0,stride},{offset:16,stride:4}];
   },
   close,
