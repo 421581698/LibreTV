@@ -890,9 +890,14 @@ export function PlayerShell({
         try {
           const saved = nativeAudioFallback?.currentTime ?? (await propsRef.current.getRestorePosition?.()) ?? 0;
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
-          if (saved > 10 && saved < duration - 2) {
-            video.currentTime = saved;
-            showHint(`已从 ${formatTime(saved)} 继续播放`);
+          // An explicit in-play Dolby route switch must preserve even the first
+          // ten seconds; the >10s heuristic is only for stored history.
+          const resumeAt = nativeAudioFallback
+            ? fallbackResumeTime(nativeAudioFallback, duration)
+            : saved > 10 && saved < duration - 2 ? saved : 0;
+          if (resumeAt > 0) {
+            video.currentTime = resumeAt;
+            showHint(`已从 ${formatTime(resumeAt)} 继续播放`);
           }
           if (nativeAudioFallback) {
             video.defaultPlaybackRate = nativeAudioFallback.playbackRate;
