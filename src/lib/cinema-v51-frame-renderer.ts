@@ -58,7 +58,9 @@ export function createCinemaP010VideoFrameRenderer(
       let videoFrame:RawVideoFrame|null=null;
       try{
         const bytes=cinemaPackP010(frame);
-        videoFrame=new api(bytes,{
+        const storage=new ArrayBuffer(bytes.byteLength);
+        new Uint8Array(storage).set(bytes);
+        videoFrame=new api(storage,{
           format:'P010',codedWidth:frame.width,codedHeight:frame.height,timestamp:ptsUs,
           colorSpace:{
             primaries:options.primaries,
