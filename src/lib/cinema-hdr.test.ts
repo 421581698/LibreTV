@@ -25,6 +25,17 @@ describe('Cinema HDR V5 capability contract', () => {
     expect(v.every(x => x.hdr10Plus === 'unverified')).toBe(true);
     expect(v.every(x => x.colorGamut === 'unknown')).toBe(true);
   });
+  it('recognizes explicitly signaled AV1 CICP BT.2020/PQ and Display-P3/HLG', () => {
+    const variants = inspectCinemaHdrVariants([
+      { videoCodec: 'av01.0.08M.10.0.110.09.16.09.0' },
+      { videoCodec: 'av01.0.08M.10.0.110.12.18.09.0' },
+    ]);
+    expect(variants.map(v => [v.transfer, v.colorGamut, v.declaredBitDepth])).toEqual([
+      ['pq','bt2020',10],
+      ['hlg','p3',10],
+    ]);
+    expect(variants.every(v => v.dynamicMetadataOutput === 'unverified')).toBe(true);
+  });
   it('does not guess HDR based on HEVC codec without VIDEO-RANGE', () => {
     const v = inspectCinemaHdrVariants([{videoCodec:'hvc1.2.4.L153.B0'}]);
     expect(v[0].format).toBe('unknown');
