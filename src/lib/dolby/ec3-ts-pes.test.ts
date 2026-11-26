@@ -17,7 +17,7 @@ describe('clear TS audio PES', () => {
     extractor.push(wrongId);
     expect(() => extractor.finish()).toThrow('Unsupported PES header');
     extractor.reset(); // Independent malformed PES fixture starts a new transport sequence.
-    const wrongFlags = packet(); wrongFlags[12] = 1;
+    const wrongFlags = packet(); wrongFlags[11] = 1; // PES header data[7]: unsupported optional flags
     extractor.push(wrongFlags);
     expect(() => extractor.finish()).toThrow('Unsupported PES header');
   });
