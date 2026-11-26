@@ -14,7 +14,7 @@ export type CinemaSoundMode = 'audio' | 'spatial';
 export interface CinemaSoundState {
   audio:boolean;
   spatial:boolean;
-  output:'captured-dsp'|'native';
+  output:'captured-dsp'|'decoded-pcm'|'native';
   reason:string;
 }
 export interface CinemaSoundSession {
