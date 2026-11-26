@@ -146,3 +146,14 @@ describe('Cinema V4 and ordinary watch UI isolation', () => {
   });
 
 });
+
+describe('Cinema audio track access', () => {
+  it('exposes HLS track selection inside the Cinema Dolby sheet without classic controls', () => {
+    const player = read('src/components/player-shell.tsx');
+    expect(player).toContain('data-testid="cinema-audio-track-controls"');
+    expect(player).toContain('audioTrackOptions.length > 1');
+    expect(player).toContain('renderAudioTrackOptions()');
+    expect(player).toContain('selectHlsAudioTrack(hls, track.id)');
+    expect(player).toContain('audioTrackOptions.length > 1 && !cinemaMode');
+  });
+});
