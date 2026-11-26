@@ -92,6 +92,10 @@ export async function createCinemaSoundSession(
     onState({audio:false,spatial:false,output:'native',reason:'Web Audio 引擎不可用，保留原始声音。'});
     return null;
   }
+  if(video.muted||video.volume===0){
+    onState({audio:false,spatial:false,output:'native',reason:'请先恢复原生音轨和可听音量，再开启 DSP/空间化。'});
+    return null;
+  }
   const stream=capturedAudioSource(video);
   if(!stream) {
     onState({audio:false,spatial:false,output:'native',reason:'当前 Safari/媒体源不支持安全捕获音频（可能为跨域或受保护片源），保留原声。'});
@@ -110,16 +114,40 @@ export async function createCinemaSoundSession(
   let stopped=false;
   let audio=false,spatial=false;
   let capturing=false;
-  const nativeVolume=video.volume;
   const previouslyMuted=video.muted;
   let streamSource:MediaStreamAudioSourceNode;
   let analyser:AnalyserNode;
+  let unregisterVolume=()=>{};
   let dry:GainNode,eqOut:GainNode,spatialRaw:GainNode,spatialEq:GainNode,spatialOut:GainNode;
   try {
     streamSource=context.createMediaStreamSource(stream);
     analyser=context.createAnalyser();
     analyser.fftSize=1024;
     const eq=configureEq(context);
+    const master=context.createGain();
+    master.gain.value=video.volume;
+    const outputLimiter=context.createDynamicsCompressor();
+    outputLimiter.threshold.value=-3;
+    outputLimiter.knee.value=0;
+    outputLimiter.ratio.value=14;
+    outputLimiter.attack.value=.001;
+    outputLimiter.release.value=.12;
+    outputLimiter.connect(master);
+    master.connect(context.destination);
+    const onVolumeChange=()=>{
+      if(stopped||!capturing)return;
+      if(!video.muted){
+        // User explicitly resumed native playback while our captured path
+        // was active. Switch off DSP to prevent parallel sound.
+        session.stop();
+        onState({audio:false,spatial:false,output:'native',
+          reason:'检测到播放器已恢复原生音轨，自动关闭 DSP 以防双重声音。'});
+        return;
+      }
+      safeGain(master.gain,video.volume,context);
+    };
+    video.addEventListener('volumechange',onVolumeChange);
+    unregisterVolume=()=>video.removeEventListener('volumechange',onVolumeChange);
     dry=context.createGain();
     eqOut=context.createGain();
     spatialRaw=context.createGain();
@@ -131,10 +159,10 @@ export async function createCinemaSoundSession(
     streamSource.connect(dry);
     streamSource.connect(eq.input);
     streamSource.connect(spatialRaw);
-    dry.connect(context.destination);
+    dry.connect(outputLimiter);
     eq.output.connect(eqOut);
     eq.output.connect(spatialEq);
-    eqOut.connect(context.destination);
+    eqOut.connect(outputLimiter);
     const splitter=context.createChannelSplitter(2);
     spatialRaw.connect(splitter);
     spatialEq.connect(splitter);
@@ -145,10 +173,11 @@ export async function createCinemaSoundSession(
     splitter.connect(right,1,0);
     left.connect(gainLeft);right.connect(gainRight);
     gainLeft.connect(spatialOut);gainRight.connect(spatialOut);
-    spatialOut.connect(context.destination);
+    spatialOut.connect(outputLimiter);
     // The primary video element still plays normally until capture is proven.
     dry.gain.value=0;eqOut.gain.value=0;spatialRaw.gain.value=0;spatialEq.gain.value=0;spatialOut.gain.value=0;
   } catch {
+    unregisterVolume();
     stream.getTracks().forEach(t=>t.stop());
     void context.close().catch(()=>{});
     onState({audio:false,spatial:false,output:'native',reason:'音频 DSP 节点创建失败，原声保持不变。'});
@@ -219,9 +248,8 @@ export async function createCinemaSoundSession(
       stopped=true;
       cancelAnimationFrame(checkRaf);
       // Restore native speaker playback before releasing the captured track.
+      unregisterVolume();
       if(capturing)video.muted=previouslyMuted;
-      // Preserve the original volume changed by the player when switching sources.
-      if(!Number.isFinite(video.volume))video.volume=nativeVolume;
       stream.getTracks().forEach(track=>track.stop());
       try{streamSource.disconnect();}catch{/* closed */}
       void context.close().catch(()=>{});
