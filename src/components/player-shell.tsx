@@ -2368,7 +2368,7 @@ export function PlayerShell({
       if (cancelled || mounting) return;
       mounting = true;
       void mountCinemaV51AuthorizedPlayback(video, host, cinemaV51AuthorizedSource, (state, reason) => {
-        if (cancelled) return;
+        if (cancelled || mountGeneration !== cinemaV51MountGenerationRef.current) return;
         if (state === 'native-fallback') {
           setDolbyCardStatus(reason);
           return;
@@ -2381,7 +2381,7 @@ export function PlayerShell({
         if (cancelled || mountGeneration !== cinemaV51MountGenerationRef.current) session?.stop();
         else cinemaV51PlaybackRef.current = session;
       }).catch(() => {
-        if (!cancelled) setDolbyCardStatus('Cinema 10-bit 解码路径不兼容，已保留 Safari 原生播放。');
+        if (!cancelled && mountGeneration === cinemaV51MountGenerationRef.current) setDolbyCardStatus('Cinema 10-bit 解码路径不兼容，已保留 Safari 原生播放。');
       });
     };
     if (video.readyState >= 2) mount();
