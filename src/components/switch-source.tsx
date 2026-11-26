@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import type { SourceConfig, SearchResultItem } from '@/lib/types';
 import { buildWatchUrl, cn } from '@/lib/utils';
@@ -54,6 +54,7 @@ export function SwitchSourceModal({
 }) {
   const store = useAppStore();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [phase, setPhase] = useState<'searching' | 'testing' | 'done'>('searching');
@@ -286,7 +287,11 @@ export function SwitchSourceModal({
     // If the target source has fewer episodes and we fall back to episode 1,
     // carrying episode N's position would start the wrong episode mid-stream.
     const position = targetIndex === currentIndex ? getCurrentPosition?.() ?? 0 : 0;
-    router.push(position > 5 ? `${watchUrl}&position=${Math.floor(position)}` : watchUrl);
+    // Keep iPad Cinema on its dedicated route when changing providers.
+    const targetUrl = pathname === '/ipad-edition/watch'
+      ? `/ipad-edition${watchUrl}`
+      : watchUrl;
+    router.push(position > 5 ? `${targetUrl}&position=${Math.floor(position)}` : targetUrl);
   };
 
   return (
