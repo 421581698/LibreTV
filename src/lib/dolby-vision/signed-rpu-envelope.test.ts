@@ -1,3 +1,4 @@
+import { digestRpuFrameMapping } from './frame-mapping-evidence';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { canonicalizeDolbyVisionRpuPayload, verifySignedDolbyVisionRpuEnvelope, verifySignedDolbyVisionRpuSegmentSet } from './signed-rpu-envelope';
@@ -391,5 +392,31 @@ describe('signed Dolby Vision RPU envelope', () => {
     expect(verifySignedDolbyVisionRpuEnvelope(partial, options)).toBeNull();
     const detached = makeEnvelope({ report: { ...report, inputKind: 'rpu', extractionScope: 'pre-extracted-rpu-file' } });
     expect(verifySignedDolbyVisionRpuEnvelope(detached, options)).toBeNull();
+  });
+});
+
+describe('signed frame mapping regression', () => {
+  const units = ['c'.repeat(64), 'd'.repeat(64)];
+  const timeBase = { numerator: 1, denominator: 90000 };
+  const frames = units.map((rpuSha256, frameOrdinal) => ({frameOrdinal, pts: String(frameOrdinal * 3003), rpuSha256}));
+  const record = {
+    ...report, frameCount: 2,
+    metadataLevelFrameCounts: {'1':2,'2':2,'5':1,'6':1},
+    rpuUnitEvidence: {version:1,unitSha256s:units,orderedSha256:createHash('sha256').update(units.join('\n')).digest('hex')},
+    frameMappingEvidence: {version:1,timeBase,frames,mappingSha256:digestRpuFrameMapping(hash,timeBase,frames)},
+  };
+  it('accepts signed mapping and rejects timestamp tampering', () => {
+    const envelope = makeEnvelope({report:record});
+    expect(verifySignedDolbyVisionRpuEnvelope(envelope,options)?.report.frameMappingEvidence).toEqual(record.frameMappingEvidence);
+    const changed = {...record,frameMappingEvidence:{...record.frameMappingEvidence,frames:[frames[0],{...frames[1],pts:'3004'}]}};
+    expect(verifySignedDolbyVisionRpuEnvelope({...envelope,report:changed},options)).toBeNull();
+    expect(verifySignedDolbyVisionRpuEnvelope(makeEnvelope({report:changed}),options)).toBeNull();
+  });
+  it('rejects signed mappings with wrong RPU membership or missing frames', () => {
+    const wrong = [frames[0],{...frames[1],rpuSha256:'e'.repeat(64)}];
+    const changed = {...record,frameMappingEvidence:{...record.frameMappingEvidence,frames:wrong,mappingSha256:digestRpuFrameMapping(hash,timeBase,wrong)}};
+    expect(verifySignedDolbyVisionRpuEnvelope(makeEnvelope({report:changed}),options)).toBeNull();
+    const incomplete = {...record,frameMappingEvidence:{...record.frameMappingEvidence,frames:frames.slice(0,1)}};
+    expect(verifySignedDolbyVisionRpuEnvelope(makeEnvelope({report:incomplete}),options)).toBeNull();
   });
 });
