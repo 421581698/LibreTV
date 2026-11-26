@@ -67,13 +67,17 @@ fn sampleFrame(uv:vec2f)->vec3f {
    +dot(sampleFrame(vec2f(0.75,0.25)),lumaCoeffs)
    +dot(sampleFrame(vec2f(0.25,0.75)),lumaCoeffs)
    +dot(sampleFrame(vec2f(0.75,0.75)),lumaCoeffs));
-  let gain = clamp(0.98+(0.45-scene)*0.24,0.88,1.13);
+  // Strong SDR look inspired by scene-referred tone mapping in mature
+  // video renderers. Deliberately never represents native Dolby Vision/HDR.
+  let gain = clamp(1.015+(0.45-scene)*0.31,0.87,1.19);
   let exposed = clamp(source*gain,vec3f(0.0),vec3f(1.0));
-  let shadows = mix(exposed,sqrt(max(exposed,vec3f(0.0))),0.09);
-  let highlights = shadows/(shadows+(vec3f(1.0)-shadows)*0.95);
-  let contrast = clamp((highlights-vec3f(0.5))*1.09+vec3f(0.5),vec3f(0.0),vec3f(1.0));
+  let shadows = mix(exposed,sqrt(max(exposed,vec3f(0.0))),0.15);
+  let highlights = shadows/(shadows+(vec3f(1.0)-shadows)*0.91);
+  let contrast = clamp((highlights-vec3f(0.5))*1.16+vec3f(0.5),vec3f(0.0),vec3f(1.0));
   let luma = dot(contrast,lumaCoeffs);
-  let saturated = clamp(vec3f(luma)+(contrast-vec3f(luma))*1.07,vec3f(0.0),vec3f(1.0));
+  let chroma = contrast-vec3f(luma);
+  let saturation = 1.15-0.22*smoothstep(0.7,1.0,luma);
+  let saturated = clamp(vec3f(luma)+chroma*saturation,vec3f(0.0),vec3f(1.0));
   return vec4f(saturated,1.0);
 }`;
 
