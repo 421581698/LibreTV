@@ -1228,8 +1228,8 @@ function WatchContent() {
                       scrubbingPositionRef.current = target;
                       setScrubbingPosition(target);
                       surface.releasePointerCapture(event.pointerId);
-                      // One seek on release; keep the displayed clock at the target
-                      // after the 1.2s drag preview expires. Native seeked/timeupdate
+                      // One seek on release; reconcile the displayed clock with
+                      // the actual media position. Native seeked/timeupdate
                       // can subsequently correct it to the actual media position.
                       // Without this the slider snaps back to the pre-drag clock.
                       const playerApi = playerApiRef.current;
@@ -1286,7 +1286,14 @@ function WatchContent() {
                       if (!api) return;
                       api.seek(position);
                       const actualPosition = api.getCurrentTime();
-                      if (Number.isFinite(actualPosition)) setWatchClock(current => ({ ...current, position: actualPosition }));
+                      if (!Number.isFinite(actualPosition)) return;
+                      if (scrubResetTimerRef.current !== null) {
+                        window.clearTimeout(scrubResetTimerRef.current);
+                        scrubResetTimerRef.current = null;
+                      }
+                      scrubbingPositionRef.current = null;
+                      setScrubbingPosition(null);
+                      setWatchClock(current => ({ ...current, position: actualPosition }));
                     }}
                   >
                     <span className="cinema-seek-track" aria-hidden="true" />
