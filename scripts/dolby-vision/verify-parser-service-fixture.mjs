@@ -106,6 +106,31 @@ try {
     assert.ok(Number.isSafeInteger(count) && count > 0 && count <= report.frameCount);
   }
 
+  const mapping = report.frameMappingEvidence;
+  assert.ok(mapping, 'real HEVC fixture must produce signed frame mapping');
+  assert.equal(mapping.frames.length, report.frameCount);
+  const digest = createHash('sha256').update('libretv-rpu-frame-mapping-v1\n' + mediaSha256 + '\n' + mapping.timeBase.numerator + '/' + mapping.timeBase.denominator + '\n');
+  for (const [i, frame] of mapping.frames.entries()) {
+    assert.equal(frame.frameOrdinal, i);
+    assert.match(frame.rpuSha256, /^[a-f0-9]{64}$/);
+    if (i) assert.ok(BigInt(frame.pts) > BigInt(mapping.frames[i-1].pts));
+    digest.update(i + ':' + frame.pts + ':' + frame.rpuSha256 + '\n');
+  }
+  assert.equal(digest.digest('hex'), mapping.mappingSha256);
+  assert.deepEqual(mapping.frames.map(f=>f.rpuSha256).sort(), [...report.rpuUnitEvidence.unitSha256s].sort());
+  const duration = report.presentationDurationEvidence;
+  assert.ok(duration, 'real HEVC fixture must produce signed sample durations');
+  assert.equal(duration.durations.length, report.frameCount);
+  assert.equal(duration.timescale, mapping.timeBase.denominator);
+  assert.equal(mapping.timeBase.numerator, 1);
+  let cursor = BigInt(duration.start);
+  for (const [i, ticks] of duration.durations.entries()) {
+    assert.ok(Number.isSafeInteger(ticks) && ticks > 0);
+    assert.equal(BigInt(mapping.frames[i].pts), cursor);
+    cursor += BigInt(ticks);
+  }
+  assert.equal(cursor, BigInt(duration.end));
+
   process.stdout.write(`${JSON.stringify({
     result: externalBaseUrl ? 'docker-container-mp4-full-rpu-analysis-passed' : 'in-process-mp4-full-rpu-analysis-passed',
     parserVersion: report.parserVersion,
