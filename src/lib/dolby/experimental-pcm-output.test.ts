@@ -60,6 +60,17 @@ describe('isolated experimental PCM output', () => {
     expect(createBuffer).not.toHaveBeenCalled();
   });
 
+  it('stops queued audio on malformed PCM and permits valid audio to resume', () => {
+    const { output, frame, source, stop, disconnect, createBuffer } = setup();
+    expect(output.enqueue(frame, 1, 1)).toBe('schedule');
+    expect(output.enqueue({ ...frame, samples: 3 }, 1, 1)).toBe('reset');
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(source.onended).toBeNull();
+    expect(createBuffer).toHaveBeenCalledTimes(1);
+    expect(output.enqueue(frame, 1, 1)).toBe('schedule');
+  });
+
   it('cleans up a failed source start and permits a retry', () => {
     const { output, frame, source, start, disconnect } = setup();
     start.mockImplementationOnce(() => { throw new Error('audio device unavailable'); });
