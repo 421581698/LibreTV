@@ -16,6 +16,8 @@ import { pathToFileURL } from 'node:url';
 
 const LEVELS = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11];
 const MAX_BUFFER = 32 * 1024 * 1024;
+const MAX_PER_UNIT_EVIDENCE_BYTES = 8 * 1024 * 1024;
+const MAX_PER_UNIT_EVIDENCE_COUNT = 8192;
 
 async function sha256File(filePath) {
   const hash = createHash('sha256');
@@ -100,6 +102,37 @@ export function normalizeRpuInput(value) {
   }
   if (units.length === 0) throw new Error('RPU NAL stream contains no RPU units.');
   return Buffer.concat(units);
+}
+
+/**
+ * A bounded, ordered commitment to exact RPU NAL boundaries after dovi_tool
+ * validates the stream. This is parser evidence, not a decoder/video-frame map.
+ * Large or ambiguous inputs retain the older aggregate-only report instead.
+ */
+export function deriveOrderedRpuUnitEvidence(data, frameCount) {
+  if (!Number.isSafeInteger(frameCount) || frameCount < 1 ||
+      frameCount > MAX_PER_UNIT_EVIDENCE_COUNT || data.length > MAX_PER_UNIT_EVIDENCE_BYTES) return null;
+  const start = Buffer.from([0, 0, 0, 1]);
+  const digests = [];
+  let offset = 0;
+  while (offset < data.length) {
+    if (!data.subarray(offset, offset + 4).equals(start)) return null;
+    const begin = offset + 4;
+    let end = data.indexOf(start, begin);
+    if (end < 0) end = data.length;
+    const unit = data.subarray(begin, end);
+    if (unit.length < 7 || !(unit[0] === 0x19 ||
+        (unit[0] === 0x7c && unit[1] === 0x01 && unit[2] === 0x19))) return null;
+    if (digests.length >= MAX_PER_UNIT_EVIDENCE_COUNT) return null;
+    digests.push(createHash('sha256').update(unit).digest('hex'));
+    offset = end;
+  }
+  if (digests.length !== frameCount) return null;
+  return {
+    version: 1,
+    unitSha256s: digests,
+    orderedSha256: createHash('sha256').update(digests.join('\n')).digest('hex'),
+  };
 }
 
 export function parseDoviToolInfoSummary(output) {
@@ -250,6 +283,8 @@ export async function analyzeRpu(options) {
     }
     const levels = parseLevelExportFiles(levelFiles, summary.frameCount);
     const rpuSha256 = await sha256File(rpuPath);
+    const boundedRpu = rpuStat.size <= MAX_PER_UNIT_EVIDENCE_BYTES ? await readFile(rpuPath) : null;
+    const rpuUnitEvidence = boundedRpu ? deriveOrderedRpuUnitEvidence(boundedRpu, summary.frameCount) : null;
 
     return {
       source: 'dovi_tool',
@@ -267,6 +302,7 @@ export async function analyzeRpu(options) {
       // Container demux services replace this with the original container digest before signing.
       sourceMediaSha256: options.kind === 'hevc' ? inputSha256 : null,
       rpuSha256,
+      ...(rpuUnitEvidence ? { rpuUnitEvidence } : {}),
       inputKind: options.kind,
       extractionScope: options.kind === 'hevc'
         ? { track: options.track === null ? null : Number(options.track), frameLimit: options.limit === null ? null : Number(options.limit) }

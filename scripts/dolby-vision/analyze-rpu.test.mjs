@@ -1,7 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRpuInput, parseDoviToolInfoSummary, parseLevelExportFiles } from './analyze-rpu.mjs';
+import { normalizeRpuInput, parseDoviToolInfoSummary, parseLevelExportFiles, deriveOrderedRpuUnitEvidence } from './analyze-rpu.mjs';
 
 describe('dovi_tool RPU report parsing', () => {
+  it('commits to ordered, bounded per-RPU NAL boundaries, not video frames', () => {
+    const prefix = Buffer.from([0, 0, 0, 1]);
+    const first = Buffer.from([0x19, 1, 2, 3, 4, 5, 0x80]);
+    const second = Buffer.from([0x19, 6, 7, 8, 9, 10, 0x80]);
+    const bytes = Buffer.concat([prefix, first, prefix, second]);
+    const result = deriveOrderedRpuUnitEvidence(bytes, 2);
+    expect(result?.version).toBe(1);
+    expect(result?.unitSha256s).toHaveLength(2);
+    expect(result?.unitSha256s[0]).not.toBe(result?.unitSha256s[1]);
+    expect(deriveOrderedRpuUnitEvidence(bytes, 1)).toBeNull();
+    expect(deriveOrderedRpuUnitEvidence(Buffer.concat([bytes, prefix]), 3)).toBeNull();
+    expect(deriveOrderedRpuUnitEvidence(bytes, 8193)).toBeNull();
+    const reversed = deriveOrderedRpuUnitEvidence(Buffer.concat([prefix, second, prefix, first]), 2);
+    expect(reversed?.orderedSha256).not.toBe(result?.orderedSha256);
+  });
+
   it('parses a single Profile summary and positive RPU frame count', () => {
     expect(parseDoviToolInfoSummary('Summary:\n  Frames: 240\n  Profile: 8\n  DM version: 2 (CM v4.0)'))
       .toEqual({ frameCount: 240, profiles: [8] });

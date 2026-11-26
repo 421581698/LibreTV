@@ -29,10 +29,18 @@ export const DolbyVisionRpuReportSchema = z.object({
   inputSha256: sha256Schema,
   sourceMediaSha256: sha256Schema.nullable(),
   rpuSha256: sha256Schema,
+  rpuUnitEvidence: z.object({
+    version: z.literal(1),
+    unitSha256s: z.array(sha256Schema).min(1).max(8192),
+    orderedSha256: sha256Schema,
+  }).strict().optional(),
   inputKind: z.enum(['hevc', 'av1', 'rpu']),
   extractionScope: extractionScopeSchema,
   notes: z.array(z.string()),
 }).strict().superRefine((report, context) => {
+  if (report.rpuUnitEvidence && report.rpuUnitEvidence.unitSha256s.length !== report.frameCount) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['rpuUnitEvidence'], message: '逐单元 RPU 摘要数必须等于 dovi_tool 帧数。' });
+  }
   const profiles = [...new Set(report.profiles)].sort((a, b) => a - b);
   if (profiles.length !== report.profiles.length || profiles.some((value, index) => value !== report.profiles[index])) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['profiles'], message: 'profiles 必须去重并升序排列。' });

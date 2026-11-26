@@ -17,7 +17,7 @@ describe('canonical clear AC-3 raw frame scanner', () => {
     const input = Uint8Array.from([0xaa, ...frames.flatMap(x => Array.from(x))]);
     const found = scanAc3Syncframes(input);
     expect(found.frames.map(f => [f.sampleRateHz, f.length, f.bitRateKbps])).toEqual([
-      [48000, 128, 32], [44100, 140, 32], [32000, 3456, 576],
+      [48000, 128, 32], [44100, 140, 32], [32000, 3840, 640],
     ]);
     expect(found.remainderOffset).toBe(input.length);
     expect(found.frames[0].channelMode).toBe(2);

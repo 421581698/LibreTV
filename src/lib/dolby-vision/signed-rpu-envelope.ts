@@ -100,7 +100,9 @@ export interface VerifiedHlsRpuSegmentSet {
   rpuFrameAlignment: 'frame-count-matches-video-samples';
   rpuSemanticContinuity: 'not-established';
   /** End-to-end RPU order/semantics cannot be proved from aggregate signed summaries. */
-  semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed';
+  semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed' | 'signed-rpu-unit-order-does-not-prove-video-frame-mapping';
+  rpuUnitBoundaryEvidence: 'signed-ordered-per-unit-sha256' | 'not-established';
+  orderedRpuUnitSha256: string | null;
   /** Maximum verified end time in the media track's timescale units. */
   verifiedDecodeEnd: number;
   verifiedTimescale: number;
@@ -148,6 +150,8 @@ export function verifySignedDolbyVisionRpuSegmentSet(
   let commonParserVersion: string | null = null;
   let commonInputKind: string | null = null;
   const metadataLevelCounts: Record<string, number> = Object.create(null);
+  let allSegmentsHaveUnitEvidence = true;
+  const orderedUnitHash = createHash('sha256').update(`hls-graph-rpu-units-v1\n${options.graphSha256.toLowerCase()}\n`);
   const orderedEvidence: Array<{
     ordinal: number;
     fragmentAssetId: string;
@@ -205,6 +209,10 @@ export function verifySignedDolbyVisionRpuSegmentSet(
       now: options.now,
     });
     if (!result || result.report.frameCount !== expected.sampleCount) return null;
+    const unitEvidence = result.report.rpuUnitEvidence;
+    if (unitEvidence) {
+      for (const unitHash of unitEvidence.unitSha256s) orderedUnitHash.update(unitHash).update('\n');
+    } else allSegmentsHaveUnitEvidence = false;
     if (commonInputKind === null) commonInputKind = result.report.inputKind;
     else if (result.report.inputKind !== commonInputKind) return null;
     if (commonParserVersion === null) commonParserVersion = result.report.parserVersion;
@@ -238,7 +246,11 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     rpuProfileContinuity: 'consistent',
     rpuFrameAlignment: 'frame-count-matches-video-samples',
     rpuSemanticContinuity: 'not-established',
-    semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed',
+    semanticEvidenceLimitation: allSegmentsHaveUnitEvidence
+      ? 'signed-rpu-unit-order-does-not-prove-video-frame-mapping'
+      : 'per-frame-rpu-boundaries-not-signed',
+    rpuUnitBoundaryEvidence: allSegmentsHaveUnitEvidence ? 'signed-ordered-per-unit-sha256' : 'not-established',
+    orderedRpuUnitSha256: allSegmentsHaveUnitEvidence ? orderedUnitHash.digest('hex') : null,
     verifiedDecodeEnd: previousEnd!,
     verifiedTimescale: commonTimescale!,
     verifiedParserVersion: commonParserVersion!,
@@ -305,6 +317,9 @@ export function verifySignedDolbyVisionRpuEnvelope(
 
   const validated = validateDolbyVisionRpuReport(envelope.report, options.expectedMediaSha256);
   if (!validated || validated.sourceHashBinding !== 'matched') return null;
+  const unitEvidence = validated.report.rpuUnitEvidence;
+  if (unitEvidence && createHash('sha256').update(unitEvidence.unitSha256s.join('\n')).digest('hex') !==
+      unitEvidence.orderedSha256.toLowerCase()) return null;
 
   const { signature, ...signedPayload } = envelope;
   let validSignature = false;

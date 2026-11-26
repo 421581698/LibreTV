@@ -14,6 +14,8 @@ export interface VerifiedHlsSegmentEvidenceResponse {
   verifiedParserVersion: string;
   verifiedMetadataLevelFrameCounts: Record<string, number>;
   orderedRpuEvidenceSha256: string;
+  rpuUnitBoundaryEvidence: 'signed-ordered-per-unit-sha256' | 'not-established';
+  orderedRpuUnitSha256: string | null;
 }
 
 const isSha256 = (value: unknown): value is string =>
@@ -40,10 +42,20 @@ export function parseVerifiedHlsSegmentEvidenceResponse(
       value.rpuProfileContinuity !== 'consistent' ||
       value.rpuFrameAlignment !== 'frame-count-matches-video-samples' ||
       value.rpuSemanticContinuity !== 'not-established' ||
-      value.semanticEvidenceLimitation !== 'per-frame-rpu-boundaries-not-signed' ||
+      !['per-frame-rpu-boundaries-not-signed', 'signed-rpu-unit-order-does-not-prove-video-frame-mapping'].includes(value.semanticEvidenceLimitation as string) ||
       !Array.isArray(value.segments) || value.segments.length !== value.segmentCount ||
       !isRecord(value.verifiedMetadataLevelFrameCounts)) return null;
 
+  const unitEvidence: VerifiedHlsSegmentEvidenceResponse['rpuUnitBoundaryEvidence'] =
+    value.rpuUnitBoundaryEvidence === 'signed-ordered-per-unit-sha256'
+      ? 'signed-ordered-per-unit-sha256' : 'not-established';
+  const rawUnitDigest = value.orderedRpuUnitSha256 ?? null;
+  const orderedRpuUnitSha256: string | null = isSha256(rawUnitDigest) ? rawUnitDigest : null;
+  if (value.rpuUnitBoundaryEvidence !== undefined && value.rpuUnitBoundaryEvidence !== unitEvidence) return null;
+  if (unitEvidence === 'signed-ordered-per-unit-sha256') {
+    if (!orderedRpuUnitSha256 || value.semanticEvidenceLimitation !== 'signed-rpu-unit-order-does-not-prove-video-frame-mapping') return null;
+  } else if (rawUnitDigest !== null ||
+      value.semanticEvidenceLimitation !== 'per-frame-rpu-boundaries-not-signed') return null;
   let summedFrames = 0;
   const levels = new Set<number>();
   const levelPresenceCount = new Map<number, number>();
@@ -92,5 +104,7 @@ export function parseVerifiedHlsSegmentEvidenceResponse(
     verifiedParserVersion: value.verifiedParserVersion,
     verifiedMetadataLevelFrameCounts: verifiedCounts,
     orderedRpuEvidenceSha256: value.orderedRpuEvidenceSha256,
+    rpuUnitBoundaryEvidence: unitEvidence,
+    orderedRpuUnitSha256,
   };
 }

@@ -342,6 +342,8 @@ export async function POST(
       rpuFrameAlignment: verified.rpuFrameAlignment,
       rpuSemanticContinuity: verified.rpuSemanticContinuity,
       semanticEvidenceLimitation: verified.semanticEvidenceLimitation,
+      rpuUnitBoundaryEvidence: verified.rpuUnitBoundaryEvidence,
+      orderedRpuUnitSha256: verified.orderedRpuUnitSha256,
       verifiedDecodeEnd: verified.verifiedDecodeEnd,
       verifiedTimescale: verified.verifiedTimescale,
       verifiedParserVersion: verified.verifiedParserVersion,

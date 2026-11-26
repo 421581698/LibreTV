@@ -60,6 +60,26 @@ describe('signed Dolby Vision RPU envelope', () => {
     });
   });
 
+  it('validates a signed per-RPU-unit commitment and rejects inconsistent hashes', () => {
+    const units = ['c'.repeat(64), 'd'.repeat(64)];
+    const record = {
+      ...report,
+      frameCount: 2,
+      metadataLevelFrameCounts: { '1': 2, '2': 2, '5': 1, '6': 1 },
+      rpuUnitEvidence: {
+        version: 1,
+        unitSha256s: units,
+        orderedSha256: createHash('sha256').update(units.join('\n')).digest('hex'),
+      },
+    };
+    expect(verifySignedDolbyVisionRpuEnvelope(makeEnvelope({ report: record }), options)?.report.rpuUnitEvidence)
+      .toEqual(record.rpuUnitEvidence);
+    const bad = { ...record, rpuUnitEvidence: { ...record.rpuUnitEvidence, orderedSha256: 'e'.repeat(64) } };
+    expect(verifySignedDolbyVisionRpuEnvelope(makeEnvelope({ report: bad }), options)).toBeNull();
+    const miscount = { ...record, rpuUnitEvidence: { ...record.rpuUnitEvidence, unitSha256s: [units[0]] } };
+    expect(verifySignedDolbyVisionRpuEnvelope(makeEnvelope({ report: miscount }), options)).toBeNull();
+  });
+
   it('verifies an AV1 RPU report against the original MP4 digest', () => {
     const av1Report = {
       ...report,
@@ -239,6 +259,32 @@ describe('signed Dolby Vision RPU envelope', () => {
       verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480, '5': 2, '6': 2 },
     });
     const verifiedSet = verifySignedDolbyVisionRpuSegmentSet(envelopes, trusted);
+    const unitEnvelopes = envelopes.map(({ signature: _previousSignature, ...previous }, ordinal) => {
+      const hashes = Array.from({ length: 240 }, (_, frame) =>
+        createHash('sha256').update(`${ordinal}:${frame}`).digest('hex'));
+      const payload = {
+        ...previous,
+        report: {
+          ...previous.report,
+          rpuUnitEvidence: {
+            version: 1,
+            unitSha256s: hashes,
+            orderedSha256: createHash('sha256').update(hashes.join('\n')).digest('hex'),
+          },
+        },
+      };
+      return {
+        ...payload,
+        signature: sign(null, Buffer.from(canonicalizeDolbyVisionRpuPayload(payload)), privateKey).toString('base64url'),
+      };
+    });
+    const verifiedUnits = verifySignedDolbyVisionRpuSegmentSet(unitEnvelopes, trusted);
+    expect(verifiedUnits?.rpuUnitBoundaryEvidence).toBe('signed-ordered-per-unit-sha256');
+    expect(verifiedUnits?.orderedRpuUnitSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(verifiedUnits?.semanticEvidenceLimitation).toBe('signed-rpu-unit-order-does-not-prove-video-frame-mapping');
+    expect(verifiedUnits?.rpuSemanticContinuity).toBe('not-established');
+    expect(verifiedSet?.rpuUnitBoundaryEvidence).toBe('not-established');
+    expect(verifiedSet?.orderedRpuUnitSha256).toBeNull();
     expect(verifiedSet?.orderedRpuEvidenceSha256).toMatch(/^[a-f0-9]{64}$/);
     const independentlyBoundDigest = createHash('sha256').update(canonicalizeDolbyVisionRpuPayload({
       scope: 'hls-ordered-rpu-evidence-v1',

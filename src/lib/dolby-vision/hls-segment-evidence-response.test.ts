@@ -43,6 +43,20 @@ describe('verified HLS segment-set diagnostics response', () => {
     expect(result).not.toHaveProperty('dolbyVisionOutput');
   });
 
+  it('retains signed RPU unit-order diagnostics without promoting them into rendered-frame proof', () => {
+    const result = parseVerifiedHlsSegmentEvidenceResponse({
+      ...valid,
+      rpuUnitBoundaryEvidence: 'signed-ordered-per-unit-sha256',
+      orderedRpuUnitSha256: 'e'.repeat(64),
+      semanticEvidenceLimitation: 'signed-rpu-unit-order-does-not-prove-video-frame-mapping',
+    }, resourceId, variantId);
+    expect(result?.rpuUnitBoundaryEvidence).toBe('signed-ordered-per-unit-sha256');
+    expect(result?.orderedRpuUnitSha256).toBe('e'.repeat(64));
+    expect(parseVerifiedHlsSegmentEvidenceResponse({
+      ...valid, rpuUnitBoundaryEvidence: 'signed-ordered-per-unit-sha256',
+    }, resourceId, variantId)).toBeNull();
+  });
+
   it('rejects asset mixups, counterfeit evidence states and malformed hashes', () => {
     expect(parseVerifiedHlsSegmentEvidenceResponse(valid, resourceId, 'another-variant')).toBeNull();
     expect(parseVerifiedHlsSegmentEvidenceResponse({ ...valid, verified: false }, resourceId, variantId)).toBeNull();
