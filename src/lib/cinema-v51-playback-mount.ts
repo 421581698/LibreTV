@@ -44,17 +44,17 @@ export async function mountCinemaV51AuthorizedPlayback(
   host:HTMLElement,
   source:CinemaV51AuthorizedPlayback,
   onReport:(state:'processed'|'native-fallback',reason:string)=>void,
+  boundMediaUrl=video.currentSrc||video.src,
 ):Promise<CinemaV51PlaybackMount|null> {
-  if(!cinemaCanMountAuthorizedPlayback(video.currentSrc||video.src,source)||
+  if(!cinemaCanMountAuthorizedPlayback(boundMediaUrl,source)||
     !video.isConnected||!host.isConnected||video.readyState<2)return null;
   const canvas=document.createElement('canvas');
   canvas.dataset.cinemaV51Playback='high-precision-candidate';
   canvas.setAttribute('aria-hidden','true');
   canvas.style.cssText='position:absolute;z-index:1;pointer-events:none;display:none;';
   host.append(canvas);
-  const renderer=await createCinemaExtendedWebGpuPresenter(canvas,reason=>{
-    onReport('native-fallback',reason);
-  });
+  let onCanvasFailure=(reason:string)=>onReport('native-fallback',reason);
+  const renderer=await createCinemaExtendedWebGpuPresenter(canvas,reason=>onCanvasFailure(reason));
   if(!renderer){
     canvas.remove();
     onReport('native-fallback','Safari 未提供经过确认的 rgba16float + extended HDR 渲染上下文；保留原生播放。');
@@ -70,6 +70,7 @@ export async function mountCinemaV51AuthorizedPlayback(
     canvas.remove();
     onReport('native-fallback',reason);
   };
+  onCanvasFailure=fallback;
   const layout=()=>{
     if(!video.isConnected||!host.isConnected||document.visibilityState==='hidden'||
       Array.from(video.textTracks).some(t=>t.mode==='showing')||
