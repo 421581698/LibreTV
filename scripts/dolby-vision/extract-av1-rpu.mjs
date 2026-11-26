@@ -21,6 +21,8 @@ const COUNTRY_CODE_US = 0xb5;
 const MAX_OBU_BYTES = 16 * 1024 * 1024;
 const MAX_OBUS = 1_000_000;
 const MAX_RPU_UNITS = 100_000;
+const MAX_T35_BYTES = 1024 * 1024;
+const MAX_TOTAL_T35_BYTES = 64 * 1024 * 1024;
 
 class BitReader {
   constructor(data) { this.data = data; this.bitOffset = 0; }
@@ -117,6 +119,7 @@ function parseDolbyRpuObuStream(inputValue) {
   // Reuse an existing Buffer instead of duplicating the entire demuxed movie.
   const data = Buffer.isBuffer(inputValue) ? inputValue : Buffer.from(inputValue);
   const t35Payloads = [];
+  let totalT35Bytes = 0;
   const rpuTemporalUnits = new Set();
   let offset = 0, obuCount = 0, temporalUnit = -1, temporalDelimiterCount = 0, frameUnitCount = 0;
   const framesByTemporalUnit = new Map();
@@ -157,7 +160,12 @@ function parseDolbyRpuObuStream(inputValue) {
       if (metadataType.value === 4) {
         if (temporalUnit < 0) throw new Error('Dolby T.35 metadata appeared before a temporal delimiter.');
         if (t35Payloads.length >= MAX_RPU_UNITS) throw new Error('AV1 Dolby RPU count exceeds configured limit.');
-        t35Payloads.push(payload.subarray(metadataType.next));
+        const t35 = payload.subarray(metadataType.next);
+        if (t35.length > MAX_T35_BYTES || totalT35Bytes + t35.length > MAX_TOTAL_T35_BYTES) {
+          throw new Error('AV1 Dolby T.35 metadata exceeds configured byte limit.');
+        }
+        totalT35Bytes += t35.length;
+        t35Payloads.push(Buffer.from(t35));
         rpuTemporalUnits.add(temporalUnit);
         rpuUnits.push({ ordinal: rpuUnits.length, temporalUnitIndex: temporalUnit });
       }

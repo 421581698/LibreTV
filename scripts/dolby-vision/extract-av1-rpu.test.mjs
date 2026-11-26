@@ -291,3 +291,12 @@ test('bounds frame unit bookkeeping independently of metadata count', () => {
   const input = Buffer.concat([delimiter, ...Array(100001).fill(frame)]);
   assert.throws(() => extractDolbyRpuFromObuStream(input), /frame unit count exceeds configured limit/);
 });
+
+test('rejects oversized T.35 metadata before conversion', () => {
+  const input = Buffer.concat([
+    obu(2, Buffer.alloc(0)),
+    obu(5, Buffer.concat([leb(4), Buffer.alloc(1024 * 1024 + 1)])),
+    obu(6, Buffer.from([0])),
+  ]);
+  assert.throws(() => extractDolbyRpuFromObuStream(input), /T\.35 metadata exceeds configured byte limit/);
+});
