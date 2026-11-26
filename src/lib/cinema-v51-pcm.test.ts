@@ -84,7 +84,7 @@ describe('Cinema authenticated AAC / PCM transport core',()=>{
       EncodedAudioChunk:class {timestamp:number;duration:number;data:Uint8Array;
         constructor(init:{timestamp:number;duration:number;data:Uint8Array}){
           this.timestamp=init.timestamp;this.duration=init.duration;this.data=init.data;
-        }},
+        }} as never,
     });
     await decoder.push({sourceSha256:SHA,ptsUs:1000000,data:new Uint8Array([...adts(),...adts()])});
     expect(encoded).toHaveLength(2);
