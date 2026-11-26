@@ -27,7 +27,7 @@ export interface CinemaP010PresentationOptions {
   onPresent?:(frame:RawVideoFrame,ptsUs:number)=>Promise<boolean>;
 }
 export function cinemaPackP010(frame:CinemaP010Frame):Uint8Array {
-  if(frame.width<2||frame.height<2||frame.width%2||frame.height%2||
+  if(frame.range!=='limited'||frame.width<2||frame.height<2||frame.width%2||frame.height%2||
     frame.y.length!==frame.width*frame.height||frame.uv.length!==frame.width*frame.height/2) {
     throw new Error('Invalid P010 packed plane geometry');
   }
