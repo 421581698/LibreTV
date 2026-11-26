@@ -118,6 +118,7 @@ export async function createCinemaSoundSession(
   let streamSource:MediaStreamAudioSourceNode;
   let analyser:AnalyserNode;
   let unregisterVolume=()=>{};
+  let unregisterRuntime=()=>{};
   let dry:GainNode,eqOut:GainNode,spatialRaw:GainNode,spatialEq:GainNode,spatialOut:GainNode;
   try {
     streamSource=context.createMediaStreamSource(stream);
@@ -248,11 +249,39 @@ export async function createCinemaSoundSession(
       cancelAnimationFrame(checkRaf);
       // Restore native speaker playback before releasing the captured track.
       unregisterVolume();
+      unregisterRuntime();
       if(capturing)video.muted=previouslyMuted;
       stream.getTracks().forEach(track=>track.stop());
       try{streamSource.disconnect();}catch{/* closed */}
       void context.close().catch(()=>{});
     },
+  };
+  const onCaptureLost=()=>{
+    if(stopped)return;
+    session.stop();
+    onState({audio:false,spatial:false,output:'native',
+      reason:'检测到音轨结束、切源或音频上下文中断，已恢复原生音频。'});
+  };
+  const tracks=stream.getAudioTracks();
+  const stateChanged=()=>{if(context.state!=='running')onCaptureLost();};
+  const onVideoChange=()=>onCaptureLost();
+  for(const track of tracks){
+    track.addEventListener('ended',onCaptureLost);
+    track.addEventListener('mute',onCaptureLost);
+  }
+  for(const event of ['emptied','error','seeking'] as const){
+    video.addEventListener(event,onVideoChange);
+  }
+  context.addEventListener('statechange',stateChanged);
+  unregisterRuntime=()=>{
+    for(const track of tracks){
+      track.removeEventListener('ended',onCaptureLost);
+      track.removeEventListener('mute',onCaptureLost);
+    }
+    for(const event of ['emptied','error','seeking'] as const){
+      video.removeEventListener(event,onVideoChange);
+    }
+    context.removeEventListener('statechange',stateChanged);
   };
   try {await context.resume();} catch {session.stop();return null;}
   if(context.state!=='running'){session.stop();return null;}
