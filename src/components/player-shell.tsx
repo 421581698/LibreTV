@@ -432,7 +432,7 @@ export function PlayerShell({
           setDolbyCardStatus(message);
           if (status === 'active') setDolbyCardChoice(choice => ({ ...choice, url, vision: true }));
           else {
-            cinemaHdrGpuRef.current = null;
+            if (status !== 'recovering') cinemaHdrGpuRef.current = null;
             setDolbyCardChoice(choice => choice.url === url ? { ...choice, vision: false } : choice);
           }
         });
