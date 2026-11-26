@@ -379,13 +379,14 @@ function WatchContent() {
       // confirms the destination, dismiss any temporary drag preview so it
       // cannot hide the real position for another 1.2 seconds.
       if (!video || scrubbingRef.current || !Number.isFinite(video.currentTime)) return;
+      const actualPosition = video.currentTime;
       if (scrubResetTimerRef.current !== null) {
         window.clearTimeout(scrubResetTimerRef.current);
         scrubResetTimerRef.current = null;
       }
       scrubbingPositionRef.current = null;
       setScrubbingPosition(null);
-      setWatchClock((current) => ({ ...current, position: video.currentTime }));
+      setWatchClock((current) => ({ ...current, position: actualPosition }));
     };
     const onLoadStart = onMediaReset;
     const onWaiting = (event: Event) => {
