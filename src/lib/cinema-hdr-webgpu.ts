@@ -40,7 +40,7 @@ interface WebGpuContext {
   unconfigure?(): void;
 }
 const SHADER = `
-struct Params { uvScale: vec2f, uvOffset: vec2f }
+struct Params { uvScale: vec2f, uvOffset: vec2f, texelSize: vec2f, pad: vec2f }
 @group(0) @binding(0) var frameSampler: sampler;
 @group(0) @binding(1) var frameTexture: texture_external;
 @group(0) @binding(2) var<uniform> params: Params;
@@ -78,7 +78,17 @@ fn sampleFrame(uv:vec2f)->vec3f {
   let chroma = contrast-vec3f(luma);
   let saturation = 1.15-0.22*smoothstep(0.7,1.0,luma);
   let saturated = clamp(vec3f(luma)+chroma*saturation,vec3f(0.0),vec3f(1.0));
-  return vec4f(saturated,1.0);
+  // Four neighbouring decoded SDR samples form a bounded local-detail pass.
+  // Reject high-luma sharpening so highlight edges do not ring.
+  let blur = 0.25 * (
+    sampleFrame(clamp(uv+vec2f(params.texelSize.x,0.0),vec2f(0.0),vec2f(1.0)))
+   +sampleFrame(clamp(uv-vec2f(params.texelSize.x,0.0),vec2f(0.0),vec2f(1.0)))
+   +sampleFrame(clamp(uv+vec2f(0.0,params.texelSize.y),vec2f(0.0),vec2f(1.0)))
+   +sampleFrame(clamp(uv-vec2f(0.0,params.texelSize.y),vec2f(0.0),vec2f(1.0))));
+  let detail = clamp(source-blur,vec3f(-0.20),vec3f(0.20));
+  let edge = clamp(length(detail)*9.0-0.06,0.0,1.0);
+  let sharpening = 0.32*edge*(1.0-smoothstep(0.72,1.0,luma));
+  return vec4f(clamp(saturated+detail*sharpening,vec3f(0.0),vec3f(1.0)),1.0);
 }`;
 
 async function startWebGpu(
@@ -118,7 +128,7 @@ async function startWebGpu(
     return null;
   }
   const sampler = device.createSampler({magFilter:'linear',minFilter:'linear'});
-  const params = device.createBuffer({size:16,usage:72}); // UNIFORM (64) | COPY_DST (8)
+  const params = device.createBuffer({size:32,usage:72}); // UNIFORM (64) | COPY_DST (8)
   canvas.dataset.cinemaHdrGpu = 'true';
   canvas.setAttribute('aria-hidden','true');
   canvas.style.cssText = 'position:absolute;pointer-events:none;z-index:1;display:none;';
@@ -174,6 +184,7 @@ async function startWebGpu(
       const frame = device.importExternalTexture({source: video});
       device.queue.writeBuffer(params,0,new Float32Array([
         geometry.uvScaleX,geometry.uvScaleY,geometry.uvOffsetX,geometry.uvOffsetY,
+        1/Math.max(video.videoWidth,1),1/Math.max(video.videoHeight,1),0,0,
       ]));
       const bindGroup = device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries:[
         {binding:0,resource:sampler},{binding:1,resource:frame},{binding:2,resource:{buffer:params}},
