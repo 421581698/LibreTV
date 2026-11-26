@@ -154,7 +154,13 @@ export async function createCinemaAuthorizedPcmSoundSession(
       lastDecodedAt=performance.now();
     }catch(error){fail(error instanceof Error?error.message:'Invalid decoded PCM');}
   },message=>fail(message));
-  const stream=source.packets[Symbol.asyncIterator]();
+  let stream:AsyncIterator<CinemaPcmPacket>;
+  try{stream=source.packets[Symbol.asyncIterator]();}
+  catch{
+    decoder.stop();void context.close().catch(()=>{});
+    onState({audio:false,spatial:false,output:'native',reason:'可信 AAC 音轨无法生成数据流。'});
+    return null;
+  }
   let pendingStop=false;
   const onVideoInterrupt=()=>fail('视频暂停、切源、进度跳转或倍速改变，已恢复原始音频。');
   const onVolume=()=>{
@@ -183,7 +189,9 @@ export async function createCinemaAuthorizedPcmSoundSession(
       fail('未收到可用的独立 PCM 解码数据。');return;
     }
     for(let i=0;i<12;i++){
-      const frame=queue.dequeue(clock);
+      let frame;
+      try{frame=queue.dequeue(clock);}
+      catch{fail('PCM 时间戳或来源身份已失效，已恢复原声。');return;}
       if(!frame)break;
       const delta=(frame.ptsUs-source.presentationOffsetUs-Math.round(video.currentTime*1e6))/1e6;
       if(delta<-.035){if(++misses>8)fail('PCM 连续错过视频时间戳，已恢复原声。');continue;}
