@@ -70,3 +70,5 @@ jobs:
         run: npx playwright install --with-deps webkit
       - name: Verify real browser HLS playback
         run: node scripts/hls-browser-playback-smoke.mjs
+      - name: Verify Cinema V5.1 real PCM DSP and virtual HRTF
+        run: node scripts/cinema-v51-browser-audio-smoke.mjs
