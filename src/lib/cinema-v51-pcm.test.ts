@@ -46,7 +46,7 @@ describe('Cinema authenticated AAC / PCM transport core',()=>{
     const late={...clock,currentMediaTimeSeconds:()=>0.5};
     expect(queue.dequeue(late)).toBeNull();
     expect(queue.queuedSamples).toBe(0);
-    queue.enqueue(pcm(100000));queue.clear();
+    queue.clear();queue.enqueue(pcm(100000));queue.clear();
     expect(queue.queuedFrames).toBe(0);
   });
   it('rejects PTS identity mismatch even when buffering is permitted',()=>{
@@ -80,7 +80,7 @@ describe('Cinema authenticated AAC / PCM transport core',()=>{
       close(){}
     }
     const decoder=createCinemaAacDecoder(SHA,f=>decoded.push(f),()=>{},{
-      AudioDecoder:FakeAudioDecoder,
+      AudioDecoder:FakeAudioDecoder as never,
       EncodedAudioChunk:class {timestamp:number;duration:number;data:Uint8Array;
         constructor(init:{timestamp:number;duration:number;data:Uint8Array}){
           this.timestamp=init.timestamp;this.duration=init.duration;this.data=init.data;
