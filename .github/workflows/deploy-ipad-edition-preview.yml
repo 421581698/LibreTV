@@ -1667,7 +1667,11 @@ jobs:
                     paused = true;
                     video.dispatchEvent(new Event("pause"));
                   };
-                  window.__mockPlaybackReject = false;
+                  // Keep delayed startup autoplay blocked until the first transport click.
+                  window.__mockPlaybackReject = true;
+                  frame.closest(".netflix-watch-shell").querySelector(".cinema-play-control").addEventListener("click", () => {
+                    window.__mockPlaybackReject = false;
+                  }, { capture: true, once: true });
                   // Re-emit pause after replacing the media API so React's real
                   // state observer receives a deterministic initial paused state.
                   video.dispatchEvent(new Event("pause"));
