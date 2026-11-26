@@ -32,6 +32,7 @@ import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from 
 import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from '@/lib/watch-playback-state';
 import { useFridayGlassPlayback } from '@/components/friday/FridayGlassProvider';
 import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } from '@/lib/cinema-v4-controls';
+import { selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
 import {
   clearProgress,
   progressKeyOf,
@@ -688,6 +689,36 @@ function WatchContent() {
     ? `/api/dolby-vision/assets/${encodeURIComponent(activeCmsAssetBinding.assetId)}/content`
     : currentUrl;
   const currentEpisodeKey = `${sourceKey}:${vodId || currentUrl}:${currentIndex}`;
+  // Preserve the mounted Cinema media element and its trusted asset identity
+  // until the next CMS episode/source completes exact binding verification.
+  const lastReadyCinemaMediaRef = useRef<CinemaPlaybackMedia | null>(null);
+  const currentPlaybackMedia: CinemaPlaybackMedia = {
+    url: playerUrl, episodeKey: currentEpisodeKey, sourceKey,
+    mediaType: activeCmsAssetBinding ? 'mp4' : undefined,
+    dolbyVisionAssetId: activeCmsAssetBinding?.assetId,
+    dolbyVisionSourceKind: activeCmsAssetBinding ? 'registry' : directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown',
+    dolbyVisionSourceIdentity: activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined),
+  };
+  useEffect(() => {
+    if (!isIpadEditionPlayback || cmsLookupPending || !currentUrl) return;
+    lastReadyCinemaMediaRef.current = {
+      url: playerUrl, episodeKey: currentEpisodeKey, sourceKey,
+      mediaType: activeCmsAssetBinding ? 'mp4' : undefined,
+      dolbyVisionAssetId: activeCmsAssetBinding?.assetId,
+      dolbyVisionSourceKind: activeCmsAssetBinding ? 'registry' : directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown',
+      dolbyVisionSourceIdentity: activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined),
+    };
+  }, [isIpadEditionPlayback, cmsLookupPending, currentUrl, playerUrl, currentEpisodeKey, sourceKey, activeCmsAssetBinding, directUrl]);
+  const cinemaMediaGate = selectCinemaPlaybackMedia({
+    isCinema: isIpadEditionPlayback, cmsLookupPending,
+    current: currentPlaybackMedia, lastReady: lastReadyCinemaMediaRef.current,
+  });
+  // Pause the outgoing source during verification without destroying the player.
+  useEffect(() => {
+    if (isIpadEditionPlayback && cmsLookupPending && lastReadyCinemaMediaRef.current) {
+      playerApiRef.current?.pause();
+    }
+  }, [isIpadEditionPlayback, cmsLookupPending, cmsLookupKey]);
   const pendingEpisodeKeyRef = useRef<string | null>(null);
   const isCurrentPlaybackEvent = useCallback((eventEpisodeKey?: string) => {
     // During router.replace there is a short interval where the media element
@@ -1063,27 +1094,27 @@ function WatchContent() {
               ref={attachPlayerFrame}
               className="netflix-player-frame aspect-video bg-black overflow-hidden"
             >
-              {cmsLookupPending ? (
+              {!cinemaMediaGate.showPlayer ? (
                 <div className="w-full h-full flex items-center justify-center" role="status" aria-label="正在确认媒体地址"><Spinner size="lg" /></div>
-              ) : currentUrl ? (
-                <PlaybackErrorBoundary key={isIpadEditionPlayback ? "ipad-cinema" : playerUrl} resetKey={playerUrl} label="player" fallback={isIpadEditionPlayback ? (retry) => (
-                  <NativeCinemaFallback key={playerUrl} url={playerUrl} retry={retry}
+              ) : (currentUrl || cinemaMediaGate.holdingPrevious) ? (
+                <PlaybackErrorBoundary key={isIpadEditionPlayback ? "ipad-cinema" : playerUrl} resetKey={cinemaMediaGate.media.url} label="player" fallback={isIpadEditionPlayback ? (retry) => (
+                  <NativeCinemaFallback key={cinemaMediaGate.media.url} url={cinemaMediaGate.media.url} retry={retry}
                     onApi={(api) => { playerApiRef.current = api; }}
                     onClock={(position, duration) => setWatchClock({ position, duration })}
-                    onProgress={(position, duration) => handleProgress(position, duration, currentEpisodeKey)}
-                    onEnded={() => handleEnded(currentEpisodeKey)}
+                    onProgress={(position, duration) => handleProgress(position, duration, cinemaMediaGate.media.episodeKey)}
+                    onEnded={() => handleEnded(cinemaMediaGate.media.episodeKey)}
                     getRestorePosition={getRestorePosition}
                     onSwitch={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}
                     panel={cinemaPanel} onClosePanel={() => setCinemaPanel(null)} />
                 ) : undefined}>
                 <PlayerShell
-                  url={playerUrl}
+                  url={cinemaMediaGate.media.url}
                   title={videoTitle}
                   cinemaMode={isIpadEditionPlayback}
                   cinemaPanel={cinemaPanel}
                   onCloseCinemaPanel={() => setCinemaPanel(null)}
                   onCinemaPanelChange={setCinemaPanel}
-                  mediaType={activeCmsAssetBinding ? 'mp4' : undefined}
+                  mediaType={cinemaMediaGate.media.mediaType}
                   adFilter={store.adFilter}
                   autoplayNext={store.autoplayNext}
                   skipMark={skipMark}
@@ -1092,12 +1123,12 @@ function WatchContent() {
                   onPendingStart={setPendingStart}
                   onPlayerApi={(api) => { playerApiRef.current = api; }}
                   onRecordSegment={handleRecordSegment}
-                  episodeKey={currentEpisodeKey}
-                  sourceKey={sourceKey}
-                  resourceKey={currentEpisodeKey}
-                  dolbyVisionAssetId={activeCmsAssetBinding?.assetId}
-                  dolbyVisionSourceKind={activeCmsAssetBinding ? 'registry' : directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown'}
-                  dolbyVisionSourceIdentity={activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined)}
+                  episodeKey={cinemaMediaGate.media.episodeKey}
+                  sourceKey={cinemaMediaGate.media.sourceKey}
+                  resourceKey={cinemaMediaGate.media.episodeKey}
+                  dolbyVisionAssetId={cinemaMediaGate.media.dolbyVisionAssetId}
+                  dolbyVisionSourceKind={cinemaMediaGate.media.dolbyVisionSourceKind}
+                  dolbyVisionSourceIdentity={cinemaMediaGate.media.dolbyVisionSourceIdentity}
                   onPlaybackSample={(sample) => useAppStore.getState().recordPlaybackSample(sample)}
                   onRequestFullscreen={requestWatchFullscreen}
                   onRequestSwitchSource={() => {
