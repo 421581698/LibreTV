@@ -46,7 +46,7 @@ export function cinemaPackP010(frame:CinemaP010Frame):Uint8Array {
 export function createCinemaP010VideoFrameRenderer(
   options:CinemaP010PresentationOptions,
   api:RawVideoFrameConstructor|null=
-    typeof globalThis!=='undefined'&&'VideoFrame' in globalThis
+    (typeof globalThis!=='undefined' && ('VideoFrame' in globalThis))
       ? (globalThis as unknown as {VideoFrame:RawVideoFrameConstructor}).VideoFrame : null,
 ):CinemaP010FrameRenderer {
   let stopped=false;
