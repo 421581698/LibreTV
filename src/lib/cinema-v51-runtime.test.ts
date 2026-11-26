@@ -5,7 +5,7 @@ import {cinemaProcessV51Frame,cinemaVerifyHdr10PlusSample} from './cinema-v51-ru
 function makePayload():Uint8Array {
  const bits:number[]=[];
  const write=(value:number,count:number)=>{for(let k=count-1;k>=0;k--)bits.push((value>>>k)&1);};
- write(1,2);write(800,27);write(0,1);
+ write(1,2);write(8_000_000,27);write(0,1);
  for(const value of [5000,5000,5000])write(value,17);
  write(4000,17);write(0,4);write(100,10);
  write(0,1);write(1,1);write(2048,12);write(2200,12);write(0,4);write(0,1);
