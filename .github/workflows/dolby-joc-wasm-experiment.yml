@@ -67,12 +67,13 @@ jobs:
           import assert from 'node:assert/strict';
           import { readFile } from 'node:fs/promises';
           import { OpenJocExperimentalDecoder } from './src/lib/dolby/openjoc-experimental-decoder.ts';
+          import { loadUserOpenJocWasm } from './src/lib/dolby/openjoc-user-wasm.ts';
           const bytes = await readFile('openjoc/target/wasm32-unknown-unknown/release/openjoc_wasm.wasm');
-          const { instance } = await WebAssembly.instantiate(bytes, {
-            env: { openjoc_wasm_clock_now_ms: () => performance.now() }
-          });
+          // Exercise the exact local-file loader used by the opt-in player UI:
+          // bounded validation, pinned clock import, ABI export verification.
+          const abi = await loadUserOpenJocWasm(new File([bytes], 'openjoc.wasm'));
           const input = await readFile('openjoc/crates/openjoc-wasm/testdata/joc.ec3');
-          const decoder = new OpenJocExperimentalDecoder(instance.exports);
+          const decoder = new OpenJocExperimentalDecoder(abi);
           function decode() {
             let samples = 0;
             let nonzero = false;
