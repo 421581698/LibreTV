@@ -19,6 +19,20 @@ describe('Cinema presentation clock and HDR10+ PTS synchronization',()=>{
     expect(status).toBe('ready');
     expect(current).toBeGreaterThan(1.06);
   });
+  it('cancels an in-flight HDR frame when the authenticated source changes while waiting',async()=>{
+    let activeSource=source, current=.5, elapsed=0;
+    const sourceClock={
+      get sourceSha256(){return activeSource;},
+      presentationOffsetUs:250000,
+      currentMediaTimeSeconds:()=>current,
+      playing:()=>true,
+    };
+    const status=await cinemaWaitForPresentation(1275000,sourceClock,{
+      now:()=>elapsed,
+      sleep:async()=>{elapsed+=16;current+=.016;activeSource='a'.repeat(64);},
+    });
+    expect(status).toBe('source-changed');
+  });
   it('fails closed if playback never starts or the user seeks away',async()=>{
     let now=0;
     expect(await cinemaWaitForPresentation(2000000,clock(1,false),{
