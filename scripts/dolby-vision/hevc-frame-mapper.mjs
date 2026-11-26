@@ -31,3 +31,34 @@ export function extractHevcSampleRpu(sample, lengthSize) {
   if (pictures !== 1 || !rpu) throw new Error('Expected exactly one picture and one RPU');
   return { rpuSha256: createHash('sha256').update(rpu).digest('hex'), rpu };
 }
+
+/** Bind independently probed decoded timestamps to exact MP4 sample bytes.
+ * Packet order may differ from presentation order; no positional guessing.
+ */
+export function bindHevcDecodedFrames(samples, decodedPts, lengthSize) {
+  if (!Array.isArray(samples) || !Array.isArray(decodedPts) ||
+      !samples.length || samples.length > 8192 || samples.length !== decodedPts.length) {
+    throw new Error('Incomplete HEVC frame evidence');
+  }
+  const canonicalPts = value => {
+    if (typeof value !== 'string' || !/^(?:0|-?[1-9][0-9]{0,18})$/.test(value)) throw new Error('Invalid PTS');
+    const pts = BigInt(value);
+    if (pts < -(1n << 63n) || pts >= (1n << 63n)) throw new Error('PTS out of range');
+    return pts;
+  };
+  const byPts = new Map();
+  for (const sample of samples) {
+    canonicalPts(sample.pts);
+    if (byPts.has(sample.pts)) throw new Error('Duplicate sample PTS');
+    byPts.set(sample.pts, extractHevcSampleRpu(sample.bytes, lengthSize).rpuSha256);
+  }
+  let previous = null;
+  return decodedPts.map((pts, frameOrdinal) => {
+    const value = canonicalPts(pts);
+    if (!byPts.has(pts) || (previous !== null && value <= previous)) throw new Error('Unmatched or unordered decoded frame');
+    previous = value;
+    const rpuSha256 = byPts.get(pts);
+    byPts.delete(pts);
+    return { frameOrdinal, pts, rpuSha256 };
+  });
+}
