@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { open } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
 // A deliberately bounded single-layer MP4 sample parser. The caller must
@@ -61,4 +63,51 @@ export function bindHevcDecodedFrames(samples, decodedPts, lengthSize) {
     byPts.delete(pts);
     return { frameOrdinal, pts, rpuSha256 };
   });
+}
+
+/** Probe a local, clear MP4 with a trusted hvcC NAL length size.
+ * Compact output preserves exact int64 timestamps rather than JSON numbers.
+ */
+export async function probeHevcFrameMapping(path, lengthSize, ffprobe = 'ffprobe') {
+  const probe = args => execFileSync(ffprobe, [
+    '-v','error','-protocol_whitelist','file','-f','mov','-enable_drefs','0',
+    '-select_streams','v:0', ...args, '-of','compact=p=1:nk=0',path,
+  ], {encoding:'utf8', timeout:900000, maxBuffer:16*1024*1024, stdio:['ignore','pipe','pipe']}).trim().split(/\r?\n/);
+  const stream = probe(['-show_streams','-show_entries','stream=codec_name,time_base']);
+  if (stream.length !== 1) throw new Error('Ambiguous HEVC stream');
+  const match = /^stream\|codec_name=hevc\|time_base=(\d+)\/(\d+)$/.exec(stream[0]);
+  if (!match) throw new Error('Invalid HEVC timebase');
+  const timeBase = {numerator:Number(match[1]),denominator:Number(match[2])};
+  if (Object.values(timeBase).some(n=>!Number.isSafeInteger(n)||n<=0)) throw new Error('Invalid timebase');
+  const packets = probe(['-show_packets','-show_entries','packet=pts,size,pos']);
+  const frames = probe(['-show_frames','-show_entries','frame=best_effort_timestamp']);
+  if (!packets.length || packets.length>8192 || packets.length!==frames.length) throw new Error('Incomplete frame evidence');
+  const file = await open(path,'r');
+  try {
+    const stat = await file.stat();
+    const ranges = [];
+    let total=0;
+    for (const row of packets) {
+      const m=/^packet\|pts=(-?\d{1,19})\|size=(\d+)\|pos=(\d+)$/.exec(row);
+      if (!m) throw new Error('Invalid packet evidence');
+      const size=Number(m[2]), pos=Number(m[3]);
+      if (!Number.isSafeInteger(size)||!Number.isSafeInteger(pos)||size<=0||size>32*1024*1024||pos<0||pos>stat.size-size||(total+=size)>256*1024*1024) throw new Error('Packet bounds exceeded');
+      ranges.push({pts:m[1],size,pos});
+    }
+    const ordered=[...ranges].sort((a,b)=>a.pos-b.pos);
+    for(let i=1;i<ordered.length;i++) if(ordered[i].pos<ordered[i-1].pos+ordered[i-1].size) throw new Error('Overlapping packets');
+    const samples=[];
+    for(const range of ranges){
+      const bytes=Buffer.alloc(range.size);
+      const result=await file.read(bytes,0,range.size,range.pos);
+      if(result.bytesRead!==range.size) throw new Error('Short sample read');
+      samples.push({pts:range.pts,bytes});
+    }
+    const decodedPts=frames.map(row=>{
+      const m=/^frame\|best_effort_timestamp=(-?\d{1,19})$/.exec(row);
+      if(!m) throw new Error('Invalid decoded frame evidence');
+      return m[1];
+    });
+    return {timeBase,frames:bindHevcDecodedFrames(samples,decodedPts,lengthSize)};
+  } finally {await file.close();}
 }
