@@ -119,6 +119,7 @@ export async function createCinemaSoundSession(
   let stopped=false;
   let audio=false,spatial=false;
   let capturing=false;
+  let changingNativeMute=false;
   const previouslyMuted=video.muted;
   let streamSource:AudioNode;
   let analyser:AnalyserNode;
@@ -152,7 +153,7 @@ export async function createCinemaSoundSession(
     master.connect(context.destination);
     const onVolumeChange=()=>{
       if(stopped||!capturing)return;
-      if(!video.muted){
+      if(!video.muted&&!changingNativeMute){
         // Native output became audible while DSP is active; restore a single path.
         session.stop();
         onState({audio:false,spatial:false,output:'native',
@@ -217,7 +218,9 @@ export async function createCinemaSoundSession(
     safeGain(spatialOut.gain,levels.spatialOutput,context);
     // Browser capture stream is independent of the element's native speaker
     // playback. Mute only after verified nonzero PCM to avoid dead silence.
+    changingNativeMute=true;
     video.muted=audio||spatial?true:previouslyMuted;
+    changingNativeMute=false;
     onState(snapshot());
   };
   let checkRaf=0;
@@ -286,7 +289,7 @@ export async function createCinemaSoundSession(
       unregisterVolume();
       unregisterRuntime();
       releaseMirror();
-      if(capturing)video.muted=previouslyMuted;
+      if(capturing){changingNativeMute=true;video.muted=previouslyMuted;changingNativeMute=false;}
       stream?.getTracks().forEach(track=>track.stop());
       try{streamSource.disconnect();}catch{/* closed */}
       void context.close().catch(()=>{});
