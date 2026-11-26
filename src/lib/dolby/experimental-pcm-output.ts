@@ -9,7 +9,7 @@ export class ExperimentalPcmOutput {
   private queuedUntil = 0;
   constructor(private readonly context: AudioContext, private readonly destination: AudioNode) {}
   enqueue(frame: ExperimentalPcm, mediaTime: number, playbackRate: number) {
-    if (this.context.state !== 'running' || frame.ptsSamples === null) return 'reset';
+    if (this.context.state !== 'running' || frame.ptsSamples === null) { this.reset(); return 'reset'; }
     // Validate untrusted decoder output before allocating Web Audio buffers.
     if (!(frame.pcm instanceof Float32Array) ||
         !Number.isSafeInteger(frame.samples) || frame.samples < 1 || frame.samples > 262144 ||
@@ -24,33 +24,37 @@ export class ExperimentalPcmOutput {
     });
     if (decision.action === 'reset') this.reset();
     if (decision.action !== 'schedule') return decision.action;
-    const buffer = this.context.createBuffer(frame.channels, frame.samples, frame.sampleRate);
+    let source: AudioBufferSourceNode | undefined;
+    try {
+      const buffer = this.context.createBuffer(frame.channels, frame.samples, frame.sampleRate);
     for (let channel = 0; channel < frame.channels; channel++) {
       const output = buffer.getChannelData(channel);
       for (let i = 0; i < frame.samples; i++) output[i] = frame.pcm[i * frame.channels + channel];
     }
-    const source = this.context.createBufferSource();
+    source = this.context.createBufferSource();
+    const node = source;
     source.buffer = buffer;
     source.playbackRate.value = playbackRate;
-    try {
-      source.connect(this.destination);
-      source.onended = () => { this.sources.delete(source); source.disconnect(); };
-      source.start(decision.at);
+      node.connect(this.destination);
+      node.onended = () => { this.sources.delete(node); try { node.disconnect(); } catch { /* already disconnected */ } };
+      node.start(decision.at);
+      this.sources.add(node);
+      this.queuedUntil = decision.at + buffer.duration / playbackRate;
+      return 'schedule';
     } catch {
-      source.onended = null;
-      try { source.disconnect(); } catch { /* failed connection */ }
+      if (source) {
+        source.onended = null;
+        try { source.disconnect(); } catch { /* failed connection */ }
+      }
       this.reset();
       return 'reset';
     }
-    this.sources.add(source);
-    this.queuedUntil = decision.at + buffer.duration / playbackRate;
-    return 'schedule';
   }
   reset(): void {
     for (const source of this.sources) {
       source.onended = null;
       try { source.stop(); } catch { /* already ended */ }
-      source.disconnect();
+      try { source.disconnect(); } catch { /* already disconnected */ }
     }
     this.sources.clear();
     this.queuedUntil = 0;

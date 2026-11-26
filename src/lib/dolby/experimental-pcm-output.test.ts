@@ -69,6 +69,21 @@ describe('isolated experimental PCM output', () => {
     expect(output.enqueue(frame, 1, 1)).toBe('schedule');
   });
 
+  it('returns reset when buffer allocation fails and allows retry', () => {
+    const { output, frame, createBuffer } = setup();
+    createBuffer.mockImplementationOnce(() => { throw new Error('allocation failed'); });
+    expect(output.enqueue(frame, 1, 1)).toBe('reset');
+    expect(output.enqueue(frame, 1, 1)).toBe('schedule');
+  });
+
+  it('clears scheduling state even when disconnect throws', () => {
+    const { output, frame, disconnect } = setup();
+    expect(output.enqueue(frame, 1, 1)).toBe('schedule');
+    disconnect.mockImplementationOnce(() => { throw new Error('already disconnected'); });
+    expect(() => output.reset()).not.toThrow();
+    expect(output.enqueue(frame, 1, 1)).toBe('schedule');
+  });
+
   it('stops and disconnects experimental sources on reset', () => {
     const { output, frame, source, stop, disconnect } = setup();
     expect(output.enqueue(frame, 1, 1)).toBe('schedule');
