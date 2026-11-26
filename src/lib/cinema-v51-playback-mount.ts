@@ -71,6 +71,7 @@ export async function mountCinemaV51AuthorizedPlayback(
     onReport('native-fallback',reason);
   };
   onCanvasFailure=fallback;
+  let crop={uvScaleX:1,uvScaleY:1,uvOffsetX:0,uvOffsetY:0};
   const layout=()=>{
     if(!video.isConnected||!host.isConnected||document.visibilityState==='hidden'||
       Array.from(video.textTracks).some(t=>t.mode==='showing')||
@@ -80,6 +81,10 @@ export async function mountCinemaV51AuthorizedPlayback(
       video.videoWidth,video.videoHeight,getComputedStyle(video).objectFit,
     );
     if(geometry.width<=0||geometry.height<=0)return false;
+    crop={
+      uvScaleX:geometry.uvScaleX,uvScaleY:geometry.uvScaleY,
+      uvOffsetX:geometry.uvOffsetX,uvOffsetY:geometry.uvOffsetY,
+    };
     canvas.style.left=`${geometry.left}px`;
     canvas.style.top=`${geometry.top}px`;
     canvas.style.width=`${geometry.width}px`;
@@ -102,7 +107,7 @@ export async function mountCinemaV51AuthorizedPlayback(
     primaries:source.transform.targetPrimaries==='rec2020'?'bt2020':'bt709',
     onPresent:async(frame,ptsUs)=>{
       if(stopped||!layout())return false;
-      return renderer.present(frame,ptsUs);
+      return renderer.present(frame,ptsUs,crop);
     },
   });
   const adapter={
