@@ -1384,6 +1384,11 @@ jobs:
                   await page.locator(".ipad-edition-watch .cinema-v4-heading").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".watch-cinema-info").waitFor({ state: "visible", timeout: 30000 });
                   await page.locator(".watch-cinema-progress").waitFor({ state: "visible", timeout: 30000 });
+                  // The old UI must not merely be CSS-hidden: it must be absent from the React tree.
+                  const oldChromeCount = await page.locator(".netflix-title-row, .netflix-watch-tools, .watch-cinema-rate").count();
+                  if (oldChromeCount !== 0) throw new Error("Cinema rendered legacy watch UI: " + oldChromeCount);
+                  await page.locator(".cinema-v4-actions").waitFor({ state: "visible", timeout: 30000 });
+                  if (await page.locator(".cinema-v4-actions").count() !== 1) throw new Error("Cinema toolbar duplicated");
                 }
                 const metrics = await page.evaluate((routeName) => {
                   const root = document.querySelector(".ipad-edition");
