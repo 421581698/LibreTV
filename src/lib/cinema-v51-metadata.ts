@@ -101,13 +101,15 @@ export function cinemaHdr10PlusToneMap(
   if(x<=kneeX) return Math.max(0,Math.min(targetPeak,
     targetPeak*(kneeX>0 ? (x/kneeX)*kneeY : 0)));
   const t=Math.max(0,Math.min(1,(x-kneeX)/Math.max(1e-9,1-kneeX)));
-  const values=[kneeY,...(frame.bezierAnchors??[]),1];
+  // ST 2094-40 anchors shape the normalized shoulder above kneeY.
+  // Do not treat kneeY as the first Bezier control point.
+  const values=[0,...(frame.bezierAnchors??[]),1];
   // De Casteljau evaluates a Bezier curve with the registered anchors.
   // Metadata windows are fully source-scoped; cannot blend unrelated frames.
   for(let order=values.length-1;order>0;order--){
     for(let i=0;i<order;i++) values[i]=values[i]*(1-t)+values[i+1]*t;
   }
-  return targetPeak*Math.max(0,Math.min(1,values[0]));
+  return targetPeak*Math.max(0,Math.min(1,kneeY+(1-kneeY)*values[0]));
 }
 /** Tone map using the per-frame source estimate, not the static playlist range. */
 export function cinemaTransformMetadataFrame(
