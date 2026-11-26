@@ -513,6 +513,12 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
                   ? `媒体错误 ${nativePlaybackObservation.mediaErrorCode ?? '未知'}`
                   : '尚未观察到连续推进'}</span>
             </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-white/55">已呈现视频帧（非 Dolby Vision 证明）</span>
+              <span className="text-right">{nativePlaybackObservation.presentedFrames === null
+                ? '浏览器未提供可用帧计数'
+                : `${nativePlaybackObservation.presentedFrames} 帧（当前连续观测窗口）`}</span>
+            </div>
             {nativePlaybackObservation.videoWidth > 0 && nativePlaybackObservation.videoHeight > 0 && (
               <div className="flex justify-between gap-3">
                 <span className="text-white/55">当前视频画面尺寸</span>
