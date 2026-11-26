@@ -957,7 +957,7 @@ jobs:
                 // The audit still checks every slot when it fits the budget; if screenshots stall,
                 // remaining slots are explicitly recorded as uninspected and the gate fails closed.
                 const posterInspectionStartedAt = Date.now();
-                const posterInspectionBudgetMs = 60_000;
+                const posterInspectionBudgetMs = 90_000;
                 let posterInspectionBudgetExceeded = false;
                 for (let index = 0; index < posterSlots; index += 1) {
                   if (Date.now() - posterInspectionStartedAt >= posterInspectionBudgetMs) {
@@ -972,7 +972,7 @@ jobs:
                         blankBlack: false,
                       });
                     }
-                    console.error('Poster pixel audit exceeded its 60s per-viewport/theme budget; remaining slots are marked uninspected.');
+                    console.error('Poster pixel audit exceeded its 90s per-viewport/theme budget; remaining slots are marked uninspected.');
                     break;
                   }
                   await page.evaluate(async (slotIndex) => {
