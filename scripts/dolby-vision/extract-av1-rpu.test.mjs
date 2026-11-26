@@ -142,6 +142,8 @@ const fs=require("node:fs"); if(!process.argv.includes("-xerror") || process.arg
   await chmod(ffprobePath, 0o755);
   await chmod(ffmpegPath, 0o755);
 
+  // A demuxer may write a valid prefix but fail before signaling completion.
+  // A killed/failed process must never publish a seemingly valid RPU file.
   for (const kind of ['mp4', 'ivf']) {
     const outputPath = resolve(directory, kind + '.rpu');
     execFileSync(process.execPath, [

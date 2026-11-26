@@ -296,6 +296,8 @@ async function demuxAv1Container(inputPath, directory, options) {
     child.once('close', (code) => code === 0 ? resolve() :
       reject(new Error('AV1 demux failed before complete output was obtained.')));
   });
+  // Install the close/error observer before awaiting the stream. A failed
+  // pipeline must kill FFmpeg so a blocked stdout writer cannot hang forever.
   const timeout = setTimeout(() => child.kill('SIGKILL'), 15 * 60 * 1000);
   const bounded = new Transform({
     transform(chunk, encoding, callback) {
@@ -305,18 +307,21 @@ async function demuxAv1Container(inputPath, directory, options) {
       } else callback(null, chunk);
     },
   });
+  let streamFailure = null;
   try {
-    await Promise.all([
-      completion,
-      pipeline(child.stdout, bounded, createWriteStream(obuPath, { flags: 'wx', mode: 0o600 })),
-    ]);
+    await pipeline(child.stdout, bounded, createWriteStream(obuPath, { flags: 'wx', mode: 0o600 }));
   } catch (error) {
+    streamFailure = error;
     child.kill('SIGKILL');
-    await completion.catch(() => {});
-    throw error;
+  }
+  try {
+    await completion;
+  } catch (error) {
+    if (!streamFailure) throw error;
   } finally {
     clearTimeout(timeout);
   }
+  if (streamFailure) throw streamFailure;
   if (size === 0) throw new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.');
   const bytes = await readFile(obuPath);
   if (bytes.length !== size) throw new Error('AV1 demux failed before complete output was obtained.');
