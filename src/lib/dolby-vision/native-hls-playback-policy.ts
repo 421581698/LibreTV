@@ -8,10 +8,12 @@ import type { DolbyVisionFormatReport } from './format-inspector';
  * so Hls.isSupported() alone cannot decide the appropriate DV delivery path.
  */
 export function shouldPreferNativeDolbyVisionHls(
-  report: Pick<DolbyVisionFormatReport, 'detected' | 'container'>,
+  report: Pick<DolbyVisionFormatReport, 'detected' | 'container' | 'declarations'>,
   options: {
     userAgent: string;
     nativeHlsTypeSupport: string;
+    /** Codec support query only: this does not prove native DV rendering. */
+    canPlayDeclaredCodec: (codec: string) => string;
     qualityPreference: string;
     playbackStarted: boolean;
     alreadyAttemptedNative: boolean;
@@ -24,6 +26,19 @@ export function shouldPreferNativeDolbyVisionHls(
   if (options.nativeHlsTypeSupport !== 'maybe' && options.nativeHlsTypeSupport !== 'probably') {
     return false;
   }
+
+  // Never hand a declared Dolby rendition to native HLS when the browser
+  // explicitly rejects every advertised Dolby codec. A native HLS MIME result
+  // alone says nothing about Dolby decoding support.
+  const codecSupported = report.declarations.some((declaration) => {
+    try {
+      const support = options.canPlayDeclaredCodec(declaration.raw);
+      return support === 'probably' || support === 'maybe';
+    } catch {
+      return false;
+    }
+  });
+  if (!codecSupported) return false;
 
   // Limit the automatic handoff to Safari: other browsers retain hls.js.
   // UA is only a routing heuristic, never a Dolby playback capability proof.
