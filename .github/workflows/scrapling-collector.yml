@@ -5,8 +5,10 @@ on:
     branches:
       - feat/iphone-inline-play-top-search-2026-11-09
       - feat/resource-intelligence-center-v2
+      - feature/libretv-ipad-edition-product
       - integration/**
     paths:
+      - "src/lib/dolby/**"
       - "services/scrapling-collector/**"
       - "services/scrapling-collector/stats.py"
       - "services/scrapling-collector/tests/test_stats.py"
@@ -27,6 +29,7 @@ on:
       - ".github/workflows/scrapling-collector.yml"
   pull_request:
     paths:
+      - "src/lib/dolby/**"
       - "services/scrapling-collector/**"
       - "src/app/api/resource-collector/**"
       - "src/components/source-manager.tsx"

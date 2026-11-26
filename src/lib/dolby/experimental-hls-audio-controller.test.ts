@@ -38,6 +38,28 @@ describe('per-source experimental HLS audio authorization', () => {
     await flush();
     expect(bindExperimentalHlsAudio).toHaveBeenCalledTimes(2);
   });
+  it('does not attach a late WASM load after its playback source is gone', async () => {
+    const player = new ExperimentalHlsAudioController(vi.fn());
+    player.setSource({} as Parameters<typeof player.setSource>[0],
+      { paused: false, muted: false } as HTMLVideoElement, () => true);
+    player.enable(new File([new Uint8Array(16)], 'decoder.wasm'), 0);
+    player.onSourceChange();
+    await flush();
+    expect(player.enabled).toBe(false);
+    expect(bindExperimentalHlsAudio).not.toHaveBeenCalled();
+  });
+  it('disables consent and restores native audio after decoder failure', async () => {
+    const status = vi.fn();
+    const player = new ExperimentalHlsAudioController(status);
+    player.setSource({} as Parameters<typeof player.setSource>[0],
+      { paused: false, muted: false } as HTMLVideoElement, () => true);
+    player.enable(new File([new Uint8Array(16)], 'decoder.wasm'), 0);
+    await flush();
+    const opts = vi.mocked(bindExperimentalHlsAudio).mock.calls[0][0];
+    opts.onFailure?.();
+    expect(player.enabled).toBe(false);
+    expect(status).toHaveBeenLastCalledWith(expect.stringContaining('已恢复原生播放'), false);
+  });
   it('rejects invalid timebase and paused playback, preserving native audio', async () => {
     const player = new ExperimentalHlsAudioController(vi.fn());
     const video = { paused: true, muted: false } as HTMLVideoElement;

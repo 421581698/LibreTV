@@ -6,6 +6,7 @@ on:
       - feature/homepage-cinema-lobby-order-2026-11-11
       - feature/libretv-ipad-edition-product
     paths:
+      - 'src/lib/dolby/**'
       - 'scripts/hls-browser-playback-smoke.mjs'
       - '.github/workflows/hls-browser-playback-smoke.yml'
       - 'src/lib/m3u8-downloader.ts'
@@ -17,6 +18,7 @@ on:
       - main
       - feature/libretv-ipad-edition-foundation
     paths:
+      - 'src/lib/dolby/**'
       - 'scripts/hls-browser-playback-smoke.mjs'
       - 'src/components/player-shell.tsx'
       - '.github/workflows/hls-browser-playback-smoke.yml'

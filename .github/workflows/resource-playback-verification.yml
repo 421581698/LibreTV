@@ -8,6 +8,7 @@ on:
       - feat/resource-intelligence-center-v2
       - integration/**
     paths:
+      - "src/lib/dolby/**"
       - "src/components/player-shell.tsx"
       - "src/components/dolby-vision-diagnostics-panel.tsx"
       - "services/scrapling-collector/**"
@@ -42,6 +43,7 @@ on:
 
   pull_request:
     paths:
+      - "src/lib/dolby/**"
       - "src/components/player-shell.tsx"
       - "src/components/dolby-vision-diagnostics-panel.tsx"
       - "services/scrapling-collector/**"
