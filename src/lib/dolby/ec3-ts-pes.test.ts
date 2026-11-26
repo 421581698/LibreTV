@@ -16,6 +16,7 @@ describe('clear TS audio PES', () => {
     const extractor = new Ec3TsPesExtractor(256);
     extractor.push(wrongId);
     expect(() => extractor.finish()).toThrow('Unsupported PES header');
+    extractor.reset(); // Independent malformed PES fixture starts a new transport sequence.
     const wrongFlags = packet(); wrongFlags[12] = 1;
     extractor.push(wrongFlags);
     expect(() => extractor.finish()).toThrow('Unsupported PES header');
