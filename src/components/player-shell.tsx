@@ -2362,7 +2362,7 @@ export function PlayerShell({
           announced = true;
           setDolbyCardStatus(reason);
         }
-      }).then(session => {
+      }, url).then(session => {
         if (cancelled) session?.stop();
         else cinemaV51PlaybackRef.current = session;
       }).catch(() => {
