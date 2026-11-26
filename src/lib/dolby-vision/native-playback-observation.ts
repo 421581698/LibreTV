@@ -110,10 +110,11 @@ export function advanceNativePlaybackObservation(
       presentedFrames: frameCount === null ? null : 0,
     };
   }
+  const freshFrames = frameCount === null || (previous.lastPresentedFrames !== null && frameCount > previous.lastPresentedFrames);
   return {
     // A moving audio clock with a frozen video frame is not visual playback.
     // When the browser supplies frame counters, demand new frames as well.
-    status: progressedSeconds >= 1 && (presentedFrames === null || presentedFrames > 0)
+    status: progressedSeconds >= 1 && freshFrames && (presentedFrames === null || presentedFrames > 0)
       ? 'progress-observed' : 'waiting',
     videoWidth: sample.videoWidth,
     videoHeight: sample.videoHeight,

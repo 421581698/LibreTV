@@ -116,6 +116,20 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(rendered).not.toHaveProperty('dolbyVisionOutput');
   });
 
+  it('does not retain visual progress when the audio clock advances but frames freeze', () => {
+    const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', {
+      ...playing, presentedVideoFrames: 100,
+    });
+    const rendered = advanceNativePlaybackObservation(start, 'sample', {
+      ...playing, currentTime: 2, presentedVideoFrames: 140,
+    });
+    expect(rendered.status).toBe('progress-observed');
+    const frozen = advanceNativePlaybackObservation(rendered, 'sample', {
+      ...playing, currentTime: 3, presentedVideoFrames: 140,
+    });
+    expect(frozen.status).toBe('waiting');
+  });
+
   it('discards old frame counters after native decoder reset and source changes', () => {
     const before = advanceNativePlaybackObservation(
       advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', {
