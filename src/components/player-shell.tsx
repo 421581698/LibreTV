@@ -850,7 +850,7 @@ export function PlayerShell({
     nativeAudioFallback?: NativeAudioFallbackSnapshot,
   ) => {
     cinemaHdrGpuRef.current?.stop(); cinemaHdrGpuRef.current = null;
-    cinemaHdrVariantsRef.current = null;
+    if (cinemaHdrVariantsRef.current?.url !== mediaUrl) cinemaHdrVariantsRef.current = null;
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
     // remains browser-managed and intentionally exposes no hls.js selector.
     setAudioTrackOptions([]);
