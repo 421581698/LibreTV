@@ -9,6 +9,8 @@ import { cinemaTransformMetadataFrame,type CinemaDynamicToneFrame,type CinemaMas
  * never reinterpret a random HDR Canvas RGBA buffer as P010.
  */
 export interface CinemaP010Frame {
+  /** Explicit studio-swing range; full-range data requires a different decoder. */
+  range:'limited';
   width:number;
   height:number;
   y:Uint16Array;
@@ -47,6 +49,7 @@ function rgbYuv(rgb:CinemaRgb,matrix:CinemaYuvMatrix):[number,number,number] {
 export function cinemaTransformP010Frame(
   input:CinemaP010Frame,settings:CinemaP010TransformOptions,
 ):CinemaP010Frame {
+  if(input.range!=='limited') throw new Error('Only declared limited-range P010 is supported');
   const {width,height,y,uv}=input;
   // The P010 range quantizer below implements studio swing (Y 64..940,
   // C 64..960), which cannot be applied to full-range raw P010 frames.
@@ -77,5 +80,5 @@ export function cinemaTransformP010Frame(
       outputUv[uvIndex+1]=encodeC(sumCr/4);
     }
   }
-  return {width,height,y:outputY,uv:outputUv};
+  return {range:'limited',width,height,y:outputY,uv:outputUv};
 }
