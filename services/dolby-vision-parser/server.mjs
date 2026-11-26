@@ -13,6 +13,37 @@ import { pipeline } from 'node:stream/promises';
 
 const execFileAsync = promisify(execFile);
 
+/** Use demuxed sample durations, not differences between adjacent PTS. */
+export function bindPresentationDurations(packets, mapping) {
+  const { numerator, denominator } = mapping.timeBase;
+  if (numerator !== 1 || !Number.isSafeInteger(denominator) || denominator <= 0 ||
+      !Array.isArray(packets) || packets.length !== mapping.frames.length ||
+      packets.length === 0 || packets.length > 8192) return null;
+  const byPts = new Map();
+  const canonical = /^(?:0|-?[1-9][0-9]{0,18})$/;
+  for (const packet of packets) {
+    if (typeof packet.pts !== 'string' || !canonical.test(packet.pts) ||
+        typeof packet.duration !== 'string' || !/^[1-9][0-9]{0,15}$/.test(packet.duration)) return null;
+    const duration = Number(packet.duration);
+    if (!Number.isSafeInteger(duration) || byPts.has(packet.pts)) return null;
+    byPts.set(packet.pts, duration);
+  }
+  const start = mapping.frames[0].pts;
+  if (!canonical.test(start)) return null;
+  let cursor = BigInt(start);
+  if (cursor < -(1n << 63n) || cursor >= (1n << 63n)) return null;
+  const durations = [];
+  for (const frame of mapping.frames) {
+    const duration = byPts.get(frame.pts);
+    if (!duration || frame.pts !== cursor.toString()) return null;
+    durations.push(duration);
+    cursor += BigInt(duration);
+    if (cursor >= (1n << 63n)) return null;
+  }
+  return { scope: 'independent-sample-durations', timescale: denominator, start, end: cursor.toString(), durations };
+}
+
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ANALYZER = resolve(HERE, '../../scripts/dolby-vision/analyze-rpu.mjs');
 export function readBoundedInteger(name, rawValue, fallback, minimum, maximum) {
@@ -337,6 +368,32 @@ async function analyzeUpload(request, response, env) {
         for(const frame of frames) hash.update(`${frame.frameOrdinal}:${frame.pts}:${frame.rpuSha256}\n`);
         report.frameMappingEvidence={version:1,timeBase,frames,mappingSha256:hash.digest('hex')};
       }
+    }
+    if (sourceContentType === 'video/mp4' && report.frameMappingEvidence) {
+      try {
+        const { stdout: timing, stderr } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
+          '-v', 'error', '-fflags', '+noparse+nofillin', '-protocol_whitelist', 'file',
+          '-f', 'mov', '-enable_drefs', '0', '-select_streams', 'v:0',
+          '-show_packets', '-show_streams', '-show_entries', 'packet=pts,duration:stream=time_base',
+          '-of', 'compact=p=1:nk=0', inputPath,
+        ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 2 * 1024 * 1024 });
+        const rows = timing.trim().split(/\r?\n/);
+        const packets = [];
+        let streamTimeBase = null;
+        let valid = !stderr.trim() && rows.length <= 8193;
+        for (const row of rows) {
+          const packet = /^packet\|pts=(-?\d+)\|duration=(\d+)$/.exec(row);
+          const stream = /^stream\|time_base=(\d+\/\d+)$/.exec(row);
+          if (packet) packets.push({ pts: packet[1], duration: packet[2] });
+          else if (stream && streamTimeBase === null) streamTimeBase = stream[1];
+          else { valid = false; break; }
+        }
+        const { numerator, denominator } = report.frameMappingEvidence.timeBase;
+        if (valid && streamTimeBase === numerator + '/' + denominator) {
+          const evidence = bindPresentationDurations(packets, report.frameMappingEvidence);
+          if (evidence) report.presentationDurationEvidence = evidence;
+        }
+      } catch { /* Unsupported or ambiguous duration evidence stays unestablished. */ }
     }
     report.sourceMediaSha256 = actualSha256;
     const hlsContextHeader = request.headers['x-dv-analysis-scope'];
