@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { PlayerSkipApi } from './player-shell';
+import { probeNativeDolbyAudioCapability, type NativeDolbyAudioCapability } from '@/lib/dolby/native-audio-capability';
 
 interface Props {
   url: string;
@@ -23,9 +24,11 @@ export function NativeCinemaFallback(props: Props) {
   latest.current = props;
   const [failed, setFailed] = useState(false);
   const [size, setSize] = useState('');
+  const [nativeAudio, setNativeAudio] = useState<NativeDolbyAudioCapability | null>(null);
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    setNativeAudio(probeNativeDolbyAudioCapability(mime => video.canPlayType(mime)));
     let disposed = false;
     let restored = false;
     let lastSaved = 0;
@@ -84,7 +87,7 @@ export function NativeCinemaFallback(props: Props) {
     </div>
     {props.panel && <div className="cinema-v4-quality-panel">
       <button type="button" onClick={props.onClosePanel} aria-label="关闭兼容播放面板">关闭</button>
-      <p>{props.panel === 'quality' ? (size ? '实际视频尺寸：' + size : '尚未取得视频尺寸') : '兼容播放模式暂不提供此高级功能。'}</p>
+      {props.panel === 'audio' ? <p>浏览器 AC-3 支持声明：{nativeAudio?.ac3 ?? 'unknown'}；E-AC-3 支持声明：{nativeAudio?.eac3 ?? 'unknown'}。这不代表已输出 Dolby Digital、Dolby Digital Plus 或 Atmos。</p> : <p>{props.panel === 'quality' ? (size ? '实际视频尺寸：' + size : '尚未取得视频尺寸') : '兼容播放模式暂不提供此高级功能。'}</p>}
       <p>原生播放由浏览器管理清晰度与轨道。</p>
     </div>}
   </div>;
