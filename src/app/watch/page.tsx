@@ -206,6 +206,12 @@ function WatchContent() {
     // timeline immediately with the actual position chosen by the engine.
     const actualPosition = video.currentTime;
     if (Number.isFinite(actualPosition)) {
+      if (scrubResetTimerRef.current !== null) {
+        window.clearTimeout(scrubResetTimerRef.current);
+        scrubResetTimerRef.current = null;
+      }
+      scrubbingPositionRef.current = null;
+      setScrubbingPosition(null);
       setWatchClock((current) => ({ ...current, position: actualPosition }));
     }
   };
