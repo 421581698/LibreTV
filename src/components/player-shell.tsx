@@ -34,6 +34,7 @@ import type { CinemaGpuSession } from '@/lib/cinema-hdr-gpu';
 import { startCinemaSdrEnhancedGpu } from '@/lib/cinema-hdr-webgpu';
 import { observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { createCinemaSoundSession, type CinemaSoundSession, type CinemaSoundMode } from '@/lib/cinema-v51-sound';
+import { mountCinemaV51AuthorizedPlayback, type CinemaV51AuthorizedPlayback, type CinemaV51PlaybackMount } from '@/lib/cinema-v51-playback-mount';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
 import { formatTime } from '@/lib/utils';
@@ -146,6 +147,8 @@ interface PlayerShellProps {
   title: string;
   /** iPad-only, page-owned cinema controls; other routes retain ArtPlayer's controls. */
   cinemaMode?: boolean;
+  /** Optional authenticated WebCodecs P010 source. Normal HLS playback does not supply it. */
+  cinemaV51AuthorizedSource?: CinemaV51AuthorizedPlayback;
   cinemaPanel?: 'audio' | 'subtitles' | 'quality' | 'diagnostics' | null;
   onCloseCinemaPanel?: () => void;
   onCinemaPanelChange?: (panel: 'audio' | 'subtitles') => void;
@@ -215,6 +218,7 @@ export function PlayerShell({
   url,
   title,
   cinemaMode = false,
+  cinemaV51AuthorizedSource,
   cinemaPanel = null,
   onCloseCinemaPanel,
   onCinemaPanelChange,
@@ -260,6 +264,7 @@ export function PlayerShell({
   const cinemaHdrGpuRequestRef = useRef(0);
   const cinemaHdrNativeConfirmationRef = useRef<(() => void) | null>(null);
   const cinemaSoundSessionRef = useRef<CinemaSoundSession | null>(null);
+  const cinemaV51PlaybackRef = useRef<CinemaV51PlaybackMount | null>(null);
   const cinemaSoundRequestRef = useRef(0);
   const cinemaSoundRequestedRef = useRef<{url:string;audio:boolean;spatial:boolean}>({
     url:'',audio:false,spatial:false,
@@ -2332,6 +2337,47 @@ export function PlayerShell({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adFilter]);
+
+  // The true 10-bit branch is available only for an independently registered,
+  // source-bound decoder/demuxer. Ordinary Safari HLS is never captured into an
+  // 8-bit canvas and falsely labeled as a verified HDR10+/Dolby display.
+  useEffect(() => {
+    if (!cinemaMode || !cinemaV51AuthorizedSource) return;
+    const video = artRef.current?.video as HTMLVideoElement | undefined;
+    const host = containerRef.current;
+    if (!video || !host) return;
+    let cancelled = false;
+    let mounting = false;
+    let announced = false;
+    const mount = () => {
+      if (cancelled || mounting) return;
+      mounting = true;
+      void mountCinemaV51AuthorizedPlayback(video, host, cinemaV51AuthorizedSource, (state, reason) => {
+        if (cancelled) return;
+        if (state === 'native-fallback') {
+          setDolbyCardStatus(reason);
+          return;
+        }
+        if (!announced) {
+          announced = true;
+          setDolbyCardStatus(reason);
+        }
+      }).then(session => {
+        if (cancelled) session?.stop();
+        else cinemaV51PlaybackRef.current = session;
+      }).catch(() => {
+        if (!cancelled) setDolbyCardStatus('Cinema 10-bit 解码路径不兼容，已保留 Safari 原生播放。');
+      });
+    };
+    if (video.readyState >= 2) mount();
+    else video.addEventListener('loadeddata', mount, { once: true });
+    return () => {
+      cancelled = true;
+      video.removeEventListener('loadeddata', mount);
+      cinemaV51PlaybackRef.current?.stop();
+      cinemaV51PlaybackRef.current = null;
+    };
+  }, [cinemaMode, cinemaV51AuthorizedSource, url, episodeKey]);
 
   const renderAudioTrackOptions = () => (
     <>
