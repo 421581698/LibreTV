@@ -8,7 +8,7 @@ function t35Payload(knee=2048):Uint8Array {
   for(let i=count-1;i>=0;i--) bits.push((value>>>i)&1);
  };
  write(1,2); // num_windows
- write(600,27); // targeted_display nits
+ write(6_000_000,27); // targeted_display_peak in 0.0001 nit units
  write(0,1); // targeted grid absent
  for(const raw of [10000,6000,2000]) write(raw,17); // 1000/600/200 nits
  write(8000,17); // avg 800 nits
