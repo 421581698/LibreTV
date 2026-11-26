@@ -277,7 +277,13 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('pendingEpisodeKeyRef.current = `${sourceKey}:${vodId || nextUrl}:${index}`;');
     expect(watch).toContain('const currentEpisodeKey = `${sourceKey}:${vodId || currentUrl}:${currentIndex}`;');
     expect(watch).toContain('if (currentEpisodeKey !== pendingEpisodeKey) return false;');
-    expect(watch).toContain('return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;');
+    // The episode-key guard now lives in the shared Cinema playback gate.
+    // Verify the watch page delegates to it and the extracted guard still rejects stale events.
+    const gate = read('src/lib/cinema-playback-gate.ts');
+    expect(watch).toContain('return isCinemaPlaybackEventCurrent({');
+    expect(watch).toContain('eventEpisodeKey,');
+    expect(gate).toContain('if (isCinema && (cmsLookupPending || holdingPrevious)) return false;');
+    expect(gate).toContain('return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;');
     expect(database).toContain('const sameEpisode = existing?.episodeIndex === entry.episodeIndex');
     expect(database).toContain('sameEpisode ? existing?.playbackPosition ?? 0 : 0');
     expect(database).toContain("db.transaction('rw', db.history");
