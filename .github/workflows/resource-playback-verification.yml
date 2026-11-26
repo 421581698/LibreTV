@@ -174,6 +174,10 @@ jobs:
           test "$(git hash-object /tmp/dolby-vision-regular.mkv)" = "4e7c735e42dcfddb5232d5b44acb1f2fff56ab5b"
           ffmpeg -nostdin -v error -i /tmp/dolby-vision-regular.mkv -map 0:v:0 -c:v copy -tag:v hvc1 -movflags +faststart /tmp/dolby-vision-regular.mp4
           test -s /tmp/dolby-vision-regular.mp4
+          # Preserve independent container timing diagnostics even if the signed fixture gate fails.
+          ffprobe -v error -select_streams v:0 -show_packets -show_streams -show_entries packet=pts,dts,duration:stream=time_base -of compact=p=1:nk=0 /tmp/dolby-vision-regular.mp4 > /tmp/dolby-vision-packet-timing.txt
+          head -n 12 /tmp/dolby-vision-packet-timing.txt
+          tail -n 5 /tmp/dolby-vision-packet-timing.txt
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 /tmp/dolby-vision-regular.mp4)" = "hevc"
       - name: Verify full RPU extraction from pinned real HEVC fixture
         run: |
