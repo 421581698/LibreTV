@@ -13,6 +13,10 @@ export interface NativePlaybackObservation {
   mediaErrorCode: number | null;
   baselineTime: number | null;
   lastTime: number | null;
+  /** Decoded/presented frame counter from the browser, when exposed. */
+  presentedFrames: number | null;
+  baselinePresentedFrames: number | null;
+  lastPresentedFrames: number | null;
 }
 
 export interface NativePlaybackSample {
@@ -24,6 +28,8 @@ export interface NativePlaybackSample {
   seeking: boolean;
   ended: boolean;
   mediaErrorCode: number | null;
+  /** HTMLVideoElement.getVideoPlaybackQuality().totalVideoFrames; null when unavailable. */
+  totalVideoFrames?: number | null;
 }
 
 export function emptyNativePlaybackObservation(): NativePlaybackObservation {
@@ -35,6 +41,9 @@ export function emptyNativePlaybackObservation(): NativePlaybackObservation {
     mediaErrorCode: null,
     baselineTime: null,
     lastTime: null,
+    presentedFrames: null,
+    baselinePresentedFrames: null,
+    lastPresentedFrames: null,
   };
 }
 
@@ -73,26 +82,54 @@ export function advanceNativePlaybackObservation(
   // Never use such a jump as playback progression evidence.
   const jumped = previous.lastTime !== null &&
     (time < previous.lastTime || time - previous.lastTime > 5);
-  const baselineTime = previous.baselineTime === null || jumped ? time : previous.baselineTime;
+  const rawFrames = sample.totalVideoFrames;
+  const frameCount = typeof rawFrames === 'number' && Number.isSafeInteger(rawFrames) && rawFrames >= 0
+    ? rawFrames : null;
+  // The platform may reset counters after decoder recreation, without
+  // dispatching loadstart. Do not join frame evidence across that boundary.
+  const frameCounterReset = frameCount !== null && previous.lastPresentedFrames !== null &&
+    frameCount < previous.lastPresentedFrames;
+  const baselineTime = previous.baselineTime === null || jumped || frameCounterReset ? time : previous.baselineTime;
+  const baselinePresentedFrames = previous.baselineTime === null || jumped || frameCounterReset
+    ? frameCount : previous.baselinePresentedFrames;
+  const presentedFrames = frameCount === null || baselinePresentedFrames === null
+    ? null : Math.max(0, frameCount - baselinePresentedFrames);
   const progressedSeconds = Math.max(0, time - baselineTime);
   // A stalled timeupdate event or duplicate sample cannot establish ongoing
   // playback, even when an earlier sample crossed the progress threshold.
   if (previous.lastTime === time) {
     if (previous.status === 'waiting') return previous;
-    return { ...previous, status: 'waiting', baselineTime: time, progressedSeconds: 0 };
+    return {
+      ...previous, status: 'waiting', baselineTime: time, progressedSeconds: 0,
+      baselinePresentedFrames: frameCount, lastPresentedFrames: frameCount,
+      presentedFrames: frameCount === null ? null : 0,
+    };
   }
   return {
-    status: progressedSeconds >= 1 ? 'progress-observed' : 'waiting',
+    // A moving audio clock with a frozen video frame is not visual playback.
+    // When the browser supplies frame counters, demand new frames as well.
+    status: progressedSeconds >= 1 && (presentedFrames === null || presentedFrames > 0)
+      ? 'progress-observed' : 'waiting',
     videoWidth: sample.videoWidth,
     videoHeight: sample.videoHeight,
     progressedSeconds,
     mediaErrorCode: null,
     baselineTime,
     lastTime: time,
+    presentedFrames,
+    baselinePresentedFrames,
+    lastPresentedFrames: frameCount,
   };
 }
 
 function readNativeVideoSample(video: HTMLVideoElement): NativePlaybackSample {
+  let totalVideoFrames: number | null = null;
+  try {
+    const count = video.getVideoPlaybackQuality?.().totalVideoFrames;
+    if (typeof count === 'number' && Number.isSafeInteger(count) && count >= 0) totalVideoFrames = count;
+  } catch {
+    // iPadOS Safari can omit this API. A missing counter is not zero frames.
+  }
   return {
     currentTime: video.currentTime,
     videoWidth: video.videoWidth,
@@ -102,6 +139,7 @@ function readNativeVideoSample(video: HTMLVideoElement): NativePlaybackSample {
     seeking: video.seeking,
     ended: video.ended,
     mediaErrorCode: video.error?.code ?? null,
+    totalVideoFrames,
   };
 }
 
