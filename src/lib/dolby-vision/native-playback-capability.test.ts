@@ -50,6 +50,13 @@ describe('native Dolby Vision browser capability signals', () => {
     expect(result.actualDolbyVisionOutput).toBe('unverified');
   });
 
+  it('distinguishes unsupported dynamic-range queries from standard-range displays', () => {
+    expect(probeNativeDolbyVisionCapabilities(report, () => '', () => ({ matches: false })).hdrDisplayHint).toBe('unknown');
+    expect(probeNativeDolbyVisionCapabilities(report, () => '', (query) => ({
+      matches: query === '(dynamic-range: standard)',
+    })).hdrDisplayHint).toBe('standard');
+  });
+
   it('does not confuse HDR display hints with supported video codecs', () => {
     const result = probeNativeDolbyVisionCapabilities(report, () => '', () => ({ matches: true }));
     expect(result.codecs[0].support).toBe('no');

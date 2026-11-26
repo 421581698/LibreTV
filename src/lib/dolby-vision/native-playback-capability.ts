@@ -56,7 +56,8 @@ export function probeNativeDolbyVisionCapabilities(
   let hdrDisplayHint: DolbyVisionNativeCapabilityReport['hdrDisplayHint'] = 'unknown';
   if (matchMedia) {
     try {
-      hdrDisplayHint = matchMedia('(dynamic-range: high)').matches ? 'high' : 'standard';
+      hdrDisplayHint = matchMedia('(dynamic-range: high)').matches ? 'high' :
+        matchMedia('(dynamic-range: standard)').matches ? 'standard' : 'unknown';
     } catch {
       // Unsupported media query surface: no HDR verdict.
     }

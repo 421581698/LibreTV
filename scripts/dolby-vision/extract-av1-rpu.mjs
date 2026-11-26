@@ -296,6 +296,9 @@ async function demuxAv1Container(inputPath, directory, options) {
     child.once('close', (code) => code === 0 ? resolve() :
       reject(new Error('AV1 demux failed before complete output was obtained.')));
   });
+  // Mark rejection handled immediately, even if the stream is still draining.
+  // The original promise is awaited below so failures still propagate.
+  void completion.catch(() => {});
   // Install the close/error observer before awaiting the stream. A failed
   // pipeline must kill FFmpeg so a blocked stdout writer cannot hang forever.
   const timeout = setTimeout(() => child.kill('SIGKILL'), 15 * 60 * 1000);
