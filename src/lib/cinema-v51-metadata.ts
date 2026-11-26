@@ -128,11 +128,15 @@ export function cinemaTransformMetadataFrame(
   // Reuse the same ST2084/HLG EOTF and XYZ gamut matrices. The dynamic curve
   // must be applied in absolute nits *before* re-encoding target transfer.
   // Every decoded channel remains high precision until the final output transfer.
-  const tonal=rgb.map((component)=>
-    cinemaHdr10PlusToneMap(
-      cinemaDecodeLuminance(component,options.sourceTransfer,options.sourceWhiteNits,peak),
-      peak,target,dynamic,
-    )) as [number,number,number];
+  const decoded=rgb.map(component=>
+    cinemaDecodeLuminance(component,options.sourceTransfer,options.sourceWhiteNits,peak),
+  ) as [number,number,number];
+  const maxComponent=Math.max(0,...decoded);
+  const mappedPeak=cinemaHdr10PlusToneMap(maxComponent,peak,target,dynamic);
+  const commonScale=maxComponent>0?mappedPeak/maxComponent:0;
+  // HDR10+ Bezier curve controls the pixel peak, not each color channel
+  // independently. This guards against hue drift in highly saturated scenes.
+  const tonal=decoded.map(component=>component*commonScale) as [number,number,number];
   const gamut=cinemaConvertGamut(tonal,options.sourcePrimaries,options.targetPrimaries);
   const mapped=gamut.map(value=>cinemaEncodeLuminance(
     Math.max(0,value),options.targetTransfer,options.targetWhiteNits,target,
