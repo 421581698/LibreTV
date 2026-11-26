@@ -89,3 +89,14 @@ describe('source switching preserves the active player edition', () => {
     expect(modal).toContain('targetIndex === currentIndex ? getCurrentPosition?.() ?? 0 : 0');
   });
 });
+
+
+describe('Cinema player lifecycle', () => {
+  it('keeps the healthy iPad player boundary stable across media URLs', () => {
+    const watch = read('src/app/watch/page.tsx');
+    expect(watch).toContain('key={isIpadEditionPlayback ? "ipad-cinema" : playerUrl} resetKey={playerUrl}');
+    expect(watch).toContain('<NativeCinemaFallback key={playerUrl}');
+    const boundary = read('src/components/playback-error-boundary.tsx');
+    expect(boundary).toContain('this.state.failed && previousProps.resetKey !== this.props.resetKey');
+  });
+});
