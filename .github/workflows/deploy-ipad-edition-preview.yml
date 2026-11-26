@@ -201,6 +201,12 @@ jobs:
         run: |
           mkdir -p artifacts/ipad-visual-audit/cms-playback
           node scripts/ipad-cinema-cms-playwright-smoke.mjs
+      - name: Preview E2E three live Cinema effects and startup animations
+        if: ${{ !cancelled() && steps.deploy_preview.outcome == 'success' && steps.install_chromium.outcome == 'success' }}
+        timeout-minutes: 8
+        run: |
+          mkdir -p artifacts/ipad-visual-audit/cinema-effects
+          node scripts/ipad-cinema-preview-effects-playwright-smoke.mjs
       - name: Audit Friday glass appearance and capsule motion
         shell: bash
         timeout-minutes: 7
