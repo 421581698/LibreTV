@@ -232,20 +232,7 @@
   outline: 2px solid rgba(255,255,255,.85);
 }
 
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-progress::-webkit-slider-runnable-track {
-  height: 3px;
-  border-radius: 3px;
-  background: linear-gradient(to right,#f5f5f7 var(--watch-progress,0%),rgba(255,255,255,.36) var(--watch-progress,0%));
-}
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-progress::-moz-range-track { height: 3px; border-radius: 3px; background: rgba(255,255,255,.36); }
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-progress::-moz-range-progress { height: 3px; background: #f5f5f7; }
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-progress::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 13px; height: 13px; margin-top: -5px;
-  border: 2px solid #fff; border-radius: 50%; background: #fff;
-  box-shadow: 0 1px 5px #0008;
-}
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-progress::-moz-range-thumb { width: 12px; height: 12px; border: none; border-radius: 50%; background: #fff; }
+/* Cinema uses a custom slider div; native input[type=range] pseudo-elements are not rendered. */
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .cinema-v4-actions {
   position: absolute;
   z-index: 75;
