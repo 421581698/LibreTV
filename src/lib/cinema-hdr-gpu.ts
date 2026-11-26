@@ -61,7 +61,7 @@ function shader(gl: WebGLRenderingContext, type: number, code: string): WebGLSha
   return handle;
 }
 export function startCinemaSdrGpu(
-  video: HTMLVideoElement, host: HTMLElement, onStatus: CinemaGpuCallback,
+  video: HTMLVideoElement, host: HTMLElement, onStatus: CinemaGpuCallback, enableP3 = false,
 ): CinemaGpuSession | null {
   const canvas = document.createElement('canvas');
   canvas.dataset.cinemaHdrGpu = 'true';
@@ -72,6 +72,14 @@ export function startCinemaSdrGpu(
   if (!gl) {
     onStatus('unavailable', '此设备未提供可用的 WebGL 视频增强路径，保留原始视频。');
     return null;
+  }
+  if (enableP3) {
+    try {
+      const target = gl as WebGLRenderingContext & {drawingBufferColorSpace?:string};
+      if ('drawingBufferColorSpace' in target) target.drawingBufferColorSpace = 'display-p3';
+    } catch {
+      // Unsupported wide-gamut drawing buffers retain the browser default.
+    }
   }
   const backend: CinemaGpuBackend = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext
     ? 'webgl2' : 'webgl1';
