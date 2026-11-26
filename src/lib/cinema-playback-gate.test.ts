@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from './cinema-playback-gate';
+import { isCinemaPlaybackEventCurrent, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from './cinema-playback-gate';
 
 const ordinary: CinemaPlaybackMedia = {
   url: 'https://cdn.example/new.m3u8',
@@ -64,5 +64,40 @@ describe('Cinema CMS playback gate', () => {
     expect(selectCinemaPlaybackMedia({
       isCinema: false, cmsLookupPending: true, current: ordinary, lastReady: verified,
     })).toEqual({ media: ordinary, holdingPrevious: false, showPlayer: false });
+  });
+});
+
+describe('Cinema retained-media event isolation', () => {
+  const common = { isCinema: true, currentEpisodeKey: 'cms:vod:0' };
+
+  it('rejects outgoing media events during verification, even with a reused episode key', () => {
+    expect(isCinemaPlaybackEventCurrent({
+      ...common, cmsLookupPending: true, holdingPrevious: true, eventEpisodeKey: 'cms:vod:0',
+    })).toBe(false);
+    expect(isCinemaPlaybackEventCurrent({
+      ...common, cmsLookupPending: true, holdingPrevious: false, eventEpisodeKey: 'cms:vod:0',
+    })).toBe(false);
+  });
+
+  it('rejects held media after verification state changes until it is released', () => {
+    expect(isCinemaPlaybackEventCurrent({
+      ...common, cmsLookupPending: false, holdingPrevious: true, eventEpisodeKey: 'cms:vod:0',
+    })).toBe(false);
+  });
+
+  it('accepts only the verified current episode after the gate opens', () => {
+    expect(isCinemaPlaybackEventCurrent({
+      ...common, cmsLookupPending: false, holdingPrevious: false, eventEpisodeKey: 'cms:vod:0',
+    })).toBe(true);
+    expect(isCinemaPlaybackEventCurrent({
+      ...common, cmsLookupPending: false, holdingPrevious: false, eventEpisodeKey: 'cms:vod:1',
+    })).toBe(false);
+  });
+
+  it('preserves non-Cinema classic playback behavior', () => {
+    expect(isCinemaPlaybackEventCurrent({
+      ...common, isCinema: false, cmsLookupPending: true, holdingPrevious: false,
+      eventEpisodeKey: 'cms:vod:0',
+    })).toBe(true);
   });
 });
