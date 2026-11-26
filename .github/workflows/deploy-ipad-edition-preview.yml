@@ -1944,7 +1944,7 @@ jobs:
                 if (!autoHideReached) failures += 1;
                 const fullyHiddenPlaybackChrome = await page.evaluate(() => {
                   const selectors = [".watch-topbar", ".cinema-center-controls", ".watch-cinema-info",
-                    ".watch-cinema-progress", ".player-quality-controls"];
+                    ".watch-cinema-progress", ".cinema-v4-actions"];
                   return Object.fromEntries(selectors.map(selector => {
                     const node = document.querySelector(selector);
                     const style = node ? getComputedStyle(node) : null;
@@ -1956,7 +1956,8 @@ jobs:
                       pointerEvents: style.pointerEvents } : null];
                   }));
                 });
-                const hiddenChromePassed = Object.values(fullyHiddenPlaybackChrome).every(state =>
+                const qualityPanelClosed = await page.locator(".cinema-v4-quality-panel, .player-quality-controls").count() === 0;
+                const hiddenChromePassed = qualityPanelClosed && Object.values(fullyHiddenPlaybackChrome).every(state =>
                   state && state.visibility === "hidden" && state.effectiveOpacity <= 0.05 && state.pointerEvents === "none"
                 );
                 console.log(JSON.stringify({ name: viewport.name + "-" + colorScheme + "-auto-hide", hiddenChromePassed, fullyHiddenPlaybackChrome }));
