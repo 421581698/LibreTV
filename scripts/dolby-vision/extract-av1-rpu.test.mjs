@@ -275,3 +275,17 @@ test('rejects invalid libdovi output sizes without publishing RPU evidence', asy
     await assert.rejects(readFile(output), { code: 'ENOENT' });
   }
 });
+
+
+test('bounds temporal unit bookkeeping before allocating unbounded alignment records', () => {
+  const delimiter = obu(2, Buffer.alloc(0));
+  const input = Buffer.concat(Array(100001).fill(delimiter));
+  assert.throws(() => extractDolbyRpuFromObuStream(input), /temporal unit count exceeds configured limit/);
+});
+
+test('bounds frame unit bookkeeping independently of metadata count', () => {
+  const delimiter = obu(2, Buffer.alloc(0));
+  const frame = obu(6, Buffer.from([0]));
+  const input = Buffer.concat([delimiter, ...Array(100001).fill(frame)]);
+  assert.throws(() => extractDolbyRpuFromObuStream(input), /frame unit count exceeds configured limit/);
+});

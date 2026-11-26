@@ -141,11 +141,15 @@ function parseDolbyRpuObuStream(inputValue) {
       if (payload.length !== 0 || extensionPresent) {
         throw new Error('AV1 temporal delimiter must have an empty payload and no extension header.');
       }
+      if (temporalDelimiterCount >= MAX_RPU_UNITS) {
+        throw new Error('AV1 temporal unit count exceeds configured limit.');
+      }
       temporalUnit += 1;
       temporalDelimiterCount += 1;
       framesByTemporalUnit.set(temporalUnit, 0);
     } else if (type === 3 || type === 6) {
       if (temporalUnit < 0) throw new Error('AV1 frame appeared before a temporal delimiter.');
+      if (frameUnitCount >= MAX_RPU_UNITS) throw new Error('AV1 frame unit count exceeds configured limit.');
       frameUnitCount += 1;
       framesByTemporalUnit.set(temporalUnit, (framesByTemporalUnit.get(temporalUnit) || 0) + 1);
     } else if (type === 5) {
