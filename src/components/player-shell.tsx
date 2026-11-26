@@ -2148,6 +2148,47 @@ export function PlayerShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adFilter]);
 
+  const renderAudioTrackOptions = () => (
+    <>
+              <p className="mb-2 text-sm font-semibold">选择音轨</p>
+              <div className="space-y-1">
+                {audioTrackOptions.map((track) => (
+                  <button
+                    key={track.id}
+                    type="button"
+                    aria-pressed={selectedAudioTrack === track.id}
+                    className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${selectedAudioTrack === track.id ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                    onClick={() => {
+                      const hls = hlsRef.current;
+                      experimentalAudioSessionRef.current?.onTrackChange();
+                      experimentalHlsControllerRef.current?.onInterruption();
+                      const previous = hls?.audioTrack ?? -1;
+                      const switched = Boolean(hls && selectHlsAudioTrack(hls, track.id));
+                      if (!switched) {
+                        // A rejected switch must not leave an authorized
+                        // experimental session suspended indefinitely.
+                        experimentalHlsControllerRef.current?.onResume();
+                        showHint('当前音轨不可用，请稍后重试');
+                        return;
+                      }
+                      if (hls && previous === track.id) {
+                        experimentalHlsControllerRef.current?.onResume();
+                      }
+                      if (hls && previous !== track.id) {
+                        pendingAudioTrackRef.current = { hls, requested: track.id, previous };
+                        showHint('正在切换音轨…');
+                      }
+                      setAudioTrackPanelOpen(false);
+                      // Keep the Cinema sheet open so the user can verify the selected track.
+                    }}
+                  >
+                    {track.label}{track.isDefault ? ' · 默认' : ''}
+                  </button>
+                ))}
+              </div>
+    </>
+  );
+
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
@@ -2180,6 +2221,7 @@ export function PlayerShell({
             </button>
           </div>
           <p className="cinema-v4-dolby-status" role="status">{dolbyCardStatus}</p>
+          {audioTrackOptions.length > 1 && <div className="mt-4 border-t border-white/15 pt-3" data-testid="cinema-audio-track-controls">{renderAudioTrackOptions()}</div>}
         </div>
       )}
       {cinemaMode && cinemaPanel === 'subtitles' && (
@@ -2218,42 +2260,7 @@ export function PlayerShell({
           </button>}
           {(cinemaMode || audioTrackPanelOpen) && (
             <div className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/15 bg-black/90 p-3 text-white shadow-2xl backdrop-blur-xl" role="group" aria-label="可用音轨">
-              <p className="mb-2 text-sm font-semibold">选择音轨</p>
-              <div className="space-y-1">
-                {audioTrackOptions.map((track) => (
-                  <button
-                    key={track.id}
-                    type="button"
-                    aria-pressed={selectedAudioTrack === track.id}
-                    className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${selectedAudioTrack === track.id ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                    onClick={() => {
-                      const hls = hlsRef.current;
-                      experimentalAudioSessionRef.current?.onTrackChange();
-                      experimentalHlsControllerRef.current?.onInterruption();
-                      const previous = hls?.audioTrack ?? -1;
-                      const switched = Boolean(hls && selectHlsAudioTrack(hls, track.id));
-                      if (!switched) {
-                        // A rejected switch must not leave an authorized
-                        // experimental session suspended indefinitely.
-                        experimentalHlsControllerRef.current?.onResume();
-                        showHint('当前音轨不可用，请稍后重试');
-                        return;
-                      }
-                      if (hls && previous === track.id) {
-                        experimentalHlsControllerRef.current?.onResume();
-                      }
-                      if (hls && previous !== track.id) {
-                        pendingAudioTrackRef.current = { hls, requested: track.id, previous };
-                        showHint('正在切换音轨…');
-                      }
-                      setAudioTrackPanelOpen(false);
-                      if (cinemaMode) onCloseCinemaPanel?.();
-                    }}
-                  >
-                    {track.label}{track.isDefault ? ' · 默认' : ''}
-                  </button>
-                ))}
-              </div>
+{renderAudioTrackOptions()}
             </div>
           )}
         </div>
