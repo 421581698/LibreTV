@@ -9,6 +9,9 @@ on:
       - integration/**
     paths:
       - "src/lib/dolby/**"
+      - "src/lib/dolby-vision/**"
+      - "scripts/dolby-vision/**"
+      - "services/dolby-vision-parser/**"
       - "services/scrapling-collector/**"
       - "services/scrapling-collector/stats.py"
       - "services/scrapling-collector/tests/test_stats.py"
@@ -30,6 +33,9 @@ on:
   pull_request:
     paths:
       - "src/lib/dolby/**"
+      - "src/lib/dolby-vision/**"
+      - "scripts/dolby-vision/**"
+      - "services/dolby-vision-parser/**"
       - "services/scrapling-collector/**"
       - "src/app/api/resource-collector/**"
       - "src/components/source-manager.tsx"
