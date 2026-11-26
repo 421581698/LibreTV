@@ -25,6 +25,7 @@ import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-h
 import { shouldPreferNativeDolbyVisionHls } from '@/lib/dolby-vision/native-hls-playback-policy';
 import { shouldPreferNativeDolbyAudioHls } from '@/lib/dolby/native-audio-hls-policy';
 import { ExperimentalAudioSession } from '@/lib/dolby/experimental-audio-session';
+import { ExperimentalHlsAudioController } from '@/lib/dolby/experimental-hls-audio-controller';
 import { captureNativeAudioFallback, fallbackResumeTime, type NativeAudioFallbackSnapshot } from '@/lib/dolby/native-audio-fallback';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
@@ -250,6 +251,11 @@ export function PlayerShell({
   const hlsRef = useRef<Hls | null>(null);
   // No experimental decoder is supplied by default. Native audio remains primary.
   const experimentalAudioSessionRef = useRef<ExperimentalAudioSession | null>(null);
+  const experimentalHlsControllerRef = useRef<ExperimentalHlsAudioController | null>(null);
+  const [experimentalAudioStatus, setExperimentalAudioStatus] = useState('原生音频（实验通道关闭）');
+  const [experimentalAudioAuthorized, setExperimentalAudioAuthorized] = useState(false);
+  const [experimentalAudioFile, setExperimentalAudioFile] = useState<File | null>(null);
+  const [experimentalAudioOrigin, setExperimentalAudioOrigin] = useState('0');
   const pendingAudioTrackRef = useRef<{ hls: Hls; requested: number; previous: number } | null>(null);
   /** Prevent an unsupported native path from looping with hls.js fallback. */
   const nativeDolbyHlsAttemptedRef = useRef<string | null>(null);
@@ -337,6 +343,16 @@ export function PlayerShell({
     window.addEventListener('friday-player-control', handleFridayPlayerCommand);
     return () => window.removeEventListener('friday-player-control', handleFridayPlayerCommand);
   }, []);
+
+  const getExperimentalHlsController = () => {
+    if (!experimentalHlsControllerRef.current) {
+      experimentalHlsControllerRef.current = new ExperimentalHlsAudioController((message, enabled) => {
+        setExperimentalAudioStatus(message);
+        setExperimentalAudioAuthorized(enabled);
+      });
+    }
+    return experimentalHlsControllerRef.current;
+  };
 
   // 始终持有最新 props/回调，避免重建播放器
   const activeEpisodeKeyRef = useRef(episodeKey ?? '');
@@ -617,6 +633,7 @@ export function PlayerShell({
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
     pendingAudioTrackRef.current = null;
+    experimentalHlsControllerRef.current?.onSourceChange();
     experimentalAudioSessionRef.current?.onSourceChange();
     // Direct MP4/WebM customType callbacks can bypass setupHls; advance the
     // generation here so pending HLS restore promises cannot mutate this source.
@@ -704,6 +721,7 @@ export function PlayerShell({
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
     pendingAudioTrackRef.current = null;
+    experimentalHlsControllerRef.current?.onSourceChange();
     experimentalAudioSessionRef.current?.onSourceChange();
     // Every HLS reconfiguration (including direct→proxy fallback and fatal-error
     // recovery) invalidates async restore work from the previous media pipeline.
@@ -858,6 +876,8 @@ export function PlayerShell({
     // recovery state, or the replacement media element.
     const isCurrentHls = () =>
       hlsRef.current === hls && loadGeneration === mediaLoadGenerationRef.current;
+    // Only this exact HLS instance can receive explicitly authorized audio.
+    getExperimentalHlsController().setSource(hls, video, isCurrentHls);
     setQualityControlMode('hls');
     const handleQualityPreferenceChange = () => {
       const preference = readQualityPreference();
@@ -956,9 +976,13 @@ export function PlayerShell({
       setSelectedAudioTrack(hls.audioTrack);
     };
     hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, observeAudioTracks);
+    hls.on(Hls.Events.AUDIO_TRACK_SWITCHING, () => {
+      if (isCurrentHls()) experimentalHlsControllerRef.current?.onInterruption();
+    });
     hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
       if (!isCurrentHls()) return;
       experimentalAudioSessionRef.current?.onTrackChange();
+      experimentalHlsControllerRef.current?.onResume();
       const pending = pendingAudioTrackRef.current;
       if (pending?.hls === hls && pending.requested === data.id) {
         pendingAudioTrackRef.current = null;
@@ -1208,6 +1232,7 @@ export function PlayerShell({
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
     pendingAudioTrackRef.current = null;
+    experimentalHlsControllerRef.current?.onSourceChange();
     experimentalAudioSessionRef.current?.onSourceChange();
     setAvailableQualityLevelCount(0);
     setQualityMetadataComplete(false);
@@ -1397,10 +1422,12 @@ export function PlayerShell({
      */
     art.on('video:ratechange', () => {
       experimentalAudioSessionRef.current?.onRateChange();
+      experimentalHlsControllerRef.current?.onInterruption();
       const video = art.video;
       if (video && video.playbackRate !== video.defaultPlaybackRate) {
         video.defaultPlaybackRate = video.playbackRate;
       }
+      experimentalHlsControllerRef.current?.onResume();
     });
 
     // 播放页「记录当前」需要精确时间：不能依赖 5s 节流的 onTimeUpdate
@@ -1478,6 +1505,7 @@ export function PlayerShell({
     });
 
     art.on('video:playing', () => {
+      experimentalHlsControllerRef.current?.onResume();
       const metrics = playbackMetricsRef.current;
       if (metrics.firstFragmentMs === undefined) metrics.firstFragmentMs = Date.now() - metrics.startedAt;
       if (metrics.waiting) metrics.recoveries += 1;
@@ -1529,6 +1557,7 @@ export function PlayerShell({
     });
     art.on('video:error', () => {
       experimentalAudioSessionRef.current?.fail();
+      experimentalHlsControllerRef.current?.disable();
       playbackMetricsRef.current.fatalErrors += 1;
       mediaHealthyRef.current = false;
       // 起播阶段的 video 元素级错误：原实现会重建一次播放链路自愈。
@@ -1626,8 +1655,12 @@ export function PlayerShell({
         active && !handledSegmentsRef.current.has(segmentKey(active)) ? active : null;
       updateSkipPrompt(prompt);
     });
-    art.on('video:seeking', () => experimentalAudioSessionRef.current?.onSeek());
+    art.on('video:seeking', () => {
+      experimentalAudioSessionRef.current?.onSeek();
+      experimentalHlsControllerRef.current?.onInterruption();
+    });
     art.on('video:seeked', () => {
+      experimentalHlsControllerRef.current?.onResume();
       // seek 是用户主动行为：拉平采样基准，避免下一拍被误判为「连续越过片尾」。
       // 暂停中 seek 不会触发 timeupdate，这里也同步刷新按钮的显隐。
       const current = art.currentTime;
@@ -1643,6 +1676,7 @@ export function PlayerShell({
       // cancel playback confirmation or persist a stale pause in that case.
       if (art.video && !art.video.paused && !art.video.ended) return;
       experimentalAudioSessionRef.current?.onPause();
+      experimentalHlsControllerRef.current?.onInterruption();
       if (playbackConfirmationTimerRef.current) {
         clearTimeout(playbackConfirmationTimerRef.current);
         playbackConfirmationTimerRef.current = null;
@@ -1651,6 +1685,7 @@ export function PlayerShell({
       if (!endedRef.current) propsRef.current.onPause?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
     });
     art.on('video:waiting', () => {
+      experimentalHlsControllerRef.current?.onInterruption();
       const metrics = playbackMetricsRef.current;
       if (!art.video?.paused && !metrics.waiting) {
         metrics.stalls += 1;
@@ -1906,6 +1941,8 @@ export function PlayerShell({
         qualityPreferenceHandlerRef.current = null;
       }
       pendingAudioTrackRef.current = null;
+      experimentalHlsControllerRef.current?.dispose();
+      experimentalHlsControllerRef.current = null;
       experimentalAudioSessionRef.current?.close();
       experimentalAudioSessionRef.current = null;
       hlsRef.current?.destroy();
@@ -1974,6 +2011,7 @@ export function PlayerShell({
       // Update the identity without needlessly reloading an unchanged media URL.
       // The URL did not change, but the logical episode identity did.
       // Invalidate any asynchronous restore lookup started for the previous identity.
+      experimentalHlsControllerRef.current?.onSourceChange();
       mediaLoadGenerationRef.current += 1;
       activeEpisodeKeyRef.current = episodeKey ?? '';
       pendingEpisodeKeyRef.current = null;
@@ -2011,6 +2049,32 @@ export function PlayerShell({
           <h3>音轨</h3>
           <p>{audioTrackOptions.length === 1 ? `当前音轨：${audioTrackOptions[0].label}` : '当前播放路径没有提供可切换的音轨列表。Safari 原生 HLS 可能由系统管理音轨。'}</p>
           <p>音轨名称或声道数不能证明 Dolby Atmos 解码或设备输出。</p>
+        </div>
+      )}
+      {cinemaMode && cinemaPanel === 'audio' && (
+        <div className="cinema-v4-empty-panel" role="group" aria-label="实验性 Dolby 音频">
+          <h3>实验性 EC-3 / OpenJOC PCM（手动授权）</h3>
+          <p>默认使用原生音频。仅支持已授权、未加密的单节目 MPEG-TS，且需自行核对 90kHz PTS 基准。不是经过认证的 Atmos 输出。</p>
+          <label>本地 OpenJOC WASM 文件（不上传）
+            <input type="file" accept=".wasm,application/wasm" aria-label="选择本地 OpenJOC WASM" onChange={(event) => {
+              experimentalHlsControllerRef.current?.disable();
+              setExperimentalAudioFile(event.target.files?.[0] ?? null);
+            }} />
+          </label>
+          <label>时间轴起点 PTS（90kHz）
+            <input type="number" min="0" step="1" value={experimentalAudioOrigin} aria-label="实验音频 PTS 时间轴起点" onChange={(event) => setExperimentalAudioOrigin(event.target.value)} />
+          </label>
+          <button type="button" aria-pressed={experimentalAudioAuthorized} onClick={() => {
+            const controller = getExperimentalHlsController();
+            if (controller.enabled) {
+              controller.disable();
+            } else if (!experimentalAudioFile) {
+              setExperimentalAudioStatus('请先选择本地 OpenJOC WASM 文件');
+            } else {
+              controller.enable(experimentalAudioFile, Number(experimentalAudioOrigin));
+            }
+          }}>{experimentalAudioAuthorized ? '关闭实验音频' : '授权启用实验音频'}</button>
+          <p role="status">{experimentalAudioStatus}</p>
         </div>
       )}
       {cinemaMode && cinemaPanel === 'subtitles' && (
@@ -2060,6 +2124,7 @@ export function PlayerShell({
                     onClick={() => {
                       const hls = hlsRef.current;
                       experimentalAudioSessionRef.current?.onTrackChange();
+                      experimentalHlsControllerRef.current?.onInterruption();
                       const previous = hls?.audioTrack ?? -1;
                       const switched = Boolean(hls && selectHlsAudioTrack(hls, track.id));
                       if (!switched) {
