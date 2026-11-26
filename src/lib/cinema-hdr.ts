@@ -67,6 +67,14 @@ function manifestVariants(manifest: string): Array<Record<string,string>> {
     .filter(line => line.startsWith('#EXT-X-STREAM-INF:'))
     .map(parseManifestAttrs);
 }
+/**
+ * AV1 RFC 6381 optional CICP fields describe source primaries and transfer;
+ * they must not be confused with the actual selected rendition or display.
+ */
+function av1Cicp(codec: string): { primaries: number; transfer: number } | null {
+  const match = /^av01\.\d+\.\d+[MH]\.\d{2}\.\d\.\d{3}\.(\d{2})\.(\d{2})\.\d{2}\.\d$/i.exec(codec);
+  return match ? {primaries: Number(match[1]), transfer: Number(match[2])} : null;
+}
 function declaredDepth(codec: string): 8 | 10 | 12 | null {
   const av1 = /^av01\.\d+\.\d+[MH]\.([0-9]{2})/i.exec(codec);
   if (av1) return Number(av1[1]) === 8 ? 8 : Number(av1[1]) === 10 ? 10 : Number(av1[1]) === 12 ? 12 : null;
@@ -83,14 +91,20 @@ export function inspectCinemaHdrVariants(
     const all = [...tokens(attrs.CODECS || ''), ...tokens(attrs['SUPPLEMENTAL-CODECS'] || '').map(s => s.split('/')[0])];
     const codec = all.find(s => DV_CODEC.test(s)) ?? all.find(s => HEVC_CODEC.test(s) || AV1_CODEC.test(s)) ?? all[0] ?? '';
     const range = (attrs['VIDEO-RANGE'] || '').toUpperCase();
-    const transfer: CinemaTransfer = range === 'PQ' ? 'pq' : range === 'HLG' ? 'hlg' : range === 'SDR' ? 'sdr' : 'unknown';
+    const cicp = av1Cicp(codec);
+    const transfer: CinemaTransfer = range === 'PQ' ? 'pq' : range === 'HLG' ? 'hlg' : range === 'SDR' ? 'sdr'
+      : cicp?.transfer === 16 ? 'pq' : cicp?.transfer === 18 ? 'hlg'
+        : cicp?.transfer === 1 ? 'sdr' : 'unknown';
     const dv = all.some(s => DV_CODEC.test(s));
     const format: CinemaHdrFormat = dv ? 'dolby-vision' : transfer === 'hlg' ? 'hlg' :
       transfer === 'pq' ? 'hdr10-candidate' : transfer === 'sdr' ? 'sdr' : 'unknown';
-    // Standard HLS VIDEO-RANGE is a transfer declaration, not a wide-gamut
-    // descriptor; do not infer BT.2020 or P3 from PQ/HLG alone.
+    // Standard HLS VIDEO-RANGE is NOT a primaries declaration. Only the
+    // explicitly signaled AV1 CICP fields identify source wide-gamut primaries.
+    const colorGamut: CinemaGamut = cicp?.primaries === 9 ? 'bt2020'
+      : cicp?.primaries === 12 ? 'p3'
+        : cicp?.primaries === 1 ? 'srgb' : 'unknown';
     return { codec, transfer, format, declaredBitDepth: declaredDepth(codec),
-      colorGamut: 'unknown', hdr10Plus: 'unverified', dynamicMetadataOutput: 'unverified' };
+      colorGamut, hdr10Plus: 'unverified', dynamicMetadataOutput: 'unverified' };
   });
 }
 function queryHint(matchMedia: CinemaHdrProbe['matchMedia'], query: string): boolean | null {
