@@ -17,6 +17,7 @@ export class ExperimentalHlsAudioInput {
     this.seen.clear();
     this.input = null;
     this.pid = null;
+    this.origin = null;
     this.failed = false;
     this.session.onSourceChange();
     return this.generation;
@@ -26,8 +27,20 @@ export class ExperimentalHlsAudioInput {
     if (this.seen.has(identity)) return true;
     try {
       if (!identity || identity.length > 512 || this.seen.size >= 8192) throw new Error('Fragment identity limit');
-      const pid = discoverEc3Pid(bytes);
-      if (pid === null || (this.pid !== null && this.pid !== pid)) throw new Error('Unverified or changed audio PID');
+      const discovered = discoverEc3Pid(bytes);
+      if (discovered !== null && this.pid !== null && discovered !== this.pid) throw new Error('Changed audio PID');
+      // Subsequent TS segments need not repeat their PAT/PMT: reuse only the
+      // PID established from CRC-valid PSI in this exact playback generation.
+      const pid = discovered ?? this.pid;
+      if (pid === null) throw new Error('EC-3 PID not established');
+      let hasAudioPackets = false;
+      for (let i = 0; i < bytes.length; i += 188) {
+        if ((((bytes[i + 1] & 31) << 8) | bytes[i + 2]) === pid) {
+          hasAudioPackets = true;
+          break;
+        }
+      }
+      if (!hasAudioPackets) throw new Error('No EC-3 audio TS packets');
       if (!this.input) {
         this.pid = pid;
         this.input = new ExperimentalTsAudioInput(pid, origin90k, this.session);
