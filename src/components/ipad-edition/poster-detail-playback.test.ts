@@ -135,4 +135,14 @@ describe('Cinema V4 and ordinary watch UI isolation', () => {
     expect(watch).toContain('selectCinemaPlaybackMedia({');
     expect(watch).toContain('cinemaMediaGate.showPlayer');
   });
+  it('offers source switching when the Cinema playback engine reports an error', () => {
+    const player = read('src/components/player-shell.tsx');
+    const watch = read('src/app/watch/page.tsx');
+    expect(player).toContain('cinemaMode && onRequestSwitchSource');
+    expect(player).toContain("onRequestSwitchSource('playback-error')");
+    expect(player).toContain('更换播放源');
+    expect(watch).toContain('onRequestSwitchSource={() => {');
+    expect(watch).toContain('setSwitchOpen(true)');
+  });
+
 });
