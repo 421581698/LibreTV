@@ -97,10 +97,10 @@ export async function createCinemaExtendedWebGpuPresenter(
     });
     if(!cinemaSupportsExtendedConfiguration(context.getConfiguration()))
       throw new Error('HDR canvas toneMapping unavailable');
-    const module=device.createShaderModule({code:SHADER});
+    const shaderModule=device.createShaderModule({code:SHADER});
     const description={
-      layout:'auto',vertex:{module,entryPoint:'vs'},
-      fragment:{module,entryPoint:'fs',targets:[{format:'rgba16float'}]},
+      layout:'auto',vertex:{module:shaderModule,entryPoint:'vs'},
+      fragment:{module:shaderModule,entryPoint:'fs',targets:[{format:'rgba16float'}]},
       primitive:{topology:'triangle-strip'},
     };
     const pipeline=device.createRenderPipelineAsync
