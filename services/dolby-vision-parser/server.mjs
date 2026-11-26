@@ -382,13 +382,19 @@ async function analyzeUpload(request, response, env) {
           '-show_packets', '-show_streams', '-show_entries', 'packet=pts,duration:stream=time_base',
           '-of', 'compact=p=1:nk=0', inputPath,
         ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 2 * 1024 * 1024 });
-        const rows = timing.trim().split(/\r?\n/);
+        const rows = timing.trim().split(/\r?\n/).filter(row => row.trim() !== '');
         const packets = [];
         let streamTimeBase = null;
         let valid = !stderr.trim() && rows.length <= 8193;
         for (const row of rows) {
-          const packet = /^packet\|pts=(-?\d+)\|duration=(\d+)$/.exec(row);
-          const stream = /^stream\|time_base=(\d+\/\d+)$/.exec(row);
+          const fields = row.split('|');
+          const get = name => {
+            const matches = fields.filter(field => field.startsWith(name + '='));
+            return matches.length === 1 ? matches[0].slice(name.length + 1) : '';
+          };
+          const pts = get('pts'), duration = get('duration'), base = get('time_base');
+          const packet = fields[0] === 'packet' && /^-?\d+$/.test(pts) && /^\d+$/.test(duration) ? [row, pts, duration] : null;
+          const stream = fields[0] === 'stream' && /^\d+\/\d+$/.test(base) ? [row, base] : null;
           if (packet) packets.push({ pts: packet[1], duration: packet[2] });
           else if (stream && streamTimeBase === null) streamTimeBase = stream[1];
           else { valid = false; break; }
@@ -397,8 +403,10 @@ async function analyzeUpload(request, response, env) {
         if (valid && streamTimeBase === numerator + '/' + denominator) {
           const evidence = bindPresentationDurations(packets, report.frameMappingEvidence);
           if (evidence) report.presentationDurationEvidence = evidence;
+          else console.warn('Presentation duration evidence unavailable: sample timing mismatch');
         }
-      } catch { /* Unsupported or ambiguous duration evidence stays unestablished. */ }
+        else console.warn('Presentation duration evidence unavailable: invalid probe records or timebase');
+      } catch { console.warn('Presentation duration evidence unavailable: probe failed'); }
     }
     report.sourceMediaSha256 = actualSha256;
     const hlsContextHeader = request.headers['x-dv-analysis-scope'];
