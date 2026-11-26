@@ -1768,7 +1768,8 @@ jobs:
                 await page.evaluate(() => { window.__mockSeekCount = 0; });
                 await page.mouse.move(seekBounds.x + seekBounds.width * 0.2, seekY);
                 await page.mouse.down();
-                await page.mouse.move(seekBounds.x + seekBounds.width * 64 / duration, seekY, { steps: 12 });
+                // Aim inside the displayed second so subpixel rounding cannot land at 63.999998.
+                await page.mouse.move(seekBounds.x + seekBounds.width * 64.5 / duration, seekY, { steps: 12 });
                 await page.waitForFunction(() => {
                   const slider = document.querySelector(".watch-cinema-progress");
                   return Math.abs(Number(slider?.getAttribute("aria-valuenow")) - 64) < 1 &&
