@@ -2053,6 +2053,12 @@ jobs:
                   if (panelState === "open") {
                     await page.locator(".cinema-v4-source-control").click();
                     await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
+                    // Measure the settled panel, including both fading control groups.
+                    await page.waitForFunction(() =>
+                      [".cinema-center-controls", ".watch-cinema-info"].every(selector => {
+                        const node = document.querySelector(selector);
+                        return node && Number(getComputedStyle(node).opacity) <= 0.01;
+                      }), undefined, { timeout: 3000 });
                   } else {
                     await page.locator(".netflix-watch-utility-panel").waitFor({ state: "attached", timeout: 10000 });
                   }
