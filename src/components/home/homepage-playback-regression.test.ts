@@ -281,6 +281,8 @@ describe('首页与播放页回归契约', () => {
     // Verify the watch page delegates to it and the extracted guard still rejects stale events.
     const gate = source('src/lib/cinema-playback-gate.ts');
     expect(watch).toContain('return isCinemaPlaybackEventCurrent({');
+    expect(watch).toContain('cmsLookupPending: cinemaMediaPending,');
+    expect(watch).toContain('holdingPrevious: cinemaMediaGate.holdingPrevious,');
     expect(watch).toContain('eventEpisodeKey,');
     expect(gate).toContain('if (isCinema && (cmsLookupPending || holdingPrevious)) return false;');
     expect(gate).toContain('return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;');
