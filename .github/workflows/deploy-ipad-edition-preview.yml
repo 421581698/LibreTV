@@ -62,7 +62,8 @@ jobs:
           const url = new URL(`https://api.github.com/repos/${process.env.GH_REPOSITORY}/actions/runs`);
           url.searchParams.set("branch", process.env.GH_BRANCH);
           url.searchParams.set("head_sha", process.env.GH_SHA);
-          // These exact-SHA verification workflows are triggered on branch push.\n          url.searchParams.set("event", "push");
+          // These exact-SHA verification workflows are triggered on branch push.
+          url.searchParams.set("event", "push");
           url.searchParams.set("per_page", "100");
           const headers = {
             accept: "application/vnd.github+json",
