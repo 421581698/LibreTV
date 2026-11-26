@@ -138,11 +138,15 @@ export function cinemaTransformPixel(rgb:CinemaRgb,o:CinemaPixelOptions):[number
   ];
   const sourcePeak=o.sourcePeakNits,targetPeak=o.targetPeakNits;
   const isDown=sourcePeak>targetPeak;
-  const mapped:CinemaRgb = [
-    isDown?cinemaToneMapNits(linear[0],sourcePeak,targetPeak,o.knee):cinemaInverseToneMapNits(linear[0],sourcePeak,targetPeak),
-    isDown?cinemaToneMapNits(linear[1],sourcePeak,targetPeak,o.knee):cinemaInverseToneMapNits(linear[1],sourcePeak,targetPeak),
-    isDown?cinemaToneMapNits(linear[2],sourcePeak,targetPeak,o.knee):cinemaInverseToneMapNits(linear[2],sourcePeak,targetPeak),
-  ];
+  // Use one luminance scale for the entire linear RGB triplet. Tonemapping
+  // channels independently changes hue (most severely on saturated blue/red
+  // highlights) and produces chroma inversion after a wide-gamut transform.
+  const sourceMax=Math.max(0,...linear);
+  const mappedMax=isDown
+    ? cinemaToneMapNits(sourceMax,sourcePeak,targetPeak,o.knee)
+    : cinemaInverseToneMapNits(sourceMax,sourcePeak,targetPeak);
+  const scale=sourceMax>0?mappedMax/sourceMax:0;
+  const mapped:CinemaRgb=[linear[0]*scale,linear[1]*scale,linear[2]*scale];
   const converted=cinemaConvertGamut(mapped,o.sourcePrimaries,o.targetPrimaries);
   return [
     cinemaEncodeLuminance(Math.max(0,converted[0]),o.targetTransfer,o.targetWhiteNits,targetPeak),
