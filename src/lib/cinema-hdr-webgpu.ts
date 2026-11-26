@@ -78,7 +78,7 @@ fn sampleFrame(uv:vec2f)->vec3f {
 }`;
 
 async function startWebGpu(
-  gpu: WebGpuHost, video: HTMLVideoElement, host: HTMLElement, onStatus: CinemaGpuCallback,
+  gpu: WebGpuHost, video: HTMLVideoElement, host: HTMLElement, onStatus: CinemaGpuCallback, enableP3: boolean,
 ): Promise<CinemaGpuSession | null> {
   const adapter = await gpu.requestAdapter();
   if (!adapter || !video.isConnected || !host.isConnected) return null;
@@ -89,7 +89,7 @@ async function startWebGpu(
   if (!context) { device.destroy(); return null; }
   const format = gpu.getPreferredCanvasFormat();
   try {
-    context.configure({device,format,alphaMode:'opaque',colorSpace:'display-p3'});
+    context.configure({device,format,alphaMode:'opaque',colorSpace:enableP3 ? 'display-p3' : 'srgb'});
   } catch {
     try { context.configure({device,format,alphaMode:'opaque'}); }
     catch { device.destroy(); return null; }
@@ -202,7 +202,7 @@ async function startWebGpu(
 
 /** Use WebGPU when available; failed initialization falls back to WebGL. */
 export async function startCinemaSdrEnhancedGpu(
-  video:HTMLVideoElement,host:HTMLElement,onStatus:CinemaGpuCallback,
+  video:HTMLVideoElement,host:HTMLElement,onStatus:CinemaGpuCallback,enableP3=false,
 ):Promise<CinemaGpuSession|null> {
   const gpu = (navigator as Navigator & {gpu?:WebGpuHost}).gpu;
   if (gpu && typeof gpu.requestAdapter === 'function') {
@@ -227,7 +227,7 @@ export async function startCinemaSdrEnhancedGpu(
           onStatus(status,message);
           return;
         }
-        const fallback = startCinemaSdrGpu(video,host,onStatus);
+        const fallback = startCinemaSdrGpu(video,host,onStatus,enableP3);
         if (fallback) {
           session=fallback;
           if (processedWebGpuFrame) {
@@ -238,7 +238,7 @@ export async function startCinemaSdrEnhancedGpu(
         } else if (!processedWebGpuFrame) {
           onStatus(status,message);
         }
-      });
+      },enableP3);
       if (stopped) { webGpuSession?.stop(); return null; }
       if (webGpuSession) {
         session = webGpuSession;
@@ -248,11 +248,11 @@ export async function startCinemaSdrEnhancedGpu(
       // Adapter/device/shader failure: continue with a fresh WebGL context.
     }
     if (video.isConnected && host.isConnected && !stopped) {
-      session = startCinemaSdrGpu(video,host,onStatus);
+      session = startCinemaSdrGpu(video,host,onStatus,enableP3);
       return session ? wrapper : null;
     }
     return null;
   }
   if (!video.isConnected || !host.isConnected) return null;
-  return startCinemaSdrGpu(video,host,onStatus);
+  return startCinemaSdrGpu(video,host,onStatus,enableP3);
 }
