@@ -127,6 +127,34 @@ describe('Cinema V5.1 DSP and HRTF runtime interruption recovery',()=>{
     expect(video.muted).toBe(false);
     expect(states.at(-1)?.output).toBe('native');
   });
+  it('restores native audio on AudioContext suspension while HRTF is active',async()=>{
+    const video=new FakeVideo(),states:CinemaSoundState[]=[];
+    const session=await createCinemaSoundSession(video as never,state=>states.push(state));
+    expect(session).not.toBeNull();
+    session!.enable('audio',true);
+    session!.enable('spatial',true);
+    nextFrame();nextFrame();nextFrame();
+    expect(video.muted).toBe(true);
+    const context=FakeAudioContext.instances.at(-1)!;
+    context.state='suspended';
+    context.dispatchEvent(new Event('statechange'));
+    expect(video.muted).toBe(false);
+    expect(video.track.stopped).toBe(true);
+    expect(context.closed).toBe(true);
+    expect(states.at(-1)?.output).toBe('native');
+  });
+  it('restores native sound when a captured audio track ends unexpectedly',async()=>{
+    const video=new FakeVideo(),states:CinemaSoundState[]=[];
+    const session=await createCinemaSoundSession(video as never,state=>states.push(state));
+    expect(session).not.toBeNull();
+    session!.enable('spatial',true);
+    nextFrame();nextFrame();nextFrame();
+    expect(video.muted).toBe(true);
+    video.track.readyState='ended';
+    video.track.dispatchEvent(new Event('ended'));
+    expect(video.muted).toBe(false);
+    expect(states.at(-1)?.output).toBe('native');
+  });
   it('fails safely when captureStream does not provide an eligible live PCM track',async()=>{
     const video=new FakeVideo(),states:CinemaSoundState[]=[];
     video.track.muted=true;
