@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
 import { emptyNativePlaybackObservation, observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { probeNativeDolbyVisionCapabilities, type DolbyVisionNativeCapabilityReport } from '@/lib/dolby-vision/native-playback-capability';
+import { assessDolbyVisionPipeline } from '@/lib/dolby-vision/pipeline-stage-assessment';
 import { canAnalyzeDolbyVisionRpuAsset } from '@/lib/dolby-vision/rpu-analysis-eligibility';
 import { parseVerifiedHlsSegmentEvidenceResponse } from '@/lib/dolby-vision/hls-segment-evidence-response';
 import { parseVerifiedDolbyVisionEvidenceResponse, type VerifiedDolbyVisionEvidenceResponse } from '@/lib/dolby-vision/verified-evidence-response';
@@ -97,6 +98,12 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
   const currentHlsSegmentEvidence = hlsSegmentEvidence && hlsSegmentEvidence.resourceId === sourceIdentity
     ? hlsSegmentEvidence
     : null;
+  const pipelineStages = assessDolbyVisionPipeline({
+    declared,
+    signedRpuVerified: Boolean(currentVerifiedEvidence || currentHlsEvidence || currentHlsSegmentEvidence),
+    playback: nativePlaybackObservation,
+    capability: browserCapability,
+  });
 
   useEffect(() => {
     requestRef.current?.abort();
@@ -334,6 +341,21 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
           </div>
           <div className="mb-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-2 text-[11px] leading-snug text-amber-200">
             Codec 声明不等于有效 RPU，也不代表浏览器已完成 Dolby Vision 解码或屏幕正在输出 Dolby Vision。
+          </div>
+          <div className="mb-3 space-y-1.5 rounded-lg border border-white/15 p-2 text-[11px]" aria-label="Dolby Vision 六阶段证据状态">
+            <p className="font-semibold text-white/90">Dolby Vision 3.1–3.6 · 独立证据门槛</p>
+            {pipelineStages.map((stage) => (
+              <div key={stage.id} className="flex flex-col gap-0.5 border-t border-white/10 pt-1.5" title={stage.explanation}>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-white/75">{stage.label}</span>
+                  <span className="shrink-0 text-right text-white/85">{stage.state === 'signed-evidence' ? '签名解析已验证' :
+                    stage.state === 'browser-observed' ? '普通视频帧已观测' :
+                      stage.state === 'capability-hint' ? '仅能力提示' :
+                        stage.state === 'declaration-only' ? '仅格式声明' : '尚无可信证据'}</span>
+                </div>
+                <p className="text-[10px] leading-snug text-white/45">{stage.explanation}</p>
+              </div>
+            ))}
           </div>
           <div className="space-y-1.5 text-[11px]">
             <div className="flex justify-between gap-3">
