@@ -300,10 +300,14 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('if (nextUrl !== currentUrl) {');
     expect(watch).toContain('const mediaUrlChanged = previousPlaybackUrlRef.current !== currentUrl;');
-    expect(watch).toContain('playerApiRef.current?.seek(finalPosition)');
-    expect(watch).toContain('playerApiRef.current?.seek(position);');
+    expect(watch).toContain('api.seek(finalPosition);');
+    expect(watch).toContain('api?.seek(position);');
+    expect(watch).toContain('actualPosition = api.getCurrentTime();');
+    expect(watch).toContain('const actualPosition = api?.getCurrentTime();');
+    expect(watch).toContain('scrubbingPositionRef.current = actualPosition;');
     expect(watch).toContain('scrubbingPositionRef.current = null;');
-    expect(watch).toContain('setWatchClock((current) => ({ ...current, position }));');
+    expect(watch).toContain('setWatchClock((current) => ({ ...current, position: actualPosition }));');
+    expect(watch).not.toContain('setWatchClock((current) => ({ ...current, position }));');
     expect(watch).toContain("shell.querySelector<HTMLInputElement>('.watch-cinema-progress')");
     expect(watch).toContain("if (isIpadEditionPlayback || !scrubbingRef.current) return;");
     expect(watch).toContain("onPointerUp={(event) => {");
