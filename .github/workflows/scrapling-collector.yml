@@ -8,6 +8,7 @@ on:
       - feature/libretv-ipad-edition-product
       - integration/**
     paths:
+      - 'src/**'
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"
@@ -37,6 +38,7 @@ on:
       - ".github/workflows/scrapling-collector.yml"
   pull_request:
     paths:
+      - 'src/**'
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"

@@ -6,6 +6,7 @@ on:
       - feature/libretv-ipad-edition-foundation
       - feature/libretv-ipad-edition-product
     paths:
+      - 'src/**'
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"
@@ -79,6 +80,7 @@ on:
       - main
       - feature/libretv-ipad-edition-foundation
     paths:
+      - 'src/**'
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"

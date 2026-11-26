@@ -6,6 +6,7 @@ on:
       - feature/homepage-cinema-lobby-order-2026-11-11
       - feature/libretv-ipad-edition-product
     paths:
+      - 'src/**'
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"
@@ -26,6 +27,7 @@ on:
       - main
       - feature/libretv-ipad-edition-foundation
     paths:
+      - 'src/**'
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/hls-external-smoke.yml"
       - ".github/workflows/scrapling-collector.yml"
