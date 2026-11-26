@@ -34,6 +34,16 @@ export const DolbyVisionRpuReportSchema = z.object({
     matched: z.literal(true),
     frameCount: z.number().int().positive(),
   }).strict().optional(),
+  frameMappingEvidence: z.object({
+    version: z.literal(1),
+    timeBase: z.object({ numerator: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), denominator: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict(),
+    frames: z.array(z.object({
+      frameOrdinal: z.number().int().nonnegative(),
+      pts: z.string().regex(/^(?:0|-?[1-9][0-9]{0,18})$/),
+      rpuSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    }).strict()).min(1).max(8192),
+    mappingSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }).strict().optional(),
   rpuUnitEvidence: z.object({
     version: z.literal(1),
     unitSha256s: z.array(sha256Schema).min(1).max(8192),
@@ -43,6 +53,11 @@ export const DolbyVisionRpuReportSchema = z.object({
   extractionScope: extractionScopeSchema,
   notes: z.array(z.string()),
 }).strict().superRefine((report, context) => {
+  if (report.frameMappingEvidence && (report.inputKind === 'rpu' ||
+      report.frameMappingEvidence.frames.length !== report.frameCount ||
+      !report.rpuUnitEvidence)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['frameMappingEvidence'], message: '逐帧映射必须绑定原始媒体和完整 RPU 单元证据。' });
+  }
   if (report.av1PresentationAlignment &&
       (report.inputKind !== 'av1' || report.av1PresentationAlignment.frameCount !== report.frameCount)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['av1PresentationAlignment'], message: '解码帧 PTS 匹配证据必须对应 AV1 帧数。' });

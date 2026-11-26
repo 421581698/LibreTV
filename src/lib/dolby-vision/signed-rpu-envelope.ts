@@ -1,3 +1,4 @@
+import { digestRpuFrameMapping } from './frame-mapping-evidence';
 import { createHash, createPublicKey, verify as verifySignature, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
 import { DolbyVisionRpuReportSchema, validateDolbyVisionRpuReport } from './rpu-evidence-contract';
@@ -318,6 +319,18 @@ export function verifySignedDolbyVisionRpuEnvelope(
   const validated = validateDolbyVisionRpuReport(envelope.report, options.expectedMediaSha256);
   if (!validated || validated.sourceHashBinding !== 'matched') return null;
   const unitEvidence = validated.report.rpuUnitEvidence;
+  const mapping = validated.report.frameMappingEvidence;
+  if (mapping) {
+    try {
+      if (!unitEvidence || !validated.report.sourceMediaSha256 ||
+          digestRpuFrameMapping(validated.report.sourceMediaSha256.toLowerCase(), mapping.timeBase, mapping.frames) !== mapping.mappingSha256) return null;
+      // Presentation order can differ from extraction order. Compare multisets,
+      // preserving multiplicity rather than treating repeated RPU hashes as unique.
+      const mapped = mapping.frames.map(frame => frame.rpuSha256).sort();
+      const extracted = unitEvidence.unitSha256s.map(hash => hash.toLowerCase()).sort();
+      if (mapped.length !== extracted.length || mapped.some((hash, i) => hash !== extracted[i])) return null;
+    } catch { return null; }
+  }
   if (unitEvidence && createHash('sha256').update(unitEvidence.unitSha256s.join('\n')).digest('hex') !==
       unitEvidence.orderedSha256.toLowerCase()) return null;
 
