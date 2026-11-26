@@ -1293,9 +1293,7 @@ export function PlayerShell({
     const syncTimeline = () => {
       propsRef.current.onTimeUpdate?.(art.currentTime, art.duration, activeEpisodeKeyRef.current);
     };
-    art.on('video:loadedmetadata', syncTimeline);
-    art.on('video:durationchange', syncTimeline);
-    art.on('video:seeked', syncTimeline);
+
     // Promote the pending identity only when the media element starts loading
     // the replacement source; pause/timeupdate events emitted while teardown is
     // in progress must remain attributed to the previous episode.
@@ -1310,6 +1308,11 @@ export function PlayerShell({
     // Some native HLS/WebKit paths do not expose loadstart consistently.
     // loadedmetadata is a safe second boundary before normal timeupdate progress.
     art.on('video:loadedmetadata', promotePendingEpisodeIdentity);
+    // Publish metadata only after the new episode identity is active, including
+    // native HLS paths that omit loadstart.
+    art.on('video:loadedmetadata', syncTimeline);
+    art.on('video:durationchange', syncTimeline);
+    art.on('video:seeked', syncTimeline);
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
