@@ -199,6 +199,17 @@ function WatchContent() {
     ? Math.min(100, Math.max(0, (safeDisplayedPosition / watchClock.duration) * 100))
     : 0;
 
+  const skipCinemaPlayback = (delta: number) => {
+    const video = playerFrameRef.current?.querySelector('video');
+    if (!video || !skipWatchPlayback(video, delta)) return;
+    // Paused media may not emit timeupdate after seeking. Sync the cinema
+    // timeline immediately with the actual position chosen by the engine.
+    const actualPosition = video.currentTime;
+    if (Number.isFinite(actualPosition)) {
+      setWatchClock((current) => ({ ...current, position: actualPosition }));
+    }
+  };
+
   useEffect(() => {
     if (!hasEpisodeNavigation && sidebarTab === 'episodes') setSidebarTab('sources');
   }, [hasEpisodeNavigation, sidebarTab]);
@@ -1144,8 +1155,7 @@ function WatchContent() {
             </div>
             <div className="cinema-center-controls" aria-label="播放控制">
               <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-skip-control" aria-label="后退 10 秒" onClick={() => {
-                const video = playerFrameRef.current?.querySelector('video');
-                if (video) skipWatchPlayback(video, -10);
+                skipCinemaPlayback(-10);
               }}>
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 8L8 16l10 8M10 17a17 17 0 1 0 8-8" /><text x="24" y="29">10</text></svg>
               </button>
@@ -1171,8 +1181,7 @@ function WatchContent() {
                   : <svg className="cinema-play-icon cinema-play-icon--play" viewBox="0 0 48 48" aria-hidden="true"><path d="M17 10.8c0-1.2 1.3-1.9 2.3-1.2l17.2 11.7a1.5 1.5 0 0 1 0 2.5L19.3 35.5c-1 .7-2.3 0-2.3-1.2V10.8Z" /></svg>}
               </button>
               <button type="button" data-friday-material="cinema" className="cinema-glass-control cinema-skip-control" aria-label="前进 10 秒" onClick={() => {
-                const video = playerFrameRef.current?.querySelector('video');
-                if (video) skipWatchPlayback(video, 10);
+                skipCinemaPlayback(10);
               }}>
                 <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8l10 8-10 8M38 17a17 17 0 1 1-8-8" /><text x="24" y="29">10</text></svg>
               </button>
