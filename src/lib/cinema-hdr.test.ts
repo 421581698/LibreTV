@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assessCinemaHdr, inspectCinemaHdrVariants, isSafariNativeHdrCandidate } from './cinema-hdr';
+import { assessCinemaHdr, inspectCinemaHdrVariants, isSafariNativeHdrCandidate, shouldUseCinemaP3Output } from './cinema-hdr';
 
 const safari = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17 Safari/604.1';
 const defaults = {
@@ -35,6 +35,17 @@ describe('Cinema HDR V5 capability contract', () => {
       ['hlg','p3',10],
     ]);
     expect(variants.every(v => v.dynamicMetadataOutput === 'unverified')).toBe(true);
+  });
+  it('never switches ordinary SDR or HDR PQ content to a wide-gamut SDR canvas without a P3 source signal', () => {
+    const p3 = inspectCinemaHdrVariants([{attrs:{CODECS:'av01.0.08M.10.0.110.12.01.01.0','VIDEO-RANGE':'SDR'}}]);
+    const pq = inspectCinemaHdrVariants([{attrs:{CODECS:'av01.0.08M.10.0.110.12.16.09.0','VIDEO-RANGE':'PQ'}}]);
+    const generic = inspectCinemaHdrVariants([{attrs:{CODECS:'avc1.4d401f','VIDEO-RANGE':'SDR'}}]);
+    const screenP3 = () => ({matches:true});
+    expect(shouldUseCinemaP3Output(p3,screenP3)).toBe(true);
+    expect(shouldUseCinemaP3Output(pq,screenP3)).toBe(false);
+    expect(shouldUseCinemaP3Output(generic,screenP3)).toBe(false);
+    expect(shouldUseCinemaP3Output(p3,() => ({matches:false}))).toBe(false);
+    expect(shouldUseCinemaP3Output(p3,() => {throw new Error('query not supported');})).toBe(false);
   });
   it('does not guess HDR based on HEVC codec without VIDEO-RANGE', () => {
     const v = inspectCinemaHdrVariants([{videoCodec:'hvc1.2.4.L153.B0'}]);
