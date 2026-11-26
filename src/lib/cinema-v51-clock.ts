@@ -28,12 +28,13 @@ export async function cinemaWaitForPresentation(
   if(!Number.isSafeInteger(ptsUs)||ptsUs<0||
     !Number.isSafeInteger(clock.presentationOffsetUs)||
     !/^[0-9a-f]{64}$/i.test(clock.sourceSha256))return 'expired';
+  const boundSourceSha=clock.sourceSha256.toLowerCase();
   const now=options.now??(()=>performance.now());
   const pause=options.sleep??sleep;
   const start=now();
   for(let iteration=0;iteration<320;iteration++){
     if(options.cancelled?.())return 'cancelled';
-    if(!/^[0-9a-f]{64}$/i.test(clock.sourceSha256))return 'source-changed';
+    if(clock.sourceSha256.toLowerCase()!==boundSourceSha)return 'source-changed';
     const seconds=clock.currentMediaTimeSeconds();
     if(!Number.isFinite(seconds)||seconds<0)return 'expired';
     const currentUs=Math.round(seconds*1e6)+clock.presentationOffsetUs;
