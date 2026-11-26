@@ -32,7 +32,7 @@ import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from 
 import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from '@/lib/watch-playback-state';
 import { useFridayGlassPlayback } from '@/components/friday/FridayGlassProvider';
 import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } from '@/lib/cinema-v4-controls';
-import { selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
+import { isCinemaPlaybackEventCurrent, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
 import { CinemaPlaybackActions } from '@/components/ipad-edition/CinemaPlaybackActions';
 import { ClassicWatchTitle, ClassicWatchRateButton, ClassicWatchTools } from '@/components/watch/ClassicWatchControls';
 import { usePlaybackEdition } from '@/components/watch/PlaybackEditionContext';
@@ -732,8 +732,14 @@ function WatchContent() {
       if (currentEpisodeKey !== pendingEpisodeKey) return false;
       pendingEpisodeKeyRef.current = null;
     }
-    return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;
-  }, [currentEpisodeKey]);
+    return isCinemaPlaybackEventCurrent({
+      isCinema: isIpadEditionPlayback,
+      cmsLookupPending,
+      holdingPrevious: cinemaMediaGate.holdingPrevious,
+      currentEpisodeKey,
+      eventEpisodeKey,
+    });
+  }, [currentEpisodeKey, isIpadEditionPlayback, cmsLookupPending, cinemaMediaGate.holdingPrevious]);
   // 跳过片段按剧名记忆：换集不变，换源到同名资源也能命中。
   // 标题缺失（直连链接）时退回 source:vodId，至少保证本源本片可用。
   const skipMarkFallback = `${sourceKey}:${vodId || currentUrl}`;
@@ -1121,7 +1127,9 @@ function WatchContent() {
                 <PlaybackErrorBoundary key={isIpadEditionPlayback ? "ipad-cinema" : playerUrl} resetKey={cinemaMediaGate.media.url} label="player" fallback={isIpadEditionPlayback ? (retry) => (
                   <NativeCinemaFallback key={cinemaMediaGate.media.url} url={cinemaMediaGate.media.url} retry={retry}
                     onApi={(api) => { playerApiRef.current = api; }}
-                    onClock={(position, duration) => setWatchClock({ position, duration })}
+                    onClock={(position, duration) => {
+                      if (isCurrentPlaybackEvent(cinemaMediaGate.media.episodeKey)) setWatchClock({ position, duration });
+                    }}
                     onProgress={(position, duration) => handleProgress(position, duration, cinemaMediaGate.media.episodeKey)}
                     onEnded={() => handleEnded(cinemaMediaGate.media.episodeKey)}
                     getRestorePosition={getRestorePosition}
@@ -1176,6 +1184,11 @@ function WatchContent() {
                   }}
                   onEnded={handleEnded}
                   onPlaybackConfirmed={(evidence) => {
+                    // A retained outgoing player must not certify the destination provider.
+                    if (!isCinemaPlaybackEventCurrent({
+                      isCinema: isIpadEditionPlayback, cmsLookupPending,
+                      holdingPrevious: cinemaMediaGate.holdingPrevious, currentEpisodeKey,
+                    })) return;
                     let host = '';
                     try { host = new URL(currentUrl).hostname.toLowerCase(); } catch { return; }
                     void fetch('/api/resource-collector/playback-sample', {
@@ -1190,6 +1203,11 @@ function WatchContent() {
                   onPrevEpisode={() => goEpisode(currentIndex - 1)}
                   onNextEpisode={() => goEpisode(currentIndex + 1)}
                   onQuality={(height) => {
+                    // Quality measurements from held media cannot be attributed to a new source.
+                    if (!isCinemaPlaybackEventCurrent({
+                      isCinema: isIpadEditionPlayback, cmsLookupPending,
+                      holdingPrevious: cinemaMediaGate.holdingPrevious, currentEpisodeKey,
+                    })) return;
                     if (!sourceKey || !vodId) return;
                     const key = qualityKey(sourceKey, vodId);
                     const store = useAppStore.getState();
