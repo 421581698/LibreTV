@@ -206,7 +206,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
       if(!graph)break;
       try {
         const buffer=context.createBuffer(frame.channels,frame.frames,frame.sampleRate);
-        frame.planes.forEach((plane,index)=>buffer.copyToChannel(plane,index));
+        frame.planes.forEach((plane,index)=>buffer.copyToChannel(new Float32Array(plane),index));
         const node=context.createBufferSource();
         node.buffer=buffer;
         node.playbackRate.value=video.playbackRate;
