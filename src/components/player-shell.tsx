@@ -386,6 +386,13 @@ export function PlayerShell({
       if(requestId!==cinemaSoundRequestRef.current) return;
       setCinemaSoundActive({url,audio:state.audio,spatial:state.spatial});
       setDolbyCardStatus(state.reason);
+      if (state.output === 'native' && cinemaSoundSessionRef.current) {
+        // An interrupted capture session has already restored native audio.
+        // Release its stopped reference so the existing card can retry later.
+        cinemaSoundSessionRef.current.stop();
+        cinemaSoundSessionRef.current = null;
+        cinemaSoundRequestedRef.current = {url,audio:false,spatial:false};
+      }
     });
     if(requestId!==cinemaSoundRequestRef.current||!video.isConnected) {
       session?.stop();
