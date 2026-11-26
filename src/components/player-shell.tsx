@@ -24,6 +24,7 @@ import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspec
 import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-hls-manifest-inspector';
 import { shouldPreferNativeDolbyVisionHls } from '@/lib/dolby-vision/native-hls-playback-policy';
 import { shouldPreferNativeDolbyAudioHls } from '@/lib/dolby/native-audio-hls-policy';
+import { ExperimentalAudioSession } from '@/lib/dolby/experimental-audio-session';
 import { captureNativeAudioFallback, fallbackResumeTime, type NativeAudioFallbackSnapshot } from '@/lib/dolby/native-audio-fallback';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
@@ -247,6 +248,8 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  // No experimental decoder is supplied by default. Native audio remains primary.
+  const experimentalAudioSessionRef = useRef<ExperimentalAudioSession | null>(null);
   const pendingAudioTrackRef = useRef<{ hls: Hls; requested: number; previous: number } | null>(null);
   /** Prevent an unsupported native path from looping with hls.js fallback. */
   const nativeDolbyHlsAttemptedRef = useRef<string | null>(null);
@@ -614,6 +617,7 @@ export function PlayerShell({
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
     pendingAudioTrackRef.current = null;
+    experimentalAudioSessionRef.current?.onSourceChange();
     // Direct MP4/WebM customType callbacks can bypass setupHls; advance the
     // generation here so pending HLS restore promises cannot mutate this source.
     const loadGeneration = ++mediaLoadGenerationRef.current;
@@ -700,6 +704,7 @@ export function PlayerShell({
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
     pendingAudioTrackRef.current = null;
+    experimentalAudioSessionRef.current?.onSourceChange();
     // Every HLS reconfiguration (including direct→proxy fallback and fatal-error
     // recovery) invalidates async restore work from the previous media pipeline.
     const loadGeneration = ++mediaLoadGenerationRef.current;
@@ -953,6 +958,7 @@ export function PlayerShell({
     hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, observeAudioTracks);
     hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
       if (!isCurrentHls()) return;
+      experimentalAudioSessionRef.current?.onTrackChange();
       const pending = pendingAudioTrackRef.current;
       if (pending?.hls === hls && pending.requested === data.id) {
         pendingAudioTrackRef.current = null;
@@ -1202,6 +1208,7 @@ export function PlayerShell({
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
     pendingAudioTrackRef.current = null;
+    experimentalAudioSessionRef.current?.onSourceChange();
     setAvailableQualityLevelCount(0);
     setQualityMetadataComplete(false);
     setQualityNotice('');
@@ -1334,6 +1341,7 @@ export function PlayerShell({
       },
     });
     artRef.current = art;
+    experimentalAudioSessionRef.current = new ExperimentalAudioSession(art.video);
     // Keep the page timeline correct even before playback starts and after a
     // seek while paused. Browsers are not required to emit timeupdate for
     // metadata changes or a paused seek.
@@ -1388,6 +1396,7 @@ export function PlayerShell({
      * 归位确实会派发 ratechange，无差别同步会把默认值自己写成 1，机制当场失效。
      */
     art.on('video:ratechange', () => {
+      experimentalAudioSessionRef.current?.onRateChange();
       const video = art.video;
       if (video && video.playbackRate !== video.defaultPlaybackRate) {
         video.defaultPlaybackRate = video.playbackRate;
@@ -1519,6 +1528,7 @@ export function PlayerShell({
       }
     });
     art.on('video:error', () => {
+      experimentalAudioSessionRef.current?.fail();
       playbackMetricsRef.current.fatalErrors += 1;
       mediaHealthyRef.current = false;
       // 起播阶段的 video 元素级错误：原实现会重建一次播放链路自愈。
@@ -1616,6 +1626,7 @@ export function PlayerShell({
         active && !handledSegmentsRef.current.has(segmentKey(active)) ? active : null;
       updateSkipPrompt(prompt);
     });
+    art.on('video:seeking', () => experimentalAudioSessionRef.current?.onSeek());
     art.on('video:seeked', () => {
       // seek 是用户主动行为：拉平采样基准，避免下一拍被误判为「连续越过片尾」。
       // 暂停中 seek 不会触发 timeupdate，这里也同步刷新按钮的显隐。
@@ -1628,6 +1639,7 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:pause', () => {
+      experimentalAudioSessionRef.current?.onPause();
       // A queued pause event can arrive after a newer play request. Do not
       // cancel playback confirmation or persist a stale pause in that case.
       if (art.video && !art.video.paused && !art.video.ended) return;
@@ -1894,6 +1906,8 @@ export function PlayerShell({
         qualityPreferenceHandlerRef.current = null;
       }
       pendingAudioTrackRef.current = null;
+      experimentalAudioSessionRef.current?.close();
+      experimentalAudioSessionRef.current = null;
       hlsRef.current?.destroy();
       hlsRef.current = null;
       recoveryRef.current?.dispose();
@@ -2045,6 +2059,7 @@ export function PlayerShell({
                     className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${selectedAudioTrack === track.id ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     onClick={() => {
                       const hls = hlsRef.current;
+                      experimentalAudioSessionRef.current?.onTrackChange();
                       const previous = hls?.audioTrack ?? -1;
                       const switched = Boolean(hls && selectHlsAudioTrack(hls, track.id));
                       if (!switched) {
