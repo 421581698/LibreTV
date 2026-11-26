@@ -100,7 +100,7 @@ export async function createCinemaSoundSession(
   // A disposable audio element can be routed through Web Audio without
   // permanently binding the reusable ArtPlayer video to an AudioContext.
   const url=video.currentSrc;
-  const useElement=!stream && /^https?:/i.test(url) && !video.mediaKeys;
+  const useElement=!stream && /^https?:/i.test(url) && !video.mediaKeys && video.seekable.length>0 && !video.currentSrc.startsWith('blob:');
   const mirror=useElement?document.createElement('audio'):null;
   if(!stream&&!mirror) {
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：当前浏览器或媒体未提供可读取的 PCM 音轨。'});
@@ -124,6 +124,8 @@ export async function createCinemaSoundSession(
   let analyser:AnalyserNode;
   let unregisterVolume=()=>{};
   let unregisterRuntime=()=>{};
+  let lastSyncCheck=0;
+  let syncMismatchFrames=0;
   const releaseMirror=()=>{if(mirror){mirror.pause();mirror.removeAttribute('src');mirror.load();}};
   let dry:GainNode,eqOut:GainNode,spatialRaw:GainNode,spatialEq:GainNode,spatialOut:GainNode;
   try {
@@ -227,8 +229,20 @@ export async function createCinemaSoundSession(
     if(video.isConnected===false||(stream!==null&&stream.getAudioTracks().every(track=>track.readyState!=='live'))){
       session.stop();return;
     }
-    if(mirror && mirror.readyState>=2 && Math.abs(mirror.currentTime-video.currentTime)>.25){
-      mirror.currentTime=video.currentTime;
+    if(mirror && capturing && mirror.readyState>=2 && performance.now()-lastSyncCheck>250){
+      lastSyncCheck=performance.now();
+      const difference=mirror.currentTime-video.currentTime;
+      if(Math.abs(difference)>0.18) syncMismatchFrames++;
+      else syncMismatchFrames=0;
+      if(syncMismatchFrames>=3){
+        session.stop();
+        onState({audio:false,spatial:false,output:'native',
+          reason:'独立音频与视频持续不同步，已停止增强并恢复视频原声。'});
+        return;
+      }
+      if(Math.abs(difference)>0.07 && Math.abs(difference)<=0.18){
+        mirror.playbackRate=Math.min(1.04,Math.max(.96,video.playbackRate-difference*.2));
+      } else mirror.playbackRate=video.playbackRate;
     }
     if(!capturing&&context.state==='running'&&video.readyState>=2&&!video.paused){
       analyser.getByteTimeDomainData(samples);
@@ -237,9 +251,13 @@ export async function createCinemaSoundSession(
       if(Math.sqrt(energy/samples.length)>.0025) frames++;
       else frames=0;
       if(frames>=3){
+        if(mirror && (mirror.paused || Math.abs(mirror.currentTime-video.currentTime)>.12)){
+          frames=0;
+        } else {
         capturing=true;
         update();
         if(!mirror)return;
+        }
       }
     }
     if(!capturing&&performance.now()-started>10000){
@@ -269,7 +287,7 @@ export async function createCinemaSoundSession(
       unregisterRuntime();
       releaseMirror();
       if(capturing)video.muted=previouslyMuted;
-      stream.getTracks().forEach(track=>track.stop());
+      stream?.getTracks().forEach(track=>track.stop());
       try{streamSource.disconnect();}catch{/* closed */}
       void context.close().catch(()=>{});
     },
@@ -281,7 +299,7 @@ export async function createCinemaSoundSession(
       reason:'检测到音轨结束、切源或音频上下文中断，已恢复原生音频。'});
   };
   const tracks=stream?.getAudioTracks()??[];
-  const stateChanged=()=>{if(context.state!=='running')onCaptureLost();};
+  const stateChanged=()=>{if(context.state==='closed'||context.state==='interrupted')onCaptureLost();};
   const onVideoChange=()=>onCaptureLost();
   for(const track of tracks){
     track.addEventListener('ended',onCaptureLost);
@@ -316,7 +334,7 @@ export async function createCinemaSoundSession(
     context.removeEventListener('statechange',stateChanged);
   };
   try {const resumed=context.resume();if(mirror&&!video.paused)await Promise.all([resumed,mirror.play()]);else await resumed;} catch {session.stop();return null;}
-  if(context.state!=='running'){session.stop();return null;}
+  if(context.state!=='running'){session.stop();onState({audio:false,spatial:false,output:'native',reason:'音频上下文未进入运行状态，未启用增强。'});return null;}
   checkRaf=requestAnimationFrame(check);
   return session;
 }
