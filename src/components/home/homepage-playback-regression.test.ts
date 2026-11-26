@@ -303,6 +303,11 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('api.seek(finalPosition);');
     expect(watch).toContain('api?.seek(position);');
     expect(watch).toContain('actualPosition = api.getCurrentTime();');
+    expect(watch).toContain('const skipCinemaPlayback = (delta: number) => {');
+    expect(watch).toContain('if (!video || !skipWatchPlayback(video, delta)) return;');
+    expect(watch).toContain('skipCinemaPlayback(-10);');
+    expect(watch).toContain('skipCinemaPlayback(10);');
+    expect(watch).toContain('const actualPosition = video.currentTime;');
     expect(watch).toContain('const actualPosition = api?.getCurrentTime();');
     expect(watch).toContain('scrubbingPositionRef.current = actualPosition;');
     expect(watch).toContain('scrubbingPositionRef.current = null;');
