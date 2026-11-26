@@ -93,6 +93,8 @@ export async function createCinemaAuthorizedPcmSoundSession(
   let scheduledSamples=0;
   let earliestScheduledAt=Infinity;
   let lastDecodedAt=performance.now();
+  let measuredRms=.10;
+  let lastLoudnessAt=0;
   let misses=0;
   const scheduled=new Set<AudioBufferSourceNode>();
   const queue=new CinemaPcmQueue(source.sourceSha256,96000);
@@ -121,7 +123,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
     ramp(graph.spatialRaw,route.spatialRaw);
     ramp(graph.spatialEq,route.spatialEq);
     ramp(graph.spatialOut,route.spatialOutput);
-    const volume=video.volume*(audio?cinemaLoudnessGain(.10):1);
+    const volume=video.volume*(audio?cinemaLoudnessGain(measuredRms):1);
     ramp(graph.master,active?volume:0);
     if(active && (audio||spatial)) {
       if(!mutedNative){video.muted=true;mutedNative=true;}
@@ -149,7 +151,9 @@ export async function createCinemaAuthorizedPcmSoundSession(
           sum+=value*value;count++;
         }
       }
-      if(count===0||Math.sqrt(sum/count)<.0025)return;
+      const rms=count>0?Math.sqrt(sum/count):0;
+      if(rms<.0025)return;
+      measuredRms=rms;
       queue.enqueue(frame);
       lastDecodedAt=performance.now();
     }catch(error){fail(error instanceof Error?error.message:'Invalid decoded PCM');}
@@ -166,7 +170,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
   const onVolume=()=>{
     if(stopped||!active)return;
     if(!video.muted){fail('视频原声被重新打开，已停止独立 PCM 以避免双声道叠音。');return;}
-    if(graph)ramp(graph.master,video.volume*(audio?cinemaLoudnessGain(.10):1));
+    if(graph)ramp(graph.master,video.volume*(audio?cinemaLoudnessGain(measuredRms):1));
   };
   const onContextState=()=>{if(active&&context.state!=='running')fail('音频引擎暂停，已恢复原声。');};
   const onVideoEnd=()=>fail('视频已结束，独立 PCM 已停止。');
@@ -180,6 +184,10 @@ export async function createCinemaAuthorizedPcmSoundSession(
     raf=requestAnimationFrame(pump);
     if(!video.isConnected||video.paused||context.state!=='running'){
       fail('播放器或音频设备不再处于有效状态，已恢复原声。');return;
+    }
+    if(active&&graph&&performance.now()-lastLoudnessAt>=250){
+      lastLoudnessAt=performance.now();
+      ramp(graph.master,video.volume*(audio?cinemaLoudnessGain(measuredRms):1));
     }
     if(!audio&&!spatial)return;
     if(performance.now()-lastDecodedAt>1800 && scheduledSamples>0){
