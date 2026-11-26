@@ -90,9 +90,9 @@ export async function probeHevcFrameMapping(path, lengthSize, ffprobe = 'ffprobe
   if (!match) throw new Error('Invalid HEVC timebase');
   const timeBase = {numerator:Number(match[1]),denominator:Number(match[2])};
   if (Object.values(timeBase).some(n=>!Number.isSafeInteger(n)||n<=0)) throw new Error('Invalid timebase');
-  const packets = probe(['-show_packets','-show_entries','packet=pts,size,pos']);
-  const frames = probe(['-show_frames','-show_entries','frame=best_effort_timestamp']).filter(row => row.trim() !== '');
-  if (!packets.length || packets.length>8192 || packets.length!==frames.length) throw new Error('Incomplete frame evidence');
+  const packets = probe(['-fflags','+noparse+nofillin','-show_packets','-show_entries','packet=pts,size,pos']).filter(row => row.startsWith('packet|'));
+  const frames = probe(['-show_frames','-show_entries','frame=best_effort_timestamp']).filter(row => row.startsWith('frame|'));
+  if (!packets.length || packets.length>8192 || packets.length!==frames.length) throw new Error(`Incomplete frame evidence: packets=${packets.length}, frames=${frames.length}`);
   const file = await open(path,'r');
   try {
     const stat = await file.stat();

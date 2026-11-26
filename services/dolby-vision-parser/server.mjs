@@ -285,7 +285,7 @@ async function analyzeUpload(request, response, env) {
           // Keep aggregate evidence available without silently hiding mapping failures.
           const reason = String(error.stderr || '').trim().split(/\r?\n/).pop();
           const allowed = /^(Invalid (?:HEVC sample|NAL boundary|NAL size|hvcC configuration|HEVC timebase|timebase|packet evidence|decoded frame evidence|PTS)|Unsupported HEVC NAL header|Missing first slice|Ambiguous RPU|Expected exactly one picture and one RPU|Incomplete (?:HEVC frame evidence|frame evidence)|Duplicate sample PTS|Unmatched or unordered decoded frame|PTS out of range|Ambiguous HEVC stream|Packet bounds exceeded|Overlapping packets|Short sample read)$/;
-          console.warn('HEVC frame mapping unavailable:', allowed.test(reason || '') ? reason : 'probe failed');
+          console.warn('HEVC frame mapping unavailable:', (allowed.test(reason || '') || /^Incomplete frame evidence: packets=\d{1,7}, frames=\d{1,7}$/.test(reason || '')) ? reason : 'probe failed');
         }
       } else {
         const { stdout: extractionOutput } = await execFileAsync(process.execPath, [
