@@ -104,6 +104,8 @@ export interface VerifiedHlsRpuSegmentSet {
   semanticEvidenceLimitation: 'per-frame-rpu-boundaries-not-signed' | 'signed-rpu-unit-order-does-not-prove-video-frame-mapping';
   rpuUnitBoundaryEvidence: 'signed-ordered-per-unit-sha256' | 'not-established';
   orderedRpuUnitSha256: string | null;
+  /** Graph-bound commitment to all signed local mappings, not global PTS continuity. */
+  orderedFrameMappingSha256: string | null;
   /** Maximum verified end time in the media track's timescale units. */
   verifiedDecodeEnd: number;
   verifiedTimescale: number;
@@ -152,6 +154,8 @@ export function verifySignedDolbyVisionRpuSegmentSet(
   let commonInputKind: string | null = null;
   const metadataLevelCounts: Record<string, number> = Object.create(null);
   let allSegmentsHaveUnitEvidence = true;
+  let allSegmentsHaveFrameMapping = true;
+  const orderedMappingHash = createHash('sha256').update(`hls-frame-mappings-v1\n${options.graphSha256.toLowerCase()}\n`);
   const orderedUnitHash = createHash('sha256').update(`hls-graph-rpu-units-v1\n${options.graphSha256.toLowerCase()}\n`);
   const orderedEvidence: Array<{
     ordinal: number;
@@ -210,6 +214,10 @@ export function verifySignedDolbyVisionRpuSegmentSet(
       now: options.now,
     });
     if (!result || result.report.frameCount !== expected.sampleCount) return null;
+    const mapping = result.report.frameMappingEvidence;
+    if (mapping) {
+      orderedMappingHash.update(canonicalizeDolbyVisionRpuPayload({ ordinal, fragmentAssetId: expected.fragmentAssetId, mappingSha256: mapping.mappingSha256 })).update('\n');
+    } else allSegmentsHaveFrameMapping = false;
     const unitEvidence = result.report.rpuUnitEvidence;
     if (unitEvidence) {
       for (const unitHash of unitEvidence.unitSha256s) orderedUnitHash.update(unitHash).update('\n');
@@ -252,6 +260,7 @@ export function verifySignedDolbyVisionRpuSegmentSet(
       : 'per-frame-rpu-boundaries-not-signed',
     rpuUnitBoundaryEvidence: allSegmentsHaveUnitEvidence ? 'signed-ordered-per-unit-sha256' : 'not-established',
     orderedRpuUnitSha256: allSegmentsHaveUnitEvidence ? orderedUnitHash.digest('hex') : null,
+    orderedFrameMappingSha256: allSegmentsHaveFrameMapping ? orderedMappingHash.digest('hex') : null,
     verifiedDecodeEnd: previousEnd!,
     verifiedTimescale: commonTimescale!,
     verifiedParserVersion: commonParserVersion!,
