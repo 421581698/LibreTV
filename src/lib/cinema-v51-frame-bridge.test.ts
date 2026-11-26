@@ -4,7 +4,7 @@ import {startCinemaV51FrameBridge,type CinemaDecodedP010Sample,type CinemaDecode
 const source='f'.repeat(64);
 const testFrame: CinemaDecodedP010Sample={
   sourceSha256:source,frameIndex:0,ptsUs:1000000,
-  decodedP010:{width:2,height:2,y:new Uint16Array(4).fill(400<<6),
+  decodedP010:{range:'limited',width:2,height:2,y:new Uint16Array(4).fill(400<<6),
     uv:new Uint16Array([512<<6,512<<6])},
 };
 const transform={
