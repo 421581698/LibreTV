@@ -210,6 +210,7 @@ async function analyzeUpload(request, response, env) {
     let analysisInputPath = inputPath;
     let av1TimedRpuCount;
     let av1DecodedFrameAlignment;
+    let av1Extraction;
     let analyzedCodec = sourceContentType === 'video/hevc' ? 'hevc' : null;
     if (sourceContentType === 'video/mp4') {
       const { stdout: codecOutput } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
@@ -252,6 +253,7 @@ async function analyzeUpload(request, response, env) {
           '--ffprobe', env.FFPROBE_BIN || 'ffprobe',
         ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 24 * 1024 * 1024, windowsHide: true });
         const extraction = JSON.parse(extractionOutput);
+        av1Extraction = extraction;
         av1TimedRpuCount = extraction.dolbyRpuCount;
         av1DecodedFrameAlignment = extraction.decodedPresentationAlignment;
         if (!Number.isSafeInteger(av1TimedRpuCount) || av1TimedRpuCount <= 0 ||
@@ -305,6 +307,21 @@ async function analyzeUpload(request, response, env) {
       report.inputKind = 'av1';
       report.extractionScope = { track: null, frameLimit: null };
       report.av1PresentationAlignment = av1DecodedFrameAlignment;
+      // The extractor writes RPU units in packet order. Bind those exact
+      // unit digests before sorting into decoded presentation order.
+      const units = report.rpuUnitEvidence?.unitSha256s;
+      const timeBase = av1Extraction?.packetTimeBase;
+      if (units && units.length === av1TimedRpuCount && timeBase &&
+          Number.isSafeInteger(timeBase.numerator) && timeBase.numerator > 0 &&
+          Number.isSafeInteger(timeBase.denominator) && timeBase.denominator > 0) {
+        const frames = av1Extraction.rpuUnits.map((unit, i) => ({
+          pts: BigInt(unit.packetPts).toString(), rpuSha256: units[i],
+        })).sort((a, b) => BigInt(a.pts) < BigInt(b.pts) ? -1 : BigInt(a.pts) > BigInt(b.pts) ? 1 : 0)
+          .map((frame, frameOrdinal) => ({ frameOrdinal, ...frame }));
+        const hash = createHash('sha256').update(`libretv-rpu-frame-mapping-v1\n${actualSha256.toLowerCase()}\n${timeBase.numerator}/${timeBase.denominator}\n`);
+        for (const frame of frames) hash.update(`${frame.frameOrdinal}:${frame.pts}:${frame.rpuSha256}\n`);
+        report.frameMappingEvidence = { version: 1, timeBase, frames, mappingSha256: hash.digest('hex') };
+      }
     }
     report.sourceMediaSha256 = actualSha256;
     const hlsContextHeader = request.headers['x-dv-analysis-scope'];
