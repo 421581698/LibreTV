@@ -441,39 +441,44 @@ process.exit(2);
       assert.equal(ambiguousVideoTracks.status, 415);
       assert.deepEqual(await ambiguousVideoTracks.json(), { error: 'SINGLE_HEVC_OR_AV1_VIDEO_TRACK_REQUIRED' });
 
-      // Exercise the complete AV1 MP4 demux -> OBU/EMDF extraction -> RPU
-      // parser -> source-media-bound Ed25519 envelope path.
-      const av1ObuFixture = resolve(directory, 'av1-video.obu');
-      await writeFile(av1ObuFixture, makeAv1ObuFixture());
-      await writeFile(fakeFfprobe, "#!/usr/bin/env node\nprocess.stdout.write('av1\\n');\n", { mode: 0o700 });
-      await chmod(fakeFfprobe, 0o700);
-      await writeFile(fakeFfmpeg, "#!/usr/bin/env node\nimport { copyFileSync } from 'node:fs';\ncopyFileSync(process.env.DV_TEST_AV1_OBU_FIXTURE, process.argv.at(-1));\n", { mode: 0o700 });
-      await chmod(fakeFfmpeg, 0o700);
-      const previousAv1Fixture = process.env.DV_TEST_AV1_OBU_FIXTURE;
-      process.env.DV_TEST_AV1_OBU_FIXTURE = av1ObuFixture;
-      try {
-        let av1Response;
+      // Exercise packet-timed AV1 extraction with three samples bound to the upload digest.
+      const sample = makeAv1ObuFixture();
+      const av1Media = Buffer.concat([sample, sample, sample]);
+      const av1Digest = createHash('sha256').update(av1Media).digest('hex');
+      const av1Headers = { ...headers, 'Content-Length': String(av1Media.length), 'X-DV-Asset-SHA256': av1Digest };
+      async function requestAv1(sampleCount) {
+        const packetLines = Array.from({ length: sampleCount }, (_, index) =>
+          'packet|stream_index=0|pts=' + index * 3000 + '|size=' + sample.length + '|pos=' + index * sample.length);
+        const probeReport = [...packetLines, 'stream|index=0|codec_name=av1|time_base=1/90000'].join('\n');
+        const probeSource = '#!/usr/bin/env node\nprocess.stdout.write(process.argv.includes("-show_packets") ? ' +
+          JSON.stringify(probeReport) + ' : "av1\\n");\n';
+        await writeFile(fakeFfprobe, probeSource, { mode: 0o700 });
+        let result;
         for (let attempt = 0; attempt < 20; attempt += 1) {
-          av1Response = await fetch(endpoint, { method: 'POST', headers, body: media });
-          if (av1Response.status !== 429) break;
-          await av1Response.arrayBuffer();
+          result = await fetch(endpoint, { method: 'POST', headers: av1Headers, body: av1Media });
+          if (result.status !== 429) return result;
+          await result.arrayBuffer();
           await new Promise((resolveDelay) => setTimeout(resolveDelay, 10));
         }
-        assert.equal(av1Response.status, 200);
-        const av1Envelope = await av1Response.json();
-        assert.equal(av1Envelope.report.inputKind, 'av1');
-        assert.deepEqual(av1Envelope.report.extractionScope, { track: null, frameLimit: null });
-        assert.equal(av1Envelope.report.sourceMediaSha256, digest);
-        assert.equal(av1Envelope.report.rpuPresent, true);
-        const { signature: av1Signature, ...av1Payload } = av1Envelope;
-        assert.equal(
-          verify(null, Buffer.from(canonicalize(av1Payload)), servicePublicPem, Buffer.from(av1Signature, 'base64url')),
-          true,
-        );
-      } finally {
-        if (previousAv1Fixture === undefined) delete process.env.DV_TEST_AV1_OBU_FIXTURE;
-        else process.env.DV_TEST_AV1_OBU_FIXTURE = previousAv1Fixture;
+        return result;
       }
+
+      const av1Response = await requestAv1(3);
+      assert.equal(av1Response.status, 200);
+      const av1Envelope = await av1Response.json();
+      assert.equal(av1Envelope.report.inputKind, 'av1');
+      assert.deepEqual(av1Envelope.report.extractionScope, { track: null, frameLimit: null });
+      assert.equal(av1Envelope.report.sourceMediaSha256, av1Digest);
+      assert.equal(av1Envelope.report.rpuPresent, true);
+      const { signature: av1Signature, ...av1Payload } = av1Envelope;
+      assert.equal(
+        verify(null, Buffer.from(canonicalize(av1Payload)), servicePublicPem, Buffer.from(av1Signature, 'base64url')),
+        true,
+      );
+
+      const countMismatch = await requestAv1(2);
+      assert.equal(countMismatch.status, 422);
+      assert.deepEqual(await countMismatch.json(), { error: 'AV1_RPU_TIMING_COUNT_MISMATCH' });
     } finally {
       await new Promise((resolveClose) => server.close(resolveClose));
       await rm(directory, { recursive: true, force: true });

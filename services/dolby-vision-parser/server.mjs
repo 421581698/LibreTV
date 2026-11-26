@@ -180,7 +180,6 @@ async function analyzeUpload(request, response, env) {
   const directory = await mkdtemp(resolve(tmpdir(), 'libretv-dv-job-'));
   const inputPath = resolve(directory, 'input-media');
   const hevcPath = resolve(directory, 'video-track.hevc');
-  const av1ObuPath = resolve(directory, 'video-track.obu');
   const av1RpuPath = resolve(directory, 'video-track.rpu');
   const digest = createHash('sha256');
   let received = 0;
@@ -209,6 +208,7 @@ async function analyzeUpload(request, response, env) {
     }
 
     let analysisInputPath = inputPath;
+    let av1TimedRpuCount;
     let analyzedCodec = sourceContentType === 'video/hevc' ? 'hevc' : null;
     if (sourceContentType === 'video/mp4') {
       const { stdout: codecOutput } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
@@ -245,21 +245,19 @@ async function analyzeUpload(request, response, env) {
         }
         analysisInputPath = hevcPath;
       } else {
-        await execFileAsync(env.FFMPEG_BIN || 'ffmpeg', [
-          '-nostdin', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
-          '-c:v', 'copy', '-f', 'obu', av1ObuPath,
-        ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true });
-        const obu = await stat(av1ObuPath).catch(() => null);
-        if (!obu?.isFile() || obu.size <= 0 || obu.size > MAX_UPLOAD_BYTES) {
-          sendJson(response, obu?.size > MAX_UPLOAD_BYTES ? 413 : 422, {
-            error: obu?.size > MAX_UPLOAD_BYTES ? 'EXTRACTED_TRACK_TOO_LARGE' : 'AV1_TRACK_EXTRACTION_FAILED',
-          });
+        const { stdout: extractionOutput } = await execFileAsync(process.execPath, [
+          resolve(HERE, '../../scripts/dolby-vision/extract-av1-rpu.mjs'),
+          '--input', inputPath, '--output', av1RpuPath, '--kind', 'mp4', '--mp4-packet-timing',
+          '--ffprobe', env.FFPROBE_BIN || 'ffprobe',
+        ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 24 * 1024 * 1024, windowsHide: true });
+        const extraction = JSON.parse(extractionOutput);
+        av1TimedRpuCount = extraction.dolbyRpuCount;
+        if (!Number.isSafeInteger(av1TimedRpuCount) || av1TimedRpuCount <= 0 ||
+            extraction.rpuUnits.length !== av1TimedRpuCount ||
+            extraction.rpuUnits.some((unit) => typeof unit.packetPts !== 'string')) {
+          sendJson(response, 422, { error: 'AV1_RPU_TIMING_REJECTED' });
           return;
         }
-        await execFileAsync(process.execPath, [
-          resolve(HERE, '../../scripts/dolby-vision/extract-av1-rpu.mjs'),
-          '--input', av1ObuPath, '--output', av1RpuPath, '--kind', 'obu',
-        ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 1024 * 1024, windowsHide: true });
         const rpu = await stat(av1RpuPath).catch(() => null);
         if (!rpu?.isFile() || rpu.size <= 0 || rpu.size > MAX_UPLOAD_BYTES) {
           sendJson(response, rpu?.size > MAX_UPLOAD_BYTES ? 413 : 422, {
@@ -290,6 +288,10 @@ async function analyzeUpload(request, response, env) {
         !/^2\.3\.\d+$/.test(report.parserVersion || '') ||
         !/^[a-f0-9]{64}$/i.test(report.inputSha256 || '')) {
       sendJson(response, 422, { error: 'PARSER_REPORT_REJECTED' });
+      return;
+    }
+    if (analyzedCodec === 'av1' && report.frameCount !== av1TimedRpuCount) {
+      sendJson(response, 422, { error: 'AV1_RPU_TIMING_COUNT_MISMATCH' });
       return;
     }
     // inputSha256 binds the extracted video/RPU bytes; sourceMediaSha256 binds
