@@ -33,6 +33,8 @@ import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from '
 import { useFridayGlassPlayback } from '@/components/friday/FridayGlassProvider';
 import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } from '@/lib/cinema-v4-controls';
 import { selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
+import { CinemaPlaybackActions } from '@/components/ipad-edition/CinemaPlaybackActions';
+import { ClassicWatchTitle, ClassicWatchRateButton, ClassicWatchTools } from '@/components/watch/ClassicWatchControls';
 import {
   clearProgress,
   progressKeyOf,
@@ -998,6 +1000,24 @@ function WatchContent() {
     setCinemaLocked(false);
   }, [currentUrl]);
 
+  // Shared action: both UI variants use the same download semantics.
+  const downloadCurrentEpisode = () => {
+    if (!currentUrl) return;
+    const downloadTitle = `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`;
+    if (/\\.m3u8(?:$|[?#])/i.test(currentUrl)) {
+      enqueueDownload({ url: currentUrl, title: downloadTitle, format: 'MP4' });
+      return;
+    }
+    const anchor = document.createElement('a');
+    anchor.href = currentUrl;
+    anchor.download = suggestDownloadFilename(downloadTitle, currentUrl);
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    toast('已打开直链。Safari 可通过分享菜单保存；跨域站点不保证自动下载。', 'info');
+  };
   const orderedEpisodes = reversed
     ? [...episodes].map((_, i) => episodes.length - 1 - i)
     : episodes.map((_, i) => i);
@@ -1238,15 +1258,11 @@ function WatchContent() {
               </button>
             </div>
 
-            {!isIpadEditionPlayback && <div className="netflix-title-row">
-              <div className="min-w-0">
-                <h1 className="text-xl sm:text-2xl font-semibold text-content truncate">{videoTitle}</h1>
-                <p className="text-xs sm:text-sm text-muted mt-1">
-                  {source.name} · {hasEpisodeNavigation ? `第 ${currentIndex + 1} / ${episodes.length} 集` : isMovie ? '电影' : '单集内容'}
-                </p>
-              </div>
-
-            </div>}
+            {!isIpadEditionPlayback && <ClassicWatchTitle
+              title={videoTitle} sourceName={source.name}
+              hasEpisodes={hasEpisodeNavigation} currentIndex={currentIndex}
+              episodeCount={episodes.length} isMovie={isMovie}
+            />}
 
             <section className="watch-cinema-info" aria-label="影片信息">
               <div className="watch-cinema-playback">
@@ -1457,91 +1473,46 @@ function WatchContent() {
 
                 )}
                 {isScrubbing && <output className="watch-cinema-scrub-preview" aria-live="off">{formatWatchTime(displayedPosition)}</output>}
-                {!isIpadEditionPlayback && <button
-                  type="button"
-                  className="watch-cinema-rate"
-                  aria-label={`播放速度 ${watchRate} 倍`}
-                  title="切换播放速度"
-                  onClick={() => {
-                    const rates = [1, 1.25, 1.5, 2, 0.75];
-                    const current = playerApiRef.current?.getPlaybackRate() ?? watchRate;
-                    const next = rates[(rates.indexOf(current) + 1 + rates.length) % rates.length];
-                    playerApiRef.current?.setPlaybackRate(next);
-                    if (playerApiRef.current) setWatchRate(playerApiRef.current.getPlaybackRate());
-                  }}
-                >{watchRate}×</button>}
+                {!isIpadEditionPlayback && <ClassicWatchRateButton rate={watchRate} onCycle={() => {
+                  const rates = [1, 1.25, 1.5, 2, 0.75];
+                  const current = playerApiRef.current?.getPlaybackRate() ?? watchRate;
+                  const next = rates[(rates.indexOf(current) + 1 + rates.length) % rates.length];
+                  playerApiRef.current?.setPlaybackRate(next);
+                  if (playerApiRef.current) setWatchRate(playerApiRef.current.getPlaybackRate());
+                }} />}
               </div>
             </section>
 
-            {isIpadEditionPlayback && <div className="cinema-v4-actions" role="toolbar" aria-label="影院播放功能">
-              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-label={`播放速度 ${watchRate} 倍`} onClick={() => {
+            {isIpadEditionPlayback && <CinemaPlaybackActions
+              rate={watchRate}
+              locked={cinemaLocked}
+              hasEpisodes={hasEpisodeNavigation}
+              panel={cinemaPanel}
+              sourcePanelOpen={showPlayerPanel && sidebarTab === 'sources'}
+              onRate={() => {
                 const next = nextCinemaPlaybackRate(playerApiRef.current?.getPlaybackRate() ?? watchRate);
                 playerApiRef.current?.setPlaybackRate(next);
                 if (playerApiRef.current) setWatchRate(playerApiRef.current.getPlaybackRate());
-              }}><span aria-hidden="true" className="cinema-v4-tool-symbol">{watchRate}×</span><span>倍速</span></button>
-              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-pressed={cinemaLocked} onClick={() => { setCinemaPanel(null); setCinemaLocked((locked) => !locked); }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>{cinemaLocked ? '解锁' : '锁定'}</span>
-              </button>
-              {hasEpisodeNavigation && <button type="button" data-friday-material="cinema" className="cinema-v4-tool" onClick={() => { setCinemaPanel(null); setSidebarTab('episodes'); setShowPlayerPanel(true); }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>选集</span>
-              </button>}
-              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'audio' || cinemaPanel === 'subtitles'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => panel === 'audio' || panel === 'subtitles' ? null : toggleCinemaPanel(panel, 'audio')); }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v12H9l-5 3v-3H3z"/><path d="M7 10h10M7 13h6"/></svg><span>音频与字幕</span>
-              </button>
-              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'quality'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'quality')); }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15l4-4 3 3 3-4"/></svg><span>画质</span>
-              </button>
-              <button type="button" data-friday-material="cinema" className="cinema-v4-tool cinema-v4-source-control" aria-expanded={showPlayerPanel && sidebarTab === 'sources'} aria-controls="netflix-watch-utility-panel" onClick={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="5" rx="1"/><rect x="3" y="14" width="18" height="5" rx="1"/></svg><span>播放源</span>
-              </button>
-              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" aria-expanded={cinemaPanel === 'diagnostics'} onClick={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'diagnostics')); }}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg><span>诊断</span>
-              </button>
-              <button type="button" data-friday-material="cinema" className="cinema-v4-tool" onClick={requestWatchFullscreen}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>全屏</span>
-              </button>
-            </div>}
-            {isIpadEditionPlayback && cinemaLocked && (
-              <>
-                <div className="cinema-v4-touch-shield" aria-hidden="true" onPointerDown={(event) => event.stopPropagation()} onPointerMove={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onTouchStart={(event) => event.stopPropagation()} onTouchMove={(event) => event.stopPropagation()} />
-                <button type="button" className="cinema-v4-unlock" onClick={() => setCinemaLocked(false)} aria-label="解锁屏幕">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>解除触控锁定</span>
-                </button>
-              </>
-            )}
-            {!isIpadEditionPlayback && <div className="netflix-watch-tools">
-              {hasEpisodeNavigation && <><button className="btn-ghost btn-sm" disabled={currentIndex <= 0} onClick={() => goEpisode(currentIndex - 1)}>上一集</button>
-              <button className="btn-ghost btn-sm" disabled={currentIndex >= episodes.length - 1} onClick={() => goEpisode(currentIndex + 1)}>下一集</button></>}
-              <button className="btn-ghost btn-sm" onClick={() => {
-                if (!currentUrl) return;
-                const downloadTitle = `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`;
-                if (/\.m3u8(?:$|[?#])/i.test(currentUrl)) {
-                  // HLS is parsed and transmuxed by the existing task engine; MP4
-                  // here means the output container, never a renamed playlist.
-                  enqueueDownload({ url: currentUrl, title: downloadTitle, format: 'MP4' });
-                  return;
-                }
-                // A non-HLS URL is a direct media/file URL, not an M3U8 playlist.
-                // Do not enqueue it into the playlist parser. Cross-origin download
-                // attributes are advisory only, so open the actual URL as a fallback.
-                const anchor = document.createElement('a');
-                anchor.href = currentUrl;
-                anchor.download = suggestDownloadFilename(downloadTitle, currentUrl);
-                anchor.target = '_blank';
-                anchor.rel = 'noopener noreferrer';
-                document.body.appendChild(anchor);
-                anchor.click();
-                anchor.remove();
-                toast('已打开直链。若 Safari 未保存文件，请在打开的视频页面使用分享菜单保存；跨域站点不保证网页可强制下载。', 'info');
-              }}>下载本集</button>
-              <button className={cn('btn-ghost btn-sm', skipPanelOpen && 'bg-chip text-content')} aria-expanded={skipPanelOpen} aria-haspopup="dialog" onClick={() => setSkipPanelOpen((v) => !v)}>
-                跳过标记{markedCount > 0 ? ` (${markedCount})` : ''}
-              </button>
-              <label className="flex items-center gap-1.5 text-xs text-muted ml-auto cursor-pointer">
-                <input type="checkbox" className="h-3.5 w-3.5 accent-[#2563eb]" checked={store.autoplayNext} onChange={(e) => store.updateSettings({ autoplayNext: e.target.checked })} />
-                自动连播
-              </label>
-            </div>}
+              }}
+              onLock={() => { setCinemaPanel(null); setCinemaLocked((locked) => !locked); }}
+              onEpisodes={() => { setCinemaPanel(null); setSidebarTab('episodes'); setShowPlayerPanel(true); }}
+              onAudioAndSubtitles={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => panel === 'audio' || panel === 'subtitles' ? null : toggleCinemaPanel(panel, 'audio')); }}
+              onQuality={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'quality')); }}
+              onSources={() => { setCinemaPanel(null); setSidebarTab('sources'); setShowPlayerPanel(true); }}
+              onDiagnostics={() => { setShowPlayerPanel(false); setCinemaPanel((panel) => toggleCinemaPanel(panel, 'diagnostics')); }}
+              onFullscreen={requestWatchFullscreen}
+              onUnlock={() => setCinemaLocked(false)}
+            />}
+            {!isIpadEditionPlayback && <ClassicWatchTools
+              hasEpisodes={hasEpisodeNavigation} currentIndex={currentIndex}
+              episodeCount={episodes.length} skipPanelOpen={skipPanelOpen}
+              markedCount={markedCount} autoplayNext={store.autoplayNext}
+              onPrevious={() => goEpisode(currentIndex - 1)}
+              onNext={() => goEpisode(currentIndex + 1)}
+              onDownload={downloadCurrentEpisode}
+              onToggleSkip={() => setSkipPanelOpen((value) => !value)}
+              onAutoplayNext={(value) => store.updateSettings({ autoplayNext: value })}
+            />}
             <SkipMarkPanel
               open={skipPanelOpen}
               onClose={() => setSkipPanelOpen(false)}
@@ -1621,23 +1592,7 @@ function WatchContent() {
                     <button type="button" onClick={() => { setShowPlayerPanel(false); setSkipPanelOpen(true); }}>
                       跳过片段标记{markedCount > 0 ? `（${markedCount}）` : ''}
                     </button>
-                    <button type="button" disabled={!currentUrl} onClick={() => {
-                      if (!currentUrl) return;
-                      const downloadTitle = `${videoTitle}${hasEpisodeNavigation ? ` 第${currentIndex + 1}集` : ''}`;
-                      if (/\.m3u8(?:$|[?#])/i.test(currentUrl)) {
-                        enqueueDownload({ url: currentUrl, title: downloadTitle, format: 'MP4' });
-                        return;
-                      }
-                      const anchor = document.createElement('a');
-                      anchor.href = currentUrl;
-                      anchor.download = suggestDownloadFilename(downloadTitle, currentUrl);
-                      anchor.target = '_blank';
-                      anchor.rel = 'noopener noreferrer';
-                      document.body.appendChild(anchor);
-                      anchor.click();
-                      anchor.remove();
-                      toast('已打开直链。Safari 可通过分享菜单保存；跨域站点不保证自动下载。', 'info');
-                    }}>下载本集</button>
+                    <button type="button" disabled={!currentUrl} onClick={downloadCurrentEpisode}>下载本集</button>
                     <label>
                       <input type="checkbox" checked={store.autoplayNext} onChange={(event) => store.updateSettings({ autoplayNext: event.target.checked })} />
                       自动播放下一集
