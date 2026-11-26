@@ -35,6 +35,7 @@ import type { CinemaGpuSession } from '@/lib/cinema-hdr-gpu';
 import { startCinemaSdrEnhancedGpu } from '@/lib/cinema-hdr-webgpu';
 import { observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { createCinemaSoundSession, type CinemaSoundSession, type CinemaSoundMode } from '@/lib/cinema-v51-sound';
+import { createCinemaAuthorizedPcmSoundSession, type CinemaAuthorizedAacSource } from '@/lib/cinema-v51-pcm-playback';
 import { mountCinemaV51AuthorizedPlayback, type CinemaV51AuthorizedPlayback, type CinemaV51PlaybackMount } from '@/lib/cinema-v51-playback-mount';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -150,6 +151,8 @@ interface PlayerShellProps {
   cinemaMode?: boolean;
   /** Optional authenticated WebCodecs P010 source. Normal HLS playback does not supply it. */
   cinemaV51AuthorizedSource?: CinemaV51AuthorizedPlayback;
+  /** Optional externally authenticated DRM-free AAC/PCM track, never derived from CMS URLs. */
+  cinemaV51AuthorizedAudioSource?: CinemaAuthorizedAacSource;
   cinemaPanel?: 'audio' | 'subtitles' | 'quality' | 'diagnostics' | null;
   onCloseCinemaPanel?: () => void;
   onCinemaPanelChange?: (panel: 'audio' | 'subtitles') => void;
@@ -220,6 +223,7 @@ export function PlayerShell({
   title,
   cinemaMode = false,
   cinemaV51AuthorizedSource,
+  cinemaV51AuthorizedAudioSource,
   cinemaPanel = null,
   onCloseCinemaPanel,
   onCinemaPanelChange,
@@ -398,13 +402,13 @@ export function PlayerShell({
     }
     const requestId=++cinemaSoundRequestRef.current;
     setDolbyCardStatus('正在检查是否可以安全读取 PCM 音轨。Safari 不支持时不会改变原声。');
-    const session=await createCinemaSoundSession(video,state=>{
+    const onCinemaAudioState=(state:Parameters<Parameters<typeof createCinemaSoundSession>[1]>[0])=>{
       if(requestId!==cinemaSoundRequestRef.current) return;
       // Use the last confirmed routing snapshot, not a React state updater
       // for side effects; StrictMode may invoke updater callbacks twice.
       const previous=cinemaSoundActiveRef.current;
-      if(state.output==='captured-dsp' && state.audio&&!previous.audio) startCinemaAnimation('audio');
-      if(state.output==='captured-dsp' && state.spatial&&!previous.spatial) startCinemaAnimation('spatial');
+      if(state.output!=='native' && state.audio&&!previous.audio) startCinemaAnimation('audio');
+      if(state.output!=='native' && state.spatial&&!previous.spatial) startCinemaAnimation('spatial');
       const confirmed={url,audio:state.audio,spatial:state.spatial};
       cinemaSoundActiveRef.current=confirmed;
       setCinemaSoundActive(confirmed);
@@ -416,7 +420,10 @@ export function PlayerShell({
         cinemaSoundSessionRef.current = null;
         cinemaSoundRequestedRef.current = {url,audio:false,spatial:false};
       }
-    });
+    };
+    const session=cinemaV51AuthorizedAudioSource
+      ? await createCinemaAuthorizedPcmSoundSession(video,cinemaV51AuthorizedAudioSource,onCinemaAudioState)
+      : await createCinemaSoundSession(video,onCinemaAudioState);
     if(requestId!==cinemaSoundRequestRef.current||!video.isConnected) {
       session?.stop();
       return;
