@@ -271,7 +271,9 @@ export async function createCinemaSoundSession(
   const check=()=>{
     if(stopped)return;
     if(video.isConnected===false||(stream!==null&&stream.getAudioTracks().every(track=>track.readyState!=='live'))){
-      session.stop();return;
+      session.stop();
+      onState({audio:false,spatial:false,output:'native',reason:'音频输入已断开，增强已停止。'});
+      return;
     }
     if(mirror && capturing && mirror.readyState>=2 && performance.now()-lastSyncCheck>250){
       lastSyncCheck=performance.now();
@@ -285,7 +287,7 @@ export async function createCinemaSoundSession(
         return;
       }
       if(Math.abs(difference)>0.07 && Math.abs(difference)<=0.18){
-        mirror.playbackRate=Math.min(1.04,Math.max(.96,video.playbackRate-difference*.2));
+        mirror.playbackRate=video.playbackRate*Math.min(1.04,Math.max(.96,1-difference*.2));
       } else mirror.playbackRate=video.playbackRate;
     }
     if(!capturing&&context.state==='running'&&video.readyState>=2&&!video.paused){
@@ -300,7 +302,7 @@ export async function createCinemaSoundSession(
         } else {
         capturing=true;
         update();
-        if(!mirror)return;
+        // Continue monitoring captured PCM for adaptive loudness and track loss.
         }
       }
     }
