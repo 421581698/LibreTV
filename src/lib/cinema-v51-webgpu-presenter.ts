@@ -12,6 +12,7 @@ interface GpuDevice {
   createRenderPipelineAsync?(args:unknown):Promise<{getBindGroupLayout(i:number):unknown}>;
   createRenderPipeline(args:unknown):{getBindGroupLayout(i:number):unknown};
   createSampler(args:unknown):unknown;
+  createBuffer(args:{size:number;usage:number}):unknown;
   importExternalTexture(args:{source:unknown}):unknown;
   createBindGroup(args:unknown):unknown;
   createCommandEncoder():{
@@ -23,7 +24,7 @@ interface GpuDevice {
     };
     finish():unknown;
   };
-  queue:{submit(commands:unknown[]):void};
+  queue:{submit(commands:unknown[]):void;writeBuffer(buffer:unknown,offset:number,data:Float32Array):void};
   lost:Promise<unknown>;
   destroy():void;
 }
@@ -41,8 +42,11 @@ export interface CinemaExtendedFrame {
   readonly codedWidth?:number;
   readonly codedHeight?:number;
 }
+export interface CinemaExtendedUvCrop {
+  uvScaleX:number;uvScaleY:number;uvOffsetX:number;uvOffsetY:number;
+}
 export interface CinemaExtendedPresenter{
-  present:(frame:CinemaExtendedFrame,ptsUs:number)=>Promise<boolean>;
+  present:(frame:CinemaExtendedFrame,ptsUs:number,crop?:CinemaExtendedUvCrop)=>Promise<boolean>;
   stop:()=>void;
   readonly highPrecisionCanvas:boolean;
 }
@@ -50,6 +54,8 @@ const SHADER=`
 struct Out{ @builtin(position) position:vec4f,@location(0) uv:vec2f }
 @group(0) @binding(0) var source:texture_external;
 @group(0) @binding(1) var linearSampler:sampler;
+struct Crop {scale:vec2f,offset:vec2f}
+@group(0) @binding(2) var<uniform> crop:Crop;
 @vertex fn vs(@builtin(vertex_index) i:u32)->Out {
   let vertices=array<vec2f,4>(
     vec2f(-1,-1),vec2f(1,-1),vec2f(-1,1),vec2f(1,1));
@@ -60,7 +66,7 @@ struct Out{ @builtin(position) position:vec4f,@location(0) uv:vec2f }
   return out;
 }
 @fragment fn fs(input:Out)->@location(0) vec4f {
-  return textureSampleBaseClampToEdge(source,linearSampler,input.uv);
+  return textureSampleBaseClampToEdge(source,linearSampler,input.uv*crop.scale+crop.offset);
 }`;
 export function cinemaSupportsExtendedConfiguration(
   config:{format?:string;colorSpace?:string;toneMapping?:{mode?:string}}|null|undefined,
@@ -107,6 +113,7 @@ export async function createCinemaExtendedWebGpuPresenter(
       ?await device.createRenderPipelineAsync(description)
       :device.createRenderPipeline(description);
     const sampler=device.createSampler({magFilter:'linear',minFilter:'linear'});
+    const cropBuffer=device.createBuffer({size:16,usage:72}); // UNIFORM | COPY_DST
     void device.lost.then(()=>{
       if(stopped)return;
       stop();onFailure('WebGPU HDR 设备丢失，已恢复原生画面。');
@@ -117,7 +124,7 @@ export async function createCinemaExtendedWebGpuPresenter(
     return {
       highPrecisionCanvas:true,
       stop,
-      async present(frame,ptsUs){
+      async present(frame,ptsUs,crop){
         if(stopped||!canvas.isConnected||frame.timestamp!==ptsUs||
           !Number.isSafeInteger(frame.codedWidth)||!Number.isSafeInteger(frame.codedHeight)||
           (frame.codedWidth??0)<=0||(frame.codedHeight??0)<=0)return false;
@@ -126,10 +133,18 @@ export async function createCinemaExtendedWebGpuPresenter(
             canvas.width=frame.codedWidth!;
             canvas.height=frame.codedHeight!;
           }
+          const uv=crop??{uvScaleX:1,uvScaleY:1,uvOffsetX:0,uvOffsetY:0};
+          if([uv.uvScaleX,uv.uvScaleY,uv.uvOffsetX,uv.uvOffsetY].some(v=>!Number.isFinite(v)) ||
+             uv.uvScaleX<=0||uv.uvScaleY<=0||uv.uvOffsetX<0||uv.uvOffsetY<0||
+             uv.uvScaleX+uv.uvOffsetX>1.000001||uv.uvScaleY+uv.uvOffsetY>1.000001) return false;
+          device.queue.writeBuffer(cropBuffer,0,new Float32Array([
+            uv.uvScaleX,uv.uvScaleY,uv.uvOffsetX,uv.uvOffsetY,
+          ]));
           const external=device.importExternalTexture({source:frame});
           const group=device.createBindGroup({
             layout:pipeline.getBindGroupLayout(0),
-            entries:[{binding:0,resource:external},{binding:1,resource:sampler}],
+            entries:[{binding:0,resource:external},{binding:1,resource:sampler},
+              {binding:2,resource:{buffer:cropBuffer}}],
           });
           const encoder=device.createCommandEncoder();
           const pass=encoder.beginRenderPass({colorAttachments:[{
