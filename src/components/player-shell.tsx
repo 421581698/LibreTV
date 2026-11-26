@@ -2391,6 +2391,11 @@ export function PlayerShell({
           <button className="btn-ghost text-xs" onClick={() => location.reload()}>
             重新加载
           </button>
+          {cinemaMode && onRequestSwitchSource && (
+            <button type="button" className="btn-primary text-xs" onClick={() => onRequestSwitchSource('playback-error')}>
+              更换播放源
+            </button>
+          )}
         </div>
       )}
       {(hint || undoSkip) && (
