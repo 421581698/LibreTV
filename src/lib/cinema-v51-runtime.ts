@@ -74,6 +74,9 @@ export async function cinemaVerifyHdr10PlusSample(
     maxSclNits:window.maxSclNits,
     averageMaxRgbNits:window.averageMaxRgbNits,
     kneePoint:window.kneeX??undefined,
+    kneePointY:window.kneeY??undefined,
+    bezierAnchors:window.bezierAnchors,
+    saturationWeight:window.colorSaturationWeight??undefined,
     provenance:'verified-st2094-40',
   };
 }
