@@ -41,7 +41,7 @@ function safeGain(gain:AudioParam,value:number,context:AudioContext) {
   gain.cancelScheduledValues(now);
   gain.setTargetAtTime(value,now,RAMP_SECONDS);
 }
-function panner(context:AudioContext,x:number):PannerNode {
+export function cinemaCreatePanner(context:AudioContext,x:number):PannerNode {
   const node=context.createPanner();
   node.panningModel='HRTF';
   node.distanceModel='inverse';
@@ -58,7 +58,7 @@ function panner(context:AudioContext,x:number):PannerNode {
   return node;
 }
 /** A bounded cinema voice/bass/dynamics preset; this is PCM DSP, not Dolby decoding. */
-function configureEq(context:AudioContext) {
+export function cinemaConfigureEq(context:AudioContext) {
   const sub=context.createBiquadFilter();
   sub.type='lowshelf';sub.frequency.value=64;sub.gain.value=2.6;
   const bass=context.createBiquadFilter();
@@ -168,7 +168,7 @@ export async function createCinemaSoundSession(
     else throw new Error('No audio input');
     analyser=context.createAnalyser();
     analyser.fftSize=1024;
-    const eq=configureEq(context);
+    const eq=cinemaConfigureEq(context);
     const master=context.createGain();
     master.gain.value=video.volume;
     const outputLimiter=context.createDynamicsCompressor();
@@ -218,7 +218,7 @@ export async function createCinemaSoundSession(
          {x:0,z:-1,g:.14},{x:-.95,z:.6,g:.38},{x:.95,z:.6,g:.38}]
       : [{x:-.65,z:-1,g:.68},{x:.65,z:-1,g:.68}];
     speakers.forEach((speaker,index)=>{
-      const node=panner(context,speaker.x);
+      const node=cinemaCreatePanner(context,speaker.x);
       if('positionZ' in node && node.positionZ) {
         node.positionZ.setValueAtTime(speaker.z,context.currentTime);
       }else {
