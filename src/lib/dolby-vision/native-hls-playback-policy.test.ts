@@ -16,6 +16,7 @@ const chrome = 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTM
 const defaultOptions = {
   userAgent: safari,
   nativeHlsTypeSupport: 'maybe',
+  canPlayDeclaredCodec: () => 'maybe',
   qualityPreference: 'auto',
   playbackStarted: false,
   alreadyAttemptedNative: false,
@@ -30,6 +31,21 @@ describe('native Safari Dolby Vision HLS routing', () => {
     expect(shouldPreferNativeDolbyVisionHls(ordinaryHls, defaultOptions)).toBe(false);
     expect(shouldPreferNativeDolbyVisionHls(dolbyHls, { ...defaultOptions, userAgent: chrome })).toBe(false);
     expect(shouldPreferNativeDolbyVisionHls(dolbyHls, { ...defaultOptions, nativeHlsTypeSupport: '' })).toBe(false);
+  });
+
+  it('does not force the native decoder when every declared Dolby codec is rejected', () => {
+    expect(shouldPreferNativeDolbyVisionHls(dolbyHls, {
+      ...defaultOptions,
+      canPlayDeclaredCodec: () => '',
+    })).toBe(false);
+    expect(shouldPreferNativeDolbyVisionHls(dolbyHls, {
+      ...defaultOptions,
+      canPlayDeclaredCodec: () => { throw new Error('native codec API unavailable'); },
+    })).toBe(false);
+    expect(shouldPreferNativeDolbyVisionHls(dolbyHls, {
+      ...defaultOptions,
+      canPlayDeclaredCodec: () => 'probably',
+    })).toBe(true);
   });
 
   it('does not override manual quality restrictions or an ongoing playback session', () => {
