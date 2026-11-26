@@ -111,6 +111,13 @@ function queryHint(matchMedia: CinemaHdrProbe['matchMedia'], query: string): boo
   if (!matchMedia) return null;
   try { return Boolean(matchMedia(query).matches); } catch { return null; }
 }
+/** Enable wide-gamut SDR canvas only for an explicitly declared P3 source on a P3-capable display. */
+export function shouldUseCinemaP3Output(
+  variants: readonly CinemaHdrVariant[], matchMedia?: CinemaHdrProbe['matchMedia'],
+): boolean {
+  if (!variants.some(v => v.colorGamut === 'p3' && v.transfer === 'sdr')) return false;
+  return queryHint(matchMedia, '(color-gamut: p3)') === true;
+}
 export function isSafariNativeHdrCandidate(variants: readonly CinemaHdrVariant[], options: CinemaHdrProbe): boolean {
   if (options.qualityPreference !== 'auto' || options.playbackStarted || options.alreadyAttemptedNative) return false;
   if (!['maybe','probably'].includes(options.nativeHlsSupport)) return false;
