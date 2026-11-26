@@ -77,7 +77,7 @@ function declaredDepth(codec: string): 8 | 10 | 12 | null {
 export function inspectCinemaHdrVariants(
   levels: readonly CinemaHdrLevel[] = [], manifest?: string,
 ): CinemaHdrVariant[] {
-  const attrsList = manifest ? manifestVariants(manifest) :
+  const attrsList: Array<Record<string, string>> = manifest ? manifestVariants(manifest) :
     levels.map(level => ({ ...attrMap(level.attrs), CODECS: attrMap(level.attrs).CODECS || level.videoCodec || '' }));
   return attrsList.map(attrs => {
     const all = [...tokens(attrs.CODECS || ''), ...tokens(attrs['SUPPLEMENTAL-CODECS'] || '').map(s => s.split('/')[0])];
