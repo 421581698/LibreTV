@@ -34,13 +34,13 @@ export async function loadUserOpenJocWasm(file: File): Promise<OpenJocAbi> {
   if (bytes.byteLength !== file.size || !WebAssembly.validate(bytes)) {
     throw new Error('Invalid OpenJOC WASM bytes');
   }
-  const module = await WebAssembly.compile(bytes);
-  if (!allowedOpenJocImports(WebAssembly.Module.imports(module))) {
+  const wasmModule = await WebAssembly.compile(bytes);
+  if (!allowedOpenJocImports(WebAssembly.Module.imports(wasmModule))) {
     throw new Error('OpenJOC WASM requests unsupported imports');
   }
   // The pinned upstream bridge needs this bounded clock callback. All other
   // host functions (filesystem, networking, WASI, memory) remain unavailable.
-  const instance = await WebAssembly.instantiate(module, {
+  const instance = await WebAssembly.instantiate(wasmModule, {
     env: { openjoc_wasm_clock_now_ms: () => performance.now() },
   });
   const exports = instance.exports as Record<string, WebAssembly.ExportValue>;
