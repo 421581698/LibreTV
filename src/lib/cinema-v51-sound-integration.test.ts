@@ -41,12 +41,13 @@ class FakeAudioContext extends EventTarget {
   state='suspended';
   destination=new FakeNode();
   closed=false;
+  pannerCount=0;
   constructor(_options?:unknown){super();FakeAudioContext.instances.push(this);}
   createMediaStreamSource(_stream:unknown){return new FakeNode();}
   createBiquadFilter(){return new FakeNode();}
   createDynamicsCompressor(){return new FakeNode();}
   createGain(){return new FakeNode();}
-  createPanner(){return new FakeNode();}
+  createPanner(){this.pannerCount++;return new FakeNode();}
   createChannelSplitter(_n:number){return new FakeNode();}
   createAnalyser(){return new FakeAnalyser();}
   async resume(){this.state='running';this.dispatchEvent(new Event('statechange'));}
@@ -115,6 +116,18 @@ describe('Cinema V5.1 DSP and HRTF runtime interruption recovery',()=>{
     expect(video.track.stopped).toBe(true);
     expect(FakeAudioContext.instances.at(-1)?.closed).toBe(true);
     expect(states.at(-1)).toMatchObject({audio:false,spatial:false,output:'native'});
+  });
+  it('constructs six actual virtual HRTF speakers only for verified 5.1 capture',async()=>{
+    const video=new FakeVideo();
+    (video.track as FakeTrack & {getSettings?:()=>{channelCount:number}}).getSettings=()=>({channelCount:6});
+    const session=await createCinemaSoundSession(video as never,()=>{});
+    expect(session).not.toBeNull();
+    expect(FakeAudioContext.instances.at(-1)?.pannerCount).toBe(6);
+    session!.enable('spatial',true);
+    nextFrame();nextFrame();nextFrame();
+    expect(video.muted).toBe(true);
+    session!.stop();
+    expect(video.muted).toBe(false);
   });
   it('recovers native sound on seek/error rather than leaving an HRTF session bound to stale media',async()=>{
     const video=new FakeVideo(),states:CinemaSoundState[]=[];
