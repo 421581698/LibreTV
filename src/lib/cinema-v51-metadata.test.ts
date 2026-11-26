@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {cinemaPqOetf} from './cinema-v51-color';
-import {cinemaResolveDynamicFrame,cinemaValidateMetadata,cinemaTransform10BitFrame,
+import {cinemaResolveDynamicFrame,cinemaValidateMetadata,cinemaTransform10BitFrame,cinemaHdr10PlusToneMap,
   cinemaTransformMetadataFrame,type CinemaMetadataEnvelope} from './cinema-v51-metadata';
 const sha='e'.repeat(64);
 const envelope:CinemaMetadataEnvelope={
@@ -42,6 +42,24 @@ describe('Cinema V5.1 metadata / 10-bit pipeline',()=>{
   expect(first[0]).not.toBe(second[0]);
   expect(()=>cinemaTransform10BitFrame(new Uint16Array([1,2]),opt)).toThrow();
   expect(()=>cinemaTransform10BitFrame(new Uint16Array([1024,0,0]),opt)).toThrow();
+ });
+ it('actually applies registered per-frame Bezier anchors rather than discarding the curve',()=>{
+  const basis={...envelope.frames[0],kneePoint:.5,kneePointY:.6};
+  const raised={...basis,bezierAnchors:[.95,.95]};
+  const lowered={...basis,bezierAnchors:[.15,.15]};
+  const a=cinemaHdr10PlusToneMap(800,1000,100,raised);
+  const b=cinemaHdr10PlusToneMap(800,1000,100,lowered);
+  expect(a).toBeGreaterThan(b);
+  expect(a).toBeLessThanOrEqual(100);
+  expect(b).toBeGreaterThanOrEqual(0);
+  const transformedHigh=cinemaTransformMetadataFrame(
+    [cinemaPqOetf(800),cinemaPqOetf(500),cinemaPqOetf(100)],
+    opt,envelope.mastering,raised);
+  const transformedLow=cinemaTransformMetadataFrame(
+    [cinemaPqOetf(800),cinemaPqOetf(500),cinemaPqOetf(100)],
+    opt,envelope.mastering,lowered);
+  expect(transformedHigh[0]).not.toBeCloseTo(transformedLow[0],3);
+  expect(()=>cinemaValidateMetadata({...envelope,frames:[{...raised,bezierAnchors:[1.5]}]})).toThrow();
  });
  it('handles static mastering metadata independently of missing dynamic fields',()=>{
   const result=cinemaTransformMetadataFrame([cinemaPqOetf(200),cinemaPqOetf(100),cinemaPqOetf(40)],opt,
