@@ -1302,7 +1302,7 @@ export function PlayerShell({
       playsInline: true,
       // ArtPlayer rotates its web-fullscreen surface to match video orientation on
       // touch devices. iOS native fullscreen remains controlled by WebKit/system rotation.
-      autoOrientation: touchPointer,
+      autoOrientation: !cinemaMode && touchPointer,
       airplay: !cinemaMode,
       hotkey: false,
       theme: '#ffffff',
