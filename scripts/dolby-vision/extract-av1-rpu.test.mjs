@@ -137,7 +137,7 @@ test('demuxes one AV1 video track from MP4 and IVF containers without re-encodin
 process.stdout.write(process.env.TEST_AV1_STREAMS || "av1\\n");
 `);
   await writeFile(ffmpegPath, `#!/usr/bin/env node
-const fs=require("node:fs"); const fsOption=process.argv.indexOf("-fs"); if(fsOption<0 || process.argv[fsOption+1]!=="536870912") process.exit(3); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, process.argv.at(-1));
+const fs=require("node:fs"); const fsOption=process.argv.indexOf("-fs"); if(!process.argv.includes("-xerror") || fsOption<0 || process.argv[fsOption+1]!=="536870912") process.exit(3); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, process.argv.at(-1));
 `);
   await chmod(ffprobePath, 0o755);
   await chmod(ffmpegPath, 0o755);
