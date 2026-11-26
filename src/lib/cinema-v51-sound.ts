@@ -150,6 +150,7 @@ export async function createCinemaSoundSession(
   const previouslyMuted=video.muted;
   let streamSource:AudioNode;
   let analyser:AnalyserNode;
+  let master:GainNode;
   let unregisterVolume=()=>{};
   let unregisterRuntime=()=>{};
   let lastSyncCheck=0;
@@ -169,7 +170,7 @@ export async function createCinemaSoundSession(
     analyser=context.createAnalyser();
     analyser.fftSize=1024;
     const eq=cinemaConfigureEq(context);
-    const master=context.createGain();
+    master=context.createGain();
     master.gain.value=video.volume;
     const outputLimiter=context.createDynamicsCompressor();
     outputLimiter.threshold.value=-3;
