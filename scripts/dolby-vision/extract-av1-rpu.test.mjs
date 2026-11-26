@@ -300,3 +300,26 @@ test('rejects oversized T.35 metadata before conversion', () => {
   ]);
   assert.throws(() => extractDolbyRpuFromObuStream(input), /T\.35 metadata exceeds configured byte limit/);
 });
+
+test('reads an OBU size across file chunks and rejects a truncated payload', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-chunk-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { bytes } = validT35Payload();
+  const fixture = Buffer.concat([
+    obu(2, Buffer.alloc(0)),
+    obu(15, Buffer.alloc(64 * 1024 - 8)),
+    obu(5, Buffer.concat([leb(4), bytes, Buffer.alloc(128)])),
+    obu(6, Buffer.alloc(128)),
+  ]);
+  const input = resolve(directory, 'input.obu');
+  const output = resolve(directory, 'output.rpu');
+  const script = new URL('./extract-av1-rpu.mjs', import.meta.url);
+  const args = [decodeURIComponent(script.pathname), '--input', input, '--output', output];
+  await writeFile(input, fixture);
+  execFileSync(process.execPath, args, { stdio: 'pipe' });
+  assert.deepEqual(await readFile(output), extractDolbyRpuFromObuStream(fixture).rpuBytes);
+  await rm(output);
+  await writeFile(input, fixture.subarray(0, -1));
+  assert.throws(() => execFileSync(process.execPath, args, { stdio: 'pipe' }), /payload exceeds bounds or is truncated/);
+  await assert.rejects(readFile(output), { code: 'ENOENT' });
+});
