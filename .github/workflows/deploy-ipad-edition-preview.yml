@@ -1545,6 +1545,10 @@ jobs:
           const viewports = [
             { name: "ipad-11-landscape", width: 1194, height: 834 },
             { name: "ipad-11-portrait", width: 834, height: 1194 },
+            { name: "ipad-pro-13-landscape", width: 1366, height: 1024 },
+            { name: "ipad-pro-13-portrait", width: 1032, height: 1376 },
+            { name: "ipad-split-half", width: 507, height: 834 },
+            { name: "ipad-split-two-thirds", width: 694, height: 834 },
           ];
           const browser = await chromium.launch({ headless: true });
           const results = [];
@@ -2179,7 +2183,13 @@ jobs:
 
                     await page.locator(".cinema-v4-source-control").click();
                     await page.locator(".netflix-watch-utility-panel.is-open").waitFor({ state: "visible", timeout: 10000 });
-                    await page.locator(".netflix-watch-panel-scrim").click({ position: { x: 48, y: 200 } });
+                    // The compact panel can cover the old fixed tap point. Tap the exposed backdrop below it.
+                    const scrim = page.locator(".netflix-watch-panel-scrim");
+                    const panelBox = await page.locator(".netflix-watch-utility-panel.is-open").boundingBox();
+                    const scrimBox = await scrim.boundingBox();
+                    if (!panelBox || !scrimBox) throw new Error("Missing open panel or backdrop");
+                    const panelBottom = panelBox.y + panelBox.height - scrimBox.y;
+                    await scrim.click({ position: { x: scrimBox.width / 2, y: (panelBottom + scrimBox.height) / 2 } });
                     await page.waitForFunction(() => !document.querySelector(".netflix-watch-utility-panel")?.classList.contains("is-open"), undefined, { timeout: 5000 });
                     const scrimDismissed = await page.locator(".netflix-watch-utility-panel").evaluate(node => !node.classList.contains("is-open"));
                     if (!scrimDismissed) failures += 1;
