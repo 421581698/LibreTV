@@ -94,9 +94,41 @@ describe('source switching preserves the active player edition', () => {
 describe('Cinema player lifecycle', () => {
   it('keeps the healthy iPad player boundary stable across media URLs', () => {
     const watch = read('src/app/watch/page.tsx');
-    expect(watch).toContain('key={isIpadEditionPlayback ? "ipad-cinema" : playerUrl} resetKey={playerUrl}');
-    expect(watch).toContain('<NativeCinemaFallback key={playerUrl}');
+    expect(watch).toContain('key={isIpadEditionPlayback ? "ipad-cinema" : playerUrl} resetKey={cinemaMediaGate.media.url}');
+    expect(watch).toContain('<NativeCinemaFallback key={cinemaMediaGate.media.url}');
     const boundary = read('src/components/playback-error-boundary.tsx');
     expect(boundary).toContain('this.state.failed && previousProps.resetKey !== this.props.resetKey');
+  });
+});
+
+describe('Cinema V4 and ordinary watch UI isolation', () => {
+  it('keeps legacy chrome out of the Cinema React render tree', () => {
+    const watch = read('src/app/watch/page.tsx');
+    const cinema = read('src/components/ipad-edition/CinemaPlaybackActions.tsx');
+    const classic = read('src/components/watch/ClassicWatchControls.tsx');
+    const css = read('src/app/ipad-edition/cinema-v4.css');
+    expect(watch).toContain('isIpadEditionPlayback && <CinemaPlaybackActions');
+    expect(watch).toContain('!isIpadEditionPlayback && <ClassicWatchTools');
+    expect(watch).toContain('!isIpadEditionPlayback && <ClassicWatchTitle');
+    expect(watch).toContain('!isIpadEditionPlayback && <ClassicWatchRateButton');
+    expect(watch).not.toContain('className="netflix-watch-tools"');
+    expect(watch).not.toContain('className="watch-cinema-rate"');
+    expect(watch).not.toContain('className="cinema-v4-actions"');
+    expect(classic).toContain('className="netflix-watch-tools"');
+    expect(cinema).toContain('className="cinema-v4-actions"');
+    expect(cinema).toContain('cinema-v4-touch-shield');
+    expect(css).not.toContain('.ipad-edition-watch .netflix-title-row');
+    expect(css).not.toContain('.ipad-edition-watch .netflix-watch-tools');
+  });
+
+  it('retains download, skip segments and auto-next in the Cinema details drawer', () => {
+    const watch = read('src/app/watch/page.tsx');
+    expect(watch).toContain('onClick={downloadCurrentEpisode}>下载本集');
+    expect(watch).toContain('跳过片段标记');
+    expect(watch).toContain('自动播放下一集');
+    expect(watch).toContain('setSkipPanelOpen(true)');
+    expect(watch).toContain('store.updateSettings({ autoplayNext: event.target.checked })');
+    expect(watch).toContain('selectCinemaPlaybackMedia({');
+    expect(watch).toContain('cinemaMediaGate.showPlayer');
   });
 });
