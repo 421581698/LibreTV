@@ -450,8 +450,11 @@ process.exit(2);
         const packetLines = Array.from({ length: sampleCount }, (_, index) =>
           'packet|stream_index=0|pts=' + index * 3000 + '|size=' + sample.length + '|pos=' + index * sample.length);
         const probeReport = [...packetLines, 'stream|index=0|codec_name=av1|time_base=1/90000'].join('\n');
+        const frameReport = Array.from({ length: sampleCount }, (_, index) =>
+          'frame|best_effort_timestamp=' + index * 3000).join('\n');
         const probeSource = '#!/usr/bin/env node\nprocess.stdout.write(process.argv.includes("-show_packets") ? ' +
-          JSON.stringify(probeReport) + ' : "av1\\n");\n';
+          JSON.stringify(probeReport) + ' : process.argv.includes("-show_frames") ? ' +
+          JSON.stringify(frameReport) + ' : "av1\\n");\n';
         await writeFile(fakeFfprobe, probeSource, { mode: 0o700 });
         let result;
         for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -470,6 +473,9 @@ process.exit(2);
       assert.deepEqual(av1Envelope.report.extractionScope, { track: null, frameLimit: null });
       assert.equal(av1Envelope.report.sourceMediaSha256, av1Digest);
       assert.equal(av1Envelope.report.rpuPresent, true);
+      assert.deepEqual(av1Envelope.report.av1PresentationAlignment, {
+        scope: 'ffprobe-decoded-frame-pts', matched: true, frameCount: 3,
+      });
       const { signature: av1Signature, ...av1Payload } = av1Envelope;
       assert.equal(
         verify(null, Buffer.from(canonicalize(av1Payload)), servicePublicPem, Buffer.from(av1Signature, 'base64url')),

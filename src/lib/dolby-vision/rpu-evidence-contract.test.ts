@@ -74,6 +74,14 @@ describe('Dolby Vision RPU evidence report contract', () => {
     expect(validateDolbyVisionRpuReport({ ...av1Report, sourceMediaSha256: null }, hash)).toBeNull();
   });
 
+  it('binds optional decoded AV1 frame PTS evidence to the exact frame count', () => {
+    const av1 = { ...validHevcReport, inputKind: 'av1',
+      av1PresentationAlignment: { scope: 'ffprobe-decoded-frame-pts', matched: true, frameCount: 240 } };
+    expect(validateDolbyVisionRpuReport(av1, hash)).not.toBeNull();
+    expect(validateDolbyVisionRpuReport({ ...av1, av1PresentationAlignment: { ...av1.av1PresentationAlignment, frameCount: 239 } }, hash)).toBeNull();
+    expect(validateDolbyVisionRpuReport({ ...validHevcReport, av1PresentationAlignment: av1.av1PresentationAlignment }, hash)).toBeNull();
+  });
+
   it('rejects a report bound to a different media file', () => {
     expect(validateDolbyVisionRpuReport(validHevcReport, 'c'.repeat(64))).toBeNull();
   });

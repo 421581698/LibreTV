@@ -364,6 +364,43 @@ test('associates IVF RPU records with their packet PTS and exact time base', asy
   await assert.rejects(readFile(output), { code: 'ENOENT' });
 });
 
+test('matches decoded AV1 MP4 frame PTS against packet-bound RPU without accepting mismatch', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-decoded-frame-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { bytes } = validT35Payload();
+  const sample = Buffer.concat([obu(5, Buffer.concat([leb(4), bytes])), obu(6, Buffer.from([0]))]);
+  const input = resolve(directory, 'input.mp4');
+  const output = resolve(directory, 'output.rpu');
+  const probe = resolve(directory, 'ffprobe');
+  await writeFile(input, Buffer.concat([sample, sample]));
+  await writeFile(probe, '#!/usr/bin/env node\nprocess.stdout.write(process.argv.includes("-show_frames") ? process.env.FRAME_REPORT : process.env.PACKET_REPORT);\n', { mode: 0o755 });
+  const packetLine = (pos, pts) => 'packet|stream_index=0|pts=' + pts +
+    '|size=' + sample.length + '|pos=' + pos;
+  const packetReport = [packetLine(0, '0'), packetLine(sample.length, '3000'),
+    'stream|index=0|codec_name=av1|time_base=1/90000'].join('\n');
+  const args = [resolve('scripts/dolby-vision/extract-av1-rpu.mjs'), '--kind', 'mp4',
+    '--mp4-packet-timing', '--verify-decoded-frames',
+    '--ffprobe', probe, '--input', input, '--output', output];
+  function run(frameReport) {
+    return execFileSync(process.execPath, args, {
+      encoding: 'utf8', stdio: 'pipe',
+      env: { ...process.env, AV1_RPU_CONVERTER_BIN: '', PACKET_REPORT: packetReport, FRAME_REPORT: frameReport },
+    });
+  }
+  const verified = JSON.parse(run(['frame|best_effort_timestamp=3000', 'frame|best_effort_timestamp=0'].join('\n')));
+  assert.deepEqual(verified.decodedPresentationAlignment, { scope: 'ffprobe-decoded-frame-pts', matched: true, frameCount: 2 });
+  await rm(output);
+  for (const report of [
+    'frame|best_effort_timestamp=0',
+    'frame|best_effort_timestamp=0\nframe|best_effort_timestamp=0',
+    'frame|best_effort_timestamp=0\nframe|best_effort_timestamp=999',
+    'frame|best_effort_timestamp=N/A\nframe|best_effort_timestamp=3000',
+  ]) {
+    assert.throws(() => run(report), /AV1 decoded frame/);
+    await assert.rejects(readFile(output), { code: 'ENOENT' });
+  }
+});
+
 test('maps MP4 packet PTS by sample byte range and rejects ambiguous ranges', async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), 'libretv-mp4-timing-'));
   t.after(() => rm(directory, { recursive: true, force: true }));

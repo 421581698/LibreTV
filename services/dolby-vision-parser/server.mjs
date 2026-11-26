@@ -209,6 +209,7 @@ async function analyzeUpload(request, response, env) {
 
     let analysisInputPath = inputPath;
     let av1TimedRpuCount;
+    let av1DecodedFrameAlignment;
     let analyzedCodec = sourceContentType === 'video/hevc' ? 'hevc' : null;
     if (sourceContentType === 'video/mp4') {
       const { stdout: codecOutput } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
@@ -247,14 +248,18 @@ async function analyzeUpload(request, response, env) {
       } else {
         const { stdout: extractionOutput } = await execFileAsync(process.execPath, [
           resolve(HERE, '../../scripts/dolby-vision/extract-av1-rpu.mjs'),
-          '--input', inputPath, '--output', av1RpuPath, '--kind', 'mp4', '--mp4-packet-timing',
+          '--input', inputPath, '--output', av1RpuPath, '--kind', 'mp4', '--mp4-packet-timing', '--verify-decoded-frames',
           '--ffprobe', env.FFPROBE_BIN || 'ffprobe',
         ], { encoding: 'utf8', timeout: ANALYSIS_TIMEOUT_MS, maxBuffer: 24 * 1024 * 1024, windowsHide: true });
         const extraction = JSON.parse(extractionOutput);
         av1TimedRpuCount = extraction.dolbyRpuCount;
+        av1DecodedFrameAlignment = extraction.decodedPresentationAlignment;
         if (!Number.isSafeInteger(av1TimedRpuCount) || av1TimedRpuCount <= 0 ||
             extraction.rpuUnits.length !== av1TimedRpuCount ||
-            extraction.rpuUnits.some((unit) => typeof unit.packetPts !== 'string')) {
+            extraction.rpuUnits.some((unit) => typeof unit.packetPts !== 'string') ||
+            av1DecodedFrameAlignment?.scope !== 'ffprobe-decoded-frame-pts' ||
+            av1DecodedFrameAlignment?.matched !== true ||
+            av1DecodedFrameAlignment?.frameCount !== av1TimedRpuCount) {
           sendJson(response, 422, { error: 'AV1_RPU_TIMING_REJECTED' });
           return;
         }
@@ -299,6 +304,7 @@ async function analyzeUpload(request, response, env) {
     if (analyzedCodec === 'av1') {
       report.inputKind = 'av1';
       report.extractionScope = { track: null, frameLimit: null };
+      report.av1PresentationAlignment = av1DecodedFrameAlignment;
     }
     report.sourceMediaSha256 = actualSha256;
     const hlsContextHeader = request.headers['x-dv-analysis-scope'];

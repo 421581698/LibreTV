@@ -29,6 +29,11 @@ export const DolbyVisionRpuReportSchema = z.object({
   inputSha256: sha256Schema,
   sourceMediaSha256: sha256Schema.nullable(),
   rpuSha256: sha256Schema,
+  av1PresentationAlignment: z.object({
+    scope: z.literal('ffprobe-decoded-frame-pts'),
+    matched: z.literal(true),
+    frameCount: z.number().int().positive(),
+  }).strict().optional(),
   rpuUnitEvidence: z.object({
     version: z.literal(1),
     unitSha256s: z.array(sha256Schema).min(1).max(8192),
@@ -38,6 +43,10 @@ export const DolbyVisionRpuReportSchema = z.object({
   extractionScope: extractionScopeSchema,
   notes: z.array(z.string()),
 }).strict().superRefine((report, context) => {
+  if (report.av1PresentationAlignment &&
+      (report.inputKind !== 'av1' || report.av1PresentationAlignment.frameCount !== report.frameCount)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['av1PresentationAlignment'], message: '解码帧 PTS 匹配证据必须对应 AV1 帧数。' });
+  }
   if (report.rpuUnitEvidence && report.rpuUnitEvidence.unitSha256s.length !== report.frameCount) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['rpuUnitEvidence'], message: '逐单元 RPU 摘要数必须等于 dovi_tool 帧数。' });
   }

@@ -297,6 +297,40 @@ async function probeMp4Packets(path, fileSize, options) {
   return { packets, timeBase: video.timeBase };
 }
 
+/** Decode-side FFprobe frame PTS must exactly match packet-bound RPU PTS.
+ * This is offline timing evidence, not Safari's HDR/Dolby rendering proof.
+ */
+async function verifyDecodedAv1FramePts(path, rpuUnits, options) {
+  const ffprobe = options.ffprobe || process.env.FFPROBE_BIN || 'ffprobe';
+  const { stdout, stderr } = await execFileAsync(ffprobe, [
+    '-v', 'error', '-protocol_whitelist', 'file', '-f', 'mov', '-enable_drefs', '0',
+    '-select_streams', 'v:0', '-show_frames', '-show_entries',
+    'frame=best_effort_timestamp', '-of', 'compact=p=1:nk=0', path,
+  ], { encoding: 'utf8', timeout: 15 * 60 * 1000, maxBuffer: 16 * 1024 * 1024, windowsHide: true });
+  if (stderr.trim()) throw new Error('AV1 decoded frame timing probe reported an error.');
+  const rows = stdout.trim().split(/\r?\n/).filter(Boolean);
+  if (!rows.length || rows.length !== rpuUnits.length || rows.length > MAX_RPU_UNITS) {
+    throw new Error('AV1 decoded frame count does not match timed RPU units.');
+  }
+  const expected = new Set(rpuUnits.map((unit) => unit.packetPts));
+  if (expected.has(undefined) || expected.size !== rpuUnits.length) {
+    throw new Error('AV1 timed RPU units contain ambiguous presentation timestamps.');
+  }
+  const seen = new Set();
+  for (const row of rows) {
+    const match = /^frame\|best_effort_timestamp=(-?\d{1,19})$/.exec(row);
+    if (!match || BigInt(match[1]) <= -(1n << 63n) || BigInt(match[1]) >= (1n << 63n)) {
+      throw new Error('AV1 decoded frame lacks a usable presentation timestamp.');
+    }
+    const pts = BigInt(match[1]).toString();
+    if (seen.has(pts) || !expected.has(pts)) {
+      throw new Error('AV1 decoded frame presentation timestamps do not match RPU packet timestamps.');
+    }
+    seen.add(pts);
+  }
+  return { scope: 'ffprobe-decoded-frame-pts', matched: true, frameCount: rows.length };
+}
+
 function* readMp4PacketObus(path, packets) {
   const fd = openSync(path, 'r');
   try {
@@ -469,14 +503,16 @@ function parseArgs(argv) {
     else if (argv[index] === '--output') options.output = argv[++index];
     else if (argv[index] === '--kind') options.kind = argv[++index];
     else if (argv[index] === '--mp4-packet-timing') options.mp4PacketTiming = true;
+    else if (argv[index] === '--verify-decoded-frames') options.verifyDecodedFrames = true;
     else if (argv[index] === '--ffmpeg') options.ffmpeg = argv[++index];
     else if (argv[index] === '--ffprobe') options.ffprobe = argv[++index];
     else if (argv[index] === '--help' || argv[index] === '-h') options.help = true;
     else throw new Error('Unknown command-line option.');
   }
   if (!options.help && (!options.input || !options.output || !['obu', 't35', 'mp4', 'ivf'].includes(options.kind) ||
-      (options.mp4PacketTiming && options.kind !== 'mp4'))) {
-    throw new Error('Usage: extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--mp4-packet-timing] [--ffmpeg PATH] [--ffprobe PATH]');
+      (options.mp4PacketTiming && options.kind !== 'mp4') ||
+      (options.verifyDecodedFrames && (!options.mp4PacketTiming || options.kind !== 'mp4')))) {
+    throw new Error('Usage: extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--mp4-packet-timing] [--verify-decoded-frames] [--ffmpeg PATH] [--ffprobe PATH]');
   }
   return options;
 }
@@ -542,7 +578,7 @@ async function demuxAv1Container(inputPath, directory, options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    process.stdout.write('Usage: node extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--mp4-packet-timing] [--ffmpeg PATH] [--ffprobe PATH]\n');
+    process.stdout.write('Usage: node extract-av1-rpu.mjs --input FILE --output FILE [--kind obu|t35|mp4|ivf] [--mp4-packet-timing] [--verify-decoded-frames] [--ffmpeg PATH] [--ffprobe PATH]\n');
     return;
   }
   const inputPath = resolve(options.input);
@@ -585,11 +621,17 @@ async function main() {
         obus = readObuFile(obuFile.path, obuFile.size);
       }
       const parsed = parseDolbyRpuObuStream(obus);
+      const decodedPresentationAlignment = options.verifyDecodedFrames
+        ? await verifyDecodedAv1FramePts(inputPath, parsed.report.rpuUnits, options)
+        : null;
       const result = converterConfigured
         ? await convertParsedObusWithLibdovi(parsed, directory, options)
         : convertParsedObus(parsed);
       rpuBytes = result.rpuBytes;
-      report = { ...result.report, extractionBackend: converterConfigured ? 'libdovi' : 'javascript' };
+      report = {
+        ...result.report, extractionBackend: converterConfigured ? 'libdovi' : 'javascript',
+        ...(decodedPresentationAlignment ? { decodedPresentationAlignment } : {}),
+      };
       if (mp4 || ivf) {
         report.inputKind = options.kind;
         report.containerDemux = ivf ? 'ivf-packet-reader' :
