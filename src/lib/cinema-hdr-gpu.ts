@@ -4,6 +4,8 @@
  * legal for same-origin or CORS-authorized video; failure leaves native playback
  * entirely untouched. This deliberately does NOT replace Safari's HDR decoder.
  */
+import { cinemaCanvasGeometry } from './cinema-hdr-geometry';
+
 export type CinemaGpuStatus = 'active' | 'unavailable' | 'failed';
 export type CinemaGpuBackend = 'webgl2' | 'webgl1';
 export type CinemaGpuCallback = (status: CinemaGpuStatus, explanation: string) => void;
@@ -22,8 +24,11 @@ precision highp float;
 varying vec2 v_uv;
 uniform sampler2D u_video;
 uniform float u_strength;
+uniform vec2 u_uvScale;
+uniform vec2 u_uvOffset;
 void main() {
-  vec3 sampleColor = texture2D(u_video, v_uv).rgb;
+  vec2 coordinates = v_uv * u_uvScale + u_uvOffset;
+  vec3 sampleColor = texture2D(u_video, coordinates).rgb;
   // Estimate scene luminance from a bounded four-position sample. The estimate
   // adjusts independently for every decoded frame (not a static CSS filter).
   float scene = 0.0;
@@ -150,12 +155,14 @@ export function startCinemaSdrGpu(
     const containerBounds = host.getBoundingClientRect();
     const videoBounds = video.getBoundingClientRect();
     if (videoBounds.width <= 0 || videoBounds.height <= 0) return;
-    const width = Math.max(1, Math.round(videoBounds.width));
-    const height = Math.max(1, Math.round(videoBounds.height));
-    canvas.style.left = `${videoBounds.left - containerBounds.left}px`;
-    canvas.style.top = `${videoBounds.top - containerBounds.top}px`;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    const layout = cinemaCanvasGeometry(videoBounds, containerBounds,
+      video.videoWidth, video.videoHeight, getComputedStyle(video).objectFit);
+    canvas.style.left = `${layout.left}px`;
+    canvas.style.top = `${layout.top}px`;
+    canvas.style.width = `${layout.width}px`;
+    canvas.style.height = `${layout.height}px`;
+    gl.uniform2f(gl.getUniformLocation(program, 'u_uvScale'), layout.uvScaleX, layout.uvScaleY);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_uvOffset'), layout.uvOffsetX, layout.uvOffsetY);
     const ratio = Math.min(1, maxDimension / Math.max(video.videoWidth, video.videoHeight));
     const deviceWidth = Math.max(1, Math.round(video.videoWidth * ratio));
     const deviceHeight = Math.max(1, Math.round(video.videoHeight * ratio));
