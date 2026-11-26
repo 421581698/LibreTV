@@ -309,7 +309,10 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain("onPointerUp={(event) => {");
     expect(watch).toContain("onPointerCancel={(event) => {");
     expect(watch).toContain("onLostPointerCapture={() => {");
-    expect(watch).toContain("setWatchClock(current => ({ ...current, position: target }));");
+    expect(watch).toContain('const actualPosition = playerApi.getCurrentTime();');
+    expect(watch).toContain('setScrubbingPosition(actualPosition);');
+    expect(watch).toContain('setWatchClock(current => ({ ...current, position: actualPosition }));');
+    expect(watch).not.toContain('setWatchClock(current => ({ ...current, position: target }));');
     expect(watch).toContain("releasePointerCapture(event.pointerId)");
     expect(watch).toContain('scrubbingPositionRef.current = position');
     expect(watch).toContain('Number.isFinite(watchClock.duration) && watchClock.duration > 0');
