@@ -39,13 +39,16 @@ void main() {
   scene *= 0.25;
   // Mild inverse-tone-curve / contrast enhancement: this is SDR appearance
   // processing and does not create a PQ/HLG HDR signal.
-  float gain = clamp(0.98 + (0.45 - scene) * 0.24, 0.88, 1.13);
+  // Same stronger SDR intent as WebGPU; calibrated to retain highlight
+  // detail and soften saturation in bright regions. No HDR output claim.
+  float gain = clamp(1.015 + (0.45 - scene) * 0.31, 0.87, 1.19);
   vec3 exposed = clamp(sampleColor * gain, 0.0, 1.0);
-  vec3 shadows = mix(exposed, sqrt(max(exposed, vec3(0.0))), 0.09 * u_strength);
-  vec3 highlights = shadows / (shadows + (vec3(1.0) - shadows) * (1.0 - 0.05 * u_strength));
-  vec3 contrast = clamp((highlights - 0.5) * (1.0 + 0.09 * u_strength) + 0.5, 0.0, 1.0);
+  vec3 shadows = mix(exposed, sqrt(max(exposed, vec3(0.0))), 0.15 * u_strength);
+  vec3 highlights = shadows / (shadows + (vec3(1.0) - shadows) * (1.0 - 0.09 * u_strength));
+  vec3 contrast = clamp((highlights - 0.5) * (1.0 + 0.16 * u_strength) + 0.5, 0.0, 1.0);
   float luma = dot(contrast, vec3(0.2126, 0.7152, 0.0722));
-  vec3 saturated = clamp(vec3(luma) + (contrast - vec3(luma)) * (1.0 + 0.07 * u_strength), 0.0, 1.0);
+  float saturation = 1.0 + (0.15 - 0.22 * smoothstep(0.7, 1.0, luma)) * u_strength;
+  vec3 saturated = clamp(vec3(luma) + (contrast - vec3(luma)) * saturation, 0.0, 1.0);
   gl_FragColor = vec4(mix(sampleColor, saturated, u_strength), 1.0);
 }`;
 function shader(gl: WebGLRenderingContext, type: number, code: string): WebGLShader {
