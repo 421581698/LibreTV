@@ -89,7 +89,7 @@ export async function createCinemaSoundSession(
   video:HTMLVideoElement,onState:(state:CinemaSoundState)=>void,
 ):Promise<CinemaSoundSession|null> {
   if(typeof window==='undefined'||!(window.AudioContext||('webkitAudioContext' in window))) {
-    onState({audio:false,spatial:false,output:'native',reason:'Web Audio 引擎不可用，保留原始声音。'});
+    onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：Web Audio 引擎不可用。'});
     return null;
   }
   if(video.muted||video.volume===0){
@@ -98,7 +98,7 @@ export async function createCinemaSoundSession(
   }
   const stream=capturedAudioSource(video);
   if(!stream) {
-    onState({audio:false,spatial:false,output:'native',reason:'当前 Safari/媒体源不支持安全捕获音频（可能为跨域或受保护片源），保留原声。'});
+    onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：当前浏览器或媒体未提供可读取的 PCM 音轨。'});
     return null;
   }
   const WebkitContext=(window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
@@ -108,7 +108,7 @@ export async function createCinemaSoundSession(
   try {context=new Constructor({latencyHint:'interactive'});}
   catch {
     stream.getTracks().forEach(t=>t.stop());
-    onState({audio:false,spatial:false,output:'native',reason:'无法初始化音频上下文，保留原声。'});
+    onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：无法初始化音频上下文。'});
     return null;
   }
   let stopped=false;
@@ -180,7 +180,7 @@ export async function createCinemaSoundSession(
     unregisterVolume();
     stream.getTracks().forEach(t=>t.stop());
     void context.close().catch(()=>{});
-    onState({audio:false,spatial:false,output:'native',reason:'音频 DSP 节点创建失败，原声保持不变。'});
+    onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：音频处理节点创建失败。'});
     return null;
   }
   const snapshot=():CinemaSoundState=>({
@@ -227,7 +227,7 @@ export async function createCinemaSoundSession(
     }
     if(!capturing&&performance.now()-started>10000){
       session.stop();
-      onState({audio:false,spatial:false,output:'native',reason:'没有验证到可处理的 PCM 音频信号；保留原始播放。'});
+      onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：未检测到有效 PCM 信号。'});
       return;
     }
     checkRaf=requestAnimationFrame(check);
