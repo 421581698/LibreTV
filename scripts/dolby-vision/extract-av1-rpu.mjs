@@ -114,7 +114,8 @@ function readLeb128(data, offset) {
 }
 
 function parseDolbyRpuObuStream(inputValue) {
-  const data = Buffer.from(inputValue);
+  // Reuse an existing Buffer instead of duplicating the entire demuxed movie.
+  const data = Buffer.isBuffer(inputValue) ? inputValue : Buffer.from(inputValue);
   const t35Payloads = [];
   const rpuTemporalUnits = new Set();
   let offset = 0, obuCount = 0, temporalUnit = -1, temporalDelimiterCount = 0, frameUnitCount = 0;
@@ -198,7 +199,7 @@ export function extractDolbyRpuFromObuStream(inputValue) {
   const rpus = parsed.t35Payloads.map((payload) =>
     regularRpuToHevcUnspec62Nalu(extractDolbyRpuFromT35(payload)));
   return {
-    rpuBytes: Buffer.concat(rpus.map((nalu) => Buffer.concat([ANNEX_B_START_CODE, nalu]))),
+    rpuBytes: Buffer.concat(rpus.flatMap((nalu) => [ANNEX_B_START_CODE, nalu])),
     report: parsed.report,
   };
 }
@@ -244,7 +245,7 @@ async function extractDolbyRpuFromObuStreamWithLibdovi(inputValue, directory, op
     rpus.push(await convertT35PayloadWithLibdovi(parsed.t35Payloads[ordinal], directory, ordinal, options));
   }
   return {
-    rpuBytes: Buffer.concat(rpus.map((nalu) => Buffer.concat([ANNEX_B_START_CODE, nalu]))),
+    rpuBytes: Buffer.concat(rpus.flatMap((nalu) => [ANNEX_B_START_CODE, nalu])),
     report: parsed.report,
   };
 }
