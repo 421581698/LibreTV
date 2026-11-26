@@ -29,7 +29,7 @@ const sample={
  metadataSha256:digest,expectedMetadataSha256:digest,
  frameIndex:17,framePtsUs:700000,t35Payload:payload,
 };
-const frame={width:2,height:2,y:new Uint16Array(4).fill(680<<6),
+const frame={range:'limited' as const,width:2,height:2,y:new Uint16Array(4).fill(680<<6),
  uv:new Uint16Array([512<<6,512<<6])};
 describe('Cinema V5.1 HDR10+ integrated 10-bit runtime',()=>{
  it('checks SHA256 before binding dynamic tone metadata to one P010 sample',async()=>{
