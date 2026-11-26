@@ -137,7 +137,7 @@ test('demuxes one AV1 video track from MP4 and IVF containers without re-encodin
 process.stdout.write(process.env.TEST_AV1_STREAMS || "av1\\n");
 `);
   await writeFile(ffmpegPath, `#!/usr/bin/env node
-const fs=require("node:fs"); const fsOption=process.argv.indexOf("-fs"); if(!process.argv.includes("-xerror") || fsOption<0 || process.argv[fsOption+1]!=="536870912") process.exit(3); fs.copyFileSync(process.env.TEST_AV1_OBU_FIXTURE, process.argv.at(-1));
+const fs=require("node:fs"); if(!process.argv.includes("-xerror") || process.argv.includes("-fs") || process.argv.at(-1)!=="pipe:1") process.exit(3); process.stdout.write(fs.readFileSync(process.env.TEST_AV1_OBU_FIXTURE)); if(process.env.TEST_DEMUX_FAIL==="1") process.exitCode=1;
 `);
   await chmod(ffprobePath, 0o755);
   await chmod(ffmpegPath, 0o755);
@@ -166,6 +166,16 @@ const fs=require("node:fs"); const fsOption=process.argv.indexOf("-fs"); if(!pro
       Buffer.from([0x80]),
     ]));
   }
+
+  const partialOutput = resolve(directory, 'partial.rpu');
+  assert.throws(() => execFileSync(process.execPath, [
+    resolve('scripts/dolby-vision/extract-av1-rpu.mjs'),
+    '--kind', 'mp4', '--input', inputPath, '--output', partialOutput,
+  ], { env: { ...process.env, FFPROBE_BIN: ffprobePath, FFMPEG_BIN: ffmpegPath,
+    TEST_AV1_OBU_FIXTURE: fixturePath, TEST_AV1_STREAMS: 'av1\n',
+    TEST_DEMUX_FAIL: '1', AV1_RPU_CONVERTER_BIN: '' }, stdio: 'pipe' }),
+  /AV1 demux failed before complete output was obtained/);
+  await assert.rejects(readFile(partialOutput), { code: 'ENOENT' });
 
   const rejectedOutput = resolve(directory, 'ambiguous.rpu');
   assert.throws(() => execFileSync(process.execPath, [
@@ -237,7 +247,7 @@ test('rejects empty and oversized demux output without producing RPU evidence', 
   const demux = resolve(directory, 'ffmpeg');
   await writeFile(input, 'fixture');
   await writeFile(probe, '#!/usr/bin/env node\nconsole.log("av1");\n', { mode: 0o755 });
-  await writeFile(demux, '#!/usr/bin/env node\nconst fs = require("node:fs"); const p = process.argv.at(-1); fs.writeFileSync(p, ""); fs.truncateSync(p, Number(process.env.TEST_DEMUX_SIZE));\n', { mode: 0o755 });
+  await writeFile(demux, '#!/usr/bin/env node\nconst size = Number(process.env.TEST_DEMUX_SIZE); const chunk = Buffer.alloc(1024 * 1024); let remaining = size; function pump() { while (remaining > 0) { const n = Math.min(remaining, chunk.length); remaining -= n; if (!process.stdout.write(chunk.subarray(0,n))) { process.stdout.once("drain", pump); return; } } } pump();\n', { mode: 0o755 });
   for (const size of [0, 512 * 1024 * 1024, 512 * 1024 * 1024 + 1]) {
     const output = resolve(directory, size + '.rpu');
     assert.throws(() => execFileSync(process.execPath, [resolve('scripts/dolby-vision/extract-av1-rpu.mjs'), '--kind', 'mp4', '--input', input, '--output', output], {
