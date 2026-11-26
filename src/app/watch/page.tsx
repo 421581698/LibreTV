@@ -35,6 +35,7 @@ import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } f
 import { selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
 import { CinemaPlaybackActions } from '@/components/ipad-edition/CinemaPlaybackActions';
 import { ClassicWatchTitle, ClassicWatchRateButton, ClassicWatchTools } from '@/components/watch/ClassicWatchControls';
+import { usePlaybackEdition } from '@/components/watch/PlaybackEditionContext';
 import {
   clearProgress,
   progressKeyOf,
@@ -80,7 +81,7 @@ function WatchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const isIpadEditionPlayback = pathname === '/ipad-edition/watch';
+  const isIpadEditionPlayback = usePlaybackEdition() === 'cinema-v4';
   const store = useAppStore();
   const { verified } = useAuth();
   const { toast } = useToast();
