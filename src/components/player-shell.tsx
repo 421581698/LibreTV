@@ -1,5 +1,6 @@
 'use client';
 import { PlaybackErrorBoundary } from '@/components/playback-error-boundary';
+import { CinemaStartupOverlay, type CinemaStartupKind, type CinemaStartupRoute } from '@/components/cinema-startup-overlay';
 
 import { useEffect, useRef, useState } from 'react';
 import Artplayer from 'artplayer';
@@ -288,11 +289,11 @@ export function PlayerShell({
   // A golden card indicates a selected compatible delivery path, not certified speaker/display output.
   const [dolbyCardChoice, setDolbyCardChoice] = useState<{ url: string; vision: boolean; audio: boolean }>({ url: '', vision: false, audio: false });
   const [dolbyCardStatus, setDolbyCardStatus] = useState('选择支持的 Dolby 片源后，可优先使用设备原生解码。');
-  const [cinemaStartup,setCinemaStartup] = useState<{kind:'vision'|'audio'|'spatial';sequence:number}|null>(null);
+  const [cinemaStartup,setCinemaStartup] = useState<{kind:CinemaStartupKind;route:CinemaStartupRoute;sequence:number}|null>(null);
   const startupSequenceRef = useRef(0);
-  const startCinemaAnimation = (kind:'vision'|'audio'|'spatial') => {
+  const startCinemaAnimation = (kind:CinemaStartupKind,route:CinemaStartupRoute='enhanced') => {
     const sequence=++startupSequenceRef.current;
-    setCinemaStartup({kind,sequence});
+    setCinemaStartup({kind,route,sequence});
   };
   useEffect(()=>{
     if(!cinemaStartup)return;
@@ -456,6 +457,7 @@ export function PlayerShell({
       stop();
       setDolbyCardChoice(choice => ({...choice, url: requestedUrl, vision: true}));
       setDolbyCardStatus('Safari 原生 HDR 视频路径已观察到连续实际画面；HDR10 / HLG / Dolby Vision 的显示输出仍需真机验证。');
+      startCinemaAnimation('vision','native');
     });
     cinemaHdrNativeConfirmationRef.current = stop;
   };
@@ -2466,6 +2468,8 @@ export function PlayerShell({
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" style={{ WebkitTouchCallout: 'none' }} />
+      {cinemaMode && cinemaStartup && <CinemaStartupOverlay key={cinemaStartup.sequence}
+        kind={cinemaStartup.kind} route={cinemaStartup.route} />}
       {(!cinemaMode || cinemaPanel === 'diagnostics') && <div className={cinemaMode ? 'cinema-v4-diagnostics-sheet' : 'contents'}>{cinemaMode && <button type="button" className="cinema-v4-panel-close cinema-v4-diagnostics-close" onClick={onCloseCinemaPanel} aria-label="关闭视频诊断">×</button>}<PlaybackErrorBoundary key={url} label="Dolby Vision" optional><DolbyVisionDiagnosticsPanel cinemaExpanded={cinemaMode} key={`${url}:${dolbyVisionAssetId ?? 'unbound'}:${dolbyVisionSourceKind}:${dolbyVisionSourceIdentity ?? ''}`} report={dolbyVisionFormatReport} playerContainerRef={containerRef} assetId={dolbyVisionAssetId} sourceKind={dolbyVisionSourceKind} sourceIdentity={dolbyVisionSourceIdentity} /></PlaybackErrorBoundary></div>}
       {cinemaMode && (cinemaPanel === 'audio' || cinemaPanel === 'subtitles') && (
         <div className="cinema-v4-panel-heading" role="group" aria-label="音频与字幕分类">
@@ -2481,33 +2485,20 @@ export function PlayerShell({
           <p className="cinema-v4-dolby-section">画质增强</p>
           <button type="button" className="cinema-v4-dolby-card cinema-v4-dolby-vision"
             aria-pressed={currentDolbyChoice.vision} onClick={() => requestDolbyCard('vision')}>
-            <strong>杜比视界</strong><span>Dolby Vision</span>
+            <strong>{currentDolbyChoice.vision && cinemaHdrGpuRef.current ? 'Cinema 画质' : '杜比视界'}</strong><span>{currentDolbyChoice.vision && cinemaHdrGpuRef.current ? 'Cinema Vision SDR' : 'Dolby Vision'}</span>
           </button>
           <p className="cinema-v4-dolby-section">影院音效</p>
           <div className="cinema-v4-dolby-audio-grid">
             <button type="button" className="cinema-v4-dolby-card" aria-pressed={currentDolbyChoice.audio || (cinemaSoundActive.url===url && cinemaSoundActive.audio)}
               onClick={() => requestDolbyCard('audio')}>
-              <strong>杜比音效</strong><span>Dolby Audio</span>
+              <strong>{cinemaSoundActive.url===url && cinemaSoundActive.audio ? 'Cinema 音效' : '杜比音效'}</strong><span>{cinemaSoundActive.url===url && cinemaSoundActive.audio ? 'Cinema Audio DSP' : 'Dolby Audio'}</span>
             </button>
             <button type="button" className="cinema-v4-dolby-card" aria-pressed={cinemaSoundActive.url===url && cinemaSoundActive.spatial}
               data-cinema-spatial-processing={cinemaSoundActive.url === url && cinemaSoundActive.spatial ? 'active-virtual-hrtf' : 'inactive'}
               onClick={() => requestDolbyCard('atmos')}>
-              <strong>杜比全景声</strong><span>Dolby Atmos</span>
+              <strong>{cinemaSoundActive.url===url && cinemaSoundActive.spatial ? 'Cinema 空间音效' : '杜比全景声'}</strong><span>{cinemaSoundActive.url===url && cinemaSoundActive.spatial ? 'Cinema HRTF' : 'Dolby Atmos'}</span>
             </button>
           </div>
-          <style>{`@keyframes cinema-startup-pulse {0%{opacity:0;transform:scale(.76)}25%{opacity:1;transform:scale(1.04)}65%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.11)}} @media(prefers-reduced-motion:reduce){[data-testid="cinema-startup-animation"]>div{animation:none!important;opacity:1}}`}</style>
-          {cinemaStartup && <div key={cinemaStartup.sequence} data-testid="cinema-startup-animation"
-            data-cinema-startup={cinemaStartup.kind} aria-label="Cinema 增强已启用"
-            style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:5,display:'grid',placeItems:'center',overflow:'hidden'}}>
-            <div style={{width:'min(72%,220px)',aspectRatio:'1.8',display:'grid',placeItems:'center',
-              borderRadius:'999px',border:'1px solid rgba(230,198,129,.38)',
-              background:'radial-gradient(ellipse,rgba(91,70,35,.9),rgba(15,15,18,.25) 70%)',
-              color:'#e6c681',fontWeight:700,letterSpacing:'.16em',textAlign:'center',
-              boxShadow:'0 0 32px rgba(224,175,94,.22)',
-              animation:'cinema-startup-pulse 1.8s ease-out both'}}>
-              {cinemaStartup.kind==='vision'?'CINEMA VISION':cinemaStartup.kind==='audio'?'CINEMA AUDIO':'CINEMA SPATIAL'}
-            </div>
-          </div>}
           <p className="cinema-v4-dolby-status" role="status">{dolbyCardStatus}</p>
           {audioTrackOptions.length > 1 && <div className="mt-4 border-t border-white/15 pt-3" data-testid="cinema-audio-track-controls">{renderAudioTrackOptions()}</div>}
         </div>
