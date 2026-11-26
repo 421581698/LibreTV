@@ -11,6 +11,22 @@ describe('clear TS audio PES', () => {
     expect(parser.push(packet())).toBeNull();
     expect(parser.finish()).toEqual({ bytes: Uint8Array.of(11,119), pts90k: null });
   });
+  it('rejects unsupported PES stream IDs and forbidden header flags', () => {
+    const wrongId = packet(); wrongId[7] = 0xc0;
+    const extractor = new Ec3TsPesExtractor(256);
+    extractor.push(wrongId);
+    expect(() => extractor.finish()).toThrow('Unsupported PES header');
+    const wrongFlags = packet(); wrongFlags[12] = 1;
+    extractor.push(wrongFlags);
+    expect(() => extractor.finish()).toThrow('Unsupported PES header');
+  });
+  it('rejects a TS packet claiming payload but containing only adaptation bytes', () => {
+    const invalid = packet();
+    invalid[3] = 0x30;
+    invalid[4] = 183;
+    const extractor = new Ec3TsPesExtractor(256);
+    expect(() => extractor.push(invalid)).toThrow('Missing TS payload');
+  });
   it('rejects continuity loss and scrambling', () => {
     const parser = new Ec3TsPesExtractor(256);
     parser.push(packet());

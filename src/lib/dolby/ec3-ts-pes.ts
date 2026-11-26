@@ -24,6 +24,7 @@ export class Ec3TsPesExtractor {
       if (offset > 188 || (length && (packet[5] & 128))) { this.reset(); throw new Error('TS discontinuity'); }
     }
     if (!(control & 1)) return null;
+    if (offset === 188) { this.reset(); throw new Error('Missing TS payload'); }
     const cc = packet[3] & 15;
     if (this.counter !== null && cc !== ((this.counter + 1) & 15)) { this.reset(); throw new Error('TS continuity mismatch'); }
     this.counter = cc;
@@ -43,6 +44,7 @@ export class Ec3TsPesExtractor {
     for (const part of this.parts) { data.set(part, offset); offset += part.length; }
     this.parts = []; this.size = 0;
     if (data.length < 9 || data[0] || data[1] || data[2] !== 1 || (data[6] & 192) !== 128) throw new Error('Invalid PES header');
+    if (data[3] !== 0xbd || (data[6] & 0x30) !== 0 || (data[7] & 0x3f) !== 0) throw new Error('Unsupported PES header');
     const length = (data[4] << 8) | data[5];
     const end = length ? length + 6 : data.length;
     const start = 9 + data[8];
