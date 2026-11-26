@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceNativePlaybackObservation,
+  countPresentedVideoFrames,
   emptyNativePlaybackObservation,
   type NativePlaybackSample,
 } from './native-playback-observation';
@@ -86,18 +87,27 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(advanceNativePlaybackObservation(resumed, 'sample', { ...playing, currentTime: 3 }).status).toBe('progress-observed');
   });
 
+  it('counts displayed frames only after subtracting dropped frames', () => {
+    expect(countPresentedVideoFrames(100, 99)).toBe(1);
+    expect(countPresentedVideoFrames(100, 100)).toBe(0);
+    expect(countPresentedVideoFrames(100, 101)).toBeNull();
+    expect(countPresentedVideoFrames(Number.NaN, 0)).toBeNull();
+    expect(countPresentedVideoFrames(2.5, 0)).toBeNull();
+    expect(countPresentedVideoFrames(10, -1)).toBeNull();
+  });
+
   it('requires presented frames when the browser exposes a frame counter', () => {
     const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', {
-      ...playing, totalVideoFrames: 100,
+      ...playing, presentedVideoFrames: 100,
     });
     const audioClockOnly = advanceNativePlaybackObservation(start, 'sample', {
-      ...playing, currentTime: 2, totalVideoFrames: 100,
+      ...playing, currentTime: 2, presentedVideoFrames: 100,
     });
     expect(audioClockOnly.status).toBe('waiting');
     expect(audioClockOnly.presentedFrames).toBe(0);
 
     const rendered = advanceNativePlaybackObservation(audioClockOnly, 'sample', {
-      ...playing, currentTime: 3.5, totalVideoFrames: 103,
+      ...playing, currentTime: 3.5, presentedVideoFrames: 103,
     });
     expect(rendered.status).toBe('progress-observed');
     expect(rendered.presentedFrames).toBe(3);
@@ -109,13 +119,13 @@ describe('real HTMLVideoElement observation state machine', () => {
   it('discards old frame counters after native decoder reset and source changes', () => {
     const before = advanceNativePlaybackObservation(
       advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', {
-        ...playing, totalVideoFrames: 500,
+        ...playing, presentedVideoFrames: 500,
       }),
-      'sample', { ...playing, currentTime: 2, totalVideoFrames: 540 },
+      'sample', { ...playing, currentTime: 2, presentedVideoFrames: 540 },
     );
     expect(before.status).toBe('progress-observed');
     const resetCounter = advanceNativePlaybackObservation(before, 'sample', {
-      ...playing, currentTime: 3, totalVideoFrames: 1,
+      ...playing, currentTime: 3, presentedVideoFrames: 1,
     });
     expect(resetCounter.status).toBe('waiting');
     expect(resetCounter.presentedFrames).toBe(0);
@@ -125,10 +135,10 @@ describe('real HTMLVideoElement observation state machine', () => {
 
   it('treats absent or invalid presented-frame APIs as unknown, not zero', () => {
     const first = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', {
-      ...playing, totalVideoFrames: Number.NaN,
+      ...playing, presentedVideoFrames: Number.NaN,
     });
     const later = advanceNativePlaybackObservation(first, 'sample', {
-      ...playing, currentTime: 2, totalVideoFrames: null,
+      ...playing, currentTime: 2, presentedVideoFrames: null,
     });
     expect(later.status).toBe('progress-observed');
     expect(later.presentedFrames).toBeNull();
