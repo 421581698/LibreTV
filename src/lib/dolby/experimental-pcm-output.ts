@@ -16,7 +16,7 @@ export class ExperimentalPcmOutput {
         !Number.isSafeInteger(frame.channels) || frame.channels < 1 || frame.channels > 32 ||
         !Number.isSafeInteger(frame.sampleRate) || frame.sampleRate < 8000 || frame.sampleRate > 192000 ||
         frame.samples * frame.channels !== frame.pcm.length ||
-        !frame.pcm.every(Number.isFinite)) return 'reset';
+        !frame.pcm.every(Number.isFinite)) { this.reset(); return 'reset'; }
     if (this.sources.size >= 32) return 'wait';
     const decision = planExperimentalPcm({
       ptsSamples: frame.ptsSamples, sampleRate: frame.sampleRate, mediaTime,
