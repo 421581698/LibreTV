@@ -17,6 +17,11 @@ export function selectHlsAudioTrack(
   if (!Number.isInteger(trackIndex) || trackIndex < 0 || trackIndex >= hls.audioTracks.length) {
     return false;
   }
-  hls.audioTrack = trackIndex;
-  return true;
+  try {
+    hls.audioTrack = trackIndex;
+    return hls.audioTrack === trackIndex;
+  } catch {
+    // A disposed HLS instance or unsupported track must not crash the player UI.
+    return false;
+  }
 }

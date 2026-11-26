@@ -24,6 +24,7 @@ import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspec
 import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-hls-manifest-inspector';
 import { shouldPreferNativeDolbyVisionHls } from '@/lib/dolby-vision/native-hls-playback-policy';
 import { shouldPreferNativeDolbyAudioHls } from '@/lib/dolby/native-audio-hls-policy';
+import { captureNativeAudioFallback, fallbackResumeTime, type NativeAudioFallbackSnapshot } from '@/lib/dolby/native-audio-fallback';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -246,6 +247,7 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const pendingAudioTrackRef = useRef<{ hls: Hls; requested: number; previous: number } | null>(null);
   /** Prevent an unsupported native path from looping with hls.js fallback. */
   const nativeDolbyHlsAttemptedRef = useRef<string | null>(null);
   const nativeDolbyHlsErrorCleanupRef = useRef<(() => void) | null>(null);
@@ -611,6 +613,7 @@ export function PlayerShell({
     setAudioTrackOptions([]);
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
+    pendingAudioTrackRef.current = null;
     // Direct MP4/WebM customType callbacks can bypass setupHls; advance the
     // generation here so pending HLS restore promises cannot mutate this source.
     const loadGeneration = ++mediaLoadGenerationRef.current;
@@ -689,12 +692,14 @@ export function PlayerShell({
   const setupHls = (
     video: HTMLVideoElement, mediaUrl: string, allowProxyFallback: boolean,
     forceNativeDolby = false, nativeManifestEvidence?: DolbyVisionFormatReport,
+    nativeAudioFallback?: NativeAudioFallbackSnapshot,
   ) => {
     // Audio-track selection belongs to one HLS instance only. Native Safari HLS
     // remains browser-managed and intentionally exposes no hls.js selector.
     setAudioTrackOptions([]);
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
+    pendingAudioTrackRef.current = null;
     // Every HLS reconfiguration (including direct→proxy fallback and fatal-error
     // recovery) invalidates async restore work from the previous media pipeline.
     const loadGeneration = ++mediaLoadGenerationRef.current;
@@ -818,7 +823,9 @@ export function PlayerShell({
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // Retain the attempted URL so a failing native path cannot repeatedly
           // re-enter itself when hls.js fetches the same manifest on fallback.
-          setupHls(video, mediaUrl, allowProxyFallback);
+          const fallback = captureNativeAudioFallback(video, playbackStartedRef.current);
+          restoredRef.current = false;
+          setupHls(video, mediaUrl, allowProxyFallback, false, undefined, fallback);
           setError('');
         });
       };
@@ -839,6 +846,7 @@ export function PlayerShell({
     }
     armMetadataWatchdog(video, mediaUrl);
     const hls = new Hls(buildHlsConfig());
+    if (nativeAudioFallback) restoredRef.current = false;
     hlsRef.current = hls;
     // Destroyed HLS instances may still flush queued callbacks. Every callback
     // must prove both instance identity and media generation before touching UI,
@@ -870,18 +878,26 @@ export function PlayerShell({
 
       restoreInFlight = true;
       try {
-        const saved = (await propsRef.current.getRestorePosition?.()) ?? 0;
+        const saved = nativeAudioFallback?.currentTime ?? (await propsRef.current.getRestorePosition?.()) ?? 0;
         if (loadGeneration !== mediaLoadGenerationRef.current) return;
         const currentDuration = artRef.current?.duration || video.duration || duration;
         let prefetchAnchor = video.currentTime;
-        if (saved > 10 && Number.isFinite(currentDuration) && saved < currentDuration - 2) {
-          if (artRef.current) artRef.current.currentTime = saved;
-          prefetchAnchor = saved;
-          showHint(`已从 ${formatTime(saved)} 继续播放`);
+        const resumeAt = nativeAudioFallback
+          ? fallbackResumeTime(nativeAudioFallback, currentDuration)
+          : saved > 10 && Number.isFinite(currentDuration) && saved < currentDuration - 2 ? saved : 0;
+        if (resumeAt > 0) {
+          if (artRef.current) artRef.current.currentTime = resumeAt;
+          prefetchAnchor = resumeAt;
+          showHint(`已从 ${formatTime(resumeAt)} 继续播放`);
+        }
+        if (nativeAudioFallback) {
+          video.defaultPlaybackRate = nativeAudioFallback.playbackRate;
+          video.playbackRate = nativeAudioFallback.playbackRate;
         }
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
+        if (nativeAudioFallback && !nativeAudioFallback.shouldPlay) return;
         video.play().catch(() => {
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // iOS Safari may reject autoplay after async detail/source loading.
@@ -896,6 +912,7 @@ export function PlayerShell({
         restoredRef.current = true;
         restoreCleanupRef.current?.();
         restoreCleanupRef.current = null;
+        if (nativeAudioFallback && !nativeAudioFallback.shouldPlay) return;
         video.play().catch(() => {
           if (loadGeneration === mediaLoadGenerationRef.current) setShowPlayFallback(true);
         });
@@ -936,6 +953,11 @@ export function PlayerShell({
     hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, observeAudioTracks);
     hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
       if (!isCurrentHls()) return;
+      const pending = pendingAudioTrackRef.current;
+      if (pending?.hls === hls && pending.requested === data.id) {
+        pendingAudioTrackRef.current = null;
+        showHint('音轨切换完成');
+      }
       setSelectedAudioTrack(data.id);
     });
     if (hls.audioTracks.length > 0) observeAudioTracks();
@@ -1067,7 +1089,16 @@ export function PlayerShell({
     });
 
     hls.on(Hls.Events.ERROR, (_evt, data) => {
-      if (!isCurrentHls() || !data.fatal) return;
+      if (!isCurrentHls()) return;
+      const pending = pendingAudioTrackRef.current;
+      if (pending?.hls === hls && (data.fatal || String(data.details).startsWith('audioTrack'))) {
+        pendingAudioTrackRef.current = null;
+        const rolledBack = pending.previous >= 0 && pending.previous < hls.audioTracks.length &&
+          selectHlsAudioTrack(hls, pending.previous);
+        if (rolledBack) setSelectedAudioTrack(pending.previous);
+        showHint(rolledBack ? '音轨加载失败，已恢复原音轨' : '音轨加载失败，请尝试其他音轨');
+      }
+      if (!data.fatal) return;
       const recovery = recoveryRef.current;
       if (!recovery) return;
       const decision = recovery.onFatal(data.type, data.details);
@@ -1170,6 +1201,7 @@ export function PlayerShell({
     setAudioTrackOptions([]);
     setSelectedAudioTrack(-1);
     setAudioTrackPanelOpen(false);
+    pendingAudioTrackRef.current = null;
     setAvailableQualityLevelCount(0);
     setQualityMetadataComplete(false);
     setQualityNotice('');
@@ -1861,6 +1893,7 @@ export function PlayerShell({
         window.removeEventListener('libretv-quality-preference-change', qualityPreferenceHandlerRef.current);
         qualityPreferenceHandlerRef.current = null;
       }
+      pendingAudioTrackRef.current = null;
       hlsRef.current?.destroy();
       hlsRef.current = null;
       recoveryRef.current?.dispose();
@@ -2012,15 +2045,18 @@ export function PlayerShell({
                     className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${selectedAudioTrack === track.id ? 'bg-white text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
                     onClick={() => {
                       const hls = hlsRef.current;
+                      const previous = hls?.audioTrack ?? -1;
                       const switched = Boolean(hls && selectHlsAudioTrack(hls, track.id));
                       if (!switched) {
                         showHint('当前音轨不可用，请稍后重试');
                         return;
                       }
-                      setSelectedAudioTrack(track.id);
+                      if (hls && previous !== track.id) {
+                        pendingAudioTrackRef.current = { hls, requested: track.id, previous };
+                        showHint('正在切换音轨…');
+                      }
                       setAudioTrackPanelOpen(false);
                       if (cinemaMode) onCloseCinemaPanel?.();
-                      showHint('已切换音轨');
                     }}
                   >
                     {track.label}{track.isDefault ? ' · 默认' : ''}
