@@ -1,5 +1,5 @@
 /**
- * Cinema Audio / Spatial V5.1 Pro: captured-stream Web Audio DSP.
+ * Cinema Audio / Spatial V5.1 Pro: capture/mirror Web Audio DSP.
  *
  * The original video element is never permanently transferred to a
  * MediaElementAudioSourceNode. That API cannot be undone for an ArtPlayer
@@ -57,21 +57,42 @@ function panner(context:AudioContext,x:number):PannerNode {
   }
   return node;
 }
+/** A bounded cinema voice/bass/dynamics preset; this is PCM DSP, not Dolby decoding. */
 function configureEq(context:AudioContext) {
+  const sub=context.createBiquadFilter();
+  sub.type='lowshelf';sub.frequency.value=64;sub.gain.value=2.6;
   const bass=context.createBiquadFilter();
-  bass.type='lowshelf';bass.frequency.value=135;bass.gain.value=2.1;
+  bass.type='peaking';bass.frequency.value=150;bass.Q.value=.7;bass.gain.value=1.8;
+  const mud=context.createBiquadFilter();
+  mud.type='peaking';mud.frequency.value=340;mud.Q.value=1.05;mud.gain.value=-1.4;
   const voice=context.createBiquadFilter();
-  voice.type='peaking';voice.frequency.value=2500;voice.Q.value=.85;voice.gain.value=2.4;
+  voice.type='peaking';voice.frequency.value=2400;voice.Q.value=.8;voice.gain.value=2.8;
+  const intelligibility=context.createBiquadFilter();
+  intelligibility.type='peaking';intelligibility.frequency.value=3900;
+  intelligibility.Q.value=1.15;intelligibility.gain.value=1.6;
   const highs=context.createBiquadFilter();
-  highs.type='highshelf';highs.frequency.value=6200;highs.gain.value=1.1;
+  highs.type='highshelf';highs.frequency.value=7600;highs.gain.value=.8;
   const compressor=context.createDynamicsCompressor();
-  compressor.threshold.value=-18;compressor.knee.value=17;
-  compressor.ratio.value=2.6;compressor.attack.value=.006;compressor.release.value=.26;
+  compressor.threshold.value=-19;compressor.knee.value=15;
+  compressor.ratio.value=2.7;compressor.attack.value=.008;compressor.release.value=.24;
   const limiter=context.createDynamicsCompressor();
   limiter.threshold.value=-3;limiter.knee.value=0;limiter.ratio.value=12;
   limiter.attack.value=.002;limiter.release.value=.09;
-  bass.connect(voice);voice.connect(highs);highs.connect(compressor);compressor.connect(limiter);
-  return {input:bass,output:limiter};
+  sub.connect(bass);bass.connect(mud);mud.connect(voice);voice.connect(intelligibility);
+  intelligibility.connect(highs);highs.connect(compressor);compressor.connect(limiter);
+  return {input:sub,output:limiter};
+}
+/** Only trust explicit capture-track channel-count metadata for 5.1 steering. */
+export function cinemaVerifiedSpatialChannels(stream:MediaStream|null):2|6 {
+  const track=stream?.getAudioTracks()[0];
+  try {
+    return track?.getSettings?.().channelCount===6?6:2;
+  } catch {return 2;}
+}
+/** Scene-adaptive bounded makeup gain; never boost digital silence. */
+export function cinemaLoudnessGain(rms:number):number {
+  if(!Number.isFinite(rms)||rms<0.004)return 1;
+  return Math.min(1.22,Math.max(0.86,0.14/Math.max(rms,0.01)));
 }
 function capturedAudioSource(video:CapturableVideo):MediaStream|null {
   try {
@@ -132,6 +153,7 @@ export async function createCinemaSoundSession(
   let unregisterVolume=()=>{};
   let unregisterRuntime=()=>{};
   let lastSyncCheck=0;
+  let lastGainCheck=0;
   let syncMismatchFrames=0;
   const releaseMirror=()=>{if(mirror){mirror.pause();mirror.removeAttribute('src');mirror.load();}};
   let dry:GainNode,eqOut:GainNode,spatialRaw:GainNode,spatialEq:GainNode,spatialOut:GainNode;
@@ -185,16 +207,29 @@ export async function createCinemaSoundSession(
     eq.output.connect(eqOut);
     eq.output.connect(spatialEq);
     eqOut.connect(outputLimiter);
-    const splitter=context.createChannelSplitter(2);
+    const channels=cinemaVerifiedSpatialChannels(stream);
+    const splitter=context.createChannelSplitter(channels);
     spatialRaw.connect(splitter);
     spatialEq.connect(splitter);
-    const left=panner(context,-0.65),right=panner(context,.65);
-    const gainLeft=context.createGain(),gainRight=context.createGain();
-    gainLeft.gain.value=.68;gainRight.gain.value=.68;
-    splitter.connect(left,0,0);
-    splitter.connect(right,1,0);
-    left.connect(gainLeft);right.connect(gainRight);
-    gainLeft.connect(spatialOut);gainRight.connect(spatialOut);
+    // Web Audio 5.1 channel order L,R,C,LFE,SL,SR. Rear speakers use
+    // positive Z; center and LFE remain center-weighted with headroom.
+    const speakers=channels===6
+      ? [{x:-.8,z:-1,g:.48},{x:.8,z:-1,g:.48},{x:0,z:-1,g:.36},
+         {x:0,z:-1,g:.14},{x:-.95,z:.6,g:.38},{x:.95,z:.6,g:.38}]
+      : [{x:-.65,z:-1,g:.68},{x:.65,z:-1,g:.68}];
+    speakers.forEach((speaker,index)=>{
+      const node=panner(context,speaker.x);
+      if('positionZ' in node && node.positionZ) {
+        node.positionZ.setValueAtTime(speaker.z,context.currentTime);
+      }else {
+        node.setPosition(speaker.x,0,speaker.z);
+      }
+      const trim=context.createGain();
+      trim.gain.value=speaker.g;
+      splitter.connect(node,index,0);
+      node.connect(trim);
+      trim.connect(spatialOut);
+    });
     spatialOut.connect(outputLimiter);
     // The primary video element still plays normally until capture is proven.
     dry.gain.value=0;eqOut.gain.value=0;spatialRaw.gain.value=0;spatialEq.gain.value=0;spatialOut.gain.value=0;
@@ -268,6 +303,15 @@ export async function createCinemaSoundSession(
         if(!mirror)return;
         }
       }
+    }
+    if(capturing && context.state==='running' && !video.paused &&
+        performance.now()-lastGainCheck>=250){
+      lastGainCheck=performance.now();
+      analyser.getByteTimeDomainData(samples);
+      let energy=0;
+      for(let i=0;i<samples.length;i++){const value=(samples[i]-128)/128;energy+=value*value;}
+      const rms=Math.sqrt(energy/samples.length);
+      safeGain(master.gain,video.volume*(audio?cinemaLoudnessGain(rms):1),context);
     }
     if(!capturing&&performance.now()-started>10000){
       session.stop();
