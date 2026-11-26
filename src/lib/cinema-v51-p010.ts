@@ -48,6 +48,9 @@ export function cinemaTransformP010Frame(
   input:CinemaP010Frame,settings:CinemaP010TransformOptions,
 ):CinemaP010Frame {
   const {width,height,y,uv}=input;
+  // The P010 range quantizer below implements studio swing (Y 64..940,
+  // C 64..960), which cannot be applied to full-range raw P010 frames.
+  // Restrict this API to explicitly declared video-range samples.
   if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<2||height<2||
     width%2!==0||height%2!==0||width*height>1920*1080||
     y.length!==width*height||uv.length!==width*height/2) {
