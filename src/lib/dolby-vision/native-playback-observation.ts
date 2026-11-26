@@ -28,8 +28,8 @@ export interface NativePlaybackSample {
   seeking: boolean;
   ended: boolean;
   mediaErrorCode: number | null;
-  /** HTMLVideoElement.getVideoPlaybackQuality().totalVideoFrames; null when unavailable. */
-  totalVideoFrames?: number | null;
+  /** Browser displayed frames = totalVideoFrames - droppedVideoFrames; null when unavailable. */
+  presentedVideoFrames?: number | null;
 }
 
 export function emptyNativePlaybackObservation(): NativePlaybackObservation {
@@ -82,7 +82,7 @@ export function advanceNativePlaybackObservation(
   // Never use such a jump as playback progression evidence.
   const jumped = previous.lastTime !== null &&
     (time < previous.lastTime || time - previous.lastTime > 5);
-  const rawFrames = sample.totalVideoFrames;
+  const rawFrames = sample.presentedVideoFrames;
   const frameCount = typeof rawFrames === 'number' && Number.isSafeInteger(rawFrames) && rawFrames >= 0
     ? rawFrames : null;
   // The platform may reset counters after decoder recreation, without
@@ -122,11 +122,18 @@ export function advanceNativePlaybackObservation(
   };
 }
 
+/** The platform counter includes dropped frames; only the difference was displayed. */
+export function countPresentedVideoFrames(total: number, dropped: number): number | null {
+  return Number.isSafeInteger(total) && Number.isSafeInteger(dropped) &&
+    total >= 0 && dropped >= 0 && dropped <= total
+    ? total - dropped : null;
+}
+
 function readNativeVideoSample(video: HTMLVideoElement): NativePlaybackSample {
-  let totalVideoFrames: number | null = null;
+  let presentedVideoFrames: number | null = null;
   try {
-    const count = video.getVideoPlaybackQuality?.().totalVideoFrames;
-    if (typeof count === 'number' && Number.isSafeInteger(count) && count >= 0) totalVideoFrames = count;
+    const quality = video.getVideoPlaybackQuality?.();
+    if (quality) presentedVideoFrames = countPresentedVideoFrames(quality.totalVideoFrames, quality.droppedVideoFrames);
   } catch {
     // iPadOS Safari can omit this API. A missing counter is not zero frames.
   }
@@ -139,7 +146,7 @@ function readNativeVideoSample(video: HTMLVideoElement): NativePlaybackSample {
     seeking: video.seeking,
     ended: video.ended,
     mediaErrorCode: video.error?.code ?? null,
-    totalVideoFrames,
+    presentedVideoFrames,
   };
 }
 
