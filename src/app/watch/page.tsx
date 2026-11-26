@@ -1066,8 +1066,8 @@ function WatchContent() {
               {cmsLookupPending ? (
                 <div className="w-full h-full flex items-center justify-center" role="status" aria-label="正在确认媒体地址"><Spinner size="lg" /></div>
               ) : currentUrl ? (
-                <PlaybackErrorBoundary key={playerUrl} label="player" fallback={isIpadEditionPlayback ? (retry) => (
-                  <NativeCinemaFallback url={playerUrl} retry={retry}
+                <PlaybackErrorBoundary key={isIpadEditionPlayback ? "ipad-cinema" : playerUrl} resetKey={playerUrl} label="player" fallback={isIpadEditionPlayback ? (retry) => (
+                  <NativeCinemaFallback key={playerUrl} url={playerUrl} retry={retry}
                     onApi={(api) => { playerApiRef.current = api; }}
                     onClock={(position, duration) => setWatchClock({ position, duration })}
                     onProgress={(position, duration) => handleProgress(position, duration, currentEpisodeKey)}
