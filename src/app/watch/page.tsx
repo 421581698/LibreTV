@@ -32,7 +32,7 @@ import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from 
 import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from '@/lib/watch-playback-state';
 import { useFridayGlassPlayback } from '@/components/friday/FridayGlassProvider';
 import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } from '@/lib/cinema-v4-controls';
-import { isCinemaPlaybackEventCurrent, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
+import { isCinemaPlaybackEventCurrent, isCinemaPlaybackTransitionPending, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
 import { CinemaPlaybackActions } from '@/components/ipad-edition/CinemaPlaybackActions';
 import { ClassicWatchTitle, ClassicWatchRateButton, ClassicWatchTools } from '@/components/watch/ClassicWatchControls';
 import { usePlaybackEdition } from '@/components/watch/PlaybackEditionContext';
@@ -618,6 +618,14 @@ function WatchContent() {
     ? JSON.stringify([sourceKey, vodId, currentIndex, source.url, currentUrl]) : null;
   const [settledCmsLookupKey, setSettledCmsLookupKey] = useState<string | null>(null);
   const cmsLookupPending = cmsLookupKey !== null && settledCmsLookupKey !== cmsLookupKey;
+  // Source switching may require fetching the destination episode URL before
+  // the CMS registry lookup can even begin; retain the Cinema player throughout.
+  const cinemaMediaPending = isCinemaPlaybackTransitionPending({
+    isCinema: isIpadEditionPlayback,
+    cmsLookupPending,
+    detailLoading: detailQuery.isLoading,
+    currentUrl,
+  });
   useEffect(() => {
     setCmsAssetBinding(null);
     setSettledCmsLookupKey(null);
@@ -703,7 +711,7 @@ function WatchContent() {
     dolbyVisionSourceIdentity: activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined),
   };
   useEffect(() => {
-    if (!isIpadEditionPlayback || cmsLookupPending || !currentUrl) return;
+    if (!isIpadEditionPlayback || cinemaMediaPending || !currentUrl) return;
     lastReadyCinemaMediaRef.current = {
       url: playerUrl, episodeKey: currentEpisodeKey, sourceKey,
       mediaType: activeCmsAssetBinding ? 'mp4' : undefined,
@@ -711,17 +719,17 @@ function WatchContent() {
       dolbyVisionSourceKind: activeCmsAssetBinding ? 'registry' : directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown',
       dolbyVisionSourceIdentity: activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined),
     };
-  }, [isIpadEditionPlayback, cmsLookupPending, currentUrl, playerUrl, currentEpisodeKey, sourceKey, activeCmsAssetBinding, directUrl]);
+  }, [isIpadEditionPlayback, cinemaMediaPending, currentUrl, playerUrl, currentEpisodeKey, sourceKey, activeCmsAssetBinding, directUrl]);
   const cinemaMediaGate = selectCinemaPlaybackMedia({
-    isCinema: isIpadEditionPlayback, cmsLookupPending,
+    isCinema: isIpadEditionPlayback, cmsLookupPending: cinemaMediaPending,
     current: currentPlaybackMedia, lastReady: lastReadyCinemaMediaRef.current,
   });
   // Pause the outgoing source during verification without destroying the player.
   useEffect(() => {
-    if (isIpadEditionPlayback && cmsLookupPending && lastReadyCinemaMediaRef.current) {
+    if (isIpadEditionPlayback && cinemaMediaPending && lastReadyCinemaMediaRef.current) {
       playerApiRef.current?.pause();
     }
-  }, [isIpadEditionPlayback, cmsLookupPending, cmsLookupKey]);
+  }, [isIpadEditionPlayback, cinemaMediaPending, cmsLookupKey]);
   const pendingEpisodeKeyRef = useRef<string | null>(null);
   const isCurrentPlaybackEvent = useCallback((eventEpisodeKey?: string) => {
     // During router.replace there is a short interval where the media element
@@ -734,12 +742,12 @@ function WatchContent() {
     }
     return isCinemaPlaybackEventCurrent({
       isCinema: isIpadEditionPlayback,
-      cmsLookupPending,
+      cmsLookupPending: cinemaMediaPending,
       holdingPrevious: cinemaMediaGate.holdingPrevious,
       currentEpisodeKey,
       eventEpisodeKey,
     });
-  }, [currentEpisodeKey, isIpadEditionPlayback, cmsLookupPending, cinemaMediaGate.holdingPrevious]);
+  }, [currentEpisodeKey, isIpadEditionPlayback, cinemaMediaPending, cinemaMediaGate.holdingPrevious]);
   // 跳过片段按剧名记忆：换集不变，换源到同名资源也能命中。
   // 标题缺失（直连链接）时退回 source:vodId，至少保证本源本片可用。
   const skipMarkFallback = `${sourceKey}:${vodId || currentUrl}`;
@@ -1186,7 +1194,7 @@ function WatchContent() {
                   onPlaybackConfirmed={(evidence) => {
                     // A retained outgoing player must not certify the destination provider.
                     if (!isCinemaPlaybackEventCurrent({
-                      isCinema: isIpadEditionPlayback, cmsLookupPending,
+                      isCinema: isIpadEditionPlayback, cmsLookupPending: cinemaMediaPending,
                       holdingPrevious: cinemaMediaGate.holdingPrevious, currentEpisodeKey,
                     })) return;
                     let host = '';
@@ -1205,7 +1213,7 @@ function WatchContent() {
                   onQuality={(height) => {
                     // Quality measurements from held media cannot be attributed to a new source.
                     if (!isCinemaPlaybackEventCurrent({
-                      isCinema: isIpadEditionPlayback, cmsLookupPending,
+                      isCinema: isIpadEditionPlayback, cmsLookupPending: cinemaMediaPending,
                       holdingPrevious: cinemaMediaGate.holdingPrevious, currentEpisodeKey,
                     })) return;
                     if (!sourceKey || !vodId) return;
