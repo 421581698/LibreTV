@@ -30,6 +30,7 @@ export function cinemaCanMountAuthorizedPlayback(
   url:string,source:CinemaV51AuthorizedPlayback,
 ):boolean {
   return Boolean(source.mediaUrl===url&&
+    source.transform.targetPrimaries!=='display-p3'&&
     VALID_HASH.test(source.track.sourceSha256)&&
     Number.isSafeInteger(source.presentationOffsetUs)&&
     source.track.packets&&typeof source.track.packets[Symbol.asyncIterator]==='function'&&
