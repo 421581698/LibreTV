@@ -57,3 +57,18 @@ export function isCinemaPlaybackEventCurrent({
   if (isCinema && (cmsLookupPending || holdingPrevious)) return false;
   return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;
 }
+
+/** Keep the Cinema shell mounted through BOTH detail loading and CMS binding. */
+export function isCinemaPlaybackTransitionPending({
+  isCinema,
+  cmsLookupPending,
+  detailLoading,
+  currentUrl,
+}: {
+  isCinema: boolean;
+  cmsLookupPending: boolean;
+  detailLoading: boolean;
+  currentUrl: string;
+}): boolean {
+  return cmsLookupPending || (isCinema && detailLoading && !currentUrl);
+}
