@@ -397,6 +397,7 @@ test('maps MP4 packet PTS by sample byte range and rejects ambiguous ranges', as
   assert.deepEqual(timing.rpuUnits.map(({ packetPts }) => packetPts), ['9007199254740993', '-3003']);
   await rm(output);
   assert.throws(() => run(16, '12'), /byte ranges overlap/);
+  assert.throws(() => run(16 + sample.length, '9007199254740993'), /duplicate PTS/);
   assert.throws(() => run(16 + sample.length, 'N\/A'), /invalid bounds or presentation timestamp/);
   await assert.rejects(readFile(output), { code: 'ENOENT' });
 });

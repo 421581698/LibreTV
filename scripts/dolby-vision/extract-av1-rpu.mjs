@@ -225,6 +225,7 @@ function* readIvfObus(path, fileSize, timing) {
 function* readTimedPacketObus(bytes, packetPts, container) {
   const obus = readObus([bytes].values());
   const first = obus.next().value;
+  if (!first) throw new Error('AV1 ' + container + ' packet contains no OBU.');
   if (first.type === 2) {
     yield { ...first, packetPts };
   } else {
@@ -323,6 +324,7 @@ function parseDolbyRpuObuStream(obus) {
   const rpuUnits = [];
   let syntheticDelimiterCount = 0;
   let currentPacketPts;
+  const seenPacketPts = new Set();
   for (const { type, extensionPresent, payload, packetPts, syntheticDelimiter } of obus) {
     if (obuCount >= MAX_OBUS) throw new Error('AV1 OBU count exceeds configured limit.');
     obuCount += 1;
@@ -335,6 +337,11 @@ function parseDolbyRpuObuStream(obus) {
       }
       if (syntheticDelimiter) syntheticDelimiterCount += 1;
       currentPacketPts = packetPts;
+      if (packetPts !== undefined) {
+        const canonicalPts = BigInt(packetPts).toString();
+        if (seenPacketPts.has(canonicalPts)) throw new Error('AV1 packet presentation timestamps are ambiguous: duplicate PTS.');
+        seenPacketPts.add(canonicalPts);
+      }
       temporalUnit += 1;
       temporalDelimiterCount += 1;
       framesByTemporalUnit.set(temporalUnit, 0);
