@@ -174,6 +174,8 @@ jobs:
         run: npm test -- --reporter=dot
       - name: AV1 decoded-frame timing extractor regression
         run: node --test --test-name-pattern='matches decoded AV1 MP4 frame PTS' scripts/dolby-vision/extract-av1-rpu.test.mjs
+      - name: AC-3 and E-AC-3 real FFmpeg encode/decode regression
+        run: node scripts/dolby/audio-codec-ffmpeg-smoke.mjs
       - name: Production build
         env:
           PASSWORD: ci-test-password
