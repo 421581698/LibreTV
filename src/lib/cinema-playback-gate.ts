@@ -30,7 +30,7 @@ export function selectCinemaPlaybackMedia({
 } {
   const holdingPrevious = isCinema && cmsLookupPending && lastReady !== null;
   return {
-    media: holdingPrevious ? lastReady : current,
+    media: holdingPrevious && lastReady ? lastReady : current,
     holdingPrevious,
     showPlayer: !cmsLookupPending || holdingPrevious,
   };
