@@ -62,7 +62,7 @@ jobs:
           const url = new URL(`https://api.github.com/repos/${process.env.GH_REPOSITORY}/actions/runs`);
           url.searchParams.set("branch", process.env.GH_BRANCH);
           url.searchParams.set("head_sha", process.env.GH_SHA);
-          url.searchParams.set("event", "pull_request");
+          // These exact-SHA verification workflows are triggered on branch push.\n          url.searchParams.set("event", "push");
           url.searchParams.set("per_page", "100");
           const headers = {
             accept: "application/vnd.github+json",
@@ -76,7 +76,7 @@ jobs:
             const runs = (payload.workflow_runs ?? []).filter(run =>
               run.head_sha === process.env.GH_SHA &&
               run.head_branch === process.env.GH_BRANCH &&
-              run.event === "pull_request"
+              run.event === "push"
             );
             const latest = required.map(name => runs.filter(run => run.name === name)
               .sort((a, b) => b.run_number - a.run_number || b.id - a.id)[0]);
