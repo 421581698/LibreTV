@@ -82,12 +82,16 @@ export async function probeHevcFrameMapping(path, lengthSize, ffprobe = 'ffprobe
   }
   const stream = probe(['-show_streams','-show_entries','stream=codec_name,time_base']);
   if (stream.length !== 1) throw new Error('Ambiguous HEVC stream');
-  const match = /^stream\|codec_name=hevc\|time_base=(\d+)\/(\d+)$/.exec(stream[0]);
+  const fields = stream[0].split('|');
+  const codec = fields.filter(field => field.startsWith('codec_name='));
+  const bases = fields.filter(field => field.startsWith('time_base='));
+  const match = fields[0] === 'stream' && codec.length === 1 && codec[0] === 'codec_name=hevc' && bases.length === 1
+    ? /^time_base=(\d+)\/(\d+)$/.exec(bases[0]) : null;
   if (!match) throw new Error('Invalid HEVC timebase');
   const timeBase = {numerator:Number(match[1]),denominator:Number(match[2])};
   if (Object.values(timeBase).some(n=>!Number.isSafeInteger(n)||n<=0)) throw new Error('Invalid timebase');
   const packets = probe(['-show_packets','-show_entries','packet=pts,size,pos']);
-  const frames = probe(['-show_frames','-show_entries','frame=best_effort_timestamp']);
+  const frames = probe(['-show_frames','-show_entries','frame=best_effort_timestamp']).filter(row => row.trim() !== '');
   if (!packets.length || packets.length>8192 || packets.length!==frames.length) throw new Error('Incomplete frame evidence');
   const file = await open(path,'r');
   try {
@@ -111,7 +115,9 @@ export async function probeHevcFrameMapping(path, lengthSize, ffprobe = 'ffprobe
       samples.push({pts:range.pts,bytes});
     }
     const decodedPts=frames.map(row=>{
-      const m=/^frame\|best_effort_timestamp=(-?\d{1,19})$/.exec(row);
+      const fields = row.split('|');
+      const timestamps = fields.filter(field => field.startsWith('best_effort_timestamp='));
+      const m = fields[0] === 'frame' && timestamps.length === 1 ? /^best_effort_timestamp=(-?\d{1,19})$/.exec(timestamps[0]) : null;
       if(!m) throw new Error('Invalid decoded frame evidence');
       return m[1];
     });
