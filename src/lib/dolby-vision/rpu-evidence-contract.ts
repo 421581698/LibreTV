@@ -34,6 +34,13 @@ export const DolbyVisionRpuReportSchema = z.object({
     matched: z.literal(true),
     frameCount: z.number().int().positive(),
   }).strict().optional(),
+  presentationDurationEvidence: z.object({
+    scope: z.literal('independent-sample-durations'),
+    timescale: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    start: z.string().regex(/^(?:0|-?[1-9][0-9]{0,18})$/),
+    end: z.string().regex(/^(?:0|-?[1-9][0-9]{0,18})$/),
+    durations: z.array(z.number().int().positive().max(Number.MAX_SAFE_INTEGER)).min(1).max(8192),
+  }).strict().optional(),
   frameMappingEvidence: z.object({
     version: z.literal(1),
     timeBase: z.object({ numerator: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), denominator: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict(),
@@ -53,6 +60,10 @@ export const DolbyVisionRpuReportSchema = z.object({
   extractionScope: extractionScopeSchema,
   notes: z.array(z.string()),
 }).strict().superRefine((report, context) => {
+  if (report.presentationDurationEvidence && (!report.frameMappingEvidence ||
+      report.presentationDurationEvidence.durations.length !== report.frameCount)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['presentationDurationEvidence'], message: 'Duration evidence requires complete media-bound frame mapping.' });
+  }
   if (report.frameMappingEvidence && (report.inputKind === 'rpu' ||
       report.frameMappingEvidence.frames.length !== report.frameCount ||
       !report.rpuUnitEvidence)) {

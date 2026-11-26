@@ -1,4 +1,4 @@
-import { verifyHlsFramePresentationOrder, verifyHlsFixedCadence } from './hls-frame-timeline';
+import { verifyHlsFramePresentationOrder, verifyHlsFixedCadence, verifyHlsVariableCadence } from './hls-frame-timeline';
 import { digestRpuFrameMapping } from './frame-mapping-evidence';
 import { createHash, createPublicKey, verify as verifySignature, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
@@ -109,6 +109,7 @@ export interface VerifiedHlsRpuSegmentSet {
   orderedFrameMappingSha256: string | null;
   framePresentationOrder: 'strictly-increasing' | 'not-established';
   fixedPresentationCadence: 'verified' | 'not-established';
+  variablePresentationCadence: 'verified' | 'not-established';
   /** Maximum verified end time in the media track's timescale units. */
   verifiedDecodeEnd: number;
   verifiedTimescale: number;
@@ -266,6 +267,17 @@ export function verifySignedDolbyVisionRpuSegmentSet(
     orderedFrameMappingSha256: allSegmentsHaveFrameMapping ? orderedMappingHash.digest('hex') : null,
     framePresentationOrder: allSegmentsHaveFrameMapping && verifyHlsFramePresentationOrder(verified.map(segment => segment.report.frameMappingEvidence!)) ? 'strictly-increasing' : 'not-established',
     fixedPresentationCadence: allSegmentsHaveFrameMapping && verifyHlsFixedCadence(verified.map(segment => segment.report.frameMappingEvidence!), options.expectedSegments) ? 'verified' : 'not-established',
+    variablePresentationCadence: allSegmentsHaveFrameMapping &&
+      verified.every((segment, i) => {
+        const evidence = segment.report.presentationDurationEvidence;
+        const expected = options.expectedSegments[i];
+        return evidence && evidence.timescale === expected.timescale &&
+          evidence.durations.length === expected.sampleCount &&
+          evidence.durations.reduce((sum, duration) => sum + BigInt(duration), 0n) === BigInt(expected.sampleDuration);
+      }) && verifyHlsVariableCadence(
+        verified.map(segment => segment.report.frameMappingEvidence!),
+        verified.map(segment => segment.report.presentationDurationEvidence!),
+      ) ? 'verified' : 'not-established',
     verifiedDecodeEnd: previousEnd!,
     verifiedTimescale: commonTimescale!,
     verifiedParserVersion: commonParserVersion!,
@@ -334,6 +346,8 @@ export function verifySignedDolbyVisionRpuEnvelope(
   if (!validated || validated.sourceHashBinding !== 'matched') return null;
   const unitEvidence = validated.report.rpuUnitEvidence;
   const mapping = validated.report.frameMappingEvidence;
+  const durations = validated.report.presentationDurationEvidence;
+  if (durations && (!mapping || !verifyHlsVariableCadence([mapping], [durations]))) return null;
   if (mapping) {
     try {
       if (!unitEvidence || !validated.report.sourceMediaSha256 ||
