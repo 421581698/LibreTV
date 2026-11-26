@@ -1639,10 +1639,10 @@ export function PlayerShell({
       updateSkipPrompt(prompt);
     });
     art.on('video:pause', () => {
-      experimentalAudioSessionRef.current?.onPause();
       // A queued pause event can arrive after a newer play request. Do not
       // cancel playback confirmation or persist a stale pause in that case.
       if (art.video && !art.video.paused && !art.video.ended) return;
+      experimentalAudioSessionRef.current?.onPause();
       if (playbackConfirmationTimerRef.current) {
         clearTimeout(playbackConfirmationTimerRef.current);
         playbackConfirmationTimerRef.current = null;
