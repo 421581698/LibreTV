@@ -1239,7 +1239,17 @@ function WatchContent() {
                         return;
                       }
                       playerApi.seek(target);
-                      setWatchClock(current => ({ ...current, position: target }));
+                      // The engine may clamp or reject the requested seek. Use the
+                      // actual media position, not an optimistic unplayable target.
+                      const actualPosition = playerApi.getCurrentTime();
+                      if (!Number.isFinite(actualPosition)) {
+                        setScrubbingPosition(null);
+                        scrubbingPositionRef.current = null;
+                        return;
+                      }
+                      scrubbingPositionRef.current = actualPosition;
+                      setScrubbingPosition(actualPosition);
+                      setWatchClock(current => ({ ...current, position: actualPosition }));
                       if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
                       scrubResetTimerRef.current = window.setTimeout(() => {
                         setScrubbingPosition(null);
@@ -1272,8 +1282,11 @@ function WatchContent() {
                       const position = Math.max(0, Math.min(watchClock.duration,
                         event.key === 'Home' ? 0 : event.key === 'End' ? watchClock.duration :
                           safeDisplayedPosition + (event.key === 'ArrowLeft' ? -5 : 5)));
-                      playerApiRef.current?.seek(position);
-                      setWatchClock(current => ({ ...current, position }));
+                      const api = playerApiRef.current;
+                      if (!api) return;
+                      api.seek(position);
+                      const actualPosition = api.getCurrentTime();
+                      if (Number.isFinite(actualPosition)) setWatchClock(current => ({ ...current, position: actualPosition }));
                     }}
                   >
                     <span className="cinema-seek-track" aria-hidden="true" />
