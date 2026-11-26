@@ -1880,10 +1880,13 @@ export function PlayerShell({
     // ArtPlayer 的 contextmenu 组件只在桌面端初始化（移动端构造函数里跳过 init），
     // 长按倍速因而会连带呼出系统原生菜单/气泡。播放器表面没有可用的原生菜单，统一抑制
     const onContextMenu = (e: Event) => e.preventDefault();
-    el?.addEventListener('touchstart', onTouchStart, { passive: false });
-    el?.addEventListener('touchend', onTouchEnd);
-    el?.addEventListener('touchcancel', onTouchEnd);
-    el?.addEventListener('touchmove', onTouchMove, { passive: false });
+    // Cinema owns its touch gestures; legacy ArtPlayer gestures are desktop/mobile-only.
+    if (!cinemaMode) {
+      el?.addEventListener('touchstart', onTouchStart, { passive: false });
+      el?.addEventListener('touchend', onTouchEnd);
+      el?.addEventListener('touchcancel', onTouchEnd);
+      el?.addEventListener('touchmove', onTouchMove, { passive: false });
+    }
     el?.addEventListener('contextmenu', onContextMenu);
 
     // 卸载与页面隐藏时保存进度
