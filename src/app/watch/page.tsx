@@ -477,17 +477,32 @@ function WatchContent() {
       const progressInput = shell.querySelector<HTMLInputElement>('.watch-cinema-progress');
       const finalPosition = scrubbingPositionRef.current ??
         (progressInput ? Number(progressInput.value) : Number.NaN);
-      if (typeof finalPosition === 'number' && Number.isFinite(finalPosition)) {
-        playerApiRef.current?.seek(finalPosition);
+      const api = playerApiRef.current;
+      let actualPosition = Number.NaN;
+      if (api && Number.isFinite(finalPosition)) {
+        api.seek(finalPosition);
+        actualPosition = api.getCurrentTime();
       }
       scrubbingRef.current = false;
       setIsScrubbing(false);
       if (scrubResetTimerRef.current !== null) window.clearTimeout(scrubResetTimerRef.current);
-      scrubResetTimerRef.current = window.setTimeout(() => {
-        setScrubbingPosition(null);
+      if (Number.isFinite(actualPosition)) {
+        // HLS and discontinuous seekable ranges can clamp the requested target.
+        // Keep the preview aligned with the actual media clock until native events arrive.
+        scrubbingPositionRef.current = actualPosition;
+        setScrubbingPosition(actualPosition);
+        setWatchClock((current) => ({ ...current, position: actualPosition }));
+        scrubResetTimerRef.current = window.setTimeout(() => {
+          setScrubbingPosition(null);
+          scrubbingPositionRef.current = null;
+          scrubResetTimerRef.current = null;
+        }, 1200);
+      } else {
+        // No mounted player or rejected seek: never display an unplayable target.
         scrubbingPositionRef.current = null;
+        setScrubbingPosition(null);
         scrubResetTimerRef.current = null;
-      }, 1200);
+      }
       if (video && !video.paused && !video.ended) scheduleHide();
       else keepControlsVisible();
     };
@@ -1318,8 +1333,19 @@ function WatchContent() {
                     setScrubbingPosition(position);
                     // WebKit can deliver the final range change after touchend.
                     if (!scrubbingRef.current) {
-                      playerApiRef.current?.seek(position);
-                      setWatchClock((current) => ({ ...current, position }));
+                      const api = playerApiRef.current;
+                      api?.seek(position);
+                      const actualPosition = api?.getCurrentTime();
+                      if (typeof actualPosition === 'number' && Number.isFinite(actualPosition)) {
+                        setWatchClock((current) => ({ ...current, position: actualPosition }));
+                      }
+                      // Keyboard/native range changes do not begin a drag preview.
+                      if (scrubResetTimerRef.current !== null) {
+                        window.clearTimeout(scrubResetTimerRef.current);
+                        scrubResetTimerRef.current = null;
+                      }
+                      scrubbingPositionRef.current = null;
+                      setScrubbingPosition(null);
                     }
                   }}
                   onTouchStart={(event) => {
@@ -1352,12 +1378,18 @@ function WatchContent() {
                     if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
                       const position = Number(event.currentTarget.value);
                       if (!Number.isFinite(position)) return;
-                      playerApiRef.current?.seek(position);
-                      // Keyboard range changes do not enter the pointer scrub
-                      // lifecycle, so clear the temporary preview explicitly.
+                      // The range onChange already commits this seek. Keyup only
+                      // reconciles the clock, avoiding a duplicate HLS seek.
+                      const actualPosition = playerApiRef.current?.getCurrentTime();
+                      if (typeof actualPosition === 'number' && Number.isFinite(actualPosition)) {
+                        setWatchClock((current) => ({ ...current, position: actualPosition }));
+                      }
+                      if (scrubResetTimerRef.current !== null) {
+                        window.clearTimeout(scrubResetTimerRef.current);
+                        scrubResetTimerRef.current = null;
+                      }
                       scrubbingPositionRef.current = null;
                       setScrubbingPosition(null);
-                      setWatchClock((current) => ({ ...current, position }));
                     }
                   }}
                   disabled={!hasFiniteDuration}
