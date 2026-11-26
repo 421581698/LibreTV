@@ -61,6 +61,15 @@ describe('Cinema V5.1 metadata / 10-bit pipeline',()=>{
   expect(transformedHigh[0]).not.toBeCloseTo(transformedLow[0],3);
   expect(()=>cinemaValidateMetadata({...envelope,frames:[{...raised,bezierAnchors:[1.5]}]})).toThrow();
  });
+ it('uses the normative knee and shoulder anchors at exact boundaries',()=>{
+  const frame={...envelope.frames[0],kneePoint:.4,kneePointY:.55,bezierAnchors:[.1,.9]};
+  expect(cinemaHdr10PlusToneMap(400,1000,100,frame)).toBeCloseTo(55,6);
+  expect(cinemaHdr10PlusToneMap(1000,1000,100,frame)).toBeCloseTo(100,6);
+  expect(cinemaHdr10PlusToneMap(0,1000,100,frame)).toBe(0);
+  const below=cinemaHdr10PlusToneMap(399.999,1000,100,frame);
+  const above=cinemaHdr10PlusToneMap(400.001,1000,100,frame);
+  expect(Math.abs(below-above)).toBeLessThan(.01);
+ });
  it('handles static mastering metadata independently of missing dynamic fields',()=>{
   const result=cinemaTransformMetadataFrame([cinemaPqOetf(200),cinemaPqOetf(100),cinemaPqOetf(40)],opt,
      envelope.mastering,null);
