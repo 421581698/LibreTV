@@ -23,6 +23,7 @@ import { inspectDolbyVisionFormat, type DolbyVisionFormatReport } from '@/lib/do
 import { inspectHlsDolbyVisionFormat } from '@/lib/dolby-vision/hls-level-inspector';
 import { inspectNativeHlsDolbyVisionManifest } from '@/lib/dolby-vision/native-hls-manifest-inspector';
 import { shouldPreferNativeDolbyVisionHls } from '@/lib/dolby-vision/native-hls-playback-policy';
+import { shouldPreferNativeDolbyAudioHls } from '@/lib/dolby/native-audio-hls-policy';
 import { createHlsLoader } from '@/lib/hls-loader';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -761,7 +762,7 @@ export function PlayerShell({
       setAvailableQualityHeights([]);
       setQualityControlMode('native');
       setQualityNotice(forceNativeDolby
-        ? 'Dolby Vision 变体声明已触发 Safari 原生 HLS 优先路径；这不是实际 Dolby Vision 解码或 HDR 输出证明。原生加载失败会尝试回退 hls.js。'
+        ? 'Dolby 视频或音频编码声明已触发 Safari 原生 HLS 优先路径；不代表实际 Dolby Vision、Digital Plus 或 Atmos 输出。原生加载失败会回退 hls.js。'
         : '当前使用浏览器原生 HLS，Safari 会自行选择档位，网页无法强制锁定 1080P 或 4K。实际解码分辨率仍会显示。');
       let nativeRestoreInFlight = false;
       const restoreNativePosition = async () => {
@@ -943,15 +944,28 @@ export function PlayerShell({
       if (!isCurrentHls()) return;
       const manifestFormat = inspectHlsDolbyVisionFormat(mediaUrl, hls.levels);
       setDolbyVisionFormatReportState({ sourceUrl: mediaUrl, report: manifestFormat });
-      if (shouldPreferNativeDolbyVisionHls(manifestFormat, {
+      const nativeHlsSupport = video.canPlayType('application/vnd.apple.mpegurl') ||
+        video.canPlayType('application/x-mpegURL');
+      const nativeRouteOptions = {
         userAgent: navigator.userAgent,
-        nativeHlsTypeSupport: video.canPlayType('application/vnd.apple.mpegurl') ||
-          video.canPlayType('application/x-mpegURL'),
-        canPlayDeclaredCodec: (codec) => video.canPlayType(`video/mp4; codecs="${codec}"`),
+        nativeHlsTypeSupport: nativeHlsSupport,
         qualityPreference: readQualityPreference(),
         playbackStarted: playbackStartedRef.current,
         alreadyAttemptedNative: nativeDolbyHlsAttemptedRef.current === mediaUrl,
-      })) {
+      };
+      const preferVision = shouldPreferNativeDolbyVisionHls(manifestFormat, {
+        ...nativeRouteOptions,
+        canPlayDeclaredCodec: (codec) => video.canPlayType(`video/mp4; codecs="${codec}"`),
+      });
+      const audioCodecs = [
+        ...hls.levels.map(level => level.audioCodec),
+        ...hls.audioTracks.map(track => 'audioCodec' in track && typeof track.audioCodec === 'string' ? track.audioCodec : null),
+      ];
+      const preferDolbyAudio = shouldPreferNativeDolbyAudioHls(audioCodecs, {
+        ...nativeRouteOptions,
+        canPlayAudioCodec: (codec) => video.canPlayType(`audio/mp4; codecs="${codec}"`),
+      });
+      if (preferVision || preferDolbyAudio) {
         nativeDolbyHlsAttemptedRef.current = mediaUrl;
         setupHls(video, mediaUrl, allowProxyFallback, true, manifestFormat);
         return;
