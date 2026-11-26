@@ -178,6 +178,63 @@ function* readObuFile(path, expectedSize) {
   }
 }
 
+function* readIvfObus(path, fileSize, timing) {
+  const fd = openSync(path, 'r');
+  let remaining = fileSize;
+  function readExact(length) {
+    if (length > remaining) throw new Error('Truncated AV1 IVF packet or header.');
+    const bytes = Buffer.allocUnsafe(length);
+    let offset = 0;
+    while (offset < length) {
+      const count = readSync(fd, bytes, offset, length - offset, null);
+      if (count === 0) throw new Error('Truncated AV1 IVF packet or header.');
+      offset += count;
+    }
+    remaining -= length;
+    return bytes;
+  }
+
+  try {
+    const header = readExact(32);
+    if (header.toString('ascii', 0, 4) !== 'DKIF' || header.readUInt16LE(4) !== 0 ||
+        header.readUInt16LE(6) !== 32 || header.toString('ascii', 8, 12) !== 'AV01') {
+      throw new Error('Invalid AV1 IVF header.');
+    }
+    timing.timeBase = { numerator: header.readUInt32LE(20), denominator: header.readUInt32LE(16) };
+    if (!timing.timeBase.numerator || !timing.timeBase.denominator) {
+      throw new Error('Invalid AV1 IVF time base.');
+    }
+
+    while (remaining > 0) {
+      const packetHeader = readExact(12);
+      const size = packetHeader.readUInt32LE(0);
+      if (size === 0 || size > MAX_OBU_BYTES) throw new Error('AV1 IVF packet size exceeds supported bounds.');
+      const pts = packetHeader.readBigInt64LE(4);
+      if (pts === -(1n << 63n)) throw new Error('AV1 IVF packet is missing its presentation timestamp.');
+
+      const obus = readObus([readExact(size)].values());
+      const first = obus.next();
+      if (first.value.type === 2) {
+        yield { ...first.value, packetPts: pts.toString() };
+      } else {
+        // IVF already supplies a packet boundary even if the OBU delimiter was omitted.
+        yield { type: 2, extensionPresent: false, payload: Buffer.alloc(0),
+          packetPts: pts.toString(), syntheticDelimiter: true };
+        yield first.value;
+      }
+      for (const obu of obus) {
+        if (obu.type === 2) throw new Error('AV1 IVF packet contains multiple temporal units.');
+        yield obu;
+      }
+    }
+    if (readSync(fd, Buffer.alloc(1), 0, 1, null) !== 0) {
+      throw new Error('AV1 IVF file size changed during reading.');
+    }
+  } finally {
+    closeSync(fd);
+  }
+}
+
 function parseDolbyRpuObuStream(obus) {
   const t35Payloads = [];
   let totalT35Bytes = 0;
@@ -185,7 +242,9 @@ function parseDolbyRpuObuStream(obus) {
   let obuCount = 0, temporalUnit = -1, temporalDelimiterCount = 0, frameUnitCount = 0;
   const framesByTemporalUnit = new Map();
   const rpuUnits = [];
-  for (const { type, extensionPresent, payload } of obus) {
+  let syntheticDelimiterCount = 0;
+  let currentPacketPts;
+  for (const { type, extensionPresent, payload, packetPts, syntheticDelimiter } of obus) {
     if (obuCount >= MAX_OBUS) throw new Error('AV1 OBU count exceeds configured limit.');
     obuCount += 1;
     if (type === 2) {
@@ -195,6 +254,8 @@ function parseDolbyRpuObuStream(obus) {
       if (temporalDelimiterCount >= MAX_RPU_UNITS) {
         throw new Error('AV1 temporal unit count exceeds configured limit.');
       }
+      if (syntheticDelimiter) syntheticDelimiterCount += 1;
+      currentPacketPts = packetPts;
       temporalUnit += 1;
       temporalDelimiterCount += 1;
       framesByTemporalUnit.set(temporalUnit, 0);
@@ -215,7 +276,9 @@ function parseDolbyRpuObuStream(obus) {
         totalT35Bytes += t35.length;
         t35Payloads.push(Buffer.from(t35));
         rpuTemporalUnits.add(temporalUnit);
-        rpuUnits.push({ ordinal: rpuUnits.length, temporalUnitIndex: temporalUnit });
+        const unit = { ordinal: rpuUnits.length, temporalUnitIndex: temporalUnit };
+        if (currentPacketPts !== undefined) unit.packetPts = currentPacketPts;
+        rpuUnits.push(unit);
       }
     }
   }
@@ -243,8 +306,8 @@ function parseDolbyRpuObuStream(obus) {
   return {
     t35Payloads,
     report: {
-      obuCount,
-      temporalDelimiterCount,
+      obuCount: obuCount - syntheticDelimiterCount,
+      temporalDelimiterCount: temporalDelimiterCount - syntheticDelimiterCount,
       temporalUnitCount: temporalDelimiterCount,
       frameUnitCount,
       dolbyRpuCount: t35Payloads.length,
@@ -417,19 +480,25 @@ async function main() {
   } else {
     const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-obu-'));
     try {
-      const container = options.kind !== 'obu';
-      const obuFile = container
+      const ivf = options.kind === 'ivf';
+      const mp4 = options.kind === 'mp4';
+      const timing = {};
+      const obuFile = mp4
         ? await demuxAv1Container(inputPath, directory, options)
         : { path: inputPath, size: inputStat.size };
-      const parsed = parseDolbyRpuObuStream(readObuFile(obuFile.path, obuFile.size));
+      const obus = ivf
+        ? readIvfObus(inputPath, inputStat.size, timing)
+        : readObuFile(obuFile.path, obuFile.size);
+      const parsed = parseDolbyRpuObuStream(obus);
       const result = converterConfigured
         ? await convertParsedObusWithLibdovi(parsed, directory, options)
         : convertParsedObus(parsed);
       rpuBytes = result.rpuBytes;
       report = { ...result.report, extractionBackend: converterConfigured ? 'libdovi' : 'javascript' };
-      if (container) {
+      if (mp4 || ivf) {
         report.inputKind = options.kind;
-        report.containerDemux = 'ffmpeg-copy';
+        report.containerDemux = ivf ? 'ivf-packet-reader' : 'ffmpeg-copy';
+        if (ivf) report.packetTimeBase = timing.timeBase;
         report.sourceByteLength = inputStat.size;
       }
     } finally {

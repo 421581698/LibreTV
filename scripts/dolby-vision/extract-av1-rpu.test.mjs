@@ -118,7 +118,7 @@ test('inserts HEVC emulation-prevention bytes in the UNSPEC62 RPU NAL unit', () 
 });
 
 
-test('demuxes one AV1 video track from MP4 and IVF containers without re-encoding', async (t) => {
+test('demuxes one AV1 video track from MP4 without re-encoding', async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), 'libretv-av1-container-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const { bytes } = validT35Payload();
@@ -144,30 +144,28 @@ const fs=require("node:fs"); if(!process.argv.includes("-xerror") || process.arg
 
   // A demuxer may write a valid prefix but fail before signaling completion.
   // A killed/failed process must never publish a seemingly valid RPU file.
-  for (const kind of ['mp4', 'ivf']) {
-    const outputPath = resolve(directory, kind + '.rpu');
-    execFileSync(process.execPath, [
-      resolve('scripts/dolby-vision/extract-av1-rpu.mjs'),
-      '--kind', kind, '--input', inputPath, '--output', outputPath,
-    ], {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        FFPROBE_BIN: ffprobePath,
-        FFMPEG_BIN: ffmpegPath,
-        TEST_AV1_OBU_FIXTURE: fixturePath,
-        TEST_AV1_STREAMS: 'av1\n',
-        AV1_RPU_CONVERTER_BIN: '',
-      },
-      stdio: 'pipe',
-    });
-    const output = await readFile(outputPath);
-    assert.deepEqual(output, Buffer.concat([
-      Buffer.from([0, 0, 0, 1, 0x7c, 0x01, 0x19]),
-      Buffer.alloc(21, 0x55),
-      Buffer.from([0x80]),
-    ]));
-  }
+  const outputPath = resolve(directory, 'mp4.rpu');
+  execFileSync(process.execPath, [
+    resolve('scripts/dolby-vision/extract-av1-rpu.mjs'),
+    '--kind', 'mp4', '--input', inputPath, '--output', outputPath,
+  ], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      FFPROBE_BIN: ffprobePath,
+      FFMPEG_BIN: ffmpegPath,
+      TEST_AV1_OBU_FIXTURE: fixturePath,
+      TEST_AV1_STREAMS: 'av1\n',
+      AV1_RPU_CONVERTER_BIN: '',
+    },
+    stdio: 'pipe',
+  });
+  const output = await readFile(outputPath);
+  assert.deepEqual(output, Buffer.concat([
+    Buffer.from([0, 0, 0, 1, 0x7c, 0x01, 0x19]),
+    Buffer.alloc(21, 0x55),
+    Buffer.from([0x80]),
+  ]));
 
   const partialOutput = resolve(directory, 'partial.rpu');
   assert.throws(() => execFileSync(process.execPath, [
@@ -321,5 +319,47 @@ test('reads an OBU size across file chunks and rejects a truncated payload', asy
   await rm(output);
   await writeFile(input, fixture.subarray(0, -1));
   assert.throws(() => execFileSync(process.execPath, args, { stdio: 'pipe' }), /payload exceeds bounds or is truncated/);
+  await assert.rejects(readFile(output), { code: 'ENOENT' });
+});
+
+test('associates IVF RPU records with their packet PTS and exact time base', async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), 'libretv-ivf-timing-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const header = Buffer.alloc(32);
+  header.write('DKIF');
+  header.writeUInt16LE(32, 6);
+  header.write('AV01', 8);
+  header.writeUInt32LE(30000, 16);
+  header.writeUInt32LE(1001, 20);
+  const { bytes } = validT35Payload();
+  const unit = Buffer.concat([obu(5, Buffer.concat([leb(4), bytes])), obu(6, Buffer.from([0]))]);
+  const delimiter = obu(2, Buffer.alloc(0));
+  function packet(pts, payload) {
+    const prefix = Buffer.alloc(12);
+    prefix.writeUInt32LE(payload.length);
+    prefix.writeBigInt64LE(pts, 4);
+    return Buffer.concat([prefix, payload]);
+  }
+  const first = packet(12n, Buffer.concat([delimiter, unit]));
+  const second = packet(9007199254740993n, unit);
+  const input = resolve(directory, 'input.ivf');
+  const output = resolve(directory, 'output.rpu');
+  const args = [resolve('scripts/dolby-vision/extract-av1-rpu.mjs'),
+    '--kind', 'ivf', '--input', input, '--output', output];
+  await writeFile(input, Buffer.concat([header, first, second]));
+  const report = JSON.parse(execFileSync(process.execPath, args, { encoding: 'utf8' }));
+  assert.equal(report.temporalDelimiterCount, 1);
+  assert.equal(report.temporalUnitCount, 2);
+  assert.deepEqual(report.packetTimeBase, { numerator: 1001, denominator: 30000 });
+  assert.deepEqual(report.rpuUnits.map(({ packetPts }) => packetPts), ['12', '9007199254740993']);
+  await rm(output);
+
+  const ambiguous = packet(42n, Buffer.concat([unit, delimiter, unit]));
+  await writeFile(input, Buffer.concat([header, ambiguous]));
+  assert.throws(() => execFileSync(process.execPath, args, { stdio: 'pipe' }), /multiple temporal units/);
+  await assert.rejects(readFile(output), { code: 'ENOENT' });
+
+  await writeFile(input, Buffer.concat([header, first, second.subarray(0, -1)]));
+  assert.throws(() => execFileSync(process.execPath, args, { stdio: 'pipe' }), /Truncated AV1 IVF/);
   await assert.rejects(readFile(output), { code: 'ENOENT' });
 });
