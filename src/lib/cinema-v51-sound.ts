@@ -352,7 +352,7 @@ export async function createCinemaSoundSession(
       reason:'检测到音轨结束、切源或音频上下文中断，已恢复原生音频。'});
   };
   const tracks=stream?.getAudioTracks()??[];
-  const stateChanged=()=>{if(context.state==='closed'||context.state==='interrupted')onCaptureLost();};
+  const stateChanged=()=>{if(capturing&&context.state!=='running')onCaptureLost();};
   const onVideoChange=()=>onCaptureLost();
   for(const track of tracks){
     track.addEventListener('ended',onCaptureLost);
