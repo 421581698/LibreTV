@@ -90,8 +90,13 @@ export function advanceNativePlaybackObservation(
   const frameCounterReset = frameCount !== null && previous.lastPresentedFrames !== null &&
     frameCount < previous.lastPresentedFrames;
   const baselineTime = previous.baselineTime === null || jumped || frameCounterReset ? time : previous.baselineTime;
-  const baselinePresentedFrames = previous.baselineTime === null || jumped || frameCounterReset
-    ? frameCount : previous.baselinePresentedFrames;
+  // Some Safari builds expose playback-quality counters only after the
+  // first decoded frames. Establish the baseline when they first appear;
+  // never compare a new counter against an unavailable historic sample.
+  const baselinePresentedFrames = frameCount === null ? null :
+    previous.baselineTime === null || jumped || frameCounterReset ||
+    previous.lastPresentedFrames === null || previous.baselinePresentedFrames === null
+      ? frameCount : previous.baselinePresentedFrames;
   const presentedFrames = frameCount === null || baselinePresentedFrames === null
     ? null : Math.max(0, frameCount - baselinePresentedFrames);
   const progressedSeconds = Math.max(0, time - baselineTime);

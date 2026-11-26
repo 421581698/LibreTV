@@ -144,6 +144,35 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(later.presentedFrames).toBeNull();
   });
 
+
+  it('establishes a frame baseline when the browser starts exposing counters mid-playback', () => {
+    const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing);
+    const firstCounter = advanceNativePlaybackObservation(start, 'sample', {
+      ...playing, currentTime: 0.5, presentedVideoFrames: 100,
+    });
+    expect(firstCounter.baselinePresentedFrames).toBe(100);
+    expect(firstCounter.presentedFrames).toBe(0);
+    const rendered = advanceNativePlaybackObservation(firstCounter, 'sample', {
+      ...playing, currentTime: 1.5, presentedVideoFrames: 108,
+    });
+    expect(rendered.status).toBe('progress-observed');
+    expect(rendered.presentedFrames).toBe(8);
+  });
+
+  it('does not infer frame progression immediately after counters return from a gap', () => {
+    const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', {
+      ...playing, presentedVideoFrames: 5,
+    });
+    const absent = advanceNativePlaybackObservation(start, 'sample', {
+      ...playing, currentTime: 0.5, presentedVideoFrames: null,
+    });
+    const returned = advanceNativePlaybackObservation(absent, 'sample', {
+      ...playing, currentTime: 1.5, presentedVideoFrames: 1000,
+    });
+    expect(returned.presentedFrames).toBe(0);
+    expect(returned.status).toBe('waiting');
+  });
+
   it('fails closed when the video reports an error during sampling', () => {
     const progressed = advanceNativePlaybackObservation(
       advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing),
