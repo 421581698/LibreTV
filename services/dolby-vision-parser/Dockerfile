@@ -21,6 +21,9 @@ COPY --from=dovi-builder /src/dovi_tool/target/release/av1-rpu-converter /usr/lo
 WORKDIR /app
 COPY scripts/dolby-vision/analyze-rpu.mjs /app/scripts/dolby-vision/analyze-rpu.mjs
 COPY scripts/dolby-vision/extract-av1-rpu.mjs /app/scripts/dolby-vision/extract-av1-rpu.mjs
+COPY scripts/dolby-vision/hevc-frame-mapper.mjs /app/scripts/dolby-vision/hevc-frame-mapper.mjs
+COPY scripts/dolby-vision/hevc-frame-mapper.test.mjs /app/scripts/dolby-vision/hevc-frame-mapper.test.mjs
+RUN node --check /app/scripts/dolby-vision/hevc-frame-mapper.mjs && node --test /app/scripts/dolby-vision/hevc-frame-mapper.test.mjs
 COPY services/dolby-vision-parser/server.mjs /app/services/dolby-vision-parser/server.mjs
 RUN node --check /app/scripts/dolby-vision/extract-av1-rpu.mjs
 USER node
