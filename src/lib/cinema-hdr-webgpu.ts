@@ -12,6 +12,9 @@ import { startCinemaSdrGpu, type CinemaGpuCallback, type CinemaGpuSession } from
 interface WebGpuDevice {
   createShaderModule(args: {code: string}): unknown;
   createRenderPipeline(args: unknown): {getBindGroupLayout(index: number): unknown};
+  createRenderPipelineAsync?(args:unknown):Promise<{getBindGroupLayout(index:number):unknown}>;
+  pushErrorScope?(type:'validation'):void;
+  popErrorScope?():Promise<{message:string}|null>;
   createSampler(args: unknown): unknown;
   createBuffer(args: {size: number; usage: number}): unknown;
   createBindGroup(args: unknown): unknown;
@@ -88,14 +91,28 @@ async function startWebGpu(
   try {
     context.configure({device,format,alphaMode:'opaque',colorSpace:'display-p3'});
   } catch {
-    context.configure({device,format,alphaMode:'opaque'});
+    try { context.configure({device,format,alphaMode:'opaque'}); }
+    catch { device.destroy(); return null; }
   }
-  const shaderModule = device.createShaderModule({code:SHADER});
-  const pipeline = device.createRenderPipeline({
-    layout:'auto',vertex:{module:shaderModule,entryPoint:'vertexMain'},
-    fragment:{module:shaderModule,entryPoint:'fragmentMain',targets:[{format}]},
-    primitive:{topology:'triangle-strip'},
-  });
+  let pipeline: {getBindGroupLayout(index:number):unknown};
+  try {
+    device.pushErrorScope?.('validation');
+    const shaderModule = device.createShaderModule({code:SHADER});
+    const description = {
+      layout:'auto',vertex:{module:shaderModule,entryPoint:'vertexMain'},
+      fragment:{module:shaderModule,entryPoint:'fragmentMain',targets:[{format}]},
+      primitive:{topology:'triangle-strip'},
+    };
+    pipeline = device.createRenderPipelineAsync
+      ? await device.createRenderPipelineAsync(description)
+      : device.createRenderPipeline(description);
+    const validation = await device.popErrorScope?.();
+    if (validation) throw new Error(validation.message);
+  } catch {
+    context.unconfigure?.();
+    device.destroy();
+    return null;
+  }
   const sampler = device.createSampler({magFilter:'linear',minFilter:'linear'});
   const params = device.createBuffer({size:16,usage:72}); // UNIFORM (64) | COPY_DST (8)
   canvas.dataset.cinemaHdrGpu = 'true';
@@ -189,12 +206,52 @@ export async function startCinemaSdrEnhancedGpu(
 ):Promise<CinemaGpuSession|null> {
   const gpu = (navigator as Navigator & {gpu?:WebGpuHost}).gpu;
   if (gpu && typeof gpu.requestAdapter === 'function') {
+    let session: CinemaGpuSession | null = null;
+    let stopped = false;
+    let processedWebGpuFrame = false;
+    const wrapper: CinemaGpuSession = {
+      get backend() { return session?.backend ?? 'webgpu'; },
+      stop() { stopped=true; session?.stop(); },
+    };
     try {
-      const session = await startWebGpu(gpu,video,host,onStatus);
-      if (session) return session;
+      const webGpuSession = await startWebGpu(gpu,video,host,(status,message) => {
+        if (stopped) return;
+        if (status === 'active') {
+          processedWebGpuFrame = true;
+          onStatus(status,message);
+          return;
+        }
+        // A device loss or unsupported external video texture is not the end
+        // of enhancement: actually try the independent WebGL processing path.
+        if (!video.isConnected || !host.isConnected) {
+          onStatus(status,message);
+          return;
+        }
+        const fallback = startCinemaSdrGpu(video,host,onStatus);
+        if (fallback) {
+          session=fallback;
+          if (processedWebGpuFrame) {
+            // A previously illuminated card is still valid only if WebGL
+            // subsequently confirms a newly processed frame.
+            onStatus('unavailable','WebGPU 已停止，正在尝试 WebGL 重新处理视频帧。');
+          }
+        } else if (!processedWebGpuFrame) {
+          onStatus(status,message);
+        }
+      });
+      if (stopped) { webGpuSession?.stop(); return null; }
+      if (webGpuSession) {
+        session = webGpuSession;
+        return wrapper;
+      }
     } catch {
-      // Unsupported WebGPU feature / context must not prevent WebGL fallback.
+      // Adapter/device/shader failure: continue with a fresh WebGL context.
     }
+    if (video.isConnected && host.isConnected && !stopped) {
+      session = startCinemaSdrGpu(video,host,onStatus);
+      return session ? wrapper : null;
+    }
+    return null;
   }
   if (!video.isConnected || !host.isConnected) return null;
   return startCinemaSdrGpu(video,host,onStatus);
