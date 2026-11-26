@@ -512,3 +512,11 @@ describe('independent presentation duration binding', () => {
     assert.equal(bindPresentationDurations(packets,{...mapping,timeBase:{numerator:2,denominator:90000}}),null);
   });
 });
+
+// Regression from the pinned real HEVC fixture: decode durations are not presentation durations.
+it('rejects real reordered HEVC timing with a 16-tick presentation gap', () => {
+  const mapping = {timeBase:{numerator:1,denominator:16000},frames:[{pts:'0'},{pts:'672'},{pts:'1328'}]};
+  const packets = [{pts:'0',duration:'656'},{pts:'1328',duration:'672'},{pts:'672',duration:'656'}];
+  assert.equal(bindPresentationDurations(packets,mapping),null);
+  assert.deepEqual(bindPresentationDurations([{pts:'1328',duration:'672'},{pts:'0',duration:'672'},{pts:'672',duration:'656'}],mapping)?.durations,[672,656,672]);
+});
