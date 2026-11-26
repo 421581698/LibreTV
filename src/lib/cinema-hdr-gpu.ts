@@ -26,6 +26,7 @@ uniform sampler2D u_video;
 uniform float u_strength;
 uniform vec2 u_uvScale;
 uniform vec2 u_uvOffset;
+uniform vec2 u_texelSize;
 void main() {
   vec2 coordinates = v_uv * u_uvScale + u_uvOffset;
   vec3 sampleColor = texture2D(u_video, coordinates).rgb;
@@ -49,7 +50,18 @@ void main() {
   float luma = dot(contrast, vec3(0.2126, 0.7152, 0.0722));
   float saturation = 1.0 + (0.15 - 0.22 * smoothstep(0.7, 1.0, luma)) * u_strength;
   vec3 saturated = clamp(vec3(luma) + (contrast - vec3(luma)) * saturation, 0.0, 1.0);
-  gl_FragColor = vec4(mix(sampleColor, saturated, u_strength), 1.0);
+  // A small scene-adaptive high-frequency pass. This is spatial detail
+  // enhancement, not AI upscaling or restoration of clipped originals.
+  vec3 blur = 0.25 * (
+    texture2D(u_video, clamp(coordinates + vec2(u_texelSize.x, 0.0), 0.0, 1.0)).rgb
+   +texture2D(u_video, clamp(coordinates - vec2(u_texelSize.x, 0.0), 0.0, 1.0)).rgb
+   +texture2D(u_video, clamp(coordinates + vec2(0.0, u_texelSize.y), 0.0, 1.0)).rgb
+   +texture2D(u_video, clamp(coordinates - vec2(0.0, u_texelSize.y), 0.0, 1.0)).rgb);
+  vec3 detail = clamp(sampleColor - blur, -0.20, 0.20);
+  float edge = clamp(length(detail) * 9.0 - 0.06, 0.0, 1.0);
+  float sharpening = 0.32 * edge * (1.0 - smoothstep(0.72, 1.0, luma));
+  vec3 enhanced = clamp(saturated + detail * sharpening, 0.0, 1.0);
+  gl_FragColor = vec4(mix(sampleColor, enhanced, u_strength), 1.0);
 }`;
 function shader(gl: WebGLRenderingContext, type: number, code: string): WebGLShader {
   const handle = gl.createShader(type);
@@ -174,6 +186,8 @@ export function startCinemaSdrGpu(
     canvas.style.height = `${layout.height}px`;
     gl.uniform2f(gl.getUniformLocation(program, 'u_uvScale'), layout.uvScaleX, layout.uvScaleY);
     gl.uniform2f(gl.getUniformLocation(program, 'u_uvOffset'), layout.uvOffsetX, layout.uvOffsetY);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_texelSize'),
+      1/Math.max(video.videoWidth,1),1/Math.max(video.videoHeight,1));
     const ratio = Math.min(1, maxDimension / Math.max(video.videoWidth, video.videoHeight));
     const deviceWidth = Math.max(1, Math.round(video.videoWidth * ratio));
     const deviceHeight = Math.max(1, Math.round(video.videoHeight * ratio));
