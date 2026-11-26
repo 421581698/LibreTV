@@ -211,6 +211,7 @@ async function analyzeUpload(request, response, env) {
     let av1TimedRpuCount;
     let av1DecodedFrameAlignment;
     let av1Extraction;
+    let hevcMapping;
     let analyzedCodec = sourceContentType === 'video/hevc' ? 'hevc' : null;
     if (sourceContentType === 'video/mp4') {
       const { stdout: codecOutput } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
@@ -246,6 +247,10 @@ async function analyzeUpload(request, response, env) {
           return;
         }
         analysisInputPath = hevcPath;
+        try {
+          const { stdout: mappingOutput } = await execFileAsync(process.execPath, [resolve(HERE, '../../scripts/dolby-vision/hevc-frame-mapper.mjs'), inputPath, env.FFPROBE_BIN || 'ffprobe'], {encoding:'utf8',timeout:ANALYSIS_TIMEOUT_MS,maxBuffer:4*1024*1024});
+          hevcMapping = JSON.parse(mappingOutput);
+        } catch { /* Unsupported media retains aggregate-only evidence. */ }
       } else {
         const { stdout: extractionOutput } = await execFileAsync(process.execPath, [
           resolve(HERE, '../../scripts/dolby-vision/extract-av1-rpu.mjs'),
@@ -321,6 +326,16 @@ async function analyzeUpload(request, response, env) {
         const hash = createHash('sha256').update(`libretv-rpu-frame-mapping-v1\n${actualSha256.toLowerCase()}\n${timeBase.numerator}/${timeBase.denominator}\n`);
         for (const frame of frames) hash.update(`${frame.frameOrdinal}:${frame.pts}:${frame.rpuSha256}\n`);
         report.frameMappingEvidence = { version: 1, timeBase, frames, mappingSha256: hash.digest('hex') };
+      }
+    }
+    if (hevcMapping && report.rpuUnitEvidence && hevcMapping.frames.length === report.frameCount) {
+      const mapped = hevcMapping.frames.map(frame => frame.rpuSha256).sort();
+      const extracted = [...report.rpuUnitEvidence.unitSha256s].sort();
+      if (mapped.length === extracted.length && mapped.every((hash,i)=>hash===extracted[i])) {
+        const {timeBase,frames}=hevcMapping;
+        const hash=createHash('sha256').update(`libretv-rpu-frame-mapping-v1\n${actualSha256.toLowerCase()}\n${timeBase.numerator}/${timeBase.denominator}\n`);
+        for(const frame of frames) hash.update(`${frame.frameOrdinal}:${frame.pts}:${frame.rpuSha256}\n`);
+        report.frameMappingEvidence={version:1,timeBase,frames,mappingSha256:hash.digest('hex')};
       }
     }
     report.sourceMediaSha256 = actualSha256;

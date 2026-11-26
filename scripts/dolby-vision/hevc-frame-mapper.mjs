@@ -73,6 +73,13 @@ export async function probeHevcFrameMapping(path, lengthSize, ffprobe = 'ffprobe
     '-v','error','-protocol_whitelist','file','-f','mov','-enable_drefs','0',
     '-select_streams','v:0', ...args, '-of','compact=p=1:nk=0',path,
   ], {encoding:'utf8', timeout:900000, maxBuffer:16*1024*1024, stdio:['ignore','pipe','pipe']}).trim().split(/\r?\n/);
+  if (lengthSize === null) {
+    const raw = execFileSync(ffprobe, ['-v','error','-protocol_whitelist','file','-f','mov','-enable_drefs','0','-select_streams','v:0','-show_entries','stream=extradata','-show_data','-of','default=nw=1:nk=1',path], {encoding:'utf8',timeout:30000,maxBuffer:65536});
+    const hex = raw.split(/\r?\n/).map(line => /^\s*[0-9a-f]{8}:\s+([0-9a-f ]+?)\s{2,}/i.exec(line)?.[1]?.replace(/ /g,'') || '').join('');
+    const config = Buffer.from(hex,'hex');
+    if (config.length < 23 || config[0] !== 1 || (config[21] & 3) === 2) throw new Error('Invalid hvcC configuration');
+    lengthSize = (config[21] & 3) + 1;
+  }
   const stream = probe(['-show_streams','-show_entries','stream=codec_name,time_base']);
   if (stream.length !== 1) throw new Error('Ambiguous HEVC stream');
   const match = /^stream\|codec_name=hevc\|time_base=(\d+)\/(\d+)$/.exec(stream[0]);
@@ -110,4 +117,8 @@ export async function probeHevcFrameMapping(path, lengthSize, ffprobe = 'ffprobe
     });
     return {timeBase,frames:bindHevcDecodedFrames(samples,decodedPts,lengthSize)};
   } finally {await file.close();}
+}
+
+if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
+  probeHevcFrameMapping(process.argv[2], null, process.argv[3]).then(result => process.stdout.write(JSON.stringify(result))).catch(error => { console.error(error.message); process.exitCode=1; });
 }
