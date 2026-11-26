@@ -5,7 +5,10 @@
  * container. This is a metadata extractor, not an AV1 video decoder.
  */
 import { readFile, writeFile, mkdtemp, rm, stat } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { createWriteStream } from 'node:fs';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { resolve, basename } from 'node:path';
@@ -274,25 +277,44 @@ async function demuxAv1Container(inputPath, directory, options) {
   if (codecs.length !== 1 || codecs[0] !== 'av1') {
     throw new Error('AV1 container analysis requires exactly one AV1 video track.');
   }
-  // Do not use FFmpeg -fs: it may stop successfully before the complete input.
-  // A bounded stdout buffer instead rejects overflow and nonzero exit status.
+  // Stream into a private temporary file, rejecting overflow rather than
+  // allowing FFmpeg to silently stop at a file-size limit.
   const limit = 512 * 1024 * 1024;
-  let bytes;
-  try {
-    const result = await execFileAsync(ffmpeg, [
+  const obuPath = resolve(directory, 'video.obu');
+  let size = 0;
+  const child = spawn(ffmpeg, [
     '-nostdin', '-xerror', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
     '-c:v', 'copy', '-f', 'obu', 'pipe:1',
-    ], { encoding: 'buffer', timeout: 15 * 60 * 1000, maxBuffer: limit, windowsHide: true });
-    bytes = result.stdout;
+  ], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+  const completion = new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', (code) => code === 0 ? resolve() :
+      reject(new Error('AV1 demux failed before complete output was obtained.')));
+  });
+  const timeout = setTimeout(() => child.kill('SIGKILL'), 15 * 60 * 1000);
+  const bounded = new Transform({
+    transform(chunk, encoding, callback) {
+      size += chunk.length;
+      if (size >= limit) {
+        callback(new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.'));
+      } else callback(null, chunk);
+    },
+  });
+  try {
+    await Promise.all([
+      completion,
+      pipeline(child.stdout, bounded, createWriteStream(obuPath, { flags: 'wx', mode: 0o600 })),
+    ]);
   } catch (error) {
-    if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
-      throw new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.');
-    }
-    throw new Error('AV1 demux failed before complete output was obtained.');
+    child.kill('SIGKILL');
+    await completion.catch(() => {});
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length >= limit) {
-    throw new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.');
-  }
+  if (size === 0) throw new Error('Demuxed AV1 OBU stream is empty or exceeds the 512 MiB limit.');
+  const bytes = await readFile(obuPath);
+  if (bytes.length !== size) throw new Error('AV1 demux failed before complete output was obtained.');
   return bytes;
 }
 
