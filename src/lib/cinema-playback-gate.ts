@@ -35,3 +35,25 @@ export function selectCinemaPlaybackMedia({
     showPlayer: !cmsLookupPending || holdingPrevious,
   };
 }
+
+/**
+ * A retained Cinema player may still emit events while the next CMS source is
+ * being verified. Do not credit those events to the destination episode, even
+ * when the provider reuses the same episode key for a different playback URL.
+ */
+export function isCinemaPlaybackEventCurrent({
+  isCinema,
+  cmsLookupPending,
+  holdingPrevious,
+  currentEpisodeKey,
+  eventEpisodeKey,
+}: {
+  isCinema: boolean;
+  cmsLookupPending: boolean;
+  holdingPrevious: boolean;
+  currentEpisodeKey: string;
+  eventEpisodeKey?: string;
+}): boolean {
+  if (isCinema && (cmsLookupPending || holdingPrevious)) return false;
+  return !eventEpisodeKey || eventEpisodeKey === currentEpisodeKey;
+}
