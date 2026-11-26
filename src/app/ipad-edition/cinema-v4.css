@@ -66,10 +66,7 @@
   letter-spacing: .01em;
   text-shadow: 0 1px 9px rgba(0,0,0,.7);
 }
-/* Legacy duplicated UI remains in the shared watch page, but is not painted in Cinema V4. */
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-title-row,
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-watch-tools,
-.ipad-edition[data-ipad-player="true"] .ipad-edition-watch .watch-cinema-rate,
+/* Suppress ArtPlayer's built-in chrome; Cinema owns the visible controls. */
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-player-frame .art-bottom,
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-player-frame .art-controls,
 .ipad-edition[data-ipad-player="true"] .ipad-edition-watch .netflix-player-frame .art-center,
