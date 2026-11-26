@@ -22,6 +22,7 @@ export class ExperimentalPcmOutput {
       ptsSamples: frame.ptsSamples, sampleRate: frame.sampleRate, mediaTime,
       audioTime: this.context.currentTime, playbackRate, queuedUntil: this.queuedUntil,
     });
+    if (decision.action === 'reset') this.reset();
     if (decision.action !== 'schedule') return decision.action;
     const buffer = this.context.createBuffer(frame.channels, frame.samples, frame.sampleRate);
     for (let channel = 0; channel < frame.channels; channel++) {
@@ -31,9 +32,16 @@ export class ExperimentalPcmOutput {
     const source = this.context.createBufferSource();
     source.buffer = buffer;
     source.playbackRate.value = playbackRate;
-    source.connect(this.destination);
-    source.onended = () => { this.sources.delete(source); source.disconnect(); };
-    try { source.start(decision.at); } catch (error) { source.disconnect(); throw error; }
+    try {
+      source.connect(this.destination);
+      source.onended = () => { this.sources.delete(source); source.disconnect(); };
+      source.start(decision.at);
+    } catch {
+      source.onended = null;
+      try { source.disconnect(); } catch { /* failed connection */ }
+      this.reset();
+      return 'reset';
+    }
     this.sources.add(source);
     this.queuedUntil = decision.at + buffer.duration / playbackRate;
     return 'schedule';

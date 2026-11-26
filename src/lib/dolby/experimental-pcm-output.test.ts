@@ -60,6 +60,15 @@ describe('isolated experimental PCM output', () => {
     expect(createBuffer).not.toHaveBeenCalled();
   });
 
+  it('cleans up a failed source start and permits a retry', () => {
+    const { output, frame, source, start, disconnect } = setup();
+    start.mockImplementationOnce(() => { throw new Error('audio device unavailable'); });
+    expect(output.enqueue(frame, 1, 1)).toBe('reset');
+    expect(source.onended).toBeNull();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(output.enqueue(frame, 1, 1)).toBe('schedule');
+  });
+
   it('stops and disconnects experimental sources on reset', () => {
     const { output, frame, source, stop, disconnect } = setup();
     expect(output.enqueue(frame, 1, 1)).toBe('schedule');
