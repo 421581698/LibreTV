@@ -279,7 +279,7 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('if (currentEpisodeKey !== pendingEpisodeKey) return false;');
     // The episode-key guard now lives in the shared Cinema playback gate.
     // Verify the watch page delegates to it and the extracted guard still rejects stale events.
-    const gate = read('src/lib/cinema-playback-gate.ts');
+    const gate = source('src/lib/cinema-playback-gate.ts');
     expect(watch).toContain('return isCinemaPlaybackEventCurrent({');
     expect(watch).toContain('eventEpisodeKey,');
     expect(gate).toContain('if (isCinema && (cmsLookupPending || holdingPrevious)) return false;');
