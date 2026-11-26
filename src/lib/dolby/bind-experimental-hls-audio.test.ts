@@ -69,6 +69,20 @@ describe('real HLS event / experimental PCM lifecycle wiring', () => {
     expect(f.video.muted).toBe(false);
     expect(f.hls.off).toHaveBeenCalledWith(Hls.Events.FRAG_LOADED, expect.any(Function));
   });
+  it('stops scheduled PCM before restoring native audio after a later failure', () => {
+    const f = fixture();
+    f.emit(Hls.Events.FRAG_LOADED, {
+      frag: { type: 'audio', sn: 0, level: 0, cc: 0 },
+      payload: new Uint8Array(188).buffer,
+    });
+    expect(f.video.muted).toBe(true);
+    f.emit(Hls.Events.FRAG_LOADED, {
+      frag: { type: 'audio', sn: 1, level: 0, cc: 0, decryptdata: { method: 'SAMPLE-AES' } },
+      payload: new Uint8Array(188).buffer,
+    });
+    expect(f.video.muted).toBe(false);
+    expect(f.onFailure).toHaveBeenCalledTimes(1);
+  });
   it('rejects encrypted HLS audio and restores native audio once', () => {
     const f = fixture();
     f.emit(Hls.Events.FRAG_LOADED, {

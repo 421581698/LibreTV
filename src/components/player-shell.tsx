@@ -2128,8 +2128,14 @@ export function PlayerShell({
                       const previous = hls?.audioTrack ?? -1;
                       const switched = Boolean(hls && selectHlsAudioTrack(hls, track.id));
                       if (!switched) {
+                        // A rejected switch must not leave an authorized
+                        // experimental session suspended indefinitely.
+                        experimentalHlsControllerRef.current?.onResume();
                         showHint('当前音轨不可用，请稍后重试');
                         return;
+                      }
+                      if (hls && previous === track.id) {
+                        experimentalHlsControllerRef.current?.onResume();
                       }
                       if (hls && previous !== track.id) {
                         pendingAudioTrackRef.current = { hls, requested: track.id, previous };
