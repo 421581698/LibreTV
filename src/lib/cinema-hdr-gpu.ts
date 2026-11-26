@@ -7,7 +7,7 @@
 import { cinemaCanvasGeometry } from './cinema-hdr-geometry';
 
 export type CinemaGpuStatus = 'active' | 'unavailable' | 'failed';
-export type CinemaGpuBackend = 'webgl2' | 'webgl1';
+export type CinemaGpuBackend = 'webgpu' | 'webgl2' | 'webgl1';
 export type CinemaGpuCallback = (status: CinemaGpuStatus, explanation: string) => void;
 export interface CinemaGpuSession { stop(): void; backend: CinemaGpuBackend; }
 
