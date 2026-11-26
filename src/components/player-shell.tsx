@@ -913,9 +913,14 @@ export function PlayerShell({
         } catch {
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
           // A failed progress lookup must never block native-HLS playback.
+          if (nativeAudioFallback) {
+            video.defaultPlaybackRate = nativeAudioFallback.playbackRate;
+            video.playbackRate = nativeAudioFallback.playbackRate;
+          }
           restoredRef.current = true;
           restoreCleanupRef.current?.();
           restoreCleanupRef.current = null;
+          if (nativeAudioFallback && !nativeAudioFallback.shouldPlay) return;
           if (readQualityPreference() === '1080') {
             video.pause();
             setQualityNotice('当前使用原生 HLS，无法验证或强制限制 1080P；已暂停以避免超过所选上限，请选择自动继续播放。');
@@ -938,6 +943,10 @@ export function PlayerShell({
         // error overlay does not cover the subsequent hls.js playback.
         queueMicrotask(() => {
           if (loadGeneration !== mediaLoadGenerationRef.current) return;
+          // An unsuccessful native Dolby route is not a successful golden-card activation.
+          setDolbyCardChoice((choice) => choice.url === url
+            ? { ...choice, vision: false, audio: false } : choice);
+          setDolbyCardStatus('设备原生 Dolby 路径解码失败，已恢复兼容播放，杜比输出未启用。');
           // Retain the attempted URL so a failing native path cannot repeatedly
           // re-enter itself when hls.js fetches the same manifest on fallback.
           const fallback = captureNativeAudioFallback(video, playbackStartedRef.current);
@@ -1075,6 +1084,12 @@ export function PlayerShell({
     });
     hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
       if (!isCurrentHls()) return;
+      const switchedTrack = hls.audioTracks[data.id];
+      const switchedCodec = switchedTrack && 'audioCodec' in switchedTrack &&
+        typeof switchedTrack.audioCodec === 'string' ? switchedTrack.audioCodec : '';
+      if (!isDolbyAudioCodec(switchedCodec)) {
+        setDolbyCardChoice((choice) => choice.url === url ? { ...choice, audio: false } : choice);
+      }
       experimentalAudioSessionRef.current?.onTrackChange();
       experimentalHlsControllerRef.current?.onResume();
       const pending = pendingAudioTrackRef.current;
