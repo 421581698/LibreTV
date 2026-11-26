@@ -276,7 +276,7 @@ async function demuxAv1Container(inputPath, directory, options) {
   }
   const obuPath = resolve(directory, 'video.obu');
   await execFileAsync(ffmpeg, [
-    '-nostdin', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
+    '-nostdin', '-xerror', '-v', 'error', '-i', inputPath, '-map', '0:v:0',
     '-c:v', 'copy', '-fs', String(512 * 1024 * 1024), '-f', 'obu', obuPath,
   ], { encoding: 'utf8', timeout: 15 * 60 * 1000, maxBuffer: 1024 * 1024, windowsHide: true });
   const outputStat = await stat(obuPath);
