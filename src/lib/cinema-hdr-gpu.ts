@@ -14,7 +14,7 @@ const VERTEX = `
 attribute vec2 a_position;
 varying vec2 v_uv;
 void main() {
-  v_uv = vec2((a_position.x + 1.0) * 0.5, 1.0 - (a_position.y + 1.0) * 0.5);
+  v_uv = (a_position.xy + vec2(1.0)) * 0.5;
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 const FRAGMENT = `
@@ -77,7 +77,6 @@ export function startCinemaSdrGpu(
   let fragment: WebGLShader | null = null;
   let raf = 0;
   let finished = false;
-  let active = false;
   let firstFrame = false;
   let lastFrameAt = 0;
   let maxDimension = 1280;
@@ -143,7 +142,6 @@ export function startCinemaSdrGpu(
     if (video.readyState < 2 || video.videoWidth < 1 || video.videoHeight < 1 ||
         subtitlesActive || document.fullscreenElement === video) {
       canvas.style.display = 'none';
-      active = false;
       return;
     }
     if (now - lastFrameAt < 33) return;
@@ -172,7 +170,6 @@ export function startCinemaSdrGpu(
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       if (gl.isContextLost()) throw new Error('GPU context lost');
       canvas.style.display = 'block';
-      active = true;
       if (!firstFrame) {
         firstFrame = true;
         onStatus('active', 'Cinema Vision SDR GPU 增强已实际处理视频帧（非 Dolby Vision / 原生 HDR 输出）。');
