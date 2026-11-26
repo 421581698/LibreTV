@@ -2232,9 +2232,20 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/ipad-visual-audit
           if [ -z "${TESTSPRITE_API_KEY:-}" ]; then
-            echo "::error title=TestSprite::NOT RUN: missing TESTSPRITE_API_KEY secret"
+            echo "::error title=TestSprite configuration::NOT RUN: TESTSPRITE_API_KEY secret is missing"
+            echo "TestSprite NOT RUN — repository secret TESTSPRITE_API_KEY is missing." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          # Fail before CLI installation/setup when a stale or unrelated token is configured.
+          # Never print or expose any part of the credential.
+          case "$TESTSPRITE_API_KEY" in
+            sk-user-*|sk-member-*|tsp_*) ;;
+            *)
+              echo "::error title=TestSprite configuration::NOT RUN: invalid TESTSPRITE_API_KEY format (expected sk-user-, sk-member-, or tsp_ prefix)"
+              echo "TestSprite NOT RUN — repository secret TESTSPRITE_API_KEY has an unsupported format. Replace it with a TestSprite-issued key; no test result was produced." >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+              ;;
+          esac
           npm install -g @testsprite/testsprite-cli@0.17.0
           testsprite setup --from-env --yes
           if [ -z "${TESTSPRITE_PROJECT_ID:-}" ]; then
