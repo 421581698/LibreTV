@@ -107,6 +107,10 @@ describe('Cinema V4 and ordinary watch UI isolation', () => {
     const cinema = read('src/components/ipad-edition/CinemaPlaybackActions.tsx');
     const classic = read('src/components/watch/ClassicWatchControls.tsx');
     const css = read('src/app/ipad-edition/cinema-v4.css');
+    const ipadRoute = read('src/app/ipad-edition/watch/page.tsx');
+    expect(ipadRoute).toContain('<PlaybackEditionProvider edition="cinema-v4">');
+    expect(watch).toContain("usePlaybackEdition() === 'cinema-v4'");
+    expect(watch).not.toContain("pathname === '/ipad-edition/watch'");
     expect(watch).toContain('isIpadEditionPlayback && <CinemaPlaybackActions');
     expect(watch).toContain('!isIpadEditionPlayback && <ClassicWatchTools');
     expect(watch).toContain('!isIpadEditionPlayback && <ClassicWatchTitle');
