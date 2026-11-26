@@ -1,0 +1,48 @@
+/**
+ * Cinema 5.1 display-clock discipline for an authenticated decoded frame.
+ * PTS must be mapped to HTMLMediaElement mediaTime by a verified demux/edit
+ * list offset. Never infer it from the first observed browser frame.
+ */
+export interface CinemaPresentationClock {
+  readonly sourceSha256:string;
+  /** Verified mapping from source presentation timestamp to media clock. */
+  readonly presentationOffsetUs:number;
+  currentMediaTimeSeconds():number;
+  playing():boolean;
+}
+export type CinemaClockResult='ready'|'late'|'expired'|'source-changed'|'cancelled';
+export interface CinemaClockOptions {
+  cancelled?:()=>boolean;
+  sleep?:(ms:number)=>Promise<void>;
+  now?:()=>number;
+}
+const sleep=(ms:number)=>new Promise<void>(resolve=>setTimeout(resolve,ms));
+/**
+ * A frame is ready in a ±30ms presentation window. Frames over 120ms late
+ * are discarded via native fallback, not displayed at an incorrect time.
+ * The browser composition timestamp itself still needs real-device checks.
+ */
+export async function cinemaWaitForPresentation(
+  ptsUs:number,clock:CinemaPresentationClock,options:CinemaClockOptions={},
+):Promise<CinemaClockResult> {
+  if(!Number.isSafeInteger(ptsUs)||ptsUs<0||
+    !Number.isSafeInteger(clock.presentationOffsetUs)||
+    !/^[0-9a-f]{64}$/i.test(clock.sourceSha256))return 'expired';
+  const now=options.now??(()=>performance.now());
+  const pause=options.sleep??sleep;
+  const start=now();
+  for(let iteration=0;iteration<320;iteration++){
+    if(options.cancelled?.())return 'cancelled';
+    if(!/^[0-9a-f]{64}$/i.test(clock.sourceSha256))return 'source-changed';
+    const seconds=clock.currentMediaTimeSeconds();
+    if(!Number.isFinite(seconds)||seconds<0)return 'expired';
+    const currentUs=Math.round(seconds*1e6)+clock.presentationOffsetUs;
+    if(!Number.isSafeInteger(currentUs))return 'expired';
+    const delta=ptsUs-currentUs;
+    if(delta<-120000)return 'late';
+    if(clock.playing() && delta<=30000&&delta>=-120000)return 'ready';
+    if(now()-start>=2600)return 'expired';
+    await pause(delta>50000?16:8);
+  }
+  return 'expired';
+}
