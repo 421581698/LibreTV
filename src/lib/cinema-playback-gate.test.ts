@@ -42,6 +42,24 @@ describe('Cinema CMS playback gate', () => {
     expect(result.showPlayer).toBe(false);
   });
 
+  it('promotes a different trusted Dolby asset only after the exact lookup settles', () => {
+    const next = {
+      ...verified, url: '/api/dolby-vision/assets/asset-456/content',
+      dolbyVisionAssetId: 'asset-456',
+      dolbyVisionSourceIdentity: 'resource-456',
+      episodeKey: 'source:new:1',
+    };
+    const waiting = selectCinemaPlaybackMedia({
+      isCinema: true, cmsLookupPending: true, current: next, lastReady: verified,
+    });
+    expect(waiting.media.dolbyVisionAssetId).toBe('asset-123');
+    const settled = selectCinemaPlaybackMedia({
+      isCinema: true, cmsLookupPending: false, current: next, lastReady: verified,
+    });
+    expect(settled.media.dolbyVisionAssetId).toBe('asset-456');
+    expect(settled.media.episodeKey).toBe('source:new:1');
+  });
+
   it('does not change the ordinary watch page loading behavior', () => {
     expect(selectCinemaPlaybackMedia({
       isCinema: false, cmsLookupPending: true, current: ordinary, lastReady: verified,
