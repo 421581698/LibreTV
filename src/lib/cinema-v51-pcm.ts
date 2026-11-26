@@ -181,6 +181,8 @@ export function createCinemaAacDecoder(
       if(!active)throw new Error('AAC decoder stopped');
       if(!host)throw new Error('AudioDecoder WebCodecs unavailable');
       try {
+        if(packet.sourceSha256.toLowerCase()!==sourceSha256.toLowerCase())
+          throw new Error('AAC packet does not match the verified source');
         const {header,frames}=cinemaDemuxAdts(packet);
         const formatKey=header.sampleRate+':'+header.channels;
         if(format && format!==formatKey)throw new Error('AAC configuration changed');
