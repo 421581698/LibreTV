@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCinemaPlaybackEventCurrent, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from './cinema-playback-gate';
+import { isCinemaPlaybackEventCurrent, isCinemaPlaybackTransitionPending, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from './cinema-playback-gate';
 
 const ordinary: CinemaPlaybackMedia = {
   url: 'https://cdn.example/new.m3u8',
@@ -99,5 +99,60 @@ describe('Cinema retained-media event isolation', () => {
       ...common, isCinema: false, cmsLookupPending: true, holdingPrevious: false,
       eventEpisodeKey: 'cms:vod:0',
     })).toBe(true);
+  });
+});
+
+describe('Cinema provider detail-to-binding transition', () => {
+  it('retains the outgoing media before the new provider returns any URL', () => {
+    const pending = isCinemaPlaybackTransitionPending({
+      isCinema: true, cmsLookupPending: false, detailLoading: true, currentUrl: '',
+    });
+    expect(pending).toBe(true);
+    expect(selectCinemaPlaybackMedia({
+      isCinema: true, cmsLookupPending: pending,
+      current: { ...ordinary, url: '' }, lastReady: verified,
+    })).toEqual({ media: verified, holdingPrevious: true, showPlayer: true });
+    expect(isCinemaPlaybackEventCurrent({
+      isCinema: true, cmsLookupPending: pending, holdingPrevious: true,
+      currentEpisodeKey: ordinary.episodeKey, eventEpisodeKey: verified.episodeKey,
+    })).toBe(false);
+  });
+
+  it('retains the outgoing media while its replacement CMS registry lookup runs', () => {
+    const pending = isCinemaPlaybackTransitionPending({
+      isCinema: true, cmsLookupPending: true, detailLoading: false,
+      currentUrl: ordinary.url,
+    });
+    expect(pending).toBe(true);
+    expect(selectCinemaPlaybackMedia({
+      isCinema: true, cmsLookupPending: pending, current: ordinary, lastReady: verified,
+    }).media).toEqual(verified);
+  });
+
+  it('releases the outgoing media after details and binding settle', () => {
+    const pending = isCinemaPlaybackTransitionPending({
+      isCinema: true, cmsLookupPending: false, detailLoading: false, currentUrl: ordinary.url,
+    });
+    expect(pending).toBe(false);
+    expect(selectCinemaPlaybackMedia({
+      isCinema: true, cmsLookupPending: pending, current: ordinary, lastReady: verified,
+    }).media).toEqual(ordinary);
+  });
+
+  it('does not keep a stale player forever when detail lookup fails', () => {
+    const pending = isCinemaPlaybackTransitionPending({
+      isCinema: true, cmsLookupPending: false, detailLoading: false, currentUrl: '',
+    });
+    expect(pending).toBe(false);
+    expect(selectCinemaPlaybackMedia({
+      isCinema: true, cmsLookupPending: pending,
+      current: { ...ordinary, url: '' }, lastReady: verified,
+    }).holdingPrevious).toBe(false);
+  });
+
+  it('keeps the classic player independent of Cinema detail hydration', () => {
+    expect(isCinemaPlaybackTransitionPending({
+      isCinema: false, cmsLookupPending: false, detailLoading: true, currentUrl: '',
+    })).toBe(false);
   });
 });
