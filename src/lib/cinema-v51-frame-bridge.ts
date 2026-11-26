@@ -1,5 +1,6 @@
 import type {CinemaV51FrameJob,CinemaV51FrameResult} from './cinema-v51-runtime';
 import {cinemaProcessV51Frame} from './cinema-v51-runtime';
+import {cinemaWaitForPresentation,type CinemaPresentationClock} from './cinema-v51-clock';
 
 export interface CinemaDecodedP010Sample {
   /** Immutable, authenticated source identity, never a display name or URL. */
@@ -51,6 +52,7 @@ export function startCinemaV51FrameBridge(
   renderer:CinemaP010FrameRenderer,
   buildJob:(frame:CinemaDecodedP010Sample)=>CinemaV51FrameJob,
   report:(event:CinemaFrameBridgeEvent)=>void,
+  clock?:CinemaPresentationClock,
 ):CinemaFrameBridge {
   let stopped=false;
   let active=false;
@@ -81,6 +83,13 @@ export function startCinemaV51FrameBridge(
       }
       const result=await cinemaProcessV51Frame(job);
       if(stopped)return;
+      if(clock) {
+        if(clock.sourceSha256.toLowerCase()!==frame.sourceSha256.toLowerCase())
+          throw new Error('Presentation clock belongs to a different source');
+        const timing=await cinemaWaitForPresentation(frame.ptsUs,clock,{cancelled:()=>stopped});
+        if(stopped)return;
+        if(timing!=='ready')throw new Error('Frame presentation PTS synchronization failed: '+timing);
+      }
       const presented=await renderer.render(result.frame,frame.ptsUs);
       if(stopped)return;
       if(!presented)throw new Error('10-bit frame renderer did not confirm presentation');
