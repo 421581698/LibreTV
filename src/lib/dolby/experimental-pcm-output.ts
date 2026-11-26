@@ -10,6 +10,13 @@ export class ExperimentalPcmOutput {
   constructor(private readonly context: AudioContext, private readonly destination: AudioNode) {}
   enqueue(frame: ExperimentalPcm, mediaTime: number, playbackRate: number) {
     if (this.context.state !== 'running' || frame.ptsSamples === null) return 'reset';
+    // Validate untrusted decoder output before allocating Web Audio buffers.
+    if (!(frame.pcm instanceof Float32Array) ||
+        !Number.isSafeInteger(frame.samples) || frame.samples < 1 || frame.samples > 262144 ||
+        !Number.isSafeInteger(frame.channels) || frame.channels < 1 || frame.channels > 32 ||
+        !Number.isSafeInteger(frame.sampleRate) || frame.sampleRate < 8000 || frame.sampleRate > 192000 ||
+        frame.samples * frame.channels !== frame.pcm.length ||
+        !frame.pcm.every(Number.isFinite)) return 'reset';
     if (this.sources.size >= 32) return 'wait';
     const decision = planExperimentalPcm({
       ptsSamples: frame.ptsSamples, sampleRate: frame.sampleRate, mediaTime,

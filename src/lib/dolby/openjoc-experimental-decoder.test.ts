@@ -48,6 +48,24 @@ describe('experimental OpenJOC ABI adapter', () => {
     abi.openjoc_wasm_decoder_pcm_len = () => 5;
     expect(() => decoder.receive()).toThrow();
   });
+  it('rejects out-of-range WASM allocation pointers and still deallocates', () => {
+    const { abi, decoder } = fixture();
+    abi.openjoc_wasm_alloc = () => abi.memory.buffer.byteLength - 1;
+    expect(() => decoder.push(Uint8Array.of(1, 2))).toThrow('OpenJOC allocation exceeds WASM memory');
+    expect(abi.openjoc_wasm_dealloc).toHaveBeenCalledWith(abi.memory.buffer.byteLength - 1, 2);
+    expect(abi.openjoc_wasm_decoder_push_bytes).not.toHaveBeenCalled();
+  });
+  it('rejects malformed PCM pointers, channel counts and timestamps', () => {
+    const { abi, decoder } = fixture();
+    abi.openjoc_wasm_decoder_pcm_ptr = () => 1.5;
+    expect(() => decoder.receive()).toThrow('OpenJOC invalid PCM metadata');
+    abi.openjoc_wasm_decoder_pcm_ptr = () => 128;
+    abi.openjoc_wasm_decoder_channel_count = () => 1.5;
+    expect(() => decoder.receive()).toThrow('OpenJOC invalid PCM metadata');
+    abi.openjoc_wasm_decoder_channel_count = () => 2;
+    abi.openjoc_wasm_decoder_pcm_pts_samples = () => 1n << 63n;
+    expect(() => decoder.receive()).toThrow('OpenJOC invalid PCM metadata');
+  });
   it('frees input on decoder error and closes only once', () => {
     const { abi, decoder } = fixture();
     abi.openjoc_wasm_decoder_push_bytes = () => -1;

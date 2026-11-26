@@ -48,10 +48,13 @@ export class OpenJocExperimentalDecoder {
   push(data: Uint8Array, packet?: { ptsSamples: bigint | null; discontinuity?: boolean; preroll?: boolean }): number {
     const h = this.active();
     if (!data.length || data.length > MAX_INPUT) throw new RangeError('OpenJOC input size');
-    if (packet?.ptsSamples != null && (packet.ptsSamples <= NO_PTS || packet.ptsSamples >= (1n << 63n))) throw new RangeError('OpenJOC PTS');
+    if (packet?.ptsSamples != null && (typeof packet.ptsSamples !== 'bigint' || packet.ptsSamples <= NO_PTS || packet.ptsSamples >= (1n << 63n))) throw new RangeError('OpenJOC PTS');
     const p = this.abi.openjoc_wasm_alloc(data.length);
-    if (!p) throw new Error('OpenJOC allocation failed');
+    if (!Number.isSafeInteger(p) || p <= 0) throw new Error('OpenJOC allocation failed');
     try {
+      if (p > this.abi.memory.buffer.byteLength - data.length) {
+        throw new Error('OpenJOC allocation exceeds WASM memory');
+      }
       new Uint8Array(this.abi.memory.buffer, p, data.length).set(data);
       return this.status(packet
         ? this.abi.openjoc_wasm_decoder_push_packet(h, p, data.length, packet.ptsSamples ?? NO_PTS, Number(Boolean(packet.discontinuity)) | (Number(Boolean(packet.preroll)) << 1))
@@ -69,10 +72,14 @@ export class OpenJocExperimentalDecoder {
     const channels = a.openjoc_wasm_decoder_channel_count(h);
     const sampleRate = a.openjoc_wasm_decoder_sample_rate(h);
     const pts = a.openjoc_wasm_decoder_pcm_pts_samples(h);
-    if (!p || p % 4 || !Number.isInteger(n) || n <= 0 || n > MAX_PCM ||
-        channels < 1 || channels > 32 || samples * channels !== n ||
-        sampleRate < 8000 || sampleRate > 192000 ||
-        p + n * 4 > a.memory.buffer.byteLength) throw new Error('OpenJOC invalid PCM metadata');
+    if (!Number.isSafeInteger(p) || p <= 0 || p % 4 ||
+        !Number.isSafeInteger(n) || n <= 0 || n > MAX_PCM ||
+        !Number.isSafeInteger(samples) || samples <= 0 ||
+        !Number.isSafeInteger(channels) || channels < 1 || channels > 32 ||
+        samples * channels !== n ||
+        !Number.isSafeInteger(sampleRate) || sampleRate < 8000 || sampleRate > 192000 ||
+        typeof pts !== 'bigint' || pts < NO_PTS || pts >= (1n << 63n) ||
+        p > a.memory.buffer.byteLength - n * 4) throw new Error('OpenJOC invalid PCM metadata');
     const pcm = new Float32Array(a.memory.buffer, p, n).slice();
     if (a.openjoc_wasm_decoder_consume_pcm(h) !== 1) throw new Error('OpenJOC consume failed');
     if (!pcm.every(Number.isFinite)) throw new Error('OpenJOC non-finite PCM');

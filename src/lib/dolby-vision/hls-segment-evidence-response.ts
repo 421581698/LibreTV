@@ -46,6 +46,7 @@ export function parseVerifiedHlsSegmentEvidenceResponse(
 
   let summedFrames = 0;
   const levels = new Set<number>();
+  const levelPresenceCount = new Map<number, number>();
   const seenAssets = new Set<string>();
   for (let ordinal = 0; ordinal < value.segments.length; ordinal += 1) {
     const segment = value.segments[ordinal];
@@ -58,10 +59,14 @@ export function parseVerifiedHlsSegmentEvidenceResponse(
     seenAssets.add(segment.fragmentAssetId);
     summedFrames += segment.frameCount;
     if (!Number.isSafeInteger(summedFrames)) return null;
+    const seenLevels = new Set<number>();
     for (const level of segment.metadataLevels) {
       if (typeof level !== 'number' || !Number.isSafeInteger(level) ||
-          ![1, 2, 3, 4, 5, 6, 8, 9, 10, 11].includes(level)) return null;
+          ![1, 2, 3, 4, 5, 6, 8, 9, 10, 11].includes(level) ||
+          seenLevels.has(level)) return null;
+      seenLevels.add(level);
       levels.add(level);
+      levelPresenceCount.set(level, (levelPresenceCount.get(level) ?? 0) + 1);
     }
   }
   if (summedFrames !== value.totalRpuFrameCount) return null;
@@ -71,7 +76,8 @@ export function parseVerifiedHlsSegmentEvidenceResponse(
   if (entries.length !== levels.size) return null;
   for (const [level, count] of entries) {
     if (!/^(?:[1-9]|1[01])$/.test(level) || !levels.has(Number(level)) ||
-        !isPositiveInteger(count) || count > summedFrames) return null;
+        !isPositiveInteger(count) || count > summedFrames ||
+        count < (levelPresenceCount.get(Number(level)) ?? 0)) return null;
     verifiedCounts[level] = count;
   }
 

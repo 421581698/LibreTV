@@ -58,6 +58,15 @@ describe('verified HLS segment-set diagnostics response', () => {
     expect(parseVerifiedHlsSegmentEvidenceResponse({ ...valid, segmentCount: 3 }, resourceId, variantId)).toBeNull();
   });
 
+  it('rejects duplicate level declarations and insufficient per-fragment metadata coverage', () => {
+    const duplicate = { ...segment(0), metadataLevels: [1, 1, 2, 5] };
+    expect(parseVerifiedHlsSegmentEvidenceResponse({
+      ...valid, segments: [duplicate, segment(1)],
+    }, resourceId, variantId)).toBeNull();
+    expect(parseVerifiedHlsSegmentEvidenceResponse({
+      ...valid, verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480, '5': 1 },
+    }, resourceId, variantId)).toBeNull();
+  });
   it('rejects invalid signed metadata-level coverage', () => {
     expect(parseVerifiedHlsSegmentEvidenceResponse({
       ...valid, verifiedMetadataLevelFrameCounts: { '1': 480, '2': 480 },
