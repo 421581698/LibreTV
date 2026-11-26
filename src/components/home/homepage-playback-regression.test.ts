@@ -298,7 +298,8 @@ describe('首页与播放页回归契约', () => {
     expect(watch).toContain('const onSeeked = () => {');
     expect(watch).toContain('cancelPendingAutoNext();');
     expect(watch).toContain('if (!video || scrubbingRef.current || !Number.isFinite(video.currentTime)) return;');
-    expect(watch).toContain('setWatchClock((current) => ({ ...current, position: video.currentTime }));');
+    expect(watch).toContain('const actualPosition = video.currentTime;');
+    expect(watch).toContain('setWatchClock((current) => ({ ...current, position: actualPosition }));');
     expect(watch).toContain("video.addEventListener('seeked', onSeeked)");
     expect(watch).toContain('setWatchClock({ position, duration })');
     expect(watch).toContain('if (nextUrl !== currentUrl) {');
