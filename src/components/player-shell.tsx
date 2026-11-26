@@ -286,6 +286,17 @@ export function PlayerShell({
   // A golden card indicates a selected compatible delivery path, not certified speaker/display output.
   const [dolbyCardChoice, setDolbyCardChoice] = useState<{ url: string; vision: boolean; audio: boolean }>({ url: '', vision: false, audio: false });
   const [dolbyCardStatus, setDolbyCardStatus] = useState('选择支持的 Dolby 片源后，可优先使用设备原生解码。');
+  const [cinemaStartup,setCinemaStartup] = useState<{kind:'vision'|'audio'|'spatial';sequence:number}|null>(null);
+  const startupSequenceRef = useRef(0);
+  const startCinemaAnimation = (kind:'vision'|'audio'|'spatial') => {
+    const sequence=++startupSequenceRef.current;
+    setCinemaStartup({kind,sequence});
+  };
+  useEffect(()=>{
+    if(!cinemaStartup)return;
+    const timer=window.setTimeout(()=>setCinemaStartup(current=>current?.sequence===cinemaStartup.sequence?null:current),1800);
+    return ()=>window.clearTimeout(timer);
+  },[cinemaStartup]);
   const [hlsDolbyAudioCodecs, setHlsDolbyAudioCodecs] = useState<{ url: string; codecs: string[] } | null>(null);
   const pendingAudioTrackRef = useRef<{ hls: Hls; requested: number; previous: number } | null>(null);
   /** Prevent an unsupported native path from looping with hls.js fallback. */
@@ -385,7 +396,11 @@ export function PlayerShell({
     setDolbyCardStatus('正在检查是否可以安全读取 PCM 音轨。Safari 不支持时不会改变原声。');
     const session=await createCinemaSoundSession(video,state=>{
       if(requestId!==cinemaSoundRequestRef.current) return;
-      setCinemaSoundActive({url,audio:state.audio,spatial:state.spatial});
+      setCinemaSoundActive(previous=>{
+        if(state.output==='captured-dsp' && state.audio&&!previous.audio) startCinemaAnimation('audio');
+        if(state.output==='captured-dsp' && state.spatial&&!previous.spatial) startCinemaAnimation('spatial');
+        return {url,audio:state.audio,spatial:state.spatial};
+      });
       setDolbyCardStatus(state.reason);
       if (state.output === 'native' && cinemaSoundSessionRef.current) {
         // An interrupted capture session has already restored native audio.
@@ -509,7 +524,10 @@ export function PlayerShell({
         const session = await startCinemaSdrEnhancedGpu(video, host, (status, message) => {
           if (cinemaHdrGpuRequestRef.current !== requestId) return;
           setDolbyCardStatus(message);
-          if (status === 'active') setDolbyCardChoice(choice => ({ ...choice, url, vision: true }));
+          if (status === 'active') {
+            setDolbyCardChoice(choice => ({ ...choice, url, vision: true }));
+            startCinemaAnimation('vision');
+          }
           else {
             if (status !== 'recovering') cinemaHdrGpuRef.current = null;
             setDolbyCardChoice(choice => choice.url === url ? { ...choice, vision: false } : choice);
@@ -2458,16 +2476,29 @@ export function PlayerShell({
           </button>
           <p className="cinema-v4-dolby-section">影院音效</p>
           <div className="cinema-v4-dolby-audio-grid">
-            <button type="button" className="cinema-v4-dolby-card" aria-pressed={currentDolbyChoice.audio}
+            <button type="button" className="cinema-v4-dolby-card" aria-pressed={currentDolbyChoice.audio || (cinemaSoundActive.url===url && cinemaSoundActive.audio)}
               onClick={() => requestDolbyCard('audio')}>
               <strong>杜比音效</strong><span>Dolby Audio</span>
             </button>
-            <button type="button" className="cinema-v4-dolby-card" aria-pressed={false}
+            <button type="button" className="cinema-v4-dolby-card" aria-pressed={cinemaSoundActive.url===url && cinemaSoundActive.spatial}
               data-cinema-spatial-processing={cinemaSoundActive.url === url && cinemaSoundActive.spatial ? 'active-virtual-hrtf' : 'inactive'}
               onClick={() => requestDolbyCard('atmos')}>
               <strong>杜比全景声</strong><span>Dolby Atmos</span>
             </button>
           </div>
+          <style>{`@keyframes cinema-startup-pulse {0%{opacity:0;transform:scale(.76)}25%{opacity:1;transform:scale(1.04)}65%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.11)}} @media(prefers-reduced-motion:reduce){[data-testid="cinema-startup-animation"]>div{animation:none!important;opacity:1}}`}</style>
+          {cinemaStartup && <div key={cinemaStartup.sequence} data-testid="cinema-startup-animation"
+            data-cinema-startup={cinemaStartup.kind} aria-label="Cinema 增强已启用"
+            style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:5,display:'grid',placeItems:'center',overflow:'hidden'}}>
+            <div style={{width:'min(72%,220px)',aspectRatio:'1.8',display:'grid',placeItems:'center',
+              borderRadius:'999px',border:'1px solid rgba(230,198,129,.38)',
+              background:'radial-gradient(ellipse,rgba(91,70,35,.9),rgba(15,15,18,.25) 70%)',
+              color:'#e6c681',fontWeight:700,letterSpacing:'.16em',textAlign:'center',
+              boxShadow:'0 0 32px rgba(224,175,94,.22)',
+              animation:'cinema-startup-pulse 1.8s ease-out both'}}>
+              {cinemaStartup.kind==='vision'?'CINEMA VISION':cinemaStartup.kind==='audio'?'CINEMA AUDIO':'CINEMA SPATIAL'}
+            </div>
+          </div>}
           <p className="cinema-v4-dolby-status" role="status">{dolbyCardStatus}</p>
           {audioTrackOptions.length > 1 && <div className="mt-4 border-t border-white/15 pt-3" data-testid="cinema-audio-track-controls">{renderAudioTrackOptions()}</div>}
         </div>
