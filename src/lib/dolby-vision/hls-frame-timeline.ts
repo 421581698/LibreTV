@@ -29,3 +29,32 @@ export function verifyHlsFramePresentationOrder(fragments: readonly FragmentMapp
   }
   return true;
 }
+
+/** Prove a fixed presentation cadence against independently registered
+ * fragment sample counts and total decode durations. Variable cadence,
+ * edit-list offsets and cross-fragment reordering remain unestablished.
+ */
+export function verifyHlsFixedCadence(
+  fragments: readonly FragmentMapping[],
+  registered: readonly { sampleCount: number; sampleDuration: number; timescale: number }[],
+): boolean {
+  if (fragments.length !== registered.length || !verifyHlsFramePresentationOrder(fragments)) return false;
+  const first = registered[0];
+  const valid = (n: number) => Number.isSafeInteger(n) && n > 0;
+  if (![first.sampleCount, first.sampleDuration, first.timescale].every(valid)) return false;
+  const stepN = BigInt(first.sampleDuration);
+  const stepD = BigInt(first.timescale) * BigInt(first.sampleCount);
+  let previous: { n: bigint; d: bigint } | null = null;
+  for (let i = 0; i < fragments.length; i++) {
+    const r = registered[i];
+    const f = fragments[i];
+    if (![r.sampleCount,r.sampleDuration,r.timescale].every(valid) || r.sampleCount !== f.frames.length ||
+        BigInt(r.sampleDuration)*stepD !== stepN*BigInt(r.timescale)*BigInt(r.sampleCount)) return false;
+    for (const frame of f.frames) {
+      const current = {n:BigInt(frame.pts)*BigInt(f.timeBase.numerator),d:BigInt(f.timeBase.denominator)};
+      if (previous && (current.n*previous.d-previous.n*current.d)*stepD !== stepN*current.d*previous.d) return false;
+      previous = current;
+    }
+  }
+  return true;
+}
