@@ -29,7 +29,7 @@ import { ExperimentalAudioSession } from '@/lib/dolby/experimental-audio-session
 import { ExperimentalHlsAudioController } from '@/lib/dolby/experimental-hls-audio-controller';
 import { captureNativeAudioFallback, fallbackResumeTime, type NativeAudioFallbackSnapshot } from '@/lib/dolby/native-audio-fallback';
 import { createHlsLoader } from '@/lib/hls-loader';
-import { inspectCinemaHdrVariants, isSafariNativeHdrCandidate, type CinemaHdrVariant } from '@/lib/cinema-hdr';
+import { inspectCinemaHdrVariants, isSafariNativeHdrCandidate, shouldUseCinemaP3Output, type CinemaHdrVariant } from '@/lib/cinema-hdr';
 import type { CinemaGpuSession } from '@/lib/cinema-hdr-gpu';
 import { startCinemaSdrEnhancedGpu } from '@/lib/cinema-hdr-webgpu';
 import { observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
@@ -435,7 +435,8 @@ export function PlayerShell({
             if (status !== 'recovering') cinemaHdrGpuRef.current = null;
             setDolbyCardChoice(choice => choice.url === url ? { ...choice, vision: false } : choice);
           }
-        });
+        }, shouldUseCinemaP3Output(hdrVariants,
+          typeof window.matchMedia === 'function' ? query => window.matchMedia(query) : undefined));
         if (cinemaHdrGpuRequestRef.current !== requestId || !video.isConnected) {
           session?.stop();
           return;
