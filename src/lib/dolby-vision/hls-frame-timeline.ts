@@ -58,3 +58,41 @@ export function verifyHlsFixedCadence(
   }
   return true;
 }
+
+/** Verify presentation intervals against independently extracted, presentation-ordered
+ * sample durations and explicit start/end anchors. Never infer durations from PTS gaps.
+ * The caller must authenticate the duration evidence before using this result.
+ */
+export function verifyHlsVariableCadence(
+  fragments: readonly FragmentMapping[],
+  registered: readonly {
+    timescale: number;
+    start: string;
+    end: string;
+    durations: readonly number[];
+  }[],
+): boolean {
+  if (fragments.length !== registered.length || !verifyHlsFramePresentationOrder(fragments)) return false;
+  let previous: { n: bigint; d: bigint } | undefined;
+  const tick = /^(?:0|-?[1-9][0-9]{0,18})$/;
+  for (let i = 0; i < fragments.length; i++) {
+    const f = fragments[i], r = registered[i];
+    if (!Number.isSafeInteger(r.timescale) || r.timescale <= 0 ||
+        !tick.test(r.start) || !tick.test(r.end) || r.durations.length !== f.frames.length) return false;
+    const d = BigInt(r.timescale);
+    let cursor = BigInt(r.start);
+    const end = BigInt(r.end);
+    if (cursor < -(1n << 63n) || end >= (1n << 63n) || end <= cursor) return false;
+    if (previous && previous.n * d !== cursor * previous.d) return false;
+    for (let j = 0; j < f.frames.length; j++) {
+      const duration = r.durations[j];
+      if (!Number.isSafeInteger(duration) || duration <= 0) return false;
+      if (BigInt(f.frames[j].pts) * BigInt(f.timeBase.numerator) * d !== cursor * BigInt(f.timeBase.denominator)) return false;
+      cursor += BigInt(duration);
+      if (cursor > end) return false;
+    }
+    if (cursor !== end) return false;
+    previous = { n: end, d };
+  }
+  return true;
+}
