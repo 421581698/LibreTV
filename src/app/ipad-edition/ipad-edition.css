@@ -2814,7 +2814,7 @@ html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday
   --ipad-theme-glass-highlight: rgba(255,255,255,.44);
   --ipad-theme-glass-shadow: 0 10px 32px rgba(30,45,70,.13);
   color: var(--ipad-text);
-  background: var(--ipad-page) !important;
+  background: var(--ipad-page);
 }
 .ipad-edition[data-ipad-edition="true"][data-environment="dark"] {
   --ipad-page: #08090c;
@@ -2833,54 +2833,54 @@ html:is([data-friday-glass="webkit"], [data-friday-glass="native"], [data-friday
   --ipad-theme-glass-highlight: rgba(255,255,255,.11);
   --ipad-theme-glass-shadow: 0 14px 36px rgba(0,0,0,.3);
   color: var(--ipad-text);
-  background: var(--ipad-page) !important;
+  background: var(--ipad-page);
 }
 /* The iPad shell follows the same root theme as the app before its effect mounts.
    This avoids an initial dark frame for a persisted light preference. */
 html:has(.ipad-edition), body:has(.ipad-edition) {
-  background-color: #f5f7fa !important;
+  background-color: #f5f7fa;
 }
 html.dark:has(.ipad-edition), html.dark body:has(.ipad-edition) {
-  background-color: #08090c !important;
+  background-color: #08090c;
 }
 .ipad-edition[data-ipad-detail="true"]:not([data-ipad-player="true"]) {
-  background: var(--ipad-page) !important;
+  background: var(--ipad-page);
 }
 .ipad-edition[data-ipad-player="true"] {
-  background: #000 !important;
+  background: #000;
 }
 /* Preserve the existing glass geometry and single compositor surface. */
 .ipad-edition[data-ipad-edition="true"] :is(.ipad-nav__topbar-inner.liquid-glass,.ipad-nav__sidebar.liquid-glass) {
-  color: var(--ipad-nav-ink) !important;
-  background: var(--ipad-theme-glass) !important;
-  border-color: var(--ipad-theme-glass-rim) !important;
-  box-shadow: inset 0 1px 0 var(--ipad-theme-glass-highlight),var(--ipad-theme-glass-shadow) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
-  backdrop-filter: blur(18px) saturate(145%) !important;
+  color: var(--ipad-nav-ink);
+  background: var(--ipad-theme-glass);
+  border-color: var(--ipad-theme-glass-rim);
+  box-shadow: inset 0 1px 0 var(--ipad-theme-glass-highlight),var(--ipad-theme-glass-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
 }
 .ipad-edition[data-ipad-edition="true"] .ipad-nav__capsule-action,
 .ipad-edition[data-ipad-edition="true"] .ipad-nav__links a,
 .ipad-edition[data-ipad-edition="true"] .ipad-nav__collapse-button {
-  color: var(--ipad-nav-ink) !important;
-  text-shadow: none !important;
+  color: var(--ipad-nav-ink);
+  text-shadow: none;
 }
 .ipad-edition[data-ipad-edition="true"] .ipad-nav__capsule-action .ipad-nav__icon {
-  filter: none !important;
+  filter: none;
 }
 .ipad-edition[data-ipad-edition="true"] :is(.ipad-nav__capsule-action.is-active,.ipad-nav__links a.is-active) {
-  background: color-mix(in srgb,var(--ipad-nav-ink) 12%,transparent) !important;
-  color: var(--ipad-nav-ink) !important;
+  background: color-mix(in srgb,var(--ipad-nav-ink) 12%,transparent);
+  color: var(--ipad-nav-ink);
 }
 .ipad-edition[data-ipad-edition="true"] :is(.ipad-edition__section-heading h2,.ipad-edition__page-heading h1,.ipad-edition__poster-card > strong,.ipad-edition__anime-card > strong,.ipad-edition__continue-card > strong,.ipad-edition__result-card > strong) {
-  color: var(--ipad-text) !important;
+  color: var(--ipad-text);
 }
 .ipad-edition[data-ipad-edition="true"] :is(.ipad-edition__section-note,.ipad-edition__eyebrow,.ipad-edition__poster-card > small,.ipad-edition__anime-card > small,.ipad-edition__continue-card > small,.ipad-edition__result-card > small) {
-  color: var(--ipad-muted) !important;
+  color: var(--ipad-muted);
 }
 .ipad-edition[data-ipad-edition="true"] :is(.ipad-edition__category-grid button,.ipad-edition__collection-tabs button,.ipad-edition__pagination button,.ipad-edition__library-card > button) {
-  color: var(--ipad-text) !important;
-  border-color: var(--ipad-line) !important;
-  background-color: var(--ipad-surface) !important;
+  color: var(--ipad-text);
+  border-color: var(--ipad-line);
+  background-color: var(--ipad-surface);
 }
 .ipad-edition[data-ipad-edition="true"] :is(.ipad-edition__poster-art,.ipad-edition__result-poster,.ipad-edition__continue-art) {
   background-color: var(--ipad-surface-solid);
@@ -2896,8 +2896,8 @@ html.dark:has(.ipad-edition), html.dark body:has(.ipad-edition) {
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   .ipad-edition[data-ipad-edition="true"] :is(.ipad-nav__topbar-inner.liquid-glass,.ipad-nav__sidebar.liquid-glass) {
-    background: var(--ipad-nav-panel) !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+    background: var(--ipad-nav-panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
