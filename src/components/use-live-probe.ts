@@ -42,9 +42,11 @@ export function useLiveProbe() {
   const cache = useAppStore((s) => s.liveProbeResults);
   const [progress, setProgress] = useState<{ done: number; total: number; startedAt: number } | null>(null);
   const [hint, setHint] = useState('');
+  const [expiryTick, setExpiryTick] = useState(0);
   const runIdRef = useRef(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const flushPendingRef = useRef<(() => void) | null>(null);
 
   const showHint = useCallback((text: string) => {
     setHint(text);
@@ -55,6 +57,7 @@ export function useLiveProbe() {
   useEffect(() => () => {
     // 卸载时作废在途轮次并断开请求
     runIdRef.current++;
+    flushPendingRef.current = null;
     if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
     abortRef.current?.abort();
   }, []);
@@ -92,9 +95,23 @@ export function useLiveProbe() {
       }
     }
     return map;
-  }, [cache]);
+  }, [cache, expiryTick]);
+
+  // An unchanged cache object must still expire entries when their TTL ends.
+  useEffect(() => {
+    const now = Date.now();
+    let nearestExpiry = Infinity;
+    for (const entry of Object.values(cache)) {
+      const expiresAt = entry.timestamp + LIVE_PROBE_TTL_MS;
+      if (expiresAt > now && expiresAt < nearestExpiry) nearestExpiry = expiresAt;
+    }
+    if (!Number.isFinite(nearestExpiry)) return;
+    const timer = setTimeout(() => setExpiryTick((value) => value + 1), Math.max(1, nearestExpiry - now));
+    return () => clearTimeout(timer);
+  }, [cache, expiryTick]);
 
   const clear = useCallback(() => {
+    flushPendingRef.current = null;
     runIdRef.current++;
     abortRef.current?.abort();
     abortRef.current = null;
@@ -105,6 +122,9 @@ export function useLiveProbe() {
   /** 中止在途测活：已完成的结果保留，未完成的频道保持待测状态（下次测活会补上） */
   const cancel = useCallback(() => {
     if (!abortRef.current) return;
+    // Commit already received outcomes before invalidating the run ID.
+    flushPendingRef.current?.();
+    flushPendingRef.current = null;
     runIdRef.current++;
     abortRef.current.abort();
     abortRef.current = null;
@@ -132,6 +152,8 @@ export function useLiveProbe() {
         return;
       }
 
+      flushPendingRef.current?.();
+      flushPendingRef.current = null;
       const runId = ++runIdRef.current;
       // 作废上一轮的在途请求，避免切换筛选/重复点击后旧结果继续写回
       abortRef.current?.abort();
@@ -163,6 +185,7 @@ export function useLiveProbe() {
         }
         setProgress({ done: Math.min(done, stale.length), total: stale.length, startedAt });
       };
+      flushPendingRef.current = flush;
       const scheduleFlush = () => {
         if (!flushTimer) flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
       };
@@ -175,12 +198,13 @@ export function useLiveProbe() {
           if (index >= chunks.length) return;
           const chunk = chunks[index];
           const received = new Set<string>();
+          const allowed = new Set(chunk);
           try {
             await api.liveProbeStream(
               chunk,
               (r) => {
+                if (runIdRef.current !== runId || !allowed.has(r.url) || received.has(r.url)) return;
                 received.add(r.url);
-                if (runIdRef.current !== runId) return;
                 buffer[r.url] = {
                   ok: r.ok,
                   ms: r.ms,
@@ -196,8 +220,12 @@ export function useLiveProbe() {
               },
               controller.signal
             );
-          } catch {
-            // 整批失败/被取消：不写缓存，保持待测状态以便下次重试
+          } catch (error) {
+            if (!controller.signal.aborted && runIdRef.current === runId) {
+              console.warn('[LiveProbe] batch failed:', error);
+              showHint('部分直播源检测失败，可重新检测');
+            }
+            // Failed or cancelled channels remain eligible for the next probe.
           }
           // 流中途断开时未返回的目标：只补进度，不写缓存
           done += chunk.length - received.size;
@@ -211,6 +239,7 @@ export function useLiveProbe() {
       if (flushTimer) clearTimeout(flushTimer);
       if (runIdRef.current !== runId) return;
       flush();
+      flushPendingRef.current = null;
       setProgress(null);
       if (abortRef.current === controller) abortRef.current = null;
     },
