@@ -114,8 +114,10 @@ export async function cinemaDiscoverClearVodHlsAac(
 ):Promise<CinemaAuthorizedAacSource> {
   const url=checkedUri(sourceUrl);
   if(!/\.m3u8$/i.test(new URL(url).pathname)||video.mediaKeys||
-     video.seekable.length===0||video.duration<=0||!Number.isFinite(video.duration)||
-     video.seekable.start(0)>.05)
+     video.duration<=0||!Number.isFinite(video.duration)||
+     !Number.isFinite(video.currentTime)||video.currentTime<0||
+     video.currentTime>video.duration+.5||
+     (video.seekable.length>0&&video.seekable.start(0)>.05))
     throw new Error('No authorized seekable clear native HLS VOD');
   const master=await readText(url,signal);
   if(/^#EXT-X-(?:KEY|SESSION-KEY)/m.test(master))throw new Error('Protected HLS cannot enter DSP');

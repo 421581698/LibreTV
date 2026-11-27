@@ -76,6 +76,16 @@ describe('Safari native HLS clear independent audio source discovery',()=>{
       ORIGIN+'/master.m3u8',ORIGIN+'/audio.m3u8',ORIGIN+'/video.m3u8',ORIGIN+'/audio0.aac',
     ]);
   });
+  it('verifies clear AAC VOD even before Safari populates seekable',async()=>{
+    const video=new Video();
+    video.seekable={length:0,start:()=>{throw Error('unavailable');}};
+    const source=await cinemaDiscoverClearVodHlsAac(
+      video as never,ORIGIN+'/master.m3u8',new AbortController().signal);
+    const packets=[];
+    for await(const packet of source.packets)packets.push(packet);
+    expect(packets).toHaveLength(1);
+    expect(packets[0].ptsUs).toBe(0);
+  });
   it('rejects misaligned audio/video playlist clocks before attempting PCM takeover',async()=>{
     replies.set(ORIGIN+'/video.m3u8',
       new TextEncoder().encode(media('video0.ts','2026-11-27T12:00:00.200Z')));

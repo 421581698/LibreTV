@@ -26,9 +26,10 @@ class Analyser extends Node {
 }
 class Context extends EventTarget {
   static last:Context|null=null;
+  static created=0;
   state='suspended';currentTime=2;destination=new Node();closed=false;
   analyser=new Analyser();mediaElements:Mirror[]=[];
-  constructor(_opts:unknown){super();Context.last=this;}
+  constructor(_opts:unknown){super();Context.last=this;Context.created++;}
   createMediaElementSource(element:Mirror){this.mediaElements.push(element);return new Node();}
   createGain(){return new Node();}
   createBiquadFilter(){return new Node();}
@@ -57,7 +58,7 @@ let frames=new Map<number,FrameRequestCallback>();
 let nextId=0;
 function advance(){const calls=[...frames.values()];frames.clear();for(const f of calls)f(performance.now());}
 beforeEach(()=>{
-  frames=new Map();nextId=0;Context.last=null;
+  frames=new Map();nextId=0;Context.last=null;Context.created=0;
   vi.stubGlobal('window',{AudioContext:Context,location:{href:'https://preview.example/ipad-edition'}});
   vi.stubGlobal('document',{createElement:(tag:string)=>{
     if(tag!=='audio')throw Error('Unexpected new DOM element');
@@ -106,15 +107,42 @@ describe('Safari native clear HLS audio mirror → real Web Audio PCM routing',(
     session!.stop();
     expect(video.muted).toBe(false);
   });
-  it('rejects protected/nonseekable playlists and preserves native audio',async()=>{
+  it('rejects protected or unknown-length playlists and preserves native audio',async()=>{
     const video=new NativeHlsVideo(),states:CinemaSoundState[]=[];
     video.mediaKeys={} as MediaKeys;
     expect(await createCinemaSoundSession(video as never,s=>states.push(s))).toBeNull();
     expect(Context.last).toBeNull();
     expect(video.muted).toBe(false);
-    video.mediaKeys=null;video.seekable={length:0};
+    video.mediaKeys=null;video.duration=Infinity;
     expect(await createCinemaSoundSession(video as never,s=>states.push(s))).toBeNull();
     expect(states.at(-1)?.output).toBe('native');
+  });
+  it('accepts finite VOD even while Safari reports no seekable range',async()=>{
+    const video=new NativeHlsVideo(),states:CinemaSoundState[]=[];
+    video.seekable={length:0};
+    const session=await createCinemaSoundSession(video as never,s=>states.push(s));
+    expect(session).not.toBeNull();
+    session!.enable('audio',true);
+    advance();advance();advance();
+    expect(states.at(-1)?.output).toBe('captured-dsp');
+    expect(video.muted).toBe(true);
+    session!.stop();
+    expect(video.muted).toBe(false);
+  });
+  it('reuses prewarmed user-gesture AudioContext for Safari mirror',async()=>{
+    const video=new NativeHlsVideo(),states:CinemaSoundState[]=[];
+    const warmed=new Context({});
+    await warmed.resume();
+    const session=await createCinemaSoundSession(video as never,s=>states.push(s),warmed as never);
+    expect(session).not.toBeNull();
+    expect(Context.created).toBe(1);
+    expect(Context.last).toBe(warmed);
+    session!.enable('spatial',true);
+    advance();advance();advance();
+    expect(states.at(-1)?.spatial).toBe(true);
+    session!.stop();
+    expect(warmed.closed).toBe(true);
+    expect(video.muted).toBe(false);
   });
   it('does not claim success when the CORS-restricted audio graph emits zero PCM',async()=>{
     const video=new NativeHlsVideo(),states:CinemaSoundState[]=[];

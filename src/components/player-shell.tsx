@@ -458,17 +458,18 @@ export function PlayerShell({
         (window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
       if(constructor){
         let warm:AudioContext|undefined;
+        let warmResumed:Promise<boolean>|undefined;
         const controller=new AbortController();
         cinemaSoundDiscoveryAbortRef.current=controller;
         try {
           // Start resume while the user's tap gesture is still active;
           // manifest fetching happens afterward and cannot grant autoplay.
           warm=new constructor({latencyHint:'interactive'});
-          const resumed=warm.resume().then(()=>true,()=>false);
+          warmResumed=warm.resume().then(()=>true,()=>false);
           setDolbyCardStatus('正在验证 Safari HLS 的清晰 AAC 独立音轨与音画时间戳…');
           const discovered=await cinemaDiscoverClearVodHlsAac(
             video,video.currentSrc||url,controller.signal);
-          if(!await resumed)throw new Error('AudioContext could not resume');
+          if(!await warmResumed)throw new Error('AudioContext could not resume');
           if(requestId!==cinemaSoundRequestRef.current||!video.isConnected){
             void warm.close().catch(()=>{});
             return;
@@ -476,7 +477,13 @@ export function PlayerShell({
           authorizedAudio=discovered;
           readyContext=warm;
         } catch {
-          if(warm)void warm.close().catch(()=>{});
+          // The original click already resumed this context. Reuse it for
+          // the mirror path: a newly created context after a fetch can lose
+          // Safari user activation and remain suspended.
+          const reusable=Boolean(warm && await warmResumed && warm.state==='running' &&
+            requestId===cinemaSoundRequestRef.current && video.isConnected);
+          if(reusable)readyContext=warm;
+          else if(warm)void warm.close().catch(()=>{});
           // A failed verified HLS read must not mute the original player.
           // The existing CORS checked mirror may still work on some engines.
           if(requestId===cinemaSoundRequestRef.current)
@@ -495,7 +502,7 @@ export function PlayerShell({
     }
     const session=authorizedAudio
       ? await createCinemaAuthorizedPcmSoundSession(video,authorizedAudio,onCinemaAudioState,readyContext)
-      : await createCinemaSoundSession(video,onCinemaAudioState);
+      : await createCinemaSoundSession(video,onCinemaAudioState,readyContext);
     if(requestId!==cinemaSoundRequestRef.current||!video.isConnected) {
       session?.stop();
       return;

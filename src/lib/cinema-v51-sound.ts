@@ -108,12 +108,14 @@ function capturedAudioSource(video:CapturableVideo):MediaStream|null {
 }
 export async function createCinemaSoundSession(
   video:HTMLVideoElement,onState:(state:CinemaSoundState)=>void,
+  prewarmedContext?:AudioContext,
 ):Promise<CinemaSoundSession|null> {
-  if(typeof window==='undefined'||!(window.AudioContext||('webkitAudioContext' in window))) {
+  if(typeof window==='undefined'||(!prewarmedContext&&!(window.AudioContext||('webkitAudioContext' in window)))) {
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：Web Audio 引擎不可用。'});
     return null;
   }
   if(video.muted||video.volume===0){
+    if(prewarmedContext)void prewarmedContext.close().catch(()=>{});
     onState({audio:false,spatial:false,output:'native',reason:'请先恢复原生音轨和可听音量，再开启 DSP/空间化。'});
     return null;
   }
@@ -130,19 +132,28 @@ export async function createCinemaSoundSession(
   // real PCM through Web Audio. CORS still governs each playlist/segment;
   // denied audio remains silent in the analyser and MUST NOT mute the video.
   // MPEG-DASH is not a natively supported Safari mirror input.
+  // Safari can expose a finite VOD before populating seekable TimeRanges.
+  // Still require real nonzero PCM and independently checked media-time sync.
+  const eligibleVodClock=video.readyState>=2 && video.duration>0 &&
+    Number.isFinite(video.duration) && Number.isFinite(video.currentTime) &&
+    video.currentTime>=0 && video.currentTime<=video.duration+.5;
   const useElement=!stream && Boolean(parsed && parsed.protocol==='https:' && !isPrivateHost &&
-    !/\.mpd$/i.test(parsed.pathname) && !video.mediaKeys &&
-    video.seekable.length>0 && video.duration>0 && Number.isFinite(video.duration));
+    !/\.mpd$/i.test(parsed.pathname) && !video.mediaKeys && eligibleVodClock);
   const mirror=useElement?document.createElement('audio'):null;
   if(!stream&&!mirror) {
+    if(prewarmedContext)void prewarmedContext.close().catch(()=>{});
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：当前浏览器或媒体未提供可读取的 PCM 音轨。'});
     return null;
   }
   const WebkitContext=(window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
   const Constructor=window.AudioContext??WebkitContext;
-  if(!Constructor) {stream?.getTracks().forEach(t=>t.stop());return null;}
+  if(!Constructor&&!prewarmedContext) {stream?.getTracks().forEach(t=>t.stop());return null;}
   let context:AudioContext;
-  try {context=new Constructor({latencyHint:'interactive'});}
+  try {
+    if(prewarmedContext)context=prewarmedContext;
+    else if(Constructor)context=new Constructor({latencyHint:'interactive'});
+    else throw new Error('No AudioContext constructor');
+  }
   catch {
     stream?.getTracks().forEach(t=>t.stop());
     onState({audio:false,spatial:false,output:'native',reason:'Cinema DSP/HRTF 启动失败：无法初始化音频上下文。'});
@@ -372,7 +383,12 @@ export async function createCinemaSoundSession(
   const syncPlay=()=>{if(mirror)void mirror.play().catch(onCaptureLost);};
   const syncPause=()=>mirror?.pause();
   const syncRate=()=>{if(mirror)mirror.playbackRate=video.playbackRate;};
-  const syncTime=()=>{if(mirror&&mirror.readyState>=2)mirror.currentTime=video.currentTime;};
+  const syncTime=()=>{
+    if(mirror&&mirror.readyState>=2){
+      try{mirror.currentTime=video.currentTime;}
+      catch{onCaptureLost();}
+    }
+  };
   video.addEventListener('play',syncPlay);
   video.addEventListener('pause',syncPause);
   video.addEventListener('ratechange',syncRate);
