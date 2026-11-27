@@ -3,7 +3,20 @@ import { log } from './logger';
 // 增加 userId 校验与竞态占位 (TOCTOU防御)
 type Entry = { userId: string; ctrl: AbortController };
 const inflight = new Map<string, Entry>();
-const pendingCancelled = new Map<string, string>();
+const PENDING_CANCEL_TTL_MS = 30_000;
+const MAX_PENDING_CANCELLED = 256;
+const pendingCancelled = new Map<string, { userId: string; expiresAt: number }>();
+
+function prunePendingCancelled(now = Date.now()): void {
+  for (const [id, entry] of pendingCancelled) {
+    if (entry.expiresAt <= now) pendingCancelled.delete(id);
+  }
+  while (pendingCancelled.size > MAX_PENDING_CANCELLED) {
+    const oldest = pendingCancelled.keys().next().value;
+    if (oldest === undefined) break;
+    pendingCancelled.delete(oldest);
+  }
+}
 
 export function registerInflight(requestId: string, userId: string, ctrl: AbortController): boolean {
   if (inflight.has(requestId)) {
@@ -13,10 +26,11 @@ export function registerInflight(requestId: string, userId: string, ctrl: AbortC
   inflight.set(requestId, { userId, ctrl });
 
   // 处理“先取消后注册”的竞态
-  const owner = pendingCancelled.get(requestId);
-  if (owner) {
+  prunePendingCancelled();
+  const pending = pendingCancelled.get(requestId);
+  if (pending) {
     pendingCancelled.delete(requestId);
-    if (owner === userId) {
+    if (pending.userId === userId) {
       ctrl.abort(new Error('CANCELLED_BY_CLIENT'));
     }
   }
@@ -38,7 +52,10 @@ export function cancelInflight(requestId: string, userId: string): CancelResult 
     inflight.delete(requestId);
     return 'ok';
   }
-  pendingCancelled.set(requestId, userId);
+  prunePendingCancelled();
+  pendingCancelled.delete(requestId);
+  pendingCancelled.set(requestId, { userId, expiresAt: Date.now() + PENDING_CANCEL_TTL_MS });
+  prunePendingCancelled();
   return 'pending';
 }
 
