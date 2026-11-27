@@ -6,6 +6,7 @@
  */
 const owners:symbol[]=[];
 export function registerPlaybackControlOwner(owner:symbol):()=>void {
+  if(!owners.includes(owner))owners.push(owner);
   claimPlaybackControlOwner(owner);
   return ()=>{
     const index=owners.indexOf(owner);
@@ -14,8 +15,8 @@ export function registerPlaybackControlOwner(owner:symbol):()=>void {
 }
 export function claimPlaybackControlOwner(owner:symbol):void {
   const index=owners.indexOf(owner);
-  if(index===-1&&owners.length===0){owners.push(owner);return;}
-  if(index===-1){owners.push(owner);return;}
+  // Late media events from a destroyed player cannot reclaim ownership.
+  if(index===-1)return;
   owners.splice(index,1);
   owners.push(owner);
 }
