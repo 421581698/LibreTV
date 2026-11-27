@@ -7,6 +7,38 @@ export const runtime = 'nodejs';
 
 /** 单个字段长度上限：源名与地址再长也不该超过这个量级 */
 const MAX_FIELD_LEN = 2048;
+const MAX_REQUEST_BYTES = 512 * 1024;
+
+async function readBoundedPublishBody(req: Request): Promise<string> {
+  const declared = Number(req.headers.get('content-length') || 0);
+  if (Number.isFinite(declared) && declared > MAX_REQUEST_BYTES) throw new Error('REQUEST_TOO_LARGE');
+  if (!req.body) return '';
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_REQUEST_BYTES) {
+        await reader.cancel();
+        throw new Error('REQUEST_TOO_LARGE');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
 
 interface VodOut {
   name: string;
@@ -62,9 +94,13 @@ export async function POST(req: Request) {
 
   let raw: unknown;
   try {
-    raw = JSON.parse(await req.text());
-  } catch {
-    return NextResponse.json({ error: '请求内容不是合法 JSON' }, { status: 400 });
+    raw = JSON.parse(await readBoundedPublishBody(req));
+  } catch (error) {
+    const tooLarge = error instanceof Error && error.message === 'REQUEST_TOO_LARGE';
+    return NextResponse.json(
+      { error: tooLarge ? '源列表请求体超过 512KB' : '请求内容不是合法 JSON' },
+      { status: tooLarge ? 413 : 400 },
+    );
   }
 
   const normalized = normalizePayload(raw);
