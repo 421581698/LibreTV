@@ -1,5 +1,6 @@
 import { cinemaTransformPixel,cinemaClamp,type CinemaPixelOptions,type CinemaRgb } from './cinema-v51-color';
 import { cinemaTransformMetadataFrame,type CinemaDynamicToneFrame,type CinemaMasteringMetadata } from './cinema-v51-metadata';
+import { cinemaTransformRpuL1Pixel,type CinemaRpuL1Frame } from './cinema-v51-rpu-tone';
 
 /**
  * P010 4:2:0 10-bit *decoded* video-frame processing, no codec decoder or DRM.
@@ -22,6 +23,7 @@ export interface CinemaP010TransformOptions extends CinemaPixelOptions {
   targetMatrix:CinemaYuvMatrix;
   mastering?:CinemaMasteringMetadata;
   dynamicFrame?:CinemaDynamicToneFrame|null;
+  rpuL1Frame?:CinemaRpuL1Frame|null;
 }
 const COEFF:Record<CinemaYuvMatrix,{kr:number;kb:number}>={
   bt709:{kr:.2126,kb:.0722},
@@ -69,9 +71,11 @@ export function cinemaTransformP010Frame(
       for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){
         const at=(row+dy)*width+col+dx;
         const rgb=yuvRgb(p010Y(y[at]),cb,cr,settings.sourceMatrix);
-        const transformed=settings.mastering?
-          cinemaTransformMetadataFrame(rgb,settings,settings.mastering,settings.dynamicFrame??null):
-          cinemaTransformPixel(rgb,settings);
+        const transformed=settings.rpuL1Frame
+          ? cinemaTransformRpuL1Pixel(rgb,settings,settings.rpuL1Frame)
+          : settings.mastering
+            ? cinemaTransformMetadataFrame(rgb,settings,settings.mastering,settings.dynamicFrame??null)
+            : cinemaTransformPixel(rgb,settings);
         const [luma,nextCb,nextCr]=rgbYuv(transformed,settings.targetMatrix);
         outputY[at]=encodeY(luma);
         sumCb+=nextCb;sumCr+=nextCr;
