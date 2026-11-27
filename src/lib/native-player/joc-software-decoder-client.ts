@@ -56,6 +56,7 @@ export class JocSoftwareDecoderClient {
   private readonly outputEnabled: boolean;
   private gainNode: GainNode | null = null;
   private limiter: DynamicsCompressorNode | null = null;
+  private spatialNodes: AudioNode[] = [];
   private activationInFlight = false;
   private readonly listeners = new Set<(status: JocDecoderStatus) => void>();
   private readonly pcmListeners = new Set<(frame: JocDecoderPcmFrame) => void>();
@@ -116,6 +117,46 @@ export class JocSoftwareDecoderClient {
     } catch (error) {
       client.dispose();
       throw error;
+    }
+  }
+
+  /** Optional stereo headphone virtualization, never object rendering. */
+  setHeadphoneVirtualization(enabled: boolean): boolean {
+    this.assertActive();
+    const context = this.context;
+    const source = this.node;
+    const destination = this.limiter;
+    if (!context || !source || !destination) return false;
+    source.disconnect();
+    for (const node of this.spatialNodes) node.disconnect();
+    this.spatialNodes = [];
+    if (!enabled) {
+      source.connect(destination);
+      return true;
+    }
+    try {
+      const splitter = context.createChannelSplitter(2);
+      this.spatialNodes.push(splitter);
+      source.connect(splitter);
+      for (let channel = 0; channel < 2; channel++) {
+        const panner = context.createPanner();
+        const gain = context.createGain();
+        this.spatialNodes.push(panner, gain);
+        panner.panningModel = 'HRTF';
+        panner.rolloffFactor = 0;
+        panner.setPosition(channel === 0 ? -0.5 : 0.5, 0, -0.866);
+        gain.gain.value = 0.7;
+        splitter.connect(gain, channel);
+        gain.connect(panner);
+        panner.connect(destination);
+      }
+      return true;
+    } catch {
+      source.disconnect();
+      for (const node of this.spatialNodes) node.disconnect();
+      this.spatialNodes = [];
+      source.connect(destination);
+      return false;
     }
   }
 
@@ -360,6 +401,8 @@ export class JocSoftwareDecoderClient {
       this.node.disconnect();
       this.node = null;
     }
+    for (const node of this.spatialNodes) node.disconnect();
+    this.spatialNodes = [];
     this.limiter?.disconnect();
     this.limiter = null;
     this.gainNode?.disconnect();
