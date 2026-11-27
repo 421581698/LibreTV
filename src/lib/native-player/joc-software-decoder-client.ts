@@ -420,8 +420,8 @@ export class JocSoftwareDecoderClient {
       this.settle('output-started');
       return;
     }
-    if (event.data?.type === 'underrun' || event.data?.type === 'overflow') {
-      this.fail(new Error(event.data.type === 'overflow' ? 'OpenJOC PCM queue overflowed; software output was stopped.' : 'OpenJOC PCM underrun; native media audio was restored.'));
+    if (event.data?.type === 'underrun' || event.data?.type === 'overflow' || event.data?.type === 'clock-discontinuity') {
+      this.fail(new Error(event.data.type === 'overflow' ? 'OpenJOC PCM queue overflowed; software output was stopped.' : event.data.type === 'clock-discontinuity' ? 'OpenJOC media clock discontinuity; native media audio was restored.' : 'OpenJOC PCM underrun; native media audio was restored.'));
       this.disconnectOutput();
       return;
     }
