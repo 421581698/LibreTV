@@ -1,0 +1,103 @@
+.ipad-edition {
+  --ipad-page: #f4f5f7;
+  --ipad-surface: rgba(255, 255, 255, .76);
+  --ipad-surface-strong: #fff;
+  --ipad-text: #17191d;
+  --ipad-muted: #737984;
+  --ipad-line: rgba(28, 35, 46, .12);
+  --ipad-accent: #3478f6;
+  --ipad-glass-blur: 24px;
+  --ipad-glass-opacity: .65;
+  min-height: 100dvh;
+  padding: 14px 20px 40px 308px;
+  color: var(--ipad-text);
+  background: radial-gradient(ellipse at 72% 0%, rgba(190, 205, 230, .28), transparent 42%), var(--ipad-page);
+  isolation: isolate;
+}
+.dark .ipad-edition {
+  --ipad-page: #08090c;
+  --ipad-surface: rgba(27, 30, 37, .76);
+  --ipad-surface-strong: #171a20;
+  --ipad-text: #f5f6f8;
+  --ipad-muted: #a0a6b1;
+  --ipad-line: rgba(255, 255, 255, .13);
+  --ipad-accent: #76a7ff;
+  background: radial-gradient(ellipse at 72% 0%, rgba(47, 68, 105, .28), transparent 42%), var(--ipad-page);
+}
+.ipad-edition, .ipad-edition * { box-sizing: border-box; }
+.ipad-edition a { color: inherit; text-decoration: none; }
+.ipad-edition button { color: inherit; font: inherit; }
+.ipad-edition button:disabled { cursor: default; opacity: .58; }
+.ipad-edition__sidebar {
+  position: fixed; z-index: 40; inset: 0 auto 0 0;
+  width: 288px; padding: 28px 8px 20px;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--ipad-line);
+  background: var(--ipad-surface);
+  -webkit-backdrop-filter: blur(var(--ipad-glass-blur)) saturate(150%);
+  backdrop-filter: blur(var(--ipad-glass-blur)) saturate(150%);
+}
+.ipad-edition__brand { padding: 0 16px 34px; font-size: 23px; font-weight: 760; letter-spacing: -.04em; }
+.ipad-edition__nav { display: grid; gap: 8px; }
+.ipad-edition__nav a, .ipad-edition__nav button, .ipad-edition__sidebar-footer button {
+  width: 100%; min-height: 48px; display: flex; align-items: center; padding: 0 14px;
+  border: 0; border-radius: 14px; background: transparent; text-align: left;
+  color: var(--ipad-muted); font-size: 15px; font-weight: 600;
+}
+.ipad-edition__nav .is-active a { color: #fff; background: var(--ipad-accent); box-shadow: 0 8px 22px rgba(52, 120, 246, .22); }
+.ipad-edition__sidebar-footer { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--ipad-line); }
+.ipad-edition__main { min-width: 0; max-width: 1600px; margin: 0 auto; }
+.ipad-edition__topbar {
+  height: 64px; display: flex; align-items: center; justify-content: center;
+  position: relative; margin-bottom: 18px;
+}
+.ipad-edition__capsule {
+  display: flex; align-items: center; gap: 4px; padding: 6px;
+  border: 1px solid var(--ipad-line); border-radius: 999px;
+  background: var(--ipad-surface);
+  -webkit-backdrop-filter: blur(var(--ipad-glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--ipad-glass-blur)) saturate(160%);
+  box-shadow: 0 8px 30px rgba(20, 28, 42, .08);
+}
+.ipad-edition__capsule a, .ipad-edition__capsule button {
+  padding: 10px 18px; border: 0; border-radius: 999px; background: transparent;
+  color: var(--ipad-muted); font-size: 14px; font-weight: 650; white-space: nowrap;
+}
+.ipad-edition__capsule a:hover { color: var(--ipad-text); background: rgba(128, 140, 160, .12); }
+.ipad-edition__top-actions { position: absolute; right: 0; display: flex; gap: 18px; color: var(--ipad-muted); font-size: 14px; }
+.ipad-edition__top-actions button { border: 0; background: transparent; color: inherit; }
+.ipad-edition__menu { display: none; }
+.ipad-edition__backdrop { display: none; }
+.ipad-edition__hero {
+  min-height: 392px; margin: 0 28px 34px; padding: 34px;
+  display: flex; align-items: flex-end; overflow: hidden; position: relative;
+  border: 1px solid var(--ipad-line); border-radius: 28px;
+  background: linear-gradient(90deg, rgba(13, 17, 25, .78), rgba(13, 17, 25, .18) 72%), linear-gradient(135deg, #26364d, #52647a 48%, #1d2634);
+  color: #fff; box-shadow: 0 22px 60px rgba(18, 28, 45, .16);
+}
+.ipad-edition__hero-copy { max-width: 500px; }
+.ipad-edition__eyebrow { margin: 0 0 12px; font-size: 11px; font-weight: 750; letter-spacing: .16em; opacity: .72; }
+.ipad-edition__hero h1 { margin: 0 0 12px; font-size: 40px; line-height: 1.12; font-weight: 780; letter-spacing: -.04em; }
+.ipad-edition__hero-copy > p:not(.ipad-edition__eyebrow) { margin: 0 0 14px; color: rgba(255,255,255,.82); font-size: 16px; }
+.ipad-edition__foundation-note { display: inline-block; color: rgba(255,255,255,.68); font-size: 12px; }
+.ipad-edition__content { padding: 0 28px; }
+.ipad-edition__section-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 18px; }
+.ipad-edition__section-heading .ipad-edition__eyebrow { color: var(--ipad-muted); }
+.ipad-edition__section-heading h2 { margin: 0; font-size: 25px; letter-spacing: -.03em; }
+.ipad-edition__section-heading > span { color: var(--ipad-muted); font-size: 12px; }
+.ipad-edition__empty-state {
+  min-height: 180px; display: grid; justify-items: center; align-content: center; gap: 8px;
+  border: 1px dashed var(--ipad-line); border-radius: 22px; text-align: center; background: var(--ipad-surface);
+}
+.ipad-edition__empty-mark { color: var(--ipad-accent); font-size: 24px; }
+.ipad-edition__empty-state h3 { margin: 0; font-size: 16px; }
+.ipad-edition__empty-state p { max-width: 540px; margin: 0; padding: 0 20px; color: var(--ipad-muted); font-size: 13px; line-height: 1.6; }
+@media (min-width: 700px) and (max-width: 1023px) {
+  .ipad-edition { padding-left: 20px; }
+  .ipad-edition__sidebar { display: none; inset: 0 auto 0 0; box-shadow: 20px 0 70px rgba(0,0,0,.18); }
+  .ipad-edition__sidebar.is-open { display: flex; }
+  .ipad-edition__menu { display: inline-flex; position: absolute; left: 0; width: 44px; height: 44px; align-items: center; justify-content: center; border: 1px solid var(--ipad-line); border-radius: 50%; background: var(--ipad-surface); }
+  .ipad-edition__backdrop { display: block; position: fixed; z-index: 35; inset: 0; border: 0; background: rgba(0,0,0,.28); }
+  .ipad-edition__hero { margin-inline: 12px; }
+  .ipad-edition__content { padding-inline: 12px; }
+}
