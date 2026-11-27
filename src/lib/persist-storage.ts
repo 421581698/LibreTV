@@ -65,10 +65,18 @@ export function createThrottledStorage(): StateStorage {
       if (!timer) timer = setTimeout(flush, THROTTLE_MS);
     },
     removeItem: (name) => {
+      // A pending throttled write must never resurrect a removed key.
+      if (pending?.[0] === name) {
+        pending = null;
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      }
       try {
         localStorage.removeItem(name);
       } catch {
-        // 忽略
+        // Storage may be unavailable; do not schedule a stale write.
       }
     },
   };
