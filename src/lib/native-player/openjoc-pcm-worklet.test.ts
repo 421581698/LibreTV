@@ -11,7 +11,7 @@ type Processor = {
 };
 
 function setup() {
-  let create: (() => Processor) | undefined;
+  const registered: { create?: () => Processor } = {};
   const events: Array<{ type: string; frames?: number }> = [];
   class AudioWorkletProcessorStub {
     port = { onmessage: undefined as ((event: { data: unknown }) => void) | undefined,
@@ -20,10 +20,11 @@ function setup() {
   const source = readFileSync('public/audio/openjoc-pcm.worklet.js', 'utf8');
   runInNewContext(source, {
     AudioWorkletProcessor: AudioWorkletProcessorStub,
-    registerProcessor: (_name: string, ctor: new () => Processor) => { create = () => new ctor(); },
+    Float32Array,
+    registerProcessor: (_name: string, ctor: new () => Processor) => { registered.create = () => new ctor(); },
   });
-  if (!create) throw new Error('PCM worklet was not registered.');
-  const processor = create();
+  if (!registered.create) throw new Error('PCM worklet was not registered.');
+  const processor = registered.create();
   const send = (data: unknown) => processor.port.onmessage?.({ data });
   const quantum = (frames = 128) => {
     const left = new Float32Array(frames);
