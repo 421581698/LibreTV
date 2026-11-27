@@ -8,7 +8,7 @@ export function guardRequest(req: Request): NextResponse | null {
   if (!isPasswordConfigured()) {
     return NextResponse.json(
       { error: '服务器未设置 PASSWORD 环境变量' },
-      { status: 503 }
+      { status: 503, headers: { 'X-LibreTV-Auth-Setup': 'required', 'Cache-Control': 'no-store' } }
     );
   }
   if (!sessionFromCookieHeader(req.headers.get('cookie'))) {
