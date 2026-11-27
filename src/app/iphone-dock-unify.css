@@ -149,3 +149,16 @@
     backdrop-filter: none !important;
   }
 }
+
+
+/* Cinema V2.3 full-bleed player owns the entire mobile viewport.
+   The global app dock must not cover the video or the playback information panel. */
+@media (max-width: 700px) {
+  html body:has(.netflix-watch-shell) > nav.v4-mobile-tabbar {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
+/* Mobile cinema dock visibility regression is covered by the V2.3 Preview viewport smoke. */

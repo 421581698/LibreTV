@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/cinema-engine-v2-3-integration
+      - feature/dolby-immersive-audio-v4-2026-11-25
     paths:
       - ".github/workflows/deploy-cinema-v23-preview.yml"
       - "wrangler.cinema-v23-preview.toml"

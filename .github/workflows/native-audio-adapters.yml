@@ -1,0 +1,80 @@
+name: Native Audio Adapter Verification
+
+on:
+  push:
+    branches:
+      - feature/dolby-immersive-audio-v4-2026-11-25
+    paths:
+      - "native/ios/**"
+      - "native/android/**"
+      - ".github/workflows/native-audio-adapters.yml"
+  pull_request:
+    paths:
+      - "native/ios/**"
+      - "native/android/**"
+      - ".github/workflows/native-audio-adapters.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-audio-adapters-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-package:
+    name: iOS adapter Swift package tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Swift package tests
+        run: swift test --package-path native/ios
+
+  android-library:
+    name: Android adapter library build and unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Build adapter and run unit tests
+        run: gradle -p native/android :libretv-audio-adapter:assembleDebug :libretv-audio-adapter:testDebugUnitTest
+
+  openjoc-wasm-candidate:
+    name: Pinned OpenJOC JOC decoder candidate tests and WASM builds
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: chyinan/OpenJOC
+          ref: v0.20.2
+          path: openjoc-src
+      - name: Install Rust and WebAssembly target
+        run: |
+          rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+          rustup default stable
+      - name: Run upstream WASM bridge tests
+        working-directory: openjoc-src
+        run: cargo test -p openjoc-wasm --locked
+      - name: Build embedded-HRTF WASM candidate
+        working-directory: openjoc-src
+        run: |
+          cargo build -p openjoc-wasm --release --locked --target wasm32-unknown-unknown
+          mkdir -p "$RUNNER_TEMP/openjoc-artifacts"
+          cp target/wasm32-unknown-unknown/release/openjoc_wasm.wasm "$RUNNER_TEMP/openjoc-artifacts/openjoc-wasm-v0.20.2-embedded.wasm"
+      - name: Build external-HRTF WASM candidate
+        working-directory: openjoc-src
+        run: |
+          cargo build -p openjoc-wasm --release --locked --target wasm32-unknown-unknown --no-default-features --features external-builtin-hrtf-assets
+          cp target/wasm32-unknown-unknown/release/openjoc_wasm.wasm "$RUNNER_TEMP/openjoc-artifacts/openjoc-wasm-v0.20.2-external-hrtf.wasm"
+          sha256sum "$RUNNER_TEMP"/openjoc-artifacts/*.wasm
+      - name: Upload decoder-candidate build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openjoc-wasm-candidate-v0.20.2
+          path: ${{ runner.temp }}/openjoc-artifacts/*.wasm

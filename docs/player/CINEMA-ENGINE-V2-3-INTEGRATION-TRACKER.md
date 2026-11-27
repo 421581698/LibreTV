@@ -114,3 +114,15 @@ See [CINEMA-ENGINE-V2-3-DEVICE-ACCEPTANCE.md](./CINEMA-ENGINE-V2-3-DEVICE-ACCEPT
 - Code commits: `5073d5305c7bb23efc6b13cdb3e19a370e6537ef` (CSS) and `a1cdbf054c8f438518fd1febfd459839b9b2f35c` (acceptance assertion).
 - The earlier Preview run `44897743436` passed its existing mobile emulation but did not assert dock visibility; its screenshots exposed this missed condition. The strengthened test must run on the new exact head before the fix is considered accepted.
 - Physical iPhone/iPad Safari acceptance remains a separate required gate.
+
+
+## Dolby Immersive Audio Engine 4.0 stacked upgrade (2026-11-25)
+
+- Stacked Draft PR #120 adds the browser audio capability inventory, evidence-based output classification, PlayerShell diagnostics and fail-open handling on top of this V2.3 integration branch.
+- Latest Dolby branch: feature/dolby-immersive-audio-v4-2026-11-25. The base integration branch and main remain unchanged.
+- The previous exact head 8f531c8242af0c3a3c47629ba8ad84fbfce77065 passed prelaunch-checks and Resource Playback Verification. Subsequent fail-open hardening and regression-test commits require exact-head CI again.
+- The isolated Preview workflow is gated by a commit message containing [cinema-v2.3-preview]. This tracker update is intentionally marked to trigger the isolated Preview build and browser/mobile-emulation smoke tests on the current head.
+- Preview workflow completion, Playwright browser acceptance and physical-device acceptance must be recorded separately; a successful CI run does not establish Dolby Atmos output.
+- The web repository has no native iOS/Xcode or Android/Gradle target. The future native adapter contract is documented in DOLBY-IMMERSIVE-AUDIO-ENGINE-V4.md and NATIVE-DOLBY-ADAPTER-CONTRACT.md; native builds and device evidence remain external gates.
+- No E-AC-3 JOC decoder/object renderer is shipped. JOC metadata, HRTF processing, native Spatializer availability and verified Dolby output remain separate states.
+- PR #120 remains Draft. No merge to main or production deployment is authorized by this change.

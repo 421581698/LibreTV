@@ -10,6 +10,7 @@ on:
       - feature/hls-playback-regression-suite-2026-11-13
       - feature/cinema-engine-v2-3-architecture
       - feature/cinema-engine-v2-3-integration
+      - feature/dolby-immersive-audio-v4-2026-11-25
   pull_request:
     branches:
       - main

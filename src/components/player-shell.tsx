@@ -13,10 +13,15 @@ import { DEFAULT_SUBTITLE_PREFERENCES, loadSubtitlePreferences, saveSubtitlePref
 import { applySubtitleTrack, listSubtitleTracks, type SubtitleTrackOption } from '@/lib/native-player/subtitle-track-controller';
 import { inspectHlsAudioTrack } from '@/lib/audio-inspector';
 import { isAudioSourceUrlOriginSafe, SpatialAudioEngine, type SpatialAudioMode } from '@/lib/spatial-audio';
+import { classifyAudioVerification, createBrowserAudioEvidence, inspectBrowserAudioFeatures } from '@/lib/dolby-audio-capabilities';
 import { createAssSubtitleRenderer, type AssSubtitleRenderer } from '@/lib/native-player/jassub-renderer';
 import { applyNativeSubtitleStyle, clearNativeSubtitleStyle } from '@/lib/native-player/subtitle-style';
 import { sanitizePlaybackSnapshot } from '@/lib/native-player/snapshot-sanitizer';
 import { hasSustainedPlaybackProgress } from '@/lib/playback-verification';
+import { parseFmp4InitSegment } from '@/lib/native-player/fmp4-fragment-parser';
+import { JocCmafPacketExtractor, mapJocPresentationTimeToMediaSamples } from '@/lib/native-player/joc-cmaf-packets';
+import { HlsJocFragmentTap } from '@/lib/native-player/hls-joc-fragment-tap';
+import { JocSoftwareDecoderClient } from '@/lib/native-player/joc-software-decoder-client';
 
 import { PlaybackRecovery, describeHlsError } from '@/lib/playback-recovery';
 import { createHlsLoader } from '@/lib/hls-loader';
@@ -240,6 +245,8 @@ export function PlayerShell({
   const [spatialAudioPanelOpen, setSpatialAudioPanelOpen] = useState(false);
   const [spatialAudioMode, setSpatialAudioMode] = useState<SpatialAudioMode>('off');
   const [spatialAudioMessage, setSpatialAudioMessage] = useState('空间音频默认关闭，不改变原始音轨。');
+  const [spatialAudioVerificationMessage, setSpatialAudioVerificationMessage] = useState('Dolby 原生输出与 JOC 对象解码尚未验证。');
+  const [browserAudioFeatureMessage, setBrowserAudioFeatureMessage] = useState('浏览器音频 API 检测待运行。');
   const [availableQualityHeights, setAvailableQualityHeights] = useState<number[]>([]);
   const [availableQualityLevelCount, setAvailableQualityLevelCount] = useState(0);
   const [qualityMetadataComplete, setQualityMetadataComplete] = useState(false);
@@ -258,6 +265,16 @@ export function PlayerShell({
 
   useEffect(() => {
     setQualityPreference(readQualityPreference());
+    const features = inspectBrowserAudioFeatures();
+    const featureNames = [
+      features.webAudio && 'Web Audio',
+      features.mediaElementSource && 'MediaElementSource',
+      features.hrtfPanner && 'HRTF Panner',
+      features.audioWorklet && 'AudioWorklet',
+      features.mediaCapabilitiesApi && 'MediaCapabilities API',
+      features.webCodecsAudioDecoderApi && 'WebCodecs AudioDecoder API',
+    ].filter(Boolean);
+    setBrowserAudioFeatureMessage(`浏览器 API：${featureNames.length ? featureNames.join(' · ') : '未检测到可用音频 API'}。API 存在不代表 Dolby 解码或系统输出已启用。`);
   }, []);
 
   useEffect(() => {
@@ -624,6 +641,7 @@ export function PlayerShell({
   const setSpatialAudio = async (mode: SpatialAudioMode) => {
     const video = artRef.current?.video as HTMLVideoElement | undefined;
     if (!video) return;
+    let selectedTrackInfo: ReturnType<typeof inspectHlsAudioTrack> | null = null;
     try {
       let engine = spatialAudioEngineRef.current;
       if (mode !== 'off') {
@@ -631,14 +649,20 @@ export function PlayerShell({
         const tracks = hls?.audioTracks ?? [];
         const selectedTrack = tracks[hls?.audioTrack ?? -1] ?? tracks.find(track => track.default) ?? tracks[0];
         if (!selectedTrack) {
-          engine?.updateInputChannels(0, 'unknown');
+          engine?.disable();
+          setSpatialAudioMode('off');
           setSpatialAudioMessage('当前播放路径没有可读取的 HLS 声道元数据；为避免猜测声道，保持原始音轨。');
+          setSpatialAudioVerificationMessage('音频输出状态未知：当前播放路径未提供可验证的音轨元数据。');
           return;
         }
         const info = inspectHlsAudioTrack(selectedTrack);
+        selectedTrackInfo = info;
         if (info.channelCount !== 2 && info.channelCount !== 6) {
-          engine?.updateInputChannels(info.channelCount ?? 0, 'unknown');
+          engine?.disable();
+          setSpatialAudioMode('off');
           setSpatialAudioMessage('当前音轨没有明确的 2 声道或 6 声道声明，空间音频不可用。');
+          const verification = classifyAudioVerification(createBrowserAudioEvidence({ codec: info.codec, inputChannels: info.channelCount, hasJocMarker: info.hasJocMarker }));
+          setSpatialAudioVerificationMessage(`${verification.label}：${verification.detail}`);
           return;
         }
         if (!engine) {
@@ -653,16 +677,26 @@ export function PlayerShell({
       }
       if (!engine) {
         setSpatialAudioMode('off');
+        setSpatialAudioVerificationMessage('音频输出状态未知：没有创建空间音频处理引擎。');
         return;
       }
       if (mode !== 'off') await engine.resumeFromUserGesture();
       const plan = mode === 'off'
-        ? (engine.disable(), { label: '原始音轨', reason: '空间处理已关闭' })
+        ? (engine.disable(), { route: 'bypass' as const, label: '原始音轨', reason: '空间处理已关闭' })
         : engine.setMode(mode);
       setSpatialAudioMode(mode);
       setSpatialAudioMessage(`${plan.label}：${plan.reason}`);
+      const verification = classifyAudioVerification(createBrowserAudioEvidence({
+        codec: selectedTrackInfo?.codec,
+        inputChannels: selectedTrackInfo?.channelCount,
+        hasJocMarker: selectedTrackInfo?.hasJocMarker,
+        binauralProcessing: plan.route !== 'bypass' ? 'configured' : 'not-configured',
+      }));
+      setSpatialAudioVerificationMessage(`${verification.label}：${verification.detail}`);
     } catch (error) {
+      spatialAudioEngineRef.current?.disable();
       setSpatialAudioMessage(error instanceof Error ? error.message : '空间音频初始化失败，已保持原始播放。');
+      setSpatialAudioVerificationMessage('音频输出状态未知：处理链初始化失败，已回退。');
       setSpatialAudioMode('off');
     }
   };
@@ -680,9 +714,10 @@ export function PlayerShell({
   const resetSpatialAudioForUninspectedSource = () => {
     const engine = spatialAudioEngineRef.current;
     if (engine) {
-      const plan = engine.updateInputChannels(0, 'unknown');
-      setSpatialAudioMessage(plan.reason);
+      engine.disable();
+      setSpatialAudioMessage('当前媒体源尚未提供可验证的音轨信息；空间处理已关闭，保持原始播放。');
     }
+    setSpatialAudioVerificationMessage('音频输出状态未知：当前媒体源尚未提供可验证的音轨信息。');
     setSpatialAudioMode('off');
   };
 
@@ -1047,6 +1082,203 @@ export function PlayerShell({
     const hls = new Hls(buildHlsConfig());
     hlsRef.current = hls;
     setQualityControlMode('hls');
+
+    // Explicit diagnostics opt-in only. This read-only tap observes hls.js's
+    // already-loaded CMAF payloads; it does not replace the loader or MSE path.
+    const jocParams = new URLSearchParams(window.location.search);
+    const jocOutputEnabled = jocParams.get('jocOutput') === '1';
+    const jocDecodeEnabled = jocOutputEnabled || jocParams.get('jocDecode') === '1';
+    const jocTapEnabled = jocParams.get('jocTap') === '1' || jocDecodeEnabled;
+    if (jocTapEnabled) {
+      let jocExtractor: JocCmafPacketExtractor | null = null;
+      let jocTrackId: number | null = null;
+      let decoderClient: JocSoftwareDecoderClient | null = null;
+      let decoderInit: Promise<JocSoftwareDecoderClient> | null = null;
+      let decodeQueue: Promise<void> = Promise.resolve();
+      let decodeFailed = false;
+      let decodeGeneration = 0;
+
+      const emitJocEvent = (type: string, detail: Record<string, unknown> = {}) => {
+        window.dispatchEvent(new CustomEvent('libretv-joc-cmaf-tap', { detail: { type, ...detail } }));
+      };
+
+      const ensureDecoder = (): Promise<JocSoftwareDecoderClient> => {
+        if (!decoderInit) {
+          decoderInit = JocSoftwareDecoderClient.create({ outputEnabled: jocOutputEnabled }).then(client => {
+            decoderClient = client;
+            client.onStatus(status => emitJocEvent('software-decoder-status', status as unknown as Record<string, unknown>));
+            client.onError(error => {
+              decodeFailed = true;
+              client.fallbackToMediaAudio();
+              emitJocEvent('software-decoder-error', { reason: error.message });
+            });
+            return client;
+          });
+        }
+        return decoderInit;
+      };
+
+      const queueDecoderReset = (reason: string) => {
+        decodeGeneration += 1;
+        decoderClient?.fallbackToMediaAudio();
+        decodeQueue = decodeQueue.then(async () => {
+          if (decoderClient) await decoderClient.reset();
+        }).catch(error => emitJocEvent('software-decoder-error', {
+          reason: error instanceof Error ? error.message : `Decoder reset failed: ${reason}.`,
+        }));
+      };
+
+      const onOutputGesture = () => {
+        if (!jocOutputEnabled || !decoderClient || decoderClient.isOutputActive || decoderClient.isActivationPending || !video || video.paused || video.ended) return;
+        decoderClient.setMediaClock(video.currentTime * 48000);
+        void decoderClient.activateOutput(video).then(active => {
+          if (!active) emitJocEvent('software-output-not-ready', {
+            reason: 'Need at least 128 ms of timestamped PCM and a running AudioContext; native audio remains active.',
+            queuedFrames: decoderClient?.getStatus().queuedFrames ?? 0,
+          });
+        });
+      };
+
+      const onVideoPause = () => decoderClient?.pauseOutput();
+      const onVideoVolumeChange = () => decoderClient?.updateOutputVolume(video.volume);
+      const onVideoPlay = () => decoderClient?.resumeOutput();
+      const onVideoSeeking = () => {
+        jocExtractor?.resetTimeline();
+        queueDecoderReset('seek');
+      };
+      const onVideoRateChange = () => {
+        if (video.playbackRate !== 1) {
+          decodeFailed = true;
+          queueDecoderReset('unsupported-playback-rate');
+          emitJocEvent('software-output-disabled', { reason: 'Software JOC output currently requires 1x playback speed.' });
+        }
+      };
+      const onVideoEnded = () => decoderClient?.fallbackToMediaAudio();
+
+      if (jocOutputEnabled) {
+        containerRef.current?.addEventListener('pointerdown', onOutputGesture, true);
+      }
+      video.addEventListener('pause', onVideoPause);
+      video.addEventListener('volumechange', onVideoVolumeChange);
+      video.addEventListener('play', onVideoPlay);
+      video.addEventListener('seeking', onVideoSeeking);
+      video.addEventListener('ratechange', onVideoRateChange);
+      video.addEventListener('ended', onVideoEnded);
+
+      const jocTap = new HlsJocFragmentTap({
+        isCurrent: () => hlsRef.current === hls,
+        onRejected: (reason) => emitJocEvent('rejected', { reason }),
+        onFragment: (fragment) => {
+          try {
+            if (fragment.kind === 'init') {
+              const init = parseFmp4InitSegment(fragment.bytes);
+              const audioTrack = init.tracks.find(track =>
+                track.handlerType === 'soun' && track.sampleEntries.includes('ec-3')
+              );
+              if (!audioTrack) {
+                if (jocExtractor || jocTrackId !== null) queueDecoderReset('E-AC-3 track removed');
+                jocExtractor = null;
+                jocTrackId = null;
+                return;
+              }
+              if (jocExtractor && jocTrackId === audioTrack.trackId) {
+                const updated = jocExtractor.updateInitSegment(fragment.bytes);
+                if (updated.changed) queueDecoderReset('CMAF initialization segment changed');
+              } else {
+                if (jocExtractor || jocTrackId !== null) queueDecoderReset('E-AC-3 track identity changed');
+                const extractor = new JocCmafPacketExtractor(audioTrack.trackId);
+                extractor.updateInitSegment(fragment.bytes);
+                jocExtractor = extractor;
+                jocTrackId = audioTrack.trackId;
+              }
+              emitJocEvent('eac3-init', { trackId: audioTrack.trackId, timescale: audioTrack.timescale });
+              return;
+            }
+            if (!jocExtractor) return;
+            const result = jocExtractor.extractMediaSegment(fragment.bytes);
+            emitJocEvent('eac3-samples-extracted', {
+              trackId: result.trackId,
+              packetCount: result.packets.length,
+              totalPayloadBytes: result.totalPayloadBytes,
+              discontinuityCount: result.discontinuities.length,
+              codecHint: result.codecHint,
+            });
+
+            if (!jocDecodeEnabled || decodeFailed || result.packets.length === 0) return;
+            if (fragment.start === null) {
+              emitJocEvent('rejected', { reason: 'HLS fragment media start is unavailable; timestamp mapping is not safe.' });
+              return;
+            }
+
+            // Map CMAF track PTS onto hls.js media time using the fragment start
+            // as an anchor. Do not compare raw track ticks with video.currentTime.
+            const firstPts = result.packets[0].presentationTime;
+            const packetGeneration = decodeGeneration;
+            decodeQueue = decodeQueue.then(async () => {
+              if (decodeFailed || hlsRef.current !== hls || packetGeneration !== decodeGeneration) return;
+              const client = await ensureDecoder();
+              if (result.discontinuities.length > 0) {
+                // Discontinuity records do not identify a precise sample offset.
+                // Reset and skip this segment rather than guessing packet order.
+                client.fallbackToMediaAudio();
+                await client.reset();
+                emitJocEvent('timeline-discontinuity-reset', {
+                  count: result.discontinuities.length,
+                  skippedPackets: result.packets.length,
+                });
+                return;
+              }
+              for (let index = 0; index < result.packets.length; index += 1) {
+                if (packetGeneration !== decodeGeneration) return;
+                const packet = result.packets[index];
+                const mappedPts = mapJocPresentationTimeToMediaSamples(
+                  packet.presentationTime,
+                  packet.timescale,
+                  fragment.start!,
+                  firstPts,
+                );
+                const accepted = await client.pushPacket({
+                  bytes: packet.bytes,
+                  presentationTime: mappedPts,
+                  timescale: 48000,
+                  discontinuity: false,
+                });
+                if (!accepted) throw new Error('OpenJOC PCM backpressure did not clear before the next CMAF sample.');
+              }
+            }).catch(error => {
+              decodeFailed = true;
+              decoderClient?.fallbackToMediaAudio();
+              emitJocEvent('software-decoder-error', {
+                reason: error instanceof Error ? error.message : 'OpenJOC CMAF decode queue failed.',
+              });
+            });
+          } catch (error) {
+            jocExtractor = null;
+            emitJocEvent('rejected', {
+              reason: error instanceof Error ? error.message : 'CMAF extraction failed.',
+            });
+          }
+        },
+      });
+      hls.on(Hls.Events.FRAG_LOADED, jocTap.handle);
+      const disposeJocTap = () => {
+        jocTap.dispose();
+        hls.off(Hls.Events.FRAG_LOADED, jocTap.handle);
+        containerRef.current?.removeEventListener('pointerdown', onOutputGesture, true);
+        decodeGeneration += 1;
+        video.removeEventListener('pause', onVideoPause);
+        video.removeEventListener('volumechange', onVideoVolumeChange);
+        video.removeEventListener('play', onVideoPlay);
+        video.removeEventListener('seeking', onVideoSeeking);
+        video.removeEventListener('ratechange', onVideoRateChange);
+        video.removeEventListener('ended', onVideoEnded);
+        decoderClient?.dispose();
+        decoderClient = null;
+        jocExtractor = null;
+        jocTrackId = null;
+      };
+      hls.on(Hls.Events.DESTROYING, disposeJocTap);
+    }
     const handleQualityPreferenceChange = () => {
       qualityGuardRef.current.reset();
       const preference = readQualityPreference();
@@ -2078,6 +2310,8 @@ export function PlayerShell({
               ))}
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-white/60">{spatialAudioMessage}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/60">{spatialAudioVerificationMessage}</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-white/45">{browserAudioFeatureMessage}</p>
             <p className="mt-1 text-[10px] text-white/45">仅在音轨明确声明声道数且 CORS 安全时启用；不代表 Atmos 对象解码。</p>
           </div>
         )}

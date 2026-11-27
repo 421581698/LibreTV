@@ -1,3 +1,5 @@
+import { parseEc3SpecificBox, type Ec3SpecificConfig } from './joc-dec3-config';
+
 /**
  * ISO BMFF fragmented-media metadata parser.
  *
@@ -219,6 +221,10 @@ export interface Fmp4TrackMetadata {
   readonly defaultSampleDuration: number | null;
   readonly defaultSampleSize: number | null;
   readonly defaultSampleFlags: number | null;
+  /** Audio sample-entry clock, when the selected entry is a version-0 ec-3 entry. */
+  readonly sampleRate: number | null;
+  /** Parsed dec3 metadata for the default sample description; null when absent. */
+  readonly decoderConfig: Ec3SpecificConfig | null;
 }
 
 export interface Fmp4InitSegment {
@@ -317,16 +323,34 @@ export function parseFmp4InitSegment(input: ArrayBuffer | Uint8Array): Fmp4InitS
     const stblChildren = stbl ? readBoxes(bytes, view, stbl.payload, stbl.end) : [];
     const stsd = stblChildren.find(box => box.type === 'stsd');
     let sampleEntries: string[] = [];
+    let entryBoxes: Box[] = [];
     if (stsd) {
       if (stsd.payload + 8 > stsd.end) throw new Error('Truncated stsd box.');
       const entryCount = u32(view, stsd.payload + 4);
-      const entries = readBoxes(bytes, view, stsd.payload + 8, stsd.end);
-      if (entries.length !== entryCount) throw new Error('stsd entry count does not match its box contents.');
-      sampleEntries = entries.map(entry => entry.type);
+      entryBoxes = readBoxes(bytes, view, stsd.payload + 8, stsd.end);
+      if (entryBoxes.length !== entryCount) throw new Error('stsd entry count does not match its box contents.');
+      sampleEntries = entryBoxes.map(entry => entry.type);
     }
     const defaults = trexDefaults.get(trackId);
     const sampleDescriptionIndex = defaults?.descriptionIndex ?? 1;
-    const sampleEntry = sampleEntries[sampleDescriptionIndex - 1] ?? null;
+    const selectedEntry = entryBoxes[sampleDescriptionIndex - 1] ?? null;
+    const sampleEntry = selectedEntry?.type ?? null;
+    let sampleRate: number | null = null;
+    let decoderConfig: Ec3SpecificConfig | null = null;
+    if (selectedEntry?.type === 'ec-3') {
+      // ISO/IEC 14496-12 AudioSampleEntry v0 has a 28-byte fixed payload.
+      if (selectedEntry.payload + 28 > selectedEntry.end) throw new Error('Truncated ec-3 AudioSampleEntry.');
+      const version = view.getUint16(selectedEntry.payload + 8, false);
+      if (version !== 0) throw new Error(`Unsupported ec-3 AudioSampleEntry version ${version}.`);
+      const sampleRateFixed = u32(view, selectedEntry.payload + 24);
+      sampleRate = sampleRateFixed / 65_536;
+      const children = readBoxes(bytes, view, selectedEntry.payload + 28, selectedEntry.end);
+      const dec3Boxes = children.filter(child => child.type === 'dec3');
+      if (dec3Boxes.length > 1) throw new Error('ec-3 AudioSampleEntry contains duplicate dec3 boxes.');
+      if (dec3Boxes[0]) {
+        decoderConfig = parseEc3SpecificBox(bytes.subarray(dec3Boxes[0].start, dec3Boxes[0].end));
+      }
+    }
     tracks.push({
       trackId,
       timescale: parseTimescale(view, mdhd),
@@ -337,6 +361,8 @@ export function parseFmp4InitSegment(input: ArrayBuffer | Uint8Array): Fmp4InitS
       defaultSampleDuration: defaults?.duration ?? null,
       defaultSampleSize: defaults?.size ?? null,
       defaultSampleFlags: defaults?.flags ?? null,
+      sampleRate,
+      decoderConfig,
     });
   }
   if (tracks.length === 0) throw new Error('fMP4 initialization segment contains no tracks.');
