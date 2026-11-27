@@ -43,6 +43,12 @@ export async function cinemaWaitForPresentation(
     const delta=ptsUs-currentUs;
     if(delta<-120000)return 'late';
     if(clock.playing() && delta<=30000&&delta>=-120000)return 'ready';
+    // Pauses can last minutes or hours. Do not count paused wall time against
+    // the rendering synchronization deadline; wait for playback to resume.
+    if(!clock.playing()) {
+      await pause(40);
+      continue;
+    }
     if(now()-start>=2600)return 'expired';
     await pause(delta>50000?16:8);
   }
