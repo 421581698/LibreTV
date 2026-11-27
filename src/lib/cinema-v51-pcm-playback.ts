@@ -96,7 +96,6 @@ export async function createCinemaAuthorizedPcmSoundSession(
   let nativeMuteGuard=false;
   let pendingNativeVolumeCheck=false;
   let earliestScheduledAt=Infinity;
-  let pendingFrameCount=0;
   let pcmAudibleReady=false;
   let lastDecodedAt=performance.now();
   let measuredRms=.10;
@@ -245,8 +244,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
         scheduled.add(node);
         node.start(when);
         scheduledSamples+=frame.frames;
-        pendingFrameCount++;
-        node.onended=()=>{scheduled.delete(node);pendingFrameCount=Math.max(0,pendingFrameCount-1);};
+        node.onended=()=>scheduled.delete(node);
         const durationSeconds=frame.frames/frame.sampleRate;
         scheduledThroughSeconds=Math.max(scheduledThroughSeconds,
           (frame.ptsUs-source.presentationOffsetUs)/1e6+durationSeconds);
