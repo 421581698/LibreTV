@@ -232,10 +232,11 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
         ? rawMapping as Record<string, unknown> : null;
       // The server authenticated the parser signature. The UI independently
       // guards the displayed asset identity; no render-success flag follows.
-      const mapped = mapping?.sourceMediaSha256 === data.assembledSha256 &&
+      const mapped = Boolean(mapping &&
+        mapping.sourceMediaSha256 === data.assembledSha256 &&
         typeof mapping.mappingSha256 === 'string' && /^[a-f0-9]{64}$/.test(mapping.mappingSha256) &&
         mapping.playerRpuApplication === 'not-verified' &&
-        mapping.frameCount === evidence.frameCount;
+        mapping.frameCount === evidence.frameCount);
       if (!controller.signal.aborted) {
         setHlsEvidence({
           resourceId: sourceIdentity,
@@ -244,8 +245,8 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
           frameCount: Number(evidence.frameCount),
           metadataLevels: evidence.metadataLevels as number[],
           graphSha256: graph.graphSha256,
-          registeredFrameMappingSha256: mapped ? String(mapping.mappingSha256) : null,
-          mappedFrameCount: mapped ? Number(mapping.frameCount) : null,
+          registeredFrameMappingSha256: mapped && mapping ? String(mapping.mappingSha256) : null,
+          mappedFrameCount: mapped && mapping ? Number(mapping.frameCount) : null,
         });
         setHlsAnalysisState('idle');
       }
@@ -487,6 +488,13 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
                     <p>解析帧数：{currentHlsEvidence.frameCount.toLocaleString()}</p>
                     <p>元数据层：{currentHlsEvidence.metadataLevels.join(' / ')}</p>
                     <p>图谱 SHA-256：{currentHlsEvidence.graphSha256.slice(0, 16)}…</p>
+                    {currentHlsEvidence.registeredFrameMappingSha256 && (
+                      <>
+                        <p>登记资产逐帧 PTS ↔ RPU 映射：{currentHlsEvidence.mappedFrameCount?.toLocaleString()} 帧（签名验证）</p>
+                        <p title={currentHlsEvidence.registeredFrameMappingSha256}>逐帧映射指纹：{currentHlsEvidence.registeredFrameMappingSha256.slice(0, 16)}…</p>
+                        <p className="text-amber-100">仅证明登记的 HEVC 资产逐帧对应，不证明当前 Safari 已选中该变体、消费 RPU 或输出 HDR。</p>
+                      </>
+                    )}
                     <p className="mt-1 text-amber-100">视频时间戳连续性已通过校验；跨分片 RPU 连续性尚未验证。</p>
                   </div>
                 )}
