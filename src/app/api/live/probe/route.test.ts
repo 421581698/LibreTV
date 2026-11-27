@@ -236,11 +236,11 @@ describe('POST /api/live/probe', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
-        const headers = (init?.headers ?? {}) as Record<string, string>;
-        seen.push({ url, range: headers.Range });
+        const range = new Headers(init?.headers).get('range') ?? undefined;
+        seen.push({ url, range });
         if (url.includes('/live/master.m3u8') || url.includes('/live/media.m3u8')) {
           // 模拟严格按 Range 截断的源：一旦带 Range 就只回 2 字节
-          if (headers.Range) {
+          if (range) {
             return new Response('#E', {
               status: 206,
               headers: { 'content-type': 'application/vnd.apple.mpegurl' },
@@ -252,7 +252,7 @@ describe('POST /api/live/probe', () => {
           );
         }
         return new Response('x', {
-          status: headers.Range ? 206 : 200,
+          status: range ? 206 : 200,
           headers: { 'content-type': 'video/mp2t' },
         });
       })
