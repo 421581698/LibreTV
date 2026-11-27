@@ -155,7 +155,7 @@ async function verifyRealAac(){
       let energy=0,count=0;
       frames.forEach((frame,i)=>{
         if(frame.ptsUs!==expected[i].ptsUs||frame.sampleRate!==44100||frame.channels!==2||frame.frames!==1024)
-          throw new Error('Unexpected AAC PCM format or PTS');
+          throw new Error('Unexpected AAC PCM format or PTS: '+JSON.stringify({index:i,actual:{ptsUs:frame.ptsUs,sampleRate:frame.sampleRate,channels:frame.channels,frames:frame.frames},expected:{ptsUs:expected[i].ptsUs,sampleRate:44100,channels:2,frames:1024}}));
         for(const plane of frame.planes)for(const sample of plane){
           if(!Number.isFinite(sample))throw new Error('Non-finite AAC PCM');
           energy+=sample*sample;count++;
