@@ -40,6 +40,17 @@ describe('verified HLS Packed AAC adapter',()=>{
     expect(packets[0].ptsUs).toBe(500000);
     expect(Array.from(packets[0].data)).toEqual(Array.from(adts()));
   });
+  it('splits a real-length HLS audio segment into 8-frame chunks without losing ID3 timestamp',async()=>{
+    const first=packed(90000);
+    const data=new Uint8Array([...first,...Array.from({length:79},()=>[...adts()]).flat()]);
+    const packets=await collect(data,90000);
+    expect(packets).toHaveLength(10);
+    expect(packets[0].data.length).toBe(8*adts().length);
+    expect(packets[0].ptsUs).toBe(500000);
+    expect(packets.at(-1)?.ptsUs)
+      .toBe(500000+Math.round(72*1024*1e6/44100));
+    for(let i=1;i<packets.length;i++)expect(packets[i].ptsUs).toBeGreaterThan(packets[i-1].ptsUs);
+  });
   it('refuses edited bytes with stale content hashes before any AAC decode',async()=>{
     await expect(collect(packed(90000),90000,'f'.repeat(64))).rejects.toThrow('digest');
   });
