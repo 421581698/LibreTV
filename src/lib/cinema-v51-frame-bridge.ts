@@ -78,7 +78,9 @@ export function startCinemaV51FrameBridge(
       const job=buildJob(frame);
       if(job.decodedP010!==frame.decodedP010 ||
          (job.metadata && (job.metadata.sourceSha256.toLowerCase()!==frame.sourceSha256.toLowerCase() ||
-         job.metadata.framePtsUs!==frame.ptsUs || job.metadata.frameIndex!==frame.frameIndex))) {
+         job.metadata.framePtsUs!==frame.ptsUs || job.metadata.frameIndex!==frame.frameIndex)) ||
+         (job.rpuL1 && (job.rpuL1.sourceSha256.toLowerCase()!==frame.sourceSha256.toLowerCase() ||
+           job.rpuL1.framePtsUs!==frame.ptsUs || job.rpuL1.frameIndex!==frame.frameIndex))) {
         throw new Error('HDR metadata detached from actual decoded frame');
       }
       const result=await cinemaProcessV51Frame(job);
