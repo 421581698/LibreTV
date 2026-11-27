@@ -28,6 +28,8 @@ export function assessDolbyVisionPipeline(input: {
   signedRpuVerified: boolean;
   playback: NativePlaybackObservation;
   capability: DolbyVisionNativeCapabilityReport | null;
+  /** Server-verified exact registered HEVC sample↔RPU mapping, NOT observed player RPU consumption. */
+  registeredFrameMappingVerified?: boolean;
 }): DolbyVisionStageAssessment[] {
   const { declared, signedRpuVerified, playback, capability } = input;
   const renderedVideoFrames = playback.status === 'progress-observed' &&
@@ -59,8 +61,10 @@ export function assessDolbyVisionPipeline(input: {
     {
       id: 'per-frame-mapping',
       label: '3.3 逐帧动态元数据',
-      state: 'not-established',
-      explanation: '尚无播放器逐帧应用 RPU 的可信证据；HLS 总帧数匹配并不等于逐帧对应。',
+      state: input.registeredFrameMappingVerified && signedRpuVerified ? 'signed-evidence' : 'not-established',
+      explanation: input.registeredFrameMappingVerified && signedRpuVerified
+        ? '登记资产的逐帧 PTS↔RPU 映射已验签；尚无当前 Safari 解码或逐帧消费 RPU 的证据。'
+        : '尚无播放器逐帧应用 RPU 的可信证据；HLS 总帧数匹配并不等于逐帧对应。',
     },
     {
       id: 'dynamic-rendering',

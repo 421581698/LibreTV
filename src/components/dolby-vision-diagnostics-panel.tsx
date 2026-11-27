@@ -104,6 +104,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
   const pipelineStages = assessDolbyVisionPipeline({
     declared,
     signedRpuVerified: Boolean(currentVerifiedEvidence || currentHlsEvidence || currentHlsSegmentEvidence),
+    registeredFrameMappingVerified: Boolean(currentHlsEvidence?.registeredFrameMappingSha256),
     playback: nativePlaybackObservation,
     capability: browserCapability,
   });

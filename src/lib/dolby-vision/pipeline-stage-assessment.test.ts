@@ -41,6 +41,21 @@ describe('six-stage Dolby Vision assessment never promotes indirect evidence', (
     ]);
   });
 
+  it('recognizes signed asset mapping separately from player RPU application', () => {
+    const rows = assessDolbyVisionPipeline({
+      declared: true, signedRpuVerified: true, registeredFrameMappingVerified: true,
+      playback: emptyNativePlaybackObservation(), capability,
+    });
+    expect(rows[2].state).toBe('signed-evidence');
+    expect(rows[2].explanation).toContain('尚无当前 Safari');
+    expect(rows[3].state).toBe('not-established');
+    expect(rows[4].state).toBe('capability-hint');
+    expect(assessDolbyVisionPipeline({
+      declared: false, signedRpuVerified: false, registeredFrameMappingVerified: true,
+      playback: emptyNativePlaybackObservation(), capability: null,
+    })[2].state).toBe('not-established');
+  });
+
   it('treats presented generic frames as observation, never proof of Dolby output', () => {
     const rows = assessDolbyVisionPipeline({
       declared: true,
