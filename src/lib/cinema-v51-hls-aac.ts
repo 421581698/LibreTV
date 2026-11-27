@@ -7,6 +7,7 @@
  * The segment byte provider and 90kHz video origin must be separately trusted.
  */
 import type {CinemaPcmPacket} from './cinema-v51-pcm';
+import type {CinemaAuthorizedAacSource} from './cinema-v51-pcm-playback';
 import {cinemaDemuxAdts} from './cinema-v51-pcm';
 export interface CinemaVerifiedHlsAacSegment {
   sourceSha256:string;
@@ -118,4 +119,27 @@ export async function* cinemaVerifiedHlsAacPackets(
     lastPts=ptsUs;
     yield packet;
   }
+}
+
+/**
+ * Connect an independently verified clear HLS Packed-AAC rendition to the
+ * same PCM/DSP/HRTF engine as other authorized AAC assets. The exact
+ * audio-to-video microsecond offset must be provided by the media timeline
+ * authority, not inferred from a playlist fetch or the current playhead.
+ */
+export function cinemaAuthorizedHlsAacSource(
+  track:CinemaVerifiedHlsAacTrack,presentationOffsetUs:number,
+):CinemaAuthorizedAacSource {
+  if(!HEX.test(track.sourceSha256)||
+     track.sourceSha256.toLowerCase()!==track.expectedSourceSha256.toLowerCase()||
+     !Number.isSafeInteger(presentationOffsetUs)||
+     !Number.isSafeInteger(track.origin90k)||track.origin90k<0||track.origin90k>=2**33||
+     !Number.isSafeInteger(track.mediaOriginUs)||track.mediaOriginUs<0)
+    throw new Error('Missing authenticated HLS AAC media identity or A/V time origin');
+  return {
+    sourceSha256:track.sourceSha256,
+    expectedSourceSha256:track.expectedSourceSha256,
+    presentationOffsetUs,
+    packets:cinemaVerifiedHlsAacPackets(track),
+  };
 }
