@@ -41,8 +41,8 @@ const request=(assetId:string,range?:string)=>new Request(
  {headers:range?{Range:range}:{}});
 beforeEach(()=>{
  vi.mocked(isAuthDisabled).mockReturnValue(false);
- vi.mocked(fetchDolbyVisionHlsGraph).mockResolvedValue(NextResponse.json(graph));
- vi.mocked(fetchDolbyVisionRegistryAsset).mockResolvedValue(upstream(root,master));
+ vi.mocked(fetchDolbyVisionHlsGraph).mockImplementation(async () => NextResponse.json(graph));
+ vi.mocked(fetchDolbyVisionRegistryAsset).mockImplementation(async () => upstream(root,master));
 });
 afterEach(()=>vi.clearAllMocks());
 describe('authenticated immutable HLS playback gateway',()=>{
