@@ -51,7 +51,7 @@ function throwForAuthStatus(res: Response): void {
     window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
     throw new ApiError('需要登录', 401);
   }
-  if (res.status === 503) {
+  if (res.status === 503 && res.headers.get('X-LibreTV-Auth-Setup') === 'required') {
     window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT, { detail: 'setup' }));
     throw new ApiError('服务器未配置密码', 503);
   }
@@ -66,11 +66,14 @@ async function consumeNdjson<T>(res: Response, onEvent: (event: T) => void): Pro
   const consume = (line: string) => {
     const text = line.trim();
     if (!text) return;
+    let event: T;
     try {
-      onEvent(JSON.parse(text) as T);
+      event = JSON.parse(text) as T;
     } catch {
-      // 坏行跳过，不影响其余结果
+      // Invalid JSON is not an application callback failure.
+      return;
     }
+    onEvent(event);
   };
   for (;;) {
     const { done, value } = await reader.read();
@@ -78,9 +81,12 @@ async function consumeNdjson<T>(res: Response, onEvent: (event: T) => void): Pro
     buffer += decoder.decode(value, { stream: true });
     let idx: number;
     while ((idx = buffer.indexOf('\n')) >= 0) {
-      consume(buffer.slice(0, idx));
+      const line = buffer.slice(0, idx);
+      if (line.length > 1024 * 1024) throw new ApiError('流式响应单行超过 1MB', res.status);
+      consume(line);
       buffer = buffer.slice(idx + 1);
     }
+    if (buffer.length > 1024 * 1024) throw new ApiError('流式响应单行超过 1MB', res.status);
   }
   buffer += decoder.decode();
   consume(buffer);
