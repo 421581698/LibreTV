@@ -56,6 +56,7 @@ describe('legacy AI endpoints require a session', () => {
       messages: [{ role: 'user', content: 'hello' }],
     }) as never);
     expect(response.status).toBe(503);
+    expect(response.headers.get('X-LibreTV-Auth-Setup')).toBe('required');
   });
 });
 
