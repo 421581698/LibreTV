@@ -71,11 +71,15 @@ export async function mountCinemaV51AuthorizedPlayback(
   }
   let stopped=false;
   let bridge:CinemaFrameBridge|null=null;
+  let cleanup=()=>{};
+  let adapterStop=()=>{};
   const fallback=(reason:string)=>{
     if(stopped)return;
     stopped=true;
-    bridge?.stop();
-    renderer.stop();
+    try {bridge?.stop();} catch {/* release remaining resources */}
+    try {adapterStop();} catch {/* release remaining resources */}
+    try {renderer.stop();} catch {/* release remaining resources */}
+    cleanup();
     canvas.remove();
     onReport('native-fallback',reason);
   };
@@ -106,7 +110,7 @@ export async function mountCinemaV51AuthorizedPlayback(
   video.addEventListener('seeking',onSeek);
   video.addEventListener('error',onError);
   video.addEventListener('emptied',onMediaChange);
-  const cleanup=()=>{
+  cleanup=()=>{
     video.removeEventListener('seeking',onSeek);
     video.removeEventListener('error',onError);
     video.removeEventListener('emptied',onMediaChange);
@@ -121,8 +125,14 @@ export async function mountCinemaV51AuthorizedPlayback(
   });
   const adapter={
     render:rawRenderer.render,
-    stop(){rawRenderer.stop();renderer.stop();cleanup();canvas.remove();},
+    stop(){
+      try {rawRenderer.stop();} catch {/* release remaining resources */}
+      try {renderer.stop();} catch {/* release remaining resources */}
+      cleanup();
+      canvas.remove();
+    },
   };
+  adapterStop=()=>adapter.stop();
   const decoder=createCinemaLiveVideoDecoder(source.track);
   const provider=createCinemaWebCodecsDecodedProvider({
     sourceSha256:source.track.sourceSha256,
@@ -155,7 +165,12 @@ export async function mountCinemaV51AuthorizedPlayback(
   );
   if(stopped) {bridge.stop();return null;}
   return {
-    stop(){if(stopped)return;stopped=true;bridge?.stop();adapter.stop();cleanup();canvas.remove();},
+    stop(){
+      if(stopped)return;
+      stopped=true;
+      try {bridge?.stop();} catch {/* release remaining resources */}
+      adapter.stop();
+    },
     get active(){return !stopped&&Boolean(bridge?.active);},
   };
 }
