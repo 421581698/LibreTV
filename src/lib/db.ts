@@ -470,8 +470,15 @@ db.version(8).stores({
       });
       return matches.length === 1 ? { ...item, key: matches[0] } : item;
     });
+    // Preserve a single record per resulting key. Existing collisions may
+    // have already overwritten data under the legacy schema.
+    const deduplicated = new Map<string, ProgressEntry>();
+    for (const row of moved) {
+      const previous = deduplicated.get(row.key);
+      if (!previous || row.updatedAt >= previous.updatedAt) deduplicated.set(row.key, row);
+    }
     await progress.clear();
-    await progress.bulkPut(moved);
+    await progress.bulkPut([...deduplicated.values()]);
   }
 });
 
