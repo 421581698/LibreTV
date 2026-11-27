@@ -51,6 +51,16 @@ export const DolbyVisionRpuReportSchema = z.object({
     }).strict()).min(1).max(8192),
     mappingSha256: z.string().regex(/^[a-f0-9]{64}$/),
   }).strict().optional(),
+  // Raw parser statistics are not presentation-bound rendering evidence.
+  rpuL1FrameStats: z.object({
+    version: z.literal(1),
+    frames: z.array(z.object({
+      frameOrdinal: z.number().int().nonnegative(),
+      minPq: z.number().int().min(0).max(4095),
+      avgPq: z.number().int().min(0).max(4095),
+      maxPq: z.number().int().min(1).max(4095),
+    }).strict()).min(1).max(8192),
+  }).strict().optional(),
   rpuL1Evidence: z.object({
     version: z.literal(1),
     frames: z.array(z.object({
@@ -71,6 +81,14 @@ export const DolbyVisionRpuReportSchema = z.object({
   extractionScope: extractionScopeSchema,
   notes: z.array(z.string()),
 }).strict().superRefine((report, context) => {
+  if (report.rpuL1FrameStats && (!report.rpuUnitEvidence ||
+      report.metadataLevelFrameCounts['1'] !== report.frameCount ||
+      report.rpuL1FrameStats.frames.length !== report.frameCount ||
+      report.rpuL1FrameStats.frames.some((frame,i) => frame.frameOrdinal !== i ||
+        frame.minPq > frame.avgPq || frame.avgPq > frame.maxPq))) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['rpuL1FrameStats'],
+      message: 'Raw L1 statistics require complete ordered RPU units and valid PQ values.' });
+  }
   if (report.rpuL1Evidence) {
     const l1=report.rpuL1Evidence.frames;
     const mapped=report.frameMappingEvidence?.frames;
