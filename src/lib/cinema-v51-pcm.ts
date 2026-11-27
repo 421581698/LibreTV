@@ -281,7 +281,9 @@ export function createCinemaSafariAdtsDecoder(
            decoded.sampleRate>192000||decoded.length<=0)
           throw new Error('Invalid Safari AAC decoded format');
         const expected=Math.round(frames.length*1024*decoded.sampleRate/header.sampleRate);
-        const primingTolerance=Math.ceil(1024*decoded.sampleRate/header.sampleRate);
+        // Refuse encoder priming/padding beyond 2ms: otherwise successive
+        // segment buffers overlap and can produce audible double sound.
+        const primingTolerance=Math.ceil(decoded.sampleRate*.002);
         if(Math.abs(decoded.length-expected)>primingTolerance)
           throw new Error('Safari AAC decoded frame count mismatches ADTS timeline');
         const channels=Array.from({length:decoded.numberOfChannels},(_,ch)=>decoded.getChannelData(ch));
