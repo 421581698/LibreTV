@@ -120,6 +120,70 @@ function memoryTarget(filename: string): SaveTarget {
 }
 
 /**
+ * Disk-backed staging for large downloads. Export uses a File snapshot, not
+ * arrayBuffer(); browser download completion is not observable from this API.
+ */
+async function opfsTarget(filename: string, estimatedBytes: number): Promise<SaveTarget> {
+  const storage = navigator.storage;
+  const estimate = await storage.estimate();
+  if (estimate.quota !== undefined && estimate.usage !== undefined &&
+      estimatedBytes > estimate.quota - estimate.usage) {
+    throw new Error('浏览器磁盘空间不足');
+  }
+  const root = await storage.getDirectory();
+  const name = 'libretv-download-' + crypto.randomUUID();
+  const handle = await root.getFileHandle(name, { create: true });
+  const remove = async () => { await root.removeEntry(name).catch(() => undefined); };
+  try {
+    const writer = await handle.createWritable();
+    let done = false;
+    let bytes = 0;
+    return {
+      kind: 'fs',
+      async write(data) {
+        if (done) throw new Error('保存流已关闭');
+        await writer.write(data.slice().buffer as ArrayBuffer);
+        bytes += data.byteLength;
+      },
+      async close() {
+        if (done) return;
+        try {
+          await writer.close();
+          const file = await handle.getFile();
+          if (file.size !== bytes) throw new Error('磁盘文件长度校验失败');
+          const url = URL.createObjectURL(file);
+          try {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            try { a.click(); } finally { a.remove(); }
+          } finally {
+            // Allow the browser to acquire the File snapshot before cleanup.
+            setTimeout(() => { URL.revokeObjectURL(url); void remove(); }, 300_000);
+          }
+          done = true;
+        } catch (error) {
+          done = true;
+          await writer.abort().catch(() => undefined);
+          await remove();
+          throw error;
+        }
+      },
+      async abort() {
+        if (done) return;
+        done = true;
+        await writer.abort().catch(() => undefined);
+        await remove();
+      },
+    };
+  } catch (error) {
+    await remove();
+    throw error;
+  }
+}
+
+/**
  * 选择保存目标并打开写入流。showSaveFilePicker 必须在用户手势内调用，
  * 因此本函数应在点击处理器里被 await（调用方负责）。
  * 用户取消文件选择器时抛出 UserCancelledError。
@@ -163,6 +227,9 @@ export async function pickSaveTarget(filename: string, estimatedBytes?: number):
   // Refuse known oversize files BEFORE downloading instead of prompting for
   // an unsafe allocation that might crash Safari or trigger OS tab eviction.
   if (estimatedBytes !== undefined && estimatedBytes > MAX_MEMORY_DOWNLOAD_BYTES) {
+    if (typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function') {
+      return opfsTarget(safeFilename, estimatedBytes);
+    }
     throw new Error('该文件超出浏览器安全内存保存上限；请使用支持磁盘直写的环境');
   }
   return memoryTarget(safeFilename);
