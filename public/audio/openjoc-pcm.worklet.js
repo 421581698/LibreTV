@@ -69,6 +69,7 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
     else this.expectedPtsSamples += Math.max(-120, Math.min(120, drift * 0.1));
 
     let written = 0;
+    let rendered = 0;
     while (written < left.length && this.queue.length > 0) {
       const chunk = this.queue[0];
       const chunkFrames = chunk.samples.length / 2;
@@ -86,8 +87,9 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
         if (written === left.length) break;
       }
       // Drop already-expired samples rather than playing them late.
-      if (delta < 0) {
-        const skip = Math.min(chunkFrames - chunk.offset, Math.ceil(-delta));
+      const remainingDelta = chunkPts - this.expectedPtsSamples;
+      if (remainingDelta < 0) {
+        const skip = Math.min(chunkFrames - chunk.offset, Math.ceil(-remainingDelta));
         chunk.offset += skip;
         this.queuedFrames -= skip;
         this.droppedFrames += skip;
@@ -104,12 +106,13 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       }
       chunk.offset += count;
       written += count;
+      rendered += count;
       this.queuedFrames -= count;
       this.expectedPtsSamples += count;
       if (chunk.offset >= chunkFrames) this.queue.shift();
     }
 
-    if (written > 0) {
+    if (rendered > 0) {
       this.underrunQuanta = 0;
       this.underrunSent = false;
       if (!this.started) {
