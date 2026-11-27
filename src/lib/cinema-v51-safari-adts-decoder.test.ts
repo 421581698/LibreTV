@@ -14,7 +14,7 @@ function buffer(frames:number,rate=44100,channels=2){
   return {
     sampleRate:rate,length:frames,numberOfChannels:channels,
     getChannelData:()=>new Float32Array(frames).fill(.1),
-  } as AudioBuffer;
+  } as unknown as AudioBuffer;
 }
 describe('Safari AAC decodeAudioData fallback for verified HLS Packed AAC',()=>{
   it('decodes genuine ADTS input, preserves authenticated exact PTS and emits PCM planes',async()=>{
