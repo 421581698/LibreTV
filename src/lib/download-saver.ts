@@ -77,7 +77,7 @@ export class UserCancelledError extends Error {
 // Keep a conservative per-download ceiling until a verified disk-backed writer exists.
 export const MAX_MEMORY_DOWNLOAD_BYTES = 256 * 1024 * 1024;
 
-function memoryTarget(filename: string, confirmOverBytes = MAX_MEMORY_DOWNLOAD_BYTES): SaveTarget {
+function memoryTarget(filename: string): SaveTarget {
   const safeFilename = sanitizeDownloadFilename(filename);
   const chunks: Uint8Array[] = [];
   let bytes = 0;
@@ -103,7 +103,7 @@ function memoryTarget(filename: string, confirmOverBytes = MAX_MEMORY_DOWNLOAD_B
     kind: 'memory',
     async write(data) {
       if (done) return;
-      if (data.byteLength > confirmOverBytes - bytes) {
+      if (data.byteLength > MAX_MEMORY_DOWNLOAD_BYTES - bytes) {
         throw new Error('浏览器内存保存容量不足：请改用支持磁盘直写的浏览器或下载较小文件');
       }
       bytes += data.byteLength;
