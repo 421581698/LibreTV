@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { collectorRequest, fetchDolbyVisionRegistryAsset } from './resource-collector-client';
+const dns=vi.hoisted(()=>({resolve4:vi.fn(),resolve6:vi.fn()}));
+vi.mock('node:dns/promises',()=>dns);
+dns.resolve4.mockResolvedValue(['8.8.8.8']);
+dns.resolve6.mockResolvedValue([]);
 
 afterEach(() => {
+  dns.resolve4.mockResolvedValue(['8.8.8.8']);
+  dns.resolve6.mockResolvedValue([]);
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -120,6 +126,16 @@ describe('collectorRequest', () => {
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer server-only-token');
   });
 
+  it('rejects public-looking collector when DNS points to private IP',async()=>{
+    vi.stubEnv('SCRAPLING_API_BASE','https://collector.example');
+    vi.stubEnv('SCRAPLING_API_TOKEN','server-only-token');
+    dns.resolve4.mockResolvedValue(['169.254.169.254']);
+    const fetchMock=vi.fn();
+    vi.stubGlobal('fetch',fetchMock);
+    const response=await collectorRequest('/health');
+    expect(response.status).toBe(502);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it('fails closed when either server-side setting is missing', async () => {
     vi.stubEnv('SCRAPLING_API_BASE', 'https://collector.example');
     vi.stubEnv('SCRAPLING_API_TOKEN', '');

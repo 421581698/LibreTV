@@ -132,6 +132,14 @@ async function fetchWithPolicy(
   }
 }
 
+/** One-hop public-only fetch with DNS preflight and connect-time IP validation. */
+export async function fetchVerifiedPublicSingleHop(url:string,init:Omit<RequestInit,'redirect'>={}):Promise<Response> {
+  if(init.signal?.aborted)throw init.signal.reason ?? new DOMException('请求已取消','AbortError');
+  const verdict=await checkUpstreamAllowed(url);
+  if(!verdict.ok)throw new Error('上游目标被拒绝: '+verdict.reason);
+  if(init.signal?.aborted)throw init.signal.reason ?? new DOMException('请求已取消','AbortError');
+  return fetchValidatedConnection(url,{...init,redirect:'manual'});
+}
 export async function fetchUpstreamWithMeta(url: string, options: FetchOptions = {}): Promise<FetchResult> {
   return fetchWithMetaPolicy(url, options, false);
 }

@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
+import { fetchVerifiedPublicSingleHop } from './fetch-utils';
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+
+/** Only this exact fixed Compose service may use the authorized private network. */
+function fetchCollectorOneHop(base:string,path:string,init:Omit<RequestInit,'redirect'>):Promise<Response> {
+  const url=base+path;
+  return base==='http://scrapling-collector:8000'
+    ? fetch(url,{...init,redirect:'manual'})
+    : fetchVerifiedPublicSingleHop(url,init);
+}
 
 function validCollectorBase(rawBase: string): string | null {
   try {
@@ -58,14 +67,13 @@ export async function fetchDolbyVisionRegistryAsset(
   const base = trustedServerRegistryBase();
   const token = process.env.SCRAPLING_API_TOKEN?.trim();
   if (!base || !token) return null;
-  return fetch(`${base}/v1/registry/media-assets/${encodeURIComponent(assetId)}/content`, {
+  return fetchCollectorOneHop(base,`/v1/registry/media-assets/${encodeURIComponent(assetId)}/content`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
       ...(rangeHeader ? { Range: rangeHeader } : {}),
     },
     cache: 'no-store',
-    redirect: 'manual',
     signal: AbortSignal.timeout(timeoutMs),
   });
 }
@@ -76,9 +84,9 @@ export async function fetchDolbyVisionHlsGraph(resourceId: string): Promise<Resp
   const base = trustedServerRegistryBase();
   const token = process.env.SCRAPLING_API_TOKEN?.trim();
   if (!base || !token) return null;
-  return fetch(`${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-graph`, {
+  return fetchCollectorOneHop(base,`/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-graph`, {
     headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store', redirect: 'manual', signal: AbortSignal.timeout(5000),
+    cache: 'no-store', signal: AbortSignal.timeout(5000),
   });
 }
 
@@ -93,13 +101,12 @@ export async function fetchDolbyVisionHlsAssembly(
   const base = trustedServerRegistryBase();
   const token = process.env.SCRAPLING_API_TOKEN?.trim();
   if (!base || !token) return null;
-  return fetch(
-    `${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}`,
+  return fetchCollectorOneHop(
+    base,`/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
-      redirect: 'manual',
       signal: AbortSignal.timeout(timeoutMs),
     },
   );
@@ -118,13 +125,12 @@ export async function fetchDolbyVisionHlsAssemblySegment(
   const base = trustedServerRegistryBase();
   const token = process.env.SCRAPLING_API_TOKEN?.trim();
   if (!base || !token) return null;
-  return fetch(
-    `${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}/segments/${fragmentOrdinal}`,
+  return fetchCollectorOneHop(
+    base,`/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-assembly/${encodeURIComponent(variantAssetId)}/segments/${fragmentOrdinal}`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
-      redirect: 'manual',
       signal: AbortSignal.timeout(timeoutMs),
     },
   );
@@ -145,12 +151,11 @@ export async function collectorRequest(
     );
   }
   try {
-    const response = await fetch(config.base + path, {
+    const response = await fetchVerifiedPublicSingleHop(config.base + path, {
       method: init.method ?? 'GET',
       ...(init.body !== undefined ? { body: init.body } : {}),
       headers: { ...(init.headers ?? {}), Authorization: `Bearer ${config.token}` },
       cache: 'no-store',
-      redirect: 'manual',
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.status >= 300 && response.status < 400) {
