@@ -51,6 +51,17 @@ export const DolbyVisionRpuReportSchema = z.object({
     }).strict()).min(1).max(8192),
     mappingSha256: z.string().regex(/^[a-f0-9]{64}$/),
   }).strict().optional(),
+  rpuL1Evidence: z.object({
+    version: z.literal(1),
+    frames: z.array(z.object({
+      frameOrdinal: z.number().int().nonnegative(),
+      pts: z.string().regex(/^(?:0|-?[1-9][0-9]{0,18})$/),
+      rpuSha256: sha256Schema,
+      minPq: z.number().int().min(0).max(4095),
+      avgPq: z.number().int().min(0).max(4095),
+      maxPq: z.number().int().min(1).max(4095),
+    }).strict()).min(1).max(8192),
+  }).strict().optional(),
   rpuUnitEvidence: z.object({
     version: z.literal(1),
     unitSha256s: z.array(sha256Schema).min(1).max(8192),
@@ -60,6 +71,18 @@ export const DolbyVisionRpuReportSchema = z.object({
   extractionScope: extractionScopeSchema,
   notes: z.array(z.string()),
 }).strict().superRefine((report, context) => {
+  if (report.rpuL1Evidence) {
+    const l1=report.rpuL1Evidence.frames;
+    const mapped=report.frameMappingEvidence?.frames;
+    if (report.inputKind !== 'hevc' || report.profile !== 8 || !mapped ||
+        l1.length !== report.frameCount || l1.some((frame,i)=>
+          frame.frameOrdinal !== i || frame.pts !== mapped[i]?.pts ||
+          frame.rpuSha256 !== mapped[i]?.rpuSha256 ||
+          frame.minPq > frame.avgPq || frame.avgPq > frame.maxPq)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['rpuL1Evidence'],
+        message: 'L1 参数只能绑定已逐帧验真的单层 Profile 8 HEVC 媒体。' });
+    }
+  }
   if (report.presentationDurationEvidence && (!report.frameMappingEvidence ||
       report.presentationDurationEvidence.durations.length !== report.frameCount)) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['presentationDurationEvidence'], message: 'Duration evidence requires complete media-bound frame mapping.' });
