@@ -77,6 +77,8 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       return true;
     }
     // Small correction is quantized to complete PCM samples.
+    // Decode timestamps, not a second wall clock, define the sample position.
+    // Quantized correction avoids fractional-sample reads after repeated drift.
     this.expectedPtsSamples += Math.round(Math.max(-120, Math.min(120, drift * 0.1)));
 
     let written = 0;
