@@ -82,6 +82,23 @@ describe('Cinema V5.1 real decoded frame and PTS bridge',()=>{
     expect(renderer.render).not.toHaveBeenCalled();
     expect(messages[0].state).toBe('native-fallback');
   });
+  it('releases the renderer even if the decoder provider throws on stop',()=>{
+    const t=harness();
+    vi.mocked(t.provider.stop).mockImplementation(()=>{throw new Error('provider cleanup failed');});
+    expect(()=>t.bridge.stop()).not.toThrow();
+    expect(t.provider.stop).toHaveBeenCalledOnce();
+    expect(t.renderer.stop).toHaveBeenCalledOnce();
+    expect(t.bridge.active).toBe(false);
+  });
+  it('falls back safely under a burst of decoded frames before GPU presentation',async()=>{
+    const t=harness();
+    t.push(testFrame);
+    t.push({...testFrame,frameIndex:1,ptsUs:1033333});
+    await flush();
+    expect(t.events.some(event=>event.state==='native-fallback')).toBe(true);
+    expect(t.provider.stop).toHaveBeenCalled();
+    expect(t.renderer.stop).toHaveBeenCalled();
+  });
   it('fails closed when GPU presentation fails or audio/video source switches',async()=>{
     const t=harness();
     vi.mocked(t.renderer.render).mockResolvedValueOnce(false);
