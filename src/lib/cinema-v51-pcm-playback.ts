@@ -301,7 +301,11 @@ export async function createCinemaAuthorizedPcmSoundSession(
         scheduled.add(node);
         node.start(when);
         scheduledSamples+=frame.frames;
-        node.onended=()=>scheduled.delete(node);
+        node.onended=()=>{
+          scheduled.delete(node);
+          node.onended=null;
+          try{node.disconnect();}catch{/* context already closed */}
+        };
         const durationSeconds=frame.frames/frame.sampleRate;
         scheduledThroughSeconds=Math.max(scheduledThroughSeconds,
           (frame.ptsUs-source.presentationOffsetUs)/1e6+durationSeconds);
@@ -331,7 +335,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
       video.removeEventListener('volumechange',onVolume);
       context.removeEventListener('statechange',onContextState);
       decoder.stop();queue.clear();
-      for(const node of scheduled){try{node.stop();}catch{/* ended */}try{node.disconnect();}catch{/* closed */}}
+      for(const node of scheduled){node.onended=null;try{node.stop();}catch{/* ended */}try{node.disconnect();}catch{/* closed */}}
       scheduled.clear();
       if(mutedNative){nativeMuteGuard=true;video.muted=originallyMuted;nativeMuteGuard=false;}
       void context.close().catch(()=>{});
