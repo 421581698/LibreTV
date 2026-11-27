@@ -68,6 +68,9 @@ export function startCinemaV51FrameBridge(
   };
   const consume=async(frame:CinemaDecodedP010Sample)=>{
     if(stopped)return;
+    // Bounded work queue: under burst load preserve the native playback path.
+    // Dropping authenticated frames here without advancing PTS would detach
+    // dynamic metadata, so fallback is safer than inventing frame timing.
     if(busy){fallback('实时 HDR 渲染超载，保留原生视频播放。');return;}
     if(!cinemaFrameMatchesSource(provider.sourceSha256,lastPtsUs,frame)) {
       fallback('源校验或 PTS 顺序不正确；无法安全同步 HDR 元数据。');
