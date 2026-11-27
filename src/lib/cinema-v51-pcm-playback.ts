@@ -96,6 +96,8 @@ export async function createCinemaAuthorizedPcmSoundSession(
   let nativeMuteGuard=false;
   let pendingNativeVolumeCheck=false;
   let earliestScheduledAt=Infinity;
+  let pendingFrameCount=0;
+  let pcmAudibleReady=false;
   let lastDecodedAt=performance.now();
   let measuredRms=.10;
   let lastAudiblePcmAt=-Infinity;
@@ -160,7 +162,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
       const rms=count>0?Math.sqrt(sum/count):0;
       // Silence is valid timeline data: dropping frames shifts all later PCM.
       // Do not accept silence as proof that independent audio is audible.
-      if(rms>=.0025){measuredRms=rms;lastAudiblePcmAt=performance.now();}
+      if(rms>=.0025){measuredRms=rms;lastAudiblePcmAt=performance.now();pcmAudibleReady=true;}
 
       queue.enqueue(frame);
       lastDecodedAt=performance.now();
@@ -241,9 +243,10 @@ export async function createCinemaAuthorizedPcmSoundSession(
         node.connect(graph.input);
         const when=Math.max(context.currentTime+.008,context.currentTime+delta/Math.max(.5,video.playbackRate));
         scheduled.add(node);
-        node.onended=()=>scheduled.delete(node);
         node.start(when);
         scheduledSamples+=frame.frames;
+        pendingFrameCount++;
+        node.onended=()=>{scheduled.delete(node);pendingFrameCount=Math.max(0,pendingFrameCount-1);};
         const durationSeconds=frame.frames/frame.sampleRate;
         scheduledThroughSeconds=Math.max(scheduledThroughSeconds,
           (frame.ptsUs-source.presentationOffsetUs)/1e6+durationSeconds);
@@ -251,7 +254,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
       }catch{fail('PCM 音频缓冲创建或排程失败。');return;}
     }
     if(!active&&scheduledSamples>=3072&&earliestScheduledAt<=context.currentTime+.025&&
-       performance.now()-lastAudiblePcmAt<600&&
+       pcmAudibleReady&&performance.now()-lastAudiblePcmAt<1500&&
        scheduledThroughSeconds>video.currentTime+.035){
       active=true;apply();
     }
