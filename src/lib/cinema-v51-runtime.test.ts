@@ -54,3 +54,26 @@ describe('Cinema V5.1 HDR10+ integrated 10-bit runtime',()=>{
   expect(result.frame.y.length).toBe(4);
  });
 });
+
+describe('Cinema RPU L1 frame processing on true decoded P010',()=>{
+  const source='f'.repeat(64);
+  const l1={sourceSha256:source,expectedSourceSha256:source,
+    rpuSha256:'b'.repeat(64),expectedRpuSha256:'b'.repeat(64),
+    frameIndex:0,framePtsUs:0,minPq:0,avgPq:1600,maxPq:3200};
+  it('makes different actual 10-bit pixels for differing signed frame luminance',async()=>{
+    const a=await cinemaProcessV51Frame({decodedP010:frame,transform,rpuL1:l1});
+    const b=await cinemaProcessV51Frame({decodedP010:frame,transform,
+      rpuL1:{...l1,maxPq:3800}});
+    expect(a.dynamicMetadataApplied).toBe(true);
+    expect(a.frame.y).not.toEqual(b.frame.y);
+    expect(a.displayHdrOutput).toBe('unverified');
+    expect(a.reason).toContain('自研');
+  });
+  it('fails on wrong source, invalid PQ levels and mixed HDR10+ paths',async()=>{
+    await expect(cinemaProcessV51Frame({decodedP010:frame,transform,
+      rpuL1:{...l1,expectedSourceSha256:'a'.repeat(64)}})).rejects.toThrow();
+    await expect(cinemaProcessV51Frame({decodedP010:frame,transform,
+      rpuL1:{...l1,avgPq:4000,maxPq:3000}})).rejects.toThrow();
+    await expect(cinemaProcessV51Frame({decodedP010:frame,transform,rpuL1:l1,metadata:sample})).rejects.toThrow();
+  });
+});
