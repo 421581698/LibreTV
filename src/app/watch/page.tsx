@@ -32,7 +32,7 @@ import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from 
 import { bindWatchPlaybackState, skipWatchPlayback, toggleWatchPlayback } from '@/lib/watch-playback-state';
 import { useFridayGlassPlayback } from '@/components/friday/FridayGlassProvider';
 import { nextCinemaPlaybackRate, toggleCinemaPanel, shouldHoldCinemaControls } from '@/lib/cinema-v4-controls';
-import { isCinemaPlaybackEventCurrent, isCinemaPlaybackTransitionPending, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
+import { isCinemaPlaybackEventCurrent, isCinemaPlaybackTransitionPending, resolveCinemaBoundPlaybackUrl, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from '@/lib/cinema-playback-gate';
 import { CinemaPlaybackActions } from '@/components/ipad-edition/CinemaPlaybackActions';
 import { ClassicWatchTitle, ClassicWatchRateButton, ClassicWatchTools } from '@/components/watch/ClassicWatchControls';
 import { usePlaybackEdition } from '@/components/watch/PlaybackEditionContext';
@@ -700,11 +700,7 @@ function WatchContent() {
     cmsAssetBinding.playbackUrl === currentUrl
     ? cmsAssetBinding
     : null;
-  // The HLS root is evidence only: serving it as a standalone registry URL
-  // would break relative variant/segment URLs and could misrepresent CDN bytes.
-  const playerUrl = activeCmsAssetBinding?.mediaType === 'mp4'
-    ? `/api/dolby-vision/assets/${encodeURIComponent(activeCmsAssetBinding.assetId)}/content`
-    : currentUrl;
+  const playerUrl = resolveCinemaBoundPlaybackUrl(currentUrl, activeCmsAssetBinding);
   const currentEpisodeKey = `${sourceKey}:${vodId || currentUrl}:${currentIndex}`;
   // Preserve the mounted Cinema media element and its trusted asset identity
   // until the next CMS episode/source completes exact binding verification.

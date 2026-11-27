@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCinemaPlaybackEventCurrent, isCinemaPlaybackTransitionPending, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from './cinema-playback-gate';
+import { isCinemaPlaybackEventCurrent, isCinemaPlaybackTransitionPending, resolveCinemaBoundPlaybackUrl, selectCinemaPlaybackMedia, type CinemaPlaybackMedia } from './cinema-playback-gate';
 
 const ordinary: CinemaPlaybackMedia = {
   url: 'https://cdn.example/new.m3u8',
@@ -173,4 +173,17 @@ it('keeps the native HLS playback URL while separately carrying a verified regis
   expect(result.media.url).toBe(hls.url);
   expect(result.media.mediaType).toBe('hls');
   expect(result.media.dolbyVisionSourceIdentity).toBe('resource-123');
+});
+
+describe('exact CMS playback URL selection', () => {
+  const hls = 'https://cdn.example.org/media/master.m3u8?token=opaque';
+  it('does not redirect signed HLS graphs to an unusable standalone root M3U8', () => {
+    expect(resolveCinemaBoundPlaybackUrl(hls, { assetId: 'dv_verified_root', mediaType: 'hls' })).toBe(hls);
+  });
+  it('retains the existing MP4 byte proxy only for an authorized stable asset ID', () => {
+    expect(resolveCinemaBoundPlaybackUrl(hls, { assetId: 'dv_valid', mediaType: 'mp4' }))
+      .toBe('/api/dolby-vision/assets/dv_valid/content');
+    expect(resolveCinemaBoundPlaybackUrl(hls, { assetId: '../escape', mediaType: 'mp4' })).toBe(hls);
+    expect(resolveCinemaBoundPlaybackUrl(hls, null)).toBe(hls);
+  });
 });

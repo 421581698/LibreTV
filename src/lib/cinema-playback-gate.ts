@@ -72,3 +72,16 @@ export function isCinemaPlaybackTransitionPending({
 }): boolean {
   return cmsLookupPending || (isCinema && detailLoading && !currentUrl);
 }
+
+/** Only MP4 can use the standalone authenticated asset-byte endpoint.
+ * A registered HLS graph root is metadata evidence, not a rewritten playlist;
+ * retain the original playable URL until a complete trusted HLS gateway exists.
+ */
+export function resolveCinemaBoundPlaybackUrl(
+  originalUrl: string,
+  binding: { assetId: string; mediaType: 'mp4' | 'hls' } | null,
+): string {
+  if (!binding || binding.mediaType !== 'mp4' ||
+      !/^[A-Za-z0-9:_-]{1,200}$/.test(binding.assetId)) return originalUrl;
+  return `/api/dolby-vision/assets/${encodeURIComponent(binding.assetId)}/content`;
+}
