@@ -117,6 +117,7 @@ export class CinemaPcmQueue {
     if(this.length+frame.frames>this.capacitySamples)throw new Error('PCM queue backpressure');
     this.frames.push(frame);this.length+=frame.frames;this.lastPts=frame.ptsUs;
   }
+  peek():CinemaPcmFrame|null {return this.frames[0]??null;}
   dequeue(clock:CinemaPcmClock):CinemaPcmFrame|null {
     while(this.frames.length) {
       const state=cinemaPcmTiming(this.frames[0],clock);
