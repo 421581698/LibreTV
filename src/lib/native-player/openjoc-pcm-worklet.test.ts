@@ -72,6 +72,17 @@ describe('OpenJOC PCM worklet media clock', () => {
     expect(events.some(event => event.type === 'started')).toBe(false);
   });
 
+  it('fails closed instead of playing stale PCM after a large media-clock jump', () => {
+    const { send, quantum, events } = setup();
+    send({ type: 'clock', ptsSamples: 0 });
+    send({ type: 'pcm', samples: new Float32Array(256).fill(1), sampleRate: 48000, channels: 2, ptsSamples: 0 });
+    send({ type: 'start' });
+    quantum();
+    send({ type: 'clock', ptsSamples: 48000 });
+    expect(quantum().left.every(sample => sample === 0)).toBe(true);
+    expect(events.filter(event => event.type === 'clock-discontinuity')).toHaveLength(1);
+  });
+
   it('detects prolonged underrun after output started', () => {
     const { send, quantum, events } = setup();
     send({ type: 'clock', ptsSamples: 0 });
