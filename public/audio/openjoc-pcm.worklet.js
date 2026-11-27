@@ -12,6 +12,7 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
     this.clockPtsSamples = null;
     this.expectedPtsSamples = null;
     this.pendingClockReanchor = false;
+    this.clockUpdated = false;
     this.maxQueueFrames = 48000;
     this.port.onmessage = event => {
       const data = event.data;
@@ -36,9 +37,10 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
         return;
       }
       if (data.type === 'clock' && Number.isFinite(data.ptsSamples)) {
-        this.clockPtsSamples = data.ptsSamples;
+        this.clockPtsSamples = Math.round(data.ptsSamples);
+        this.clockUpdated = true;
         if (this.expectedPtsSamples === null || this.pendingClockReanchor) {
-          this.expectedPtsSamples = data.ptsSamples;
+          this.expectedPtsSamples = this.clockPtsSamples;
           this.pendingClockReanchor = false;
         }
         return;
@@ -70,7 +72,10 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
     // Correct small clock drift without discarding the packet timeline.
     // Large discontinuities stop the software lane and restore native audio;
     // silently reanchoring queued samples would skip or replay old content.
-    const drift = this.clockPtsSamples - this.expectedPtsSamples;
+    // A video clock message is a measurement, not a continuously advancing clock.
+    // Apply correction once per fresh measurement, never on every audio quantum.
+    const drift = this.clockUpdated ? this.clockPtsSamples - this.expectedPtsSamples : 0;
+    this.clockUpdated = false;
     if (Math.abs(drift) > 2400) {
       this.playing = false;
       this.port.postMessage({ type: 'clock-discontinuity', driftSamples: drift });
