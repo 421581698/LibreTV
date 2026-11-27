@@ -64,11 +64,13 @@ function createGraph(context:AudioContext,channels:number):AudioGraph {
 export async function createCinemaAuthorizedPcmSoundSession(
   video:HTMLVideoElement,source:CinemaAuthorizedAacSource,
   onState:(state:CinemaSoundState)=>void,
+  prewarmedContext?:AudioContext,
 ):Promise<CinemaSoundSession|null> {
   if(!SHA.test(source.sourceSha256)||source.sourceSha256.toLowerCase()!==
       source.expectedSourceSha256.toLowerCase()||
      !Number.isSafeInteger(source.presentationOffsetUs)||video.muted||video.volume<=0||
      video.mediaKeys||typeof window==='undefined'){
+    if(prewarmedContext)void prewarmedContext.close().catch(()=>{});
     onState({audio:false,spatial:false,output:'native',
       reason:'未获得已验证的清晰 AAC 音轨或精确时间映射，拒绝接管视频原声。'});
     return null;
@@ -78,13 +80,21 @@ export async function createCinemaAuthorizedPcmSoundSession(
     onState({audio:false,spatial:false,output:'native',reason:'独立 PCM 路径缺少 Web Audio 支持。'});
     return null;
   }
-  let context:AudioContext;
-  try{context=new Constructor({latencyHint:'interactive'});await context.resume();}
-  catch{
+  let startedContext:AudioContext|undefined;
+  try{
+    startedContext=prewarmedContext??new Constructor({latencyHint:'interactive'});
+    await startedContext.resume();
+  } catch {
+    void startedContext?.close().catch(()=>{});
     onState({audio:false,spatial:false,output:'native',reason:'PCM AudioContext 未能启动。'});
     return null;
   }
-  if(context.state!=='running'){void context.close().catch(()=>{});return null;}
+  if(!startedContext||startedContext.state!=='running'){
+    void startedContext?.close().catch(()=>{});
+    onState({audio:false,spatial:false,output:'native',reason:'PCM 音频上下文未能运行。'});
+    return null;
+  }
+  const context=startedContext;
   let stopped=false,active=false,audio=false,spatial=false;
   let mutedNative=false;
   const originallyMuted=video.muted;
