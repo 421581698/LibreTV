@@ -23,6 +23,12 @@ describe('download filename safety', () => {
     expect(result.endsWith('.mp4')).toBe(true);
   });
 
+  it('does not cut a Unicode surrogate pair at the filename length limit', () => {
+    const result = sanitizeDownloadFilename('x'.repeat(175) + '😀' + '.mp4');
+    expect(result).toBe('x'.repeat(175) + '.mp4');
+    expect(result.length).toBeLessThanOrEqual(180);
+  });
+
   it('infers a direct media extension from the URL path, not its query string', () => {
     expect(suggestDownloadFilename('Episode 1', 'https://cdn.example.com/media/ep1.mkv?token=secret'))
       .toBe('Episode 1.mkv');
