@@ -73,11 +73,23 @@ export function createCinemaWebCodecsDecodedProvider(
   let queue:Promise<void>=Promise.resolve();
   let sequence=0;
   let lastOutputPtsUs=-1;
+  let outstandingFrames=0;
+  const MAX_PENDING_RAW_FRAMES=3;
   return {
     sourceSha256:input.sourceSha256,
     start(onFrame,onError) {
       const receive=(frame:CinemaRawVideoFrame)=>{
         if(stopped){frame.close();return;}
+        // VideoFrame.copyTo is asynchronous. Bound the actual native VideoFrame
+        // references waiting for extraction, not only the promise chain length.
+        if(outstandingFrames>=MAX_PENDING_RAW_FRAMES){
+          frame.close();
+          stopped=true;
+          try {input.decoder.stop();} catch {/* best-effort release */}
+          onError('Decoded video frame-copy backpressure exceeded');
+          return;
+        }
+        outstandingFrames++;
         const frameIndex=sequence++;
         queue=queue.then(async()=>{
           try{
@@ -99,7 +111,7 @@ export function createCinemaWebCodecsDecodedProvider(
               try {input.decoder.stop();} catch {/* retain original failure */}
               onError(error instanceof Error?error.message:'VideoFrame P010 extraction failed');
             }
-          }finally{frame.close();}
+          }finally{outstandingFrames--;frame.close();}
         });
       };
       return input.decoder.start(receive,reason=>{

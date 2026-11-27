@@ -90,14 +90,31 @@ describe('Cinema V5.1 real decoded frame and PTS bridge',()=>{
     expect(t.renderer.stop).toHaveBeenCalledOnce();
     expect(t.bridge.active).toBe(false);
   });
-  it('falls back safely under a burst of decoded frames before GPU presentation',async()=>{
+  it('serializes two consecutive HDR frames without dropping PTS-bound metadata',async()=>{
     const t=harness();
     t.push(testFrame);
     t.push({...testFrame,frameIndex:1,ptsUs:1033333});
     await flush();
+    expect(t.renderer.render).toHaveBeenCalledTimes(2);
+    expect(t.events.map(e=>e.state)).toEqual(['processed','processed']);
+    expect(t.events.map(e=>e.state==='processed'?e.ptsUs:-1)).toEqual([1000000,1033333]);
+    expect(t.bridge.active).toBe(true);
+    t.bridge.stop();
+  });
+  it('falls back safely when a burst exceeds the bounded HDR frame buffer',async()=>{
+    let release!:()=>void;
+    const blocked=new Promise<void>(resolve=>{release=resolve;});
+    const t=harness();
+    vi.mocked(t.renderer.render).mockImplementation(async()=>{await blocked;return true;});
+    t.push(testFrame);
+    t.push({...testFrame,frameIndex:1,ptsUs:1033333});
+    t.push({...testFrame,frameIndex:2,ptsUs:1066666});
+    release();
+    await flush();
     expect(t.events.some(event=>event.state==='native-fallback')).toBe(true);
     expect(t.provider.stop).toHaveBeenCalled();
     expect(t.renderer.stop).toHaveBeenCalled();
+    expect(t.bridge.active).toBe(false);
   });
   it('fails closed when GPU presentation fails or audio/video source switches',async()=>{
     const t=harness();

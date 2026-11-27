@@ -83,6 +83,32 @@ describe('WebCodecs authentic P010 adapter',()=>{
   expect(errors).toHaveLength(1);
   expect(decoder.stop).toHaveBeenCalledOnce();
  });
+ it('caps pending native VideoFrame copies and releases the excess frame',async()=>{
+  let emit:(f:ReturnType<typeof rawFrame>)=>void=()=>{};
+  let release!:()=>void;
+  const blocker=new Promise<void>(resolve=>{release=resolve;});
+  const decoder={start(cb:typeof emit){emit=cb;},stop:vi.fn()};
+  const provider=createCinemaWebCodecsDecodedProvider({
+   sourceSha256:'a'.repeat(64),decoder,expectedPrimaries:'bt2020',expectedTransfer:'smpte2084',
+  });
+  const errors:string[]=[];
+  provider.start(()=>{},reason=>errors.push(reason));
+  const frames=Array.from({length:4},(_,i)=>({
+   ...rawFrame(1000000+i*33333),
+   copyTo:async(out:AllowSharedBufferSource)=>{
+    await blocker;
+    return rawFrame(1000000+i*33333).copyTo(out);
+   },
+  }));
+  frames.forEach(emit);
+  expect(errors).toEqual(['Decoded video frame-copy backpressure exceeded']);
+  expect(decoder.stop).toHaveBeenCalledOnce();
+  expect(frames[3].close).toHaveBeenCalledOnce();
+  release();
+  await pause();
+  await pause();
+  frames.slice(0,3).forEach(frame=>expect(frame.close).toHaveBeenCalledOnce());
+ });
  it('refuses invalid plane offsets/strides or unknown format',async()=>{
   await expect(cinemaExtractP010VideoFrame({...rawFrame(),format:'I420'})).rejects.toThrow();
   await expect(cinemaExtractP010VideoFrame(rawFrame(0,1))).rejects.toThrow();

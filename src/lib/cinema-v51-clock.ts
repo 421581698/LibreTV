@@ -34,7 +34,8 @@ export async function cinemaWaitForPresentation(
   const pause=options.sleep??sleep;
   let activeStart=now();
   let pausedAt:number|null=null;
-  for(let iteration=0;iteration<320;iteration++){
+  let activeIterations=0;
+  while(activeIterations<320){
     if(options.cancelled?.())return 'cancelled';
     if(clock.sourceSha256.toLowerCase()!==boundSourceSha)return 'source-changed';
     const seconds=clock.currentMediaTimeSeconds();
@@ -48,6 +49,9 @@ export async function cinemaWaitForPresentation(
     // Paused wall time must not be counted as an HDR synchronization miss.
     if(!playing) {
       if(pausedAt===null)pausedAt=now();
+      // Paused time cannot exhaust the 320 active-frame polls. Still bound an
+      // abandoned media session so an inaccessible player never polls forever.
+      if(now()-pausedAt>=300_000)return 'expired';
       await pause(40);
       continue;
     }
@@ -56,6 +60,7 @@ export async function cinemaWaitForPresentation(
       pausedAt=null;
     }
     if(now()-activeStart>=2600)return 'expired';
+    activeIterations++;
     await pause(delta>50000?16:8);
   }
   return 'expired';

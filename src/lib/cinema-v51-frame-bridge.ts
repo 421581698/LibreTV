@@ -57,51 +57,68 @@ export function startCinemaV51FrameBridge(
   let stopped=false;
   let active=false;
   let busy=false;
+  let pending:CinemaDecodedP010Sample|null=null;
+  let lastAdmittedPtsUs=-1;
   let lastPtsUs=-1;
   const fallback=(reason:string)=>{
     if(stopped)return;
     stopped=true;
     active=false;
+    pending=null;
     try {provider.stop();} catch {/* release */}
     try {renderer.stop();} catch {/* release */}
     report({state:'native-fallback',reason});
   };
+  // One actively transforming frame plus one pending authenticated frame.
+  // Do not drop metadata-bound P010 samples or accumulate an unbounded queue.
+  // A sustained burst beyond this budget restores native playback.
   const consume=async(frame:CinemaDecodedP010Sample)=>{
     if(stopped)return;
-    // Bounded work queue: under burst load preserve the native playback path.
-    // Dropping authenticated frames here without advancing PTS would detach
-    // dynamic metadata, so fallback is safer than inventing frame timing.
-    if(busy){fallback('实时 HDR 渲染超载，保留原生视频播放。');return;}
-    if(!cinemaFrameMatchesSource(provider.sourceSha256,lastPtsUs,frame)) {
+    if(!cinemaFrameMatchesSource(provider.sourceSha256,lastAdmittedPtsUs,frame)) {
       fallback('源校验或 PTS 顺序不正确；无法安全同步 HDR 元数据。');
       return;
     }
+    lastAdmittedPtsUs=frame.ptsUs;
+    if(busy){
+      if(pending) {
+        fallback('连续 HDR 帧处理超过有界缓冲，保留原生视频播放。');
+      } else {
+        pending=frame;
+      }
+      return;
+    }
     busy=true;
+    let current:CinemaDecodedP010Sample|null=frame;
     try {
-      const job=buildJob(frame);
-      if(job.decodedP010!==frame.decodedP010 ||
-         (job.metadata && (job.metadata.sourceSha256.toLowerCase()!==frame.sourceSha256.toLowerCase() ||
-         job.metadata.framePtsUs!==frame.ptsUs || job.metadata.frameIndex!==frame.frameIndex)) ||
-         (job.rpuL1 && (job.rpuL1.sourceSha256.toLowerCase()!==frame.sourceSha256.toLowerCase() ||
-           job.rpuL1.framePtsUs!==frame.ptsUs || job.rpuL1.frameIndex!==frame.frameIndex))) {
-        throw new Error('HDR metadata detached from actual decoded frame');
-      }
-      const result=await cinemaProcessV51Frame(job);
-      if(stopped)return;
-      if(clock) {
-        if(clock.sourceSha256.toLowerCase()!==frame.sourceSha256.toLowerCase())
-          throw new Error('Presentation clock belongs to a different source');
-        const timing=await cinemaWaitForPresentation(frame.ptsUs,clock,{cancelled:()=>stopped});
+      while(current&&!stopped){
+        const sample=current;
+        const job=buildJob(sample);
+        if(job.decodedP010!==sample.decodedP010 ||
+           (job.metadata && (job.metadata.sourceSha256.toLowerCase()!==sample.sourceSha256.toLowerCase() ||
+           job.metadata.framePtsUs!==sample.ptsUs || job.metadata.frameIndex!==sample.frameIndex)) ||
+           (job.rpuL1 && (job.rpuL1.sourceSha256.toLowerCase()!==sample.sourceSha256.toLowerCase() ||
+           job.rpuL1.framePtsUs!==sample.ptsUs || job.rpuL1.frameIndex!==sample.frameIndex))) {
+          throw new Error('HDR metadata detached from actual decoded frame');
+        }
+        const result=await cinemaProcessV51Frame(job);
         if(stopped)return;
-        if(timing!=='ready')throw new Error('Frame presentation PTS synchronization failed: '+timing);
+        if(clock) {
+          if(clock.sourceSha256.toLowerCase()!==sample.sourceSha256.toLowerCase())
+            throw new Error('Presentation clock belongs to a different source');
+          const timing=await cinemaWaitForPresentation(sample.ptsUs,clock,{cancelled:()=>stopped});
+          if(stopped)return;
+          if(timing!=='ready')throw new Error('Frame presentation PTS synchronization failed: '+timing);
+        }
+        const presented=await renderer.render(result.frame,sample.ptsUs);
+        if(stopped)return;
+        if(!presented)throw new Error('10-bit frame renderer did not confirm presentation');
+        active=true;
+        lastPtsUs=sample.ptsUs;
+        report({state:'processed',ptsUs:sample.ptsUs,
+          dynamicMetadataApplied:result.dynamicMetadataApplied,frame:result.frame});
+        current=pending;
+        pending=null;
       }
-      const presented=await renderer.render(result.frame,frame.ptsUs);
-      if(stopped)return;
-      if(!presented)throw new Error('10-bit frame renderer did not confirm presentation');
-      active=true;
-      lastPtsUs=frame.ptsUs;
-      report({state:'processed',ptsUs:frame.ptsUs,
-        dynamicMetadataApplied:result.dynamicMetadataApplied,frame:result.frame});
     } catch(e) {
       fallback(e instanceof Error?e.message:'HDR video-frame conversion unavailable');
     } finally {busy=false;}
@@ -116,7 +133,7 @@ export function startCinemaV51FrameBridge(
   return {
     stop(){
       if(stopped)return;
-      stopped=true;active=false;
+      stopped=true;active=false;pending=null;
       try {provider.stop();} catch {/* always release remaining resources */}
       try {renderer.stop();} catch {/* best-effort cleanup */}
     },
