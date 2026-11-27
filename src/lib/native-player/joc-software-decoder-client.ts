@@ -203,6 +203,10 @@ export class JocSoftwareDecoderClient {
     this.assertActive();
     this.generation += 1;
     this.ready = false;
+    for (const entries of this.pending.values()) {
+      entries.forEach(entry => entry.reject(new Error('OpenJOC decoder generation reset.')));
+    }
+    this.pending.clear();
     this.queuedFrames = 0;
     this.node?.port.postMessage({ type: 'clear' });
     this.decodedProfile = null;
