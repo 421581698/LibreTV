@@ -202,7 +202,10 @@ export async function removeHistory(sourceKey: string, vodId: string): Promise<v
 
 export async function clearAllHistory(): Promise<void> {
   // 一并清进度表：否则从历史重新打开时可能取到已清空的旧进度
-  await Promise.all([db.history.clear(), db.progress.clear()]);
+  await db.transaction('rw', db.history, db.progress, async () => {
+    await db.history.clear();
+    await db.progress.clear();
+  });
 }
 
 export function progressKeyOf(sourceKey: string, vodId: string, episodeIndex: number): string {
@@ -210,7 +213,9 @@ export function progressKeyOf(sourceKey: string, vodId: string, episodeIndex: nu
 }
 
 export async function saveProgress(sourceKey: string, vodId: string, episodeIndex: number, position: number, duration: number): Promise<void> {
-  if (!duration || position < 1) return;
+  if (!Number.isInteger(episodeIndex) || episodeIndex < 0 ||
+      !Number.isFinite(position) || !Number.isFinite(duration) ||
+      position < 1 || duration <= 0) return;
   await db.progress.put({
     key: progressKeyOf(sourceKey, vodId, episodeIndex),
     position,
@@ -273,11 +278,15 @@ export async function exportConfig(): Promise<string> {
   flushPendingPersist();
   const history = await db.history.toArray();
   const favorites = await db.favorites.toArray();
+  const progress = await db.progress.toArray();
+  const searchHistory = await db.searchHistory.toArray();
   const settings = localStorage.getItem(PERSIST_KEY);
 
   const data: Record<string, unknown> = {
     viewingHistory: JSON.stringify(history),
     viewingFavorites: JSON.stringify(favorites),
+    viewingProgress: JSON.stringify(progress),
+    viewingSearchHistory: JSON.stringify(searchHistory),
   };
   if (settings) data[PERSIST_KEY] = settings;
 
@@ -290,52 +299,100 @@ export async function exportConfig(): Promise<string> {
 }
 
 export async function importConfig(content: string): Promise<void> {
-  const config = JSON.parse(content) as {
-    name?: string;
-    data?: Record<string, string>;
+  const config = JSON.parse(content) as { name?: string; data?: Record<string, unknown> };
+  if (config.name !== 'LibreTV-Settings' || !config.data ||
+      typeof config.data !== 'object' || Array.isArray(config.data)) {
+    throw new Error('配置文件格式不正确');
+  }
+  const data = config.data;
+  const parseEntries = (key: string): Record<string, unknown>[] => {
+    const raw = data[key];
+    if (raw === undefined) return [];
+    if (typeof raw !== 'string') throw new Error(`${key} 不是合法的备份字段`);
+    const items: unknown = JSON.parse(raw);
+    if (!Array.isArray(items)) throw new Error(`${key} 应为数组`);
+    return items.filter((item): item is Record<string, unknown> =>
+      item !== null && typeof item === 'object' && !Array.isArray(item));
   };
-  if (config.name !== 'LibreTV-Settings') throw new Error('配置文件格式不正确');
-  const data = config.data || {};
+  const finiteNonNegative = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+  const optional = (item: Record<string, unknown>, key: string): string | undefined =>
+    typeof item[key] === 'string' ? item[key] as string : undefined;
 
-  if (typeof data[PERSIST_KEY] === 'string') {
-    // 关键：先 flush 节流缓冲中的旧状态再写导入配置，否则缓冲会在
-    // 之后 flush 时用导入前的旧状态覆盖刚写入的配置（导入静默丢失）
-    flushPendingPersist();
-    localStorage.setItem(PERSIST_KEY, data[PERSIST_KEY]);
-  }
+  // Parse all sections before changing settings or any IndexedDB table.
+  const favorites: FavoriteEntry[] = parseEntries('viewingFavorites')
+    .filter((item) => typeof item.sourceKey === 'string' && item.sourceKey.length > 0 &&
+      typeof item.vodId === 'string' && item.vodId.length > 0 &&
+      typeof item.title === 'string' && typeof item.sourceName === 'string')
+    .map((item) => ({
+      ...item,
+      id: favoriteIdFor(item.sourceKey as string, item.vodId as string),
+      addedAt: finiteNonNegative(item.addedAt, Date.now()),
+    })) as FavoriteEntry[];
+  const history: HistoryEntry[] = parseEntries('viewingHistory')
+    .slice(0, MAX_HISTORY).flatMap((item) => {
+      // Support the current export (sourceKey/vodId) and legacy fields.
+      const sourceKey = optional(item, 'sourceKey') ||
+        optional(item, 'sourceCode') || optional(item, 'sourceName') || '';
+      const vodId = optional(item, 'vodId') || optional(item, 'vod_id') || '';
+      if (!sourceKey || !vodId) return [];
+      const entry: HistoryEntry = {
+        id: `${sourceKey}_${vodId}`,
+        sourceKey, vodId,
+        title: optional(item, 'title') || '未知视频',
+        episodeIndex: Math.floor(finiteNonNegative(item.episodeIndex, 0)),
+        totalEpisodes: Math.floor(finiteNonNegative(item.totalEpisodes,
+          Array.isArray(item.episodes) ? item.episodes.length : 0)),
+        playbackPosition: finiteNonNegative(item.playbackPosition, 0),
+        duration: finiteNonNegative(item.duration, 0),
+        timestamp: finiteNonNegative(item.timestamp, Date.now()),
+      };
+      for (const field of ['sourceUrl', 'pic', 'typeName', 'year', 'area'] as const) {
+        const value = optional(item, field);
+        if (value !== undefined) entry[field] = value;
+      }
+      return [entry];
+    });
+  const progress: ProgressEntry[] = parseEntries('viewingProgress')
+    .filter((item) => typeof item.key === 'string' && item.key.length > 0 &&
+      typeof item.position === 'number' && Number.isFinite(item.position) && item.position >= 0 &&
+      typeof item.duration === 'number' && Number.isFinite(item.duration) && item.duration >= 0)
+    .map((item) => ({
+      key: item.key as string,
+      position: item.position as number,
+      duration: item.duration as number,
+      updatedAt: finiteNonNegative(item.updatedAt, Date.now()),
+    }));
+  const searchHistory: SearchHistoryEntry[] = parseEntries('viewingSearchHistory')
+    .filter((item) => typeof item.text === 'string' && item.text.length > 0)
+    .slice(0, MAX_SEARCH_HISTORY)
+    .map((item) => ({
+      text: item.text as string,
+      timestamp: finiteNonNegative(item.timestamp, Date.now()),
+    }));
 
-  if (typeof data['viewingFavorites'] === 'string') {
-    const imported = JSON.parse(data['viewingFavorites']) as FavoriteEntry[];
-    const valid = imported.filter((item) =>
-      item && typeof item.id === 'string' &&
-      typeof item.sourceKey === 'string' &&
-      typeof item.vodId === 'string' &&
-      typeof item.title === 'string' &&
-      typeof item.sourceName === 'string'
-    );
-    if (valid.length > 0) await db.favorites.bulkPut(valid.map((item) => ({ ...item, id: favoriteIdFor(item.sourceKey, item.vodId) })));
-  }
-
-  if (typeof data['viewingHistory'] === 'string') {
-    // 兼容旧版历史结构（含全集 URL 列表），只迁移定位信息
-    const legacy = JSON.parse(data['viewingHistory']) as Record<string, unknown>[];
-    for (const item of legacy.slice(0, MAX_HISTORY)) {
-      const sourceKey = String(item.sourceCode || item.sourceName || '');
-      const vodId = String(item.vod_id || '');
-      const title = String(item.title || '未知视频');
-      if (!sourceKey || !vodId) continue;
-      const totalEpisodes = Array.isArray(item.episodes) ? item.episodes.length : 0;
-      await upsertHistory({
-        sourceKey,
-        vodId,
-        title,
-        episodeIndex: typeof item.episodeIndex === 'number' ? item.episodeIndex : 0,
-        totalEpisodes,
-        playbackPosition: typeof item.playbackPosition === 'number' ? item.playbackPosition : 0,
-        duration: typeof item.duration === 'number' ? item.duration : 0,
-        timestamp: typeof item.timestamp === 'number' ? item.timestamp : Date.now(),
-      });
+  const hasSettings = typeof data[PERSIST_KEY] === 'string';
+  const settings = hasSettings ? data[PERSIST_KEY] as string : null;
+  if (hasSettings) flushPendingPersist();
+  const previousSettings = hasSettings ? localStorage.getItem(PERSIST_KEY) : null;
+  try {
+    if (settings !== null) localStorage.setItem(PERSIST_KEY, settings);
+    await db.transaction('rw', db.favorites, db.history, db.progress, db.searchHistory, async () => {
+      if (favorites.length) await db.favorites.bulkPut(favorites);
+      if (history.length) await db.history.bulkPut(history);
+      if (progress.length) await db.progress.bulkPut(progress);
+      if (searchHistory.length) await db.searchHistory.bulkPut(searchHistory);
+    });
+  } catch (error) {
+    if (hasSettings) {
+      try {
+        if (previousSettings === null) localStorage.removeItem(PERSIST_KEY);
+        else localStorage.setItem(PERSIST_KEY, previousSettings);
+      } catch {
+        // Retain the original import failure when browser storage is unavailable.
+      }
     }
+    throw error;
   }
 }
 
