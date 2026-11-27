@@ -7,8 +7,8 @@
  * Native video sound is preserved until non-silent decoded PCM is scheduled.
  */
 import {
-  createCinemaAacDecoder,CinemaPcmQueue,
-  type CinemaPcmPacket,
+  createCinemaAacDecoder,createCinemaSafariAdtsDecoder,cinemaAudioWebCodecsAvailable,CinemaPcmQueue,
+  type CinemaPcmPacket,type CinemaPcmFrame,
 } from './cinema-v51-pcm';
 import {
   cinemaConfigureEq,cinemaCreatePanner,cinemaSoundRouting,cinemaLoudnessGain,
@@ -142,7 +142,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
     session.stop();
     onState({audio:false,spatial:false,output:'native',reason});
   };
-  const decoder=createCinemaAacDecoder(source.sourceSha256,frame=>{
+  const onDecodedFrame=(frame:CinemaPcmFrame)=>{
     try {
       if(stopped)return;
       if(!graph){formatChannels=frame.channels;graph=createGraph(context,formatChannels);}
@@ -166,7 +166,13 @@ export async function createCinemaAuthorizedPcmSoundSession(
       queue.enqueue(frame);
       lastDecodedAt=performance.now();
     }catch(error){fail(error instanceof Error?error.message:'Invalid decoded PCM');}
-  },message=>fail(message));
+  };
+  const onDecoderFailure=(message:string)=>fail(message);
+  // iPad Safari may lack WebCodecs AudioDecoder. A bounded Web Audio AAC
+  // decoder uses the same authenticated ADTS packet bytes/PTS in that case.
+  const decoder=cinemaAudioWebCodecsAvailable()
+    ?createCinemaAacDecoder(source.sourceSha256,onDecodedFrame,onDecoderFailure)
+    :createCinemaSafariAdtsDecoder(source.sourceSha256,context,onDecodedFrame,onDecoderFailure);
   let stream:AsyncIterator<CinemaPcmPacket>;
   try{stream=source.packets[Symbol.asyncIterator]();}
   catch{
