@@ -49,6 +49,9 @@ export interface CinemaExtendedPresenter{
   present:(frame:CinemaExtendedFrame,ptsUs:number,crop?:CinemaExtendedUvCrop)=>Promise<boolean>;
   stop:()=>void;
   readonly highPrecisionCanvas:boolean;
+  /** GPU-submission receipt only; never a physical display HDR attestation. */
+  readonly lastSubmittedPtsUs:number|null;
+  readonly submittedFrameCount:number;
 }
 const SHADER=`
 struct Out{ @builtin(position) position:vec4f,@location(0) uv:vec2f }
@@ -89,6 +92,8 @@ export async function createCinemaExtendedWebGpuPresenter(
   if(!adapter)return null;
   const device=await adapter.requestDevice();
   let stopped=false;
+  let submittedFrameCount=0;
+  let lastSubmittedPtsUs:number|null=null;
   const stop=()=>{
     if(stopped)return;
     stopped=true;
@@ -123,6 +128,8 @@ export async function createCinemaExtendedWebGpuPresenter(
     canvas.style.display='none';
     return {
       highPrecisionCanvas:true,
+      get lastSubmittedPtsUs(){return lastSubmittedPtsUs;},
+      get submittedFrameCount(){return submittedFrameCount;},
       stop,
       async present(frame,ptsUs,crop){
         if(stopped||!canvas.isConnected||frame.timestamp!==ptsUs||
@@ -157,6 +164,9 @@ export async function createCinemaExtendedWebGpuPresenter(
           pass.end();
           device.queue.submit([encoder.finish()]);
           if(stopped)return false;
+          lastSubmittedPtsUs=ptsUs;
+          submittedFrameCount++;
+          canvas.dataset.cinemaHdrSubmittedPtsUs=String(ptsUs);
           canvas.style.display='block';
           return true;
         }catch{
