@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   advanceNativePlaybackObservation,
   countPresentedVideoFrames,
   emptyNativePlaybackObservation,
+  observeNativeVideoPlayback,
   type NativePlaybackSample,
 } from './native-playback-observation';
 
@@ -221,5 +222,92 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(advanceNativePlaybackObservation(error, 'sample', { ...playing, currentTime: 5 })).toEqual(error);
     expect(advanceNativePlaybackObservation(error, 'invalidate')).toEqual(error);
     expect(advanceNativePlaybackObservation(error, 'reset').status).toBe('waiting');
+  });
+});
+
+/**
+ * Safari can expose requestVideoFrameCallback without getVideoPlaybackQuality.
+ * This is a deterministic API harness, not physical iPad Safari HDR evidence.
+ */
+describe('Safari frame callback fallback lifecycle', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('observes real callback frame progression, resets on source replacement and cancels callbacks', () => {
+    class VideoHarness {
+      currentTime = 0;
+      videoWidth = 1920;
+      videoHeight = 1080;
+      readyState = 3;
+      paused = false;
+      seeking = false;
+      ended = false;
+      error: { code: number } | null = null;
+      pending = new Map<number, VideoFrameRequestCallback>();
+      cancelled: number[] = [];
+      events = new Map<string, Set<() => void>>();
+      nextId = 1;
+      requestVideoFrameCallback(callback: VideoFrameRequestCallback) {
+        const id = this.nextId++;
+        this.pending.set(id, callback);
+        return id;
+      }
+      cancelVideoFrameCallback(id: number) {
+        this.cancelled.push(id);
+        this.pending.delete(id);
+      }
+      addEventListener(name: string, callback: () => void) {
+        if (!this.events.has(name)) this.events.set(name, new Set());
+        this.events.get(name)!.add(callback);
+      }
+      removeEventListener(name: string, callback: () => void) {
+        this.events.get(name)?.delete(callback);
+      }
+      fire(name: string) { this.events.get(name)?.forEach(callback => callback()); }
+      frame(time: number, presentedFrames: number) {
+        this.currentTime = time;
+        const callbacks = [...this.pending.values()];
+        this.pending.clear();
+        for (const callback of callbacks) callback(0, { presentedFrames } as VideoFrameCallbackMetadata);
+        this.fire('timeupdate');
+      }
+    }
+    class ObserverHarness {
+      static active: ObserverHarness | null = null;
+      callback: () => void;
+      constructor(callback: () => void) {
+        this.callback = callback;
+        ObserverHarness.active = this;
+      }
+      observe() {}
+      disconnect() { ObserverHarness.active = null; }
+      changed() { this.callback(); }
+    }
+    vi.stubGlobal('MutationObserver', ObserverHarness);
+    const original = new VideoHarness();
+    const replacement = new VideoHarness();
+    const container = {
+      activeVideo: original,
+      querySelector(_selector: string) { return this.activeVideo; },
+    };
+    const updates: ReturnType<typeof emptyNativePlaybackObservation>[] = [];
+    const stop = observeNativeVideoPlayback(
+      container as unknown as Element,
+      observation => updates.push(observation),
+    );
+    original.frame(0, 100);
+    original.frame(1.5, 105);
+    expect(updates.at(-1)?.status).toBe('progress-observed');
+    expect(updates.at(-1)?.presentedFrames).toBe(5);
+    container.activeVideo = replacement;
+    ObserverHarness.active?.changed();
+    expect(original.cancelled).toHaveLength(1);
+    expect(updates.at(-1)?.status).toBe('waiting');
+    replacement.frame(0, 1);
+    replacement.frame(1.5, 2);
+    expect(updates.at(-1)?.status).toBe('progress-observed');
+    expect(updates.at(-1)?.presentedFrames).toBe(1);
+    stop();
+    expect(replacement.cancelled).toHaveLength(1);
+    expect(ObserverHarness.active).toBeNull();
   });
 });
