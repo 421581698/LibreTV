@@ -259,53 +259,61 @@ export function createCinemaSafariAdtsDecoder(
   let active=true;
   let previousEndUs=-1;
   let format:string|null=null;
+  // decodeAudioData is asynchronous. Serialize packet decoding so two callers
+  // cannot commit later PTS first or overwrite the continuity clock.
+  let pending:Promise<void>=Promise.resolve();
   const stop=()=>{active=false;};
   const fail=(reason:string)=>{if(active){stop();onFailure(reason);}};
-  return {
-    async push(packet:CinemaPcmPacket):Promise<void> {
-      if(!active)throw new Error('Safari ADTS decoder stopped');
-      try {
-        if(packet.sourceSha256.toLowerCase()!==sourceSha256.toLowerCase())
-          throw new Error('AAC source identity mismatch');
-        const {header,frames}=cinemaDemuxAdts(packet);
-        const key=header.sampleRate+':'+header.channels;
-        if(format&&format!==key)throw new Error('AAC track format changed');
-        format=key;
-        // A packet must start at the end of the previous decoded ADTS group.
-        // Do not silently concatenate gaps or overlap; both corrupt A/V sync.
-        // Allow only microsecond rounding drift from the AAC sample clock.
-        if(previousEndUs>=0&&Math.abs(packet.ptsUs-previousEndUs)>1000)
-          throw new Error('Discontinuous AAC segment timestamps');
-        const encoded=packet.data.slice();
-        const decoded=await context.decodeAudioData(encoded.buffer);
+  const decodePacket=async(packet:CinemaPcmPacket):Promise<void>=>{
+    if(!active)return;
+    try {
+      if(packet.sourceSha256.toLowerCase()!==sourceSha256.toLowerCase())
+        throw new Error('AAC source identity mismatch');
+      const {header,frames}=cinemaDemuxAdts(packet);
+      const key=header.sampleRate+':'+header.channels;
+      if(format&&format!==key)throw new Error('AAC track format changed');
+      format=key;
+      // The presentation clock belongs to the verified ADTS samples, not
+      // asynchronous decoder completion or packet arrival time.
+      if(previousEndUs>=0&&Math.abs(packet.ptsUs-previousEndUs)>1000)
+        throw new Error('Discontinuous AAC segment timestamps');
+      const encoded=packet.data.slice();
+      const decoded=await context.decodeAudioData(encoded.buffer);
+      if(!active)return;
+      if(decoded.numberOfChannels!==header.channels||
+         !Number.isSafeInteger(decoded.sampleRate)||decoded.sampleRate<8000||
+         decoded.sampleRate>192000||decoded.length<=0)
+        throw new Error('Invalid Safari AAC decoded format');
+      const expected=Math.round(frames.length*1024*decoded.sampleRate/header.sampleRate);
+      const primingTolerance=Math.ceil(decoded.sampleRate*.002);
+      if(Math.abs(decoded.length-expected)>primingTolerance)
+        throw new Error('Safari AAC decoded frame count mismatches ADTS timeline');
+      const channels=Array.from({length:decoded.numberOfChannels},(_,ch)=>decoded.getChannelData(ch));
+      for(let start=0;start<decoded.length;start+=8192){
         if(!active)return;
-        if(decoded.numberOfChannels!==header.channels||
-           !Number.isSafeInteger(decoded.sampleRate)||decoded.sampleRate<8000||
-           decoded.sampleRate>192000||decoded.length<=0)
-          throw new Error('Invalid Safari AAC decoded format');
-        const expected=Math.round(frames.length*1024*decoded.sampleRate/header.sampleRate);
-        // Refuse encoder priming/padding beyond 2ms: otherwise successive
-        // segment buffers overlap and can produce audible double sound.
-        const primingTolerance=Math.ceil(decoded.sampleRate*.002);
-        if(Math.abs(decoded.length-expected)>primingTolerance)
-          throw new Error('Safari AAC decoded frame count mismatches ADTS timeline');
-        const channels=Array.from({length:decoded.numberOfChannels},(_,ch)=>decoded.getChannelData(ch));
-        for(let start=0;start<decoded.length;start+=8192){
-          if(!active)return;
-          const end=Math.min(start+8192,decoded.length);
-          const ptsUs=packet.ptsUs+Math.round(start*1e6/decoded.sampleRate);
-          if(!Number.isSafeInteger(ptsUs))throw new Error('AAC frame timestamp overflow');
-          onFrame({sourceSha256,ptsUs,sampleRate:decoded.sampleRate,
-            channels:decoded.numberOfChannels,frames:end-start,
-            planes:channels.map(plane=>new Float32Array(plane.slice(start,end)))});
-        }
-        previousEndUs=packet.ptsUs+Math.round(frames.length*1024*1e6/header.sampleRate);
-      } catch(error) {
-        fail(error instanceof Error?error.message:'Safari AAC decode failed');
-        throw error;
+        const end=Math.min(start+8192,decoded.length);
+        const ptsUs=packet.ptsUs+Math.round(start*1e6/decoded.sampleRate);
+        if(!Number.isSafeInteger(ptsUs))throw new Error('AAC frame timestamp overflow');
+        onFrame({sourceSha256,ptsUs,sampleRate:decoded.sampleRate,
+          channels:decoded.numberOfChannels,frames:end-start,
+          planes:channels.map(plane=>new Float32Array(plane.slice(start,end)))});
       }
+      previousEndUs=packet.ptsUs+Math.round(frames.length*1024*1e6/header.sampleRate);
+    } catch(error) {
+      fail(error instanceof Error?error.message:'Safari AAC decode failed');
+      throw error;
+    }
+  };
+  return {
+    push(packet:CinemaPcmPacket):Promise<void> {
+      if(!active)return Promise.reject(new Error('Safari ADTS decoder stopped'));
+      // A failed decode permanently closes this decoder. Do not allow later
+      // packets to run through the same broken timeline.
+      const work=pending.then(()=>decodePacket(packet));
+      pending=work.catch(()=>{});
+      return work;
     },
-    async flush():Promise<void>{},
+    async flush():Promise<void>{await pending;},
     stop,
     get active(){return active;},
   };
