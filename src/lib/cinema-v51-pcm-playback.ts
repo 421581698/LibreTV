@@ -179,22 +179,34 @@ export async function createCinemaAuthorizedPcmSoundSession(
   };
   // Only retry the first packet before any PCM has been emitted. Switching
   // decoders after output would risk duplicate samples or a discontinuity.
+  // Each decoder generation owns its callbacks. Retired asynchronous
+  // WebCodecs callbacks cannot poison a live Safari fallback session.
   let emittedPcm=false;
   let usingWebCodecs=cinemaAudioWebCodecsAvailable();
   let firstPacket=true;
   let initialFailure:string|null=null;
-  const deliverFrame=(frame:CinemaPcmFrame)=>{
-    emittedPcm=true;
-    onDecodedFrame(frame);
+  let generation=0;
+  const makeCallbacks=(ownedGeneration:number)=>({
+    frame:(frame:CinemaPcmFrame)=>{
+      if(stopped||ownedGeneration!==generation)return;
+      // A failed validation is not accepted PCM and must not commit takeover.
+      onDecodedFrame(frame);
+      if(!stopped)emittedPcm=true;
+    },
+    failure:(message:string)=>{
+      if(stopped||ownedGeneration!==generation)return;
+      if(usingWebCodecs&&firstPacket&&!emittedPcm)initialFailure=message;
+      else fail(message);
+    },
+  });
+  const safariDecoder=()=>{
+    const callbacks=makeCallbacks(generation);
+    return createCinemaSafariAdtsDecoder(source.sourceSha256,context,
+      callbacks.frame,callbacks.failure);
   };
-  const onDecoderFailure=(message:string)=>{
-    if(usingWebCodecs&&firstPacket&&!emittedPcm)initialFailure=message;
-    else fail(message);
-  };
-  const safariDecoder=()=>createCinemaSafariAdtsDecoder(
-    source.sourceSha256,context,deliverFrame,onDecoderFailure);
+  const primaryCallbacks=makeCallbacks(generation);
   let decoder=usingWebCodecs
-    ?createCinemaAacDecoder(source.sourceSha256,deliverFrame,onDecoderFailure)
+    ?createCinemaAacDecoder(source.sourceSha256,primaryCallbacks.frame,primaryCallbacks.failure)
     :safariDecoder();
   const pushPacket=async(packet:CinemaPcmPacket)=>{
     try{
@@ -203,6 +215,8 @@ export async function createCinemaAuthorizedPcmSoundSession(
       if(initialFailure)throw new Error(initialFailure);
     }catch(error){
       if(stopped||!usingWebCodecs||!firstPacket||emittedPcm)throw error;
+      // Invalidate callbacks BEFORE closing the old decoder.
+      generation++;
       decoder.stop();
       usingWebCodecs=false;
       initialFailure=null;
