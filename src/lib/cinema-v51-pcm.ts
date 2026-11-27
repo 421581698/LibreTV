@@ -271,8 +271,11 @@ export function createCinemaSafariAdtsDecoder(
         const key=header.sampleRate+':'+header.channels;
         if(format&&format!==key)throw new Error('AAC track format changed');
         format=key;
-        if(previousEndUs>=0&&packet.ptsUs<previousEndUs-5000)
-          throw new Error('Overlapping AAC segment timestamps');
+        // A packet must start at the end of the previous decoded ADTS group.
+        // Do not silently concatenate gaps or overlap; both corrupt A/V sync.
+        // Allow only microsecond rounding drift from the AAC sample clock.
+        if(previousEndUs>=0&&Math.abs(packet.ptsUs-previousEndUs)>1000)
+          throw new Error('Discontinuous AAC segment timestamps');
         const encoded=packet.data.slice();
         const decoded=await context.decodeAudioData(encoded.buffer);
         if(!active)return;
