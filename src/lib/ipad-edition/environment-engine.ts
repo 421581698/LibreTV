@@ -61,11 +61,12 @@ export function attachEnvironmentEngine(
   ];
   const media = queries.map((query) => window.matchMedia(query));
   const update = () => {
-    const fridayTheme = document.documentElement.dataset.fridayTheme;
-    const explicitTheme = fridayTheme === 'light' || fridayTheme === 'dark' ? fridayTheme : undefined;
+    // The app's resolved .dark class is the source of truth for every route.
+    // Friday's independently persisted glass preference must never override it.
     const systemDark = media[0].matches;
+    const resolvedAppearance = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
     const profile = resolveEnvironmentProfile({
-      appearance: options.appearance ?? explicitTheme ?? 'system',
+      appearance: options.appearance ?? resolvedAppearance,
       systemDark,
       contrast: media[1].matches ? 'more' : 'normal',
       reducedTransparency: media[2].matches,

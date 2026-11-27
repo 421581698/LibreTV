@@ -307,3 +307,35 @@ html[data-friday-material-setting="solid"] .ipad-edition .ipad-edition__search-p
     border-color: CanvasText !important;
   }
 }
+
+/* Appearance-safe search controls, without changing capsule geometry. */
+.ipad-edition[data-environment="light"] .ipad-edition__search-page .ipad-edition__search-form,
+.ipad-edition[data-environment="dark"] .ipad-edition__search-page .ipad-edition__search-form {
+  background: var(--ipad-surface-solid) !important;
+  border-color: var(--ipad-line) !important;
+  box-shadow: 0 10px 30px rgba(14,22,35,.11);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form:focus-within {
+  border-color: var(--ipad-accent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb,var(--ipad-accent) 22%,transparent) !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input {
+  color: var(--ipad-text) !important;
+  -webkit-text-fill-color: var(--ipad-text);
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form input::placeholder,
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form > span {
+  color: var(--ipad-muted) !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button {
+  color: var(--ipad-text) !important;
+  background: var(--ipad-surface) !important;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button:disabled {
+  color: var(--ipad-muted) !important;
+  opacity: .65;
+}
+.ipad-edition .ipad-edition__search-page .ipad-edition__search-form button:focus-visible,
+.ipad-edition .ipad-edition__search-page .ipad-edition__result-card:focus-visible {
+  outline-color: var(--ipad-accent) !important;
+}
