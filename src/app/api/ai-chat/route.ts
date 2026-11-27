@@ -2,10 +2,54 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { HISTORY_LIMITS } from '@/types/chat';
 import { runChat } from '@/lib/orchestrator';
 import { registerInflight, unregisterInflight } from '@/lib/infra/inflight';
 import { inspectInput } from '@/lib/infra/guard';
 import { guardRequest } from '@/lib/api-guard';
+
+const MAX_BODY_BYTES = 128 * 1024;
+const messageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().max(HISTORY_LIMITS.maxContentChars),
+  cards: z.array(z.object({
+    id: z.string().max(200),
+    title: z.string().max(200),
+  })).max(HISTORY_LIMITS.maxCardsPerMessage).optional(),
+});
+const chatSchema = z.object({ messages: z.array(messageSchema).min(1).max(30) });
+
+async function readBoundedBody(request: Request): Promise<unknown> {
+  const declaredBytes = Number(request.headers.get('content-length') || 0);
+  if (Number.isFinite(declaredBytes) && declaredBytes > MAX_BODY_BYTES) throw new Error('TOO_LARGE');
+  if (!request.body) throw new Error('BAD_BODY');
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_BODY_BYTES) {
+        await reader.cancel();
+        throw new Error('TOO_LARGE');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
 
 export async function POST(req: NextRequest) {
   const guarded = guardRequest(req);
@@ -14,20 +58,25 @@ export async function POST(req: NextRequest) {
   const userId = 'libretv-authenticated-user';
   let requestId: string | undefined;
   
+  let body: z.infer<typeof chatSchema>;
   try {
-    const body = await req.json();
-    
-    // 兼容 LibreTV 前端传来的格式： { messages: [...] }
-    if (!body.messages || !Array.isArray(body.messages) || body.messages.length === 0) {
-      return NextResponse.json({ error: 'messages 必须为非空数组' }, { status: 400 });
+    const parsed = chatSchema.safeParse(await readBoundedBody(req));
+    if (!parsed.success) {
+      return NextResponse.json({ error: '聊天消息格式或长度不正确' }, { status: 400 });
     }
+    body = parsed.data;
+  } catch (error) {
+    const tooLarge = error instanceof Error && error.message === 'TOO_LARGE';
+    return NextResponse.json(
+      { error: tooLarge ? '请求体超过 128KB' : '请求格式错误' },
+      { status: tooLarge ? 413 : 400 },
+    );
+  }
 
-    // 取最后一条作为当前消息，前面的作为历史记录
+  try {
+    // Preserve the legacy messages contract while validating every history entry.
     const userMessage = body.messages[body.messages.length - 1].content;
-    const history = body.messages.slice(0, -1).map((m: any) => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content
-    }));
+    const history = body.messages.slice(0, -1);
 
     const input = inspectInput(userMessage);
     if (!input.ok) {
@@ -39,7 +88,7 @@ export async function POST(req: NextRequest) {
     const conversationId = 'libretv_session';
 
     const ctrl = new AbortController();
-    registerInflight(requestId, userId, ctrl);
+    if (!registerInflight(requestId, userId, ctrl)) throw new Error('重复的聊天请求标识');
     req.signal.addEventListener('abort', () => ctrl.abort(), { once: true });
 
     // 调用咱们写好的核心大脑！
@@ -62,6 +111,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     if (requestId) unregisterInflight(requestId);
-    return NextResponse.json({ error: err.message || '服务器内部错误' }, { status: 500 });
+    return NextResponse.json({ error: 'AI 服务暂时不可用' }, { status: 500 });
   }
 }
