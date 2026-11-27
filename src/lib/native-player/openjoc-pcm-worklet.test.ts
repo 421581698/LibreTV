@@ -96,6 +96,24 @@ describe('OpenJOC PCM worklet media clock', () => {
     expect(events.some(event => event.type === 'clock-discontinuity')).toBe(false);
   });
 
+  it('maintains bounded queue and sample alignment over simulated ten-minute playback', () => {
+    const { send, quantum, processor, events } = setup();
+    const frames = 48000 * 600;
+    const samples = new Float32Array(256).fill(0.25);
+    send({ type: 'clock', ptsSamples: 0 });
+    send({ type: 'start' });
+    for (let pts = 0; pts < frames; pts += 128) {
+      if (pts % 2048 === 0) send({ type: 'clock', ptsSamples: pts });
+      send({ type: 'pcm', samples, sampleRate: 48000, channels: 2, ptsSamples: pts });
+      const { left } = quantum();
+      if (left[0] !== 0.25 || left[127] !== 0.25 || processor.queuedFrames !== 0) {
+        throw new Error('PCM alignment or queue regression at sample ' + pts);
+      }
+      events.length = 0;
+    }
+    expect(processor.expectedPtsSamples).toBe(frames);
+  }, 30000);
+
   it('detects prolonged underrun after output started', () => {
     const { send, quantum, events } = setup();
     send({ type: 'clock', ptsSamples: 0 });
