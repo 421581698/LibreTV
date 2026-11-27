@@ -133,6 +133,12 @@ export function createCinemaLiveVideoDecoder(
           try {instance?.close();} catch {/* closed */}
           onError(error instanceof Error?error.message:'WebCodecs decoder failure');
         }
+      } finally {
+        // A naturally exhausted packet iterator must not pin the hardware
+        // decoder indefinitely. This is a terminal, non-restartable session.
+        try {instance?.close();} catch {/* already closed */}
+        instance=null;
+        stopped=true;
       }
     },
     stop() {
