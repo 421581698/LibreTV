@@ -62,11 +62,15 @@ export async function GET(request: Request) {
     );
   }
   const data = payload as Record<string, unknown>;
+  const mp4Binding = data.contentType === 'video/mp4' && data.mediaType === 'mp4' &&
+    (data.graphId === null || data.graphId === undefined);
+  const hlsBinding = data.contentType === 'application/vnd.apple.mpegurl' && data.mediaType === 'hls' &&
+    data.graphId === data.assetId;
   if (typeof data.resourceId !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(data.resourceId) ||
       typeof data.assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(data.assetId) ||
       typeof data.sha256 !== 'string' || !HASH.test(data.sha256) ||
       typeof data.byteLength !== 'number' || !Number.isSafeInteger(data.byteLength) || data.byteLength <= 0 ||
-      data.contentType !== 'video/mp4' || data.mediaType !== 'mp4' || data.rpuPresence !== 'unknown') {
+      (!mp4Binding && !hlsBinding) || data.rpuPresence !== 'unknown') {
     return NextResponse.json(
       { code: 'DV_CMS_BINDING_RESPONSE_INVALID' },
       { status: 502, headers: { 'Cache-Control': 'no-store' } },

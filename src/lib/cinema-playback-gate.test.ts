@@ -156,3 +156,21 @@ describe('Cinema provider detail-to-binding transition', () => {
     })).toBe(false);
   });
 });
+
+it('keeps the native HLS playback URL while separately carrying a verified registry identity', () => {
+  const hls: CinemaPlaybackMedia = {
+    url: 'https://example.org/season/master.m3u8',
+    episodeKey: 'custom_1:167277:0',
+    sourceKey: 'custom_1',
+    mediaType: 'hls',
+    dolbyVisionAssetId: 'dv_root',
+    dolbyVisionSourceKind: 'registry',
+    dolbyVisionSourceIdentity: 'resource-123',
+  };
+  const result = selectCinemaPlaybackMedia({
+    isCinema: true, cmsLookupPending: false, current: hls, lastReady: verified,
+  });
+  expect(result.media.url).toBe(hls.url);
+  expect(result.media.mediaType).toBe('hls');
+  expect(result.media.dolbyVisionSourceIdentity).toBe('resource-123');
+});

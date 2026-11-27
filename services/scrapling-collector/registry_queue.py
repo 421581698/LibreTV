@@ -796,6 +796,23 @@ def api_get_resource(resource_id: str, authorization: str | None = Header(defaul
     return {"resource":dict(row),"media_assets":[dict(a) for a in media_assets],"hls_graphs":[dict(g) for g in hls_graphs],"verifications":[dict(v) for v in verifications],"history":[dict(h) for h in history]}
 
 
+def _eligible_cms_binding_media_type(c: sqlite3.Connection, resource: sqlite3.Row, asset: sqlite3.Row) -> str | None:
+    """Fail-closed exact CMS binding. HLS must name a registered immutable graph root."""
+    if (resource["resource_type"] != "DIRECT_MEDIA" or resource["access_state"] != "PUBLIC" or
+            resource["validation_state"] != "validated" or resource["playback_state"] != "PLAYER_CONFIRMED"):
+        return None
+    if resource["media_format"] == "mp4" and asset["content_type"] == "video/mp4":
+        return "mp4"
+    if resource["media_format"] != "hls" or asset["content_type"] != "application/vnd.apple.mpegurl":
+        return None
+    graph = c.execute(
+        """SELECT graph_id FROM registry_hls_asset_graphs
+           WHERE resource_id=? AND root_asset_id=? AND graph_id=? LIMIT 1""",
+        (resource["id"], asset["asset_id"], asset["asset_id"]),
+    ).fetchone()
+    return "hls" if graph else None
+
+
 @router.post("/v1/registry/cms-asset-bindings")
 def api_register_cms_asset_binding(
     payload: CmsAssetBindingRegistration,
@@ -816,10 +833,8 @@ def api_register_cms_asset_binding(
         ).fetchone()
         if not resource or not asset:
             raise HTTPException(status_code=404, detail="Registered resource or asset not found")
-        if (resource["resource_type"] != "DIRECT_MEDIA" or resource["access_state"] != "PUBLIC" or
-                resource["validation_state"] != "validated" or resource["playback_state"] != "PLAYER_CONFIRMED" or
-                resource["media_format"] != "mp4" or asset["content_type"] != "video/mp4"):
-            raise HTTPException(status_code=409, detail="CMS binding requires a validated PUBLIC player-confirmed MP4 asset")
+        if not _eligible_cms_binding_media_type(c, resource, asset):
+            raise HTTPException(status_code=409, detail="CMS binding requires an eligible MP4 asset or verified HLS graph root")
         key = (
             payload.source_key, payload.vod_id, payload.episode_index,
             payload.provider_url_sha256.lower(), payload.playback_url_sha256.lower(),
@@ -860,7 +875,7 @@ def api_get_cms_asset_binding(
     require_auth(authorization)
     with connect() as c:
         row = c.execute(
-            """SELECT binding.resource_id,binding.asset_id,asset.sha256,asset.byte_length,asset.content_type,asset.object_key,
+            """SELECT resource.id AS id,binding.resource_id,binding.asset_id,asset.sha256,asset.byte_length,asset.content_type,asset.object_key,
                       resource.resource_type,resource.access_state,resource.validation_state,
                       resource.playback_state,resource.media_format
                FROM registry_cms_asset_bindings binding
@@ -871,11 +886,10 @@ def api_get_cms_asset_binding(
                  AND binding.provider_url_sha256=? AND binding.playback_url_sha256=?""",
             (source_key, vod_id, episode_index, provider_url_sha256.lower(), playback_url_sha256.lower()),
         ).fetchone()
+        media_type = _eligible_cms_binding_media_type(c, row, row) if row else None
     if not row:
         raise HTTPException(status_code=404, detail="Exact CMS episode binding not found")
-    if (row["resource_type"] != "DIRECT_MEDIA" or row["access_state"] != "PUBLIC" or
-            row["validation_state"] != "validated" or row["playback_state"] != "PLAYER_CONFIRMED" or
-            row["media_format"] != "mp4" or row["content_type"] != "video/mp4"):
+    if not media_type:
         raise HTTPException(status_code=409, detail="CMS binding is no longer eligible")
     expected_object_key = f"sha256/{row['sha256'][:2]}/{row['sha256']}"
     if row["object_key"] != expected_object_key:
@@ -886,7 +900,8 @@ def api_get_cms_asset_binding(
         "sha256": row["sha256"],
         "byteLength": row["byte_length"],
         "contentType": row["content_type"],
-        "mediaType": "mp4",
+        "mediaType": media_type,
+        "graphId": row["asset_id"] if media_type == "hls" else None,
         "rpuPresence": "unknown",
     }
 

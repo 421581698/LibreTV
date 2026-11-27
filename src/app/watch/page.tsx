@@ -611,6 +611,7 @@ function WatchContent() {
     resourceId: string;
     assetId: string;
     sha256: string;
+    mediaType: 'mp4' | 'hls';
   } | null>(null);
 
   const cmsLookupKey = (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') &&
@@ -664,7 +665,9 @@ function WatchContent() {
         if (typeof data.resourceId !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(data.resourceId) ||
             typeof data.assetId !== 'string' || !/^[A-Za-z0-9:_-]{1,200}$/.test(data.assetId) ||
             typeof data.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(data.sha256) ||
-            data.contentType !== 'video/mp4' || data.mediaType !== 'mp4') return;
+            !((data.contentType === 'video/mp4' && data.mediaType === 'mp4') ||
+              (data.contentType === 'application/vnd.apple.mpegurl' && data.mediaType === 'hls' &&
+                data.graphId === data.assetId))) return;
         if (!controller.signal.aborted) {
           setCmsAssetBinding({
             sourceKey,
@@ -675,6 +678,7 @@ function WatchContent() {
             resourceId: data.resourceId,
             assetId: data.assetId,
             sha256: data.sha256,
+            mediaType: data.mediaType as 'mp4' | 'hls',
           });
         }
       } catch {
@@ -696,7 +700,9 @@ function WatchContent() {
     cmsAssetBinding.playbackUrl === currentUrl
     ? cmsAssetBinding
     : null;
-  const playerUrl = activeCmsAssetBinding
+  // The HLS root is evidence only: serving it as a standalone registry URL
+  // would break relative variant/segment URLs and could misrepresent CDN bytes.
+  const playerUrl = activeCmsAssetBinding?.mediaType === 'mp4'
     ? `/api/dolby-vision/assets/${encodeURIComponent(activeCmsAssetBinding.assetId)}/content`
     : currentUrl;
   const currentEpisodeKey = `${sourceKey}:${vodId || currentUrl}:${currentIndex}`;
@@ -705,7 +711,7 @@ function WatchContent() {
   const lastReadyCinemaMediaRef = useRef<CinemaPlaybackMedia | null>(null);
   const currentPlaybackMedia: CinemaPlaybackMedia = {
     url: playerUrl, episodeKey: currentEpisodeKey, sourceKey,
-    mediaType: activeCmsAssetBinding ? 'mp4' : undefined,
+    mediaType: activeCmsAssetBinding?.mediaType,
     dolbyVisionAssetId: activeCmsAssetBinding?.assetId,
     dolbyVisionSourceKind: activeCmsAssetBinding ? 'registry' : directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown',
     dolbyVisionSourceIdentity: activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined),
@@ -714,7 +720,7 @@ function WatchContent() {
     if (!isIpadEditionPlayback || cinemaMediaPending || !currentUrl) return;
     lastReadyCinemaMediaRef.current = {
       url: playerUrl, episodeKey: currentEpisodeKey, sourceKey,
-      mediaType: activeCmsAssetBinding ? 'mp4' : undefined,
+      mediaType: activeCmsAssetBinding?.mediaType,
       dolbyVisionAssetId: activeCmsAssetBinding?.assetId,
       dolbyVisionSourceKind: activeCmsAssetBinding ? 'registry' : directUrl ? 'direct' : (sourceKey.startsWith('custom_') || sourceKey === 'friday-cms') ? 'cms' : 'unknown',
       dolbyVisionSourceIdentity: activeCmsAssetBinding?.resourceId ?? (sourceKey || undefined),

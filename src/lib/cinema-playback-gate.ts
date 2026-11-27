@@ -7,7 +7,7 @@ export interface CinemaPlaybackMedia {
   url: string;
   episodeKey: string;
   sourceKey: string;
-  mediaType?: 'mp4';
+  mediaType?: 'mp4' | 'hls';
   dolbyVisionAssetId?: string;
   dolbyVisionSourceKind: 'registry' | 'direct' | 'cms' | 'unknown';
   dolbyVisionSourceIdentity?: string;

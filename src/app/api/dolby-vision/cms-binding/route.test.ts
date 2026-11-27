@@ -47,6 +47,28 @@ describe('GET /api/dolby-vision/cms-binding', () => {
     );
   });
 
+  it('accepts only a registered HLS graph root with exact asset identity', async () => {
+    const hls = {
+      ...payload, contentType: 'application/vnd.apple.mpegurl',
+      mediaType: 'hls', graphId: payload.assetId,
+    };
+    vi.mocked(collectorRequest).mockResolvedValue(NextResponse.json(hls));
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject(hls);
+  });
+
+  it.each([
+    { mediaType: 'hls', contentType: 'application/vnd.apple.mpegurl', graphId: 'another-root' },
+    { mediaType: 'hls', contentType: 'application/vnd.apple.mpegurl', graphId: undefined },
+    { mediaType: 'hls', contentType: 'video/mp4', graphId: payload.assetId },
+    { mediaType: 'mp4', contentType: 'application/vnd.apple.mpegurl', graphId: null },
+  ])('rejects a mismatched root or media format: %o', async (invalid) => {
+    vi.mocked(collectorRequest).mockResolvedValue(NextResponse.json({ ...payload, ...invalid }));
+    const response = await GET(request());
+    expect(response.status).toBe(502);
+  });
+
   it('rejects malformed or incomplete episode identities', async () => {
     const response = await GET(request('-1'));
     expect(response.status).toBe(400);

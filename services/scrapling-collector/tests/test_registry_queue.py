@@ -482,6 +482,60 @@ class RegistryQueueTests(unittest.TestCase):
         self.assertEqual(found["rpuPresence"], "unknown")
         self.assertEqual(mismatch.exception.status_code, 404)
 
+    def test_cms_hls_binding_requires_an_exact_registered_graph_root_and_revokes_cleanly(self):
+        from fastapi import HTTPException
+        resource = queue.upsert_resource({
+            "resource_key": "resource:cms-hls-root", "source_key": "provider",
+            "resource_type": "DIRECT_MEDIA", "url": "https://media.example.org/master.m3u8",
+            "title": "Verified HLS", "access_state": "PUBLIC", "media_format": "hls",
+        })
+        queue.record_verification(resource["id"], "preflight", "passed", {"access_state": "PUBLIC"})
+        queue.record_verification(resource["id"], "player", "passed", {"progressed_seconds": 3})
+        root = queue.register_dolby_vision_media_asset(
+            resource["id"], "1" * 64, 512, "application/vnd.apple.mpegurl")
+        other = queue.register_dolby_vision_media_asset(
+            resource["id"], "2" * 64, 256, "application/vnd.apple.mpegurl")
+        payload = queue.CmsAssetBindingRegistration(
+            source_key="custom_1", vod_id="167277", episode_index=0,
+            provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+            resource_id=resource["id"], asset_id=root["asset_id"],
+        )
+        with patch.object(queue, "require_dv_ingestion_auth"), self.assertRaises(HTTPException) as no_graph:
+            queue.api_register_cms_asset_binding(payload, x_dv_ingestion_token="operator")
+        self.assertEqual(no_graph.exception.status_code, 409)
+        with queue.connect() as c:
+            c.execute(
+                "INSERT INTO registry_hls_asset_graphs(graph_id,resource_id,root_asset_id,created_at) VALUES(?,?,?,?)",
+                (root["asset_id"], resource["id"], root["asset_id"], 123),
+            )
+        with patch.object(queue, "require_dv_ingestion_auth"):
+            result = queue.api_register_cms_asset_binding(payload, x_dv_ingestion_token="operator")
+            self.assertEqual(result["status"], "bound")
+            with self.assertRaises(HTTPException) as wrong_root:
+                queue.api_register_cms_asset_binding(
+                    payload.model_copy(update={"asset_id": other["asset_id"]}),
+                    x_dv_ingestion_token="operator",
+                )
+            self.assertEqual(wrong_root.exception.status_code, 409)
+        args = dict(
+            source_key="custom_1", vod_id="167277", episode_index=0,
+            provider_url_sha256="b" * 64, playback_url_sha256="c" * 64,
+            authorization="Bearer test",
+        )
+        with patch.object(queue, "require_auth"):
+            found = queue.api_get_cms_asset_binding(**args)
+            self.assertEqual(found["mediaType"], "hls")
+            self.assertEqual(found["graphId"], root["asset_id"])
+            self.assertEqual(found["rpuPresence"], "unknown")
+            with self.assertRaises(HTTPException) as wrong_hash:
+                queue.api_get_cms_asset_binding(**{**args, "playback_url_sha256": "d" * 64})
+            self.assertEqual(wrong_hash.exception.status_code, 404)
+            with queue.connect() as c:
+                c.execute("DELETE FROM registry_hls_asset_graphs WHERE root_asset_id=?", (root["asset_id"],))
+            with self.assertRaises(HTTPException) as revoked:
+                queue.api_get_cms_asset_binding(**args)
+            self.assertEqual(revoked.exception.status_code, 409)
+
     def test_cms_asset_binding_rejects_unverified_and_conflicting_assets(self):
         from fastapi import HTTPException
         resource = queue.upsert_resource({
