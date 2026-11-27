@@ -1,10 +1,10 @@
 import {describe,expect,it,vi} from 'vitest';
-import {createCinemaLiveVideoDecoder} from './cinema-v51-live-decoder';
+import {createCinemaLiveVideoDecoder,type CinemaCompressedSample} from './cinema-v51-live-decoder';
 const source='c'.repeat(64);
 const packet=(ptsUs:number,key:boolean,sourceSha256=source)=>({
   sourceSha256,ptsUs,durationUs:33333,key,data:new Uint8Array([0,0,0,1,0x26,0x01]),
 });
-function harness(chunks=[packet(1000000,true),packet(1033333,false)]) {
+function harness(chunks:CinemaCompressedSample[]=[packet(1000000,true),packet(1033333,false)]) {
   const created:{config?:unknown;chunks:unknown[];closed:boolean}={chunks:[],closed:false};
   let output:(frame:unknown)=>void=()=>{};
   const FakeDecoder=class {
