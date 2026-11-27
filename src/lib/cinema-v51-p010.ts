@@ -1,6 +1,6 @@
 import { cinemaTransformPixel,cinemaClamp,type CinemaPixelOptions,type CinemaRgb } from './cinema-v51-color';
 import { cinemaTransformMetadataFrame,type CinemaDynamicToneFrame,type CinemaMasteringMetadata } from './cinema-v51-metadata';
-import { cinemaTransformRpuL1Pixel,type CinemaRpuL1Frame } from './cinema-v51-rpu-tone';
+import { createCinemaRpuL1ToneMapper,type CinemaRpuL1Frame } from './cinema-v51-rpu-tone';
 
 /**
  * P010 4:2:0 10-bit *decoded* video-frame processing, no codec decoder or DRM.
@@ -61,6 +61,8 @@ export function cinemaTransformP010Frame(
     y.length!==width*height||uv.length!==width*height/2) {
     throw new Error('Unsafe or unsupported P010 plane geometry');
   }
+  const rpuTone=settings.rpuL1Frame
+    ?createCinemaRpuL1ToneMapper(settings,settings.rpuL1Frame):null;
   const outputY=new Uint16Array(y.length);
   const outputUv=new Uint16Array(uv.length);
   for(let row=0;row<height;row+=2){
@@ -72,7 +74,7 @@ export function cinemaTransformP010Frame(
         const at=(row+dy)*width+col+dx;
         const rgb=yuvRgb(p010Y(y[at]),cb,cr,settings.sourceMatrix);
         const transformed=settings.rpuL1Frame
-          ? cinemaTransformRpuL1Pixel(rgb,settings,settings.rpuL1Frame)
+          ? rpuTone!(rgb)
           : settings.mastering
             ? cinemaTransformMetadataFrame(rgb,settings,settings.mastering,settings.dynamicFrame??null)
             : cinemaTransformPixel(rgb,settings);
