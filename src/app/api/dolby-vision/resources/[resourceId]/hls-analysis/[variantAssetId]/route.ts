@@ -215,6 +215,15 @@ export async function POST(
       evidence: verified.evidence,
       // Signed HEVC sample-to-RPU PTS mapping for the registered immutable
       // rendition, not evidence of Safari consuming or presenting these RPU.
+      registeredRpuL1: verified.report.inputKind === 'hevc' && verified.report.profile === 8 &&
+        verified.report.rpuL1Evidence && verified.report.frameMappingEvidence
+        ? {
+            version: 1,
+            sourceMediaSha256: assembledSha256,
+            mappingSha256: verified.report.frameMappingEvidence.mappingSha256,
+            frames: verified.report.rpuL1Evidence.frames,
+            playerRpuApplication: 'not-verified',
+          } : null,
       registeredFrameMapping: verified.report.inputKind === 'hevc' && verified.report.frameMappingEvidence
         ? {
             sourceMediaSha256: assembledSha256,
