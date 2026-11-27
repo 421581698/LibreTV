@@ -47,6 +47,20 @@ describe('real HTMLVideoElement observation state machine', () => {
     expect(advanceNativePlaybackObservation(start, 'sample', { ...playing, currentTime: Number.NaN })).toEqual(start);
   });
 
+  it('establishes a callback frame baseline on unchanged media time without claiming playback', () => {
+    const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing);
+    const firstCounter = advanceNativePlaybackObservation(start, 'sample', {
+      ...playing, presentedVideoFrames: 100,
+    });
+    expect(firstCounter.status).toBe('waiting');
+    expect(firstCounter.baselinePresentedFrames).toBe(100);
+    const next = advanceNativePlaybackObservation(firstCounter, 'sample', {
+      ...playing, currentTime: 1.5, presentedVideoFrames: 105,
+    });
+    expect(next.status).toBe('progress-observed');
+    expect(next.presentedFrames).toBe(5);
+  });
+
   it('does not count seek jumps as continuous progression', () => {
     const start = advanceNativePlaybackObservation(emptyNativePlaybackObservation(), 'sample', playing);
     const beforeSeek = advanceNativePlaybackObservation(start, 'sample', { ...playing, currentTime: 2 });
