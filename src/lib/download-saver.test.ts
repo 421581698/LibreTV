@@ -93,6 +93,39 @@ describe('pickSaveTarget file-output lifecycle', () => {
     await expect(pickSaveTarget('episode.mp4')).rejects.toBeInstanceOf(UserCancelledError);
   });
 
+  it('stages a large file in OPFS and exports the exact written bytes', async () => {
+    vi.useFakeTimers();
+    const chunks: Uint8Array[] = [];
+    const writer = {
+      write: vi.fn(async (data: ArrayBuffer) => { chunks.push(new Uint8Array(data)); }),
+      close: vi.fn().mockResolvedValue(undefined),
+      abort: vi.fn().mockResolvedValue(undefined),
+    };
+    const handle = {
+      createWritable: vi.fn().mockResolvedValue(writer),
+      getFile: vi.fn(async () => new Blob(chunks.map(c => c.slice().buffer as ArrayBuffer))),
+    };
+    const removeEntry = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { storage: {
+      estimate: async () => ({ quota: MAX_MEMORY_DOWNLOAD_BYTES * 4, usage: 0 }),
+      getDirectory: async () => ({ getFileHandle: async () => handle, removeEntry }),
+    }});
+    vi.stubGlobal('window', {});
+    const click = vi.fn();
+    vi.stubGlobal('document', { createElement: () => ({ click, remove: vi.fn() }), body: { appendChild: vi.fn() } });
+    let exported: Blob | undefined;
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(blob => { exported = blob as Blob; return 'blob:opfs'; });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const target = await pickSaveTarget('large.mp4', MAX_MEMORY_DOWNLOAD_BYTES + 1);
+    await target.write(new Uint8Array([99, 1, 2, 88]).subarray(1, 3));
+    await target.write(new Uint8Array([3]));
+    await target.close();
+    expect(Array.from(new Uint8Array(await exported!.arrayBuffer()))).toEqual([1, 2, 3]);
+    expect(click).toHaveBeenCalledOnce();
+    vi.runOnlyPendingTimers();
+    expect(removeEntry).toHaveBeenCalledOnce();
+  });
+
   it('rejects a known oversized memory download before allocating a Blob', async () => {
     vi.stubGlobal('window', {});
     await expect(pickSaveTarget('big.mp4', MAX_MEMORY_DOWNLOAD_BYTES + 1))
