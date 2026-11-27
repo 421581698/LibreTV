@@ -154,7 +154,10 @@ async function verifyRealAac(){
       if(errors.length||frames.length!==expected.length)throw new Error('AAC decode output count mismatch: '+errors.join(';'));
       let energy=0,count=0;
       frames.forEach((frame,i)=>{
-        if(frame.ptsUs!==expected[i].ptsUs||frame.sampleRate!==44100||frame.channels!==2||frame.frames!==1024)
+        // Native WebCodecs may truncate fractional microseconds while ADTS
+        // demux rounds them. Allow only one microsecond of quantization.
+        if(!Number.isSafeInteger(frame.ptsUs)||Math.abs(frame.ptsUs-expected[i].ptsUs)>1||
+          (i>0&&frame.ptsUs<=frames[i-1].ptsUs)||frame.sampleRate!==44100||frame.channels!==2||frame.frames!==1024)
           throw new Error('Unexpected AAC PCM format or PTS: '+JSON.stringify({index:i,actual:{ptsUs:frame.ptsUs,sampleRate:frame.sampleRate,channels:frame.channels,frames:frame.frames},expected:{ptsUs:expected[i].ptsUs,sampleRate:44100,channels:2,frames:1024}}));
         for(const plane of frame.planes)for(const sample of plane){
           if(!Number.isFinite(sample))throw new Error('Non-finite AAC PCM');
