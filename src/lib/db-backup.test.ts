@@ -59,7 +59,7 @@ afterEach(async () => {
 describe('config backup/import round trip', () => {
   it('restores modern history fields and exact timestamps, favorites, progress and search history', async () => {
     const history = {
-      id: 's_v', sourceKey: 's', vodId: 'v', sourceUrl: 'https://example.com',
+      id: '["s","v"]', sourceKey: 's', vodId: 'v', sourceUrl: 'https://example.com',
       title: 'Movie', pic: 'poster', typeName: 'Drama', year: '2026', area: 'CN',
       episodeIndex: 3, totalEpisodes: 12, playbackPosition: 123, duration: 500,
       timestamp: 1700000000000,
