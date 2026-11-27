@@ -36,7 +36,7 @@ export function cinemaParseAdtsHeader(data:Uint8Array,offset=0):CinemaAdtsHeader
   if(!(data instanceof Uint8Array)||!Number.isSafeInteger(offset)||offset<0||offset+7>data.length)
     throw new Error('Incomplete AAC ADTS header');
   const b0=data[offset],b1=data[offset+1],b2=data[offset+2],b3=data[offset+3],b4=data[offset+4],b5=data[offset+5],b6=data[offset+6];
-  if(b0!==0xff||(b1&0xf6)!==0xf0||(b1&1)!==1||(b2&0xc0)!==0x40)
+  if(b0!==0xff||(b1&0xf6)!==0xf0||(b2&0xc0)!==0x40)
     throw new Error('Unsupported AAC ADTS framing');
   const profile=((b2>>6)&3)+1;
   const rateIndex=(b2>>2)&0x0f;
