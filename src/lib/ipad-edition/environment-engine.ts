@@ -49,6 +49,11 @@ export function resolveEnvironmentProfile(signals: EnvironmentSignals): Environm
 }
 
 /** Applies environment tokens to one iPad Edition root and returns a complete cleanup function. */
+/** Reads the resolved app theme shared by ThemeProvider and Friday Glass. */
+export function resolvedIpadAppearance(root: Pick<HTMLElement, 'classList'>): 'light' | 'dark' {
+  return root.classList.contains('dark') ? 'dark' : 'light';
+}
+
 export function attachEnvironmentEngine(
   root: HTMLElement,
   options: { appearance?: AppearancePreference; backdropLuminance?: () => number | undefined } = {},
@@ -64,7 +69,7 @@ export function attachEnvironmentEngine(
     // The app's resolved .dark class is the source of truth for every route.
     // Friday's independently persisted glass preference must never override it.
     const systemDark = media[0].matches;
-    const resolvedAppearance = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    const resolvedAppearance = resolvedIpadAppearance(document.documentElement);
     const profile = resolveEnvironmentProfile({
       appearance: options.appearance ?? resolvedAppearance,
       systemDark,
