@@ -93,6 +93,31 @@ describe('pickSaveTarget file-output lifecycle', () => {
     await expect(pickSaveTarget('episode.mp4')).rejects.toBeInstanceOf(UserCancelledError);
   });
 
+  it('uses OPFS for unknown-length streams and removes partial files on abort', async () => {
+    const writer = {
+      write: vi.fn().mockResolvedValue(undefined),
+      abort: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const removeEntry = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('navigator', { storage: {
+      estimate: async () => ({ quota: 1024, usage: 0 }),
+      getDirectory: async () => ({
+        getFileHandle: async () => ({ createWritable: async () => writer }),
+        removeEntry,
+      }),
+    }});
+    const target = await pickSaveTarget('unknown.mp4');
+    expect(target.kind).toBe('fs');
+    await target.write(new Uint8Array([1, 2, 3]));
+    await target.abort();
+    expect(writer.write).toHaveBeenCalledOnce();
+    expect(writer.abort).toHaveBeenCalledOnce();
+    expect(writer.close).not.toHaveBeenCalled();
+    expect(removeEntry).toHaveBeenCalledOnce();
+  });
+
   it('stages a large file in OPFS and exports the exact written bytes', async () => {
     vi.useFakeTimers();
     const chunks: Uint8Array[] = [];
