@@ -8,7 +8,7 @@
  */
 import type {CinemaPcmPacket} from './cinema-v51-pcm';
 import type {CinemaAuthorizedAacSource} from './cinema-v51-pcm-playback';
-import {cinemaDemuxAdts} from './cinema-v51-pcm';
+import {cinemaDemuxAdts,cinemaParseAdtsHeader} from './cinema-v51-pcm';
 export interface CinemaVerifiedHlsAacSegment {
   sourceSha256:string;
   /** Content-addressed identity supplied by an authenticated asset graph. */
@@ -96,7 +96,7 @@ export async function* cinemaVerifiedHlsAacPackets(
      !Number.isSafeInteger(track.origin90k)||track.origin90k<0||track.origin90k>=2**33||
      !Number.isSafeInteger(track.mediaOriginUs)||track.mediaOriginUs<0)
     throw new Error('Unverified HLS Packed AAC identity or time origin');
-  let lastPts=-1,count=0;
+  let lastPts=-1,previousSegmentEndUs=-1,count=0;
   for await(const segment of track.segments){
     if(++count>20000)throw new Error('Too many AAC segments');
     if(segment.sourceSha256.toLowerCase()!==track.sourceSha256.toLowerCase()||
@@ -112,12 +112,35 @@ export async function* cinemaVerifiedHlsAacPackets(
     if(!Number.isSafeInteger(ptsUs)||ptsUs<=lastPts||
        (lastPts>=0&&ptsUs-lastPts>30e6))
       throw new Error('Invalid HLS audio segment timestamp continuity');
-    const packet={sourceSha256:track.sourceSha256,ptsUs,data:segment.data.slice(audioOffset)};
-    const decoded=cinemaDemuxAdts(packet);
-    const endUs=decoded.frames.at(-1)!.ptsUs+decoded.frames.at(-1)!.durationUs;
-    if(!Number.isSafeInteger(endUs))throw new Error('AAC timestamp overflow');
-    lastPts=ptsUs;
-    yield packet;
+    if(previousSegmentEndUs>=0&&ptsUs<previousSegmentEndUs-5000)
+      throw new Error('Overlapping HLS audio segment timestamps');
+    const adts=segment.data.subarray(audioOffset);
+    let cursor=0,frameCount=0,rate=0,channels=0,segmentEndUs=-1;
+    // A normal 4–6 second HLS audio segment has hundreds of AAC frames.
+    // Decode bounded chunks, but retain the full verified segment digest.
+    // The streaming decoder accepts at most 64 frames per packet; chunks of
+    // eight prevent decoder queue spikes and keep scheduling responsive.
+    while(cursor<adts.length){
+      const start=cursor,startFrame=frameCount;
+      for(let i=0;i<8&&cursor<adts.length;i++){
+        const header=cinemaParseAdtsHeader(adts,cursor);
+        if(rate&&(rate!==header.sampleRate||channels!==header.channels))
+          throw new Error('AAC stream format changed inside HLS segment');
+        rate=header.sampleRate;channels=header.channels;
+        cursor+=header.frameBytes;
+        if(++frameCount>1024)throw new Error('HLS audio segment frame limit exceeded');
+      }
+      const chunkPts=ptsUs+Math.round(startFrame*1024*1e6/rate);
+      if(!Number.isSafeInteger(chunkPts)||chunkPts<=lastPts)
+        throw new Error('Invalid HLS AAC chunk timestamp');
+      const packet={sourceSha256:track.sourceSha256,ptsUs:chunkPts,data:adts.slice(start,cursor)};
+      const decoded=cinemaDemuxAdts(packet);
+      const endUs=decoded.frames.at(-1)!.ptsUs+decoded.frames.at(-1)!.durationUs;
+      if(!Number.isSafeInteger(endUs))throw new Error('AAC timestamp overflow');
+      lastPts=chunkPts;segmentEndUs=endUs;
+      yield packet;
+    }
+    previousSegmentEndUs=segmentEndUs;
   }
 }
 
