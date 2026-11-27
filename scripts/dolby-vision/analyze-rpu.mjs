@@ -154,6 +154,24 @@ export function parseDoviToolInfoSummary(output) {
   return { frameCount, profiles };
 }
 
+/** Complete, bounded Level 1 exports from dovi_tool 2.3.x. No inferred frames. */
+export function parseCompleteRpuL1Brightness(raw, frameCount) {
+  if (!Number.isSafeInteger(frameCount) || frameCount < 1 || frameCount > 8192) return null;
+  let values;
+  try { values = JSON.parse(raw); } catch { return null; }
+  if (!Array.isArray(values) || values.length !== frameCount) return null;
+  const frames = new Array(frameCount);
+  for (const record of values) {
+    if (!record || typeof record !== 'object' || !Number.isSafeInteger(record.frame) ||
+        record.frame < 0 || record.frame >= frameCount || frames[record.frame]) return null;
+    const minPq=record.min_pq,avgPq=record.avg_pq,maxPq=record.max_pq;
+    if (![minPq,avgPq,maxPq].every(v=>Number.isSafeInteger(v)&&v>=0&&v<=4095) ||
+        minPq>avgPq||avgPq>maxPq||maxPq===0) return null;
+    frames[record.frame]={frameOrdinal:record.frame,minPq,avgPq,maxPq};
+  }
+  return frames.every(Boolean) ? {version:1,frames} : null;
+}
+
 export function parseLevelExportFiles(levelFiles, frameCount) {
   if (!Number.isSafeInteger(frameCount) || frameCount <= 0) {
     throw new Error('RPU 元数据导出必须绑定有效的完整帧数。');
@@ -282,6 +300,7 @@ export async function analyzeRpu(options) {
       levelFiles[level] = bytes.toString('utf8');
     }
     const levels = parseLevelExportFiles(levelFiles, summary.frameCount);
+    const rpuL1FrameStats = parseCompleteRpuL1Brightness(levelFiles[1], summary.frameCount);
     const rpuSha256 = await sha256File(rpuPath);
     const boundedRpu = rpuStat.size <= MAX_PER_UNIT_EVIDENCE_BYTES ? await readFile(rpuPath) : null;
     const rpuUnitEvidence = boundedRpu ? deriveOrderedRpuUnitEvidence(boundedRpu, summary.frameCount) : null;
@@ -303,6 +322,7 @@ export async function analyzeRpu(options) {
       sourceMediaSha256: options.kind === 'hevc' ? inputSha256 : null,
       rpuSha256,
       ...(rpuUnitEvidence ? { rpuUnitEvidence } : {}),
+      ...(rpuUnitEvidence && rpuL1FrameStats ? { rpuL1FrameStats } : {}),
       inputKind: options.kind,
       extractionScope: options.kind === 'hevc'
         ? { track: options.track === null ? null : Number(options.track), frameLimit: options.limit === null ? null : Number(options.limit) }
