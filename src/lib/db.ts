@@ -278,10 +278,16 @@ export async function clearLiveProbeResultsDb(): Promise<void> {
 export async function exportConfig(): Promise<string> {
   // 导出前 flush：把节流缓冲中的最新设置落盘，避免导出的是 800ms 前的旧快照
   flushPendingPersist();
-  const history = await db.history.toArray();
-  const favorites = await db.favorites.toArray();
-  const progress = await db.progress.toArray();
-  const searchHistory = await db.searchHistory.toArray();
+  // Read the backup sections from one consistent IndexedDB snapshot.
+  const snapshot = await db.transaction('r', db.history, db.favorites, db.progress, db.searchHistory, async () =>
+    ({
+      history: await db.history.toArray(),
+      favorites: await db.favorites.toArray(),
+      progress: await db.progress.toArray(),
+      searchHistory: await db.searchHistory.toArray(),
+    }),
+  );
+  const { history, favorites, progress, searchHistory } = snapshot;
   const settings = localStorage.getItem(PERSIST_KEY);
 
   const data: Record<string, unknown> = {
