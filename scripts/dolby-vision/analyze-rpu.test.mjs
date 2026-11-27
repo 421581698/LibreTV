@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRpuInput, parseDoviToolInfoSummary, parseLevelExportFiles, deriveOrderedRpuUnitEvidence } from './analyze-rpu.mjs';
+import { normalizeRpuInput, parseDoviToolInfoSummary, parseLevelExportFiles, deriveOrderedRpuUnitEvidence, parseCompleteRpuL1Brightness } from './analyze-rpu.mjs';
 
 describe('dovi_tool RPU report parsing', () => {
   it('commits to ordered, bounded per-RPU NAL boundaries, not video frames', () => {
@@ -111,4 +111,23 @@ describe('dovi_tool RPU report parsing', () => {
     expect(() => normalizeRpuInput(Buffer.from([0x19, 0x00, 0x00, 0x01]))).toThrow(/valid regular RPU/);
   });
 
+});
+
+describe('RPU L1 real export: require every frame', () => {
+  it('binds actual PQ statistics to each ordinal and fails closed on sparse or corrupt metadata', () => {
+    const data=JSON.stringify([
+      {frame:0,min_pq:0,avg_pq:1600,max_pq:2800},
+      {frame:1,min_pq:2,avg_pq:2000,max_pq:3400},
+    ]);
+    expect(parseCompleteRpuL1Brightness(data,2)?.frames[1])
+      .toMatchObject({frameOrdinal:1,avgPq:2000,maxPq:3400});
+    expect(parseCompleteRpuL1Brightness(data,3)).toBeNull();
+    expect(parseCompleteRpuL1Brightness('[{"frame":0,"min_pq":0,"avg_pq":100,"max_pq":4096}]',1)).toBeNull();
+    expect(parseCompleteRpuL1Brightness('[{"frame":0,"min_pq":0,"max_pq":100}]',1)).toBeNull();
+    expect(parseCompleteRpuL1Brightness('[{"frame":0,"min_pq":100,"avg_pq":50,"max_pq":200}]',1)).toBeNull();
+    expect(parseCompleteRpuL1Brightness(JSON.stringify([
+      {frame:0,min_pq:0,avg_pq:20,max_pq:100},
+      {frame:0,min_pq:0,avg_pq:20,max_pq:100},
+    ]),2)).toBeNull();
+  });
 });
