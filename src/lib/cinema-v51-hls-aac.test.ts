@@ -1,6 +1,6 @@
 import {describe,expect,it} from 'vitest';
 import {createHash} from 'node:crypto';
-import {cinemaReadPackedAacTimestamp,cinemaVerifiedHlsAacPackets} from './cinema-v51-hls-aac';
+import {cinemaReadPackedAacTimestamp,cinemaVerifiedHlsAacPackets,cinemaAuthorizedHlsAacSource} from './cinema-v51-hls-aac';
 const SHA='a'.repeat(64);
 function adts(){
   const length=11;
@@ -62,5 +62,36 @@ describe('verified HLS Packed AAC adapter',()=>{
       })){}
     };
     await expect(run()).rejects.toThrow('continuity');
+  });
+});
+
+describe('Safari verified HLS AAC -> shared PCM engine binding',()=>{
+  it('carries the exact authenticated media identity, ID3 PTS and video clock mapping',async()=>{
+    const start90k=90000;
+    const data=packed(start90k);
+    const expectedSha256=createHash('sha256').update(data).digest('hex');
+    const track={
+      sourceSha256:SHA,expectedSourceSha256:SHA,origin90k:start90k,
+      mediaOriginUs:4500000,
+      segments:(async function*(){yield {sourceSha256:SHA,expectedSha256,data};})(),
+    };
+    const source=cinemaAuthorizedHlsAacSource(track,4500000);
+    expect(source.sourceSha256).toBe(SHA);
+    expect(source.presentationOffsetUs).toBe(4500000);
+    const packets=[];
+    for await(const packet of source.packets)packets.push(packet);
+    expect(packets).toHaveLength(1);
+    expect(packets[0].ptsUs).toBe(4500000);
+    expect(Array.from(packets[0].data)).toEqual(Array.from(adts()));
+  });
+  it('rejects a forged media identity or an unknown A/V offset before decoder startup',()=>{
+    const base={
+      sourceSha256:SHA,expectedSourceSha256:'b'.repeat(64),
+      origin90k:90000,mediaOriginUs:0,
+      segments:(async function*(){})(),
+    };
+    expect(()=>cinemaAuthorizedHlsAacSource(base,0)).toThrow('authenticated');
+    expect(()=>cinemaAuthorizedHlsAacSource({...base,expectedSourceSha256:SHA},NaN))
+      .toThrow('authenticated');
   });
 });
