@@ -130,3 +130,43 @@ async function verifyWebKitFallback(){
 }
 await verifyChromium();
 await verifyWebKitFallback();
+
+/** Real encoded AAC fixture, not a mocked decoder or a real-device claim. */
+async function verifyRealAac(){
+  const {execFileSync}=await import('node:child_process');
+  const {build}=await import('esbuild');
+  const bytes=execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-f','lavfi','-i',
+    'sine=frequency=440:sample_rate=44100:duration=0.5','-ac','2','-c:a','aac','-b:a','128k','-f','adts','pipe:1']);
+  const bundle=await build({entryPoints:['src/lib/cinema-v51-pcm.ts'],bundle:true,write:false,
+    format:'iife',globalName:'CinemaPCM',platform:'browser'});
+  const browser=await chromium.launch({...launchOptions,channel:'chrome'});
+  try{
+    const page=await browser.newPage();
+    await page.route('https://cinema-test.invalid/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>AAC regression</title>'}));
+    await page.goto('https://cinema-test.invalid/');
+    await page.addScriptTag({content:bundle.outputFiles[0].text});
+    const evidence=await page.evaluate(async(raw)=>{
+      const sha='a'.repeat(64),data=new Uint8Array(raw),frames=[],errors=[];
+      const decoder=window.CinemaPCM.createCinemaAacDecoder(sha,f=>frames.push(f),e=>errors.push(e));
+      const packet={sourceSha256:sha,ptsUs:1000000,data};
+      const expected=window.CinemaPCM.cinemaDemuxAdts(packet).frames;
+      try{await decoder.push(packet);await decoder.flush();}finally{decoder.stop();}
+      if(errors.length||frames.length!==expected.length)throw new Error('AAC decode output count mismatch: '+errors.join(';'));
+      let energy=0,count=0;
+      frames.forEach((frame,i)=>{
+        if(frame.ptsUs!==expected[i].ptsUs||frame.sampleRate!==44100||frame.channels!==2||frame.frames!==1024)
+          throw new Error('Unexpected AAC PCM format or PTS');
+        for(const plane of frame.planes)for(const sample of plane){
+          if(!Number.isFinite(sample))throw new Error('Non-finite AAC PCM');
+          energy+=sample*sample;count++;
+        }
+      });
+      const rms=Math.sqrt(energy/count);
+      if(!(rms>.005&&rms<.5))throw new Error('AAC PCM signal outside fixture bounds: '+rms);
+      return {codec:'AAC-LC',decoder:'WebCodecs',frames:frames.length,sampleRate:44100,channels:2,rms,
+        firstPtsUs:frames[0].ptsUs,lastPtsUs:frames.at(-1).ptsUs};
+    },Array.from(bytes));
+    console.log('Real encoded AAC PCM evidence:',JSON.stringify(evidence));
+  }finally{await browser.close();}
+}
+await verifyRealAac();
