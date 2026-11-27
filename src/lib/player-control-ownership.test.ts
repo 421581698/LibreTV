@@ -20,6 +20,7 @@ describe('single-owner playback command arbitration',()=>{
     claimPlaybackControlOwner(first);
     expect(isPlaybackControlOwner(first)).toBe(true);
     closeFirst();
+    claimPlaybackControlOwner(first);
     expect(isPlaybackControlOwner(first)).toBe(false);
     expect(isPlaybackControlOwner(second)).toBe(true);
     closeSecond();
