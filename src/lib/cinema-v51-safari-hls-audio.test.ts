@@ -51,7 +51,7 @@ class NativeHlsVideo extends EventTarget {
   muted=false;volume=.7;paused=false;readyState=4;isConnected=true;
   currentSrc='https://preview.example/media/clear.m3u8';
   currentTime=4;playbackRate=1;duration=42;seekable={length:1};
-  mediaKeys=null;
+  mediaKeys:MediaKeys|null=null;
 }
 let frames=new Map<number,FrameRequestCallback>();
 let nextId=0;
