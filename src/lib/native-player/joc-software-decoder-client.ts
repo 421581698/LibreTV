@@ -265,7 +265,13 @@ export class JocSoftwareDecoderClient {
       this.previousMuted = video.muted;
       const updateClock = () => {
         if (this.disposed || this.activeVideo !== video) return;
-        this.setMediaClock(video.currentTime * 48000);
+        // The compressor has a 6 ms lookahead. Account for the reported
+        // audio-device latency as well, bounded to avoid unsafe clock jumps.
+        const outputLatency = context.outputLatency ?? 0;
+        const baseLatency = context.baseLatency ?? 0;
+        const latency = Math.min(0.25, Math.max(0, Number.isFinite(outputLatency) ? outputLatency : 0) +
+          Math.max(0, Number.isFinite(baseLatency) ? baseLatency : 0) + 0.006);
+        this.setMediaClock((video.currentTime + latency) * 48000);
         this.clockRaf = requestAnimationFrame(updateClock);
       };
       updateClock();
