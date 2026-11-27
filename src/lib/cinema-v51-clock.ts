@@ -32,7 +32,8 @@ export async function cinemaWaitForPresentation(
   const boundSourceSha=clock.sourceSha256.toLowerCase();
   const now=options.now??(()=>performance.now());
   const pause=options.sleep??sleep;
-  const start=now();
+  let activeStart=now();
+  let pausedAt:number|null=null;
   for(let iteration=0;iteration<320;iteration++){
     if(options.cancelled?.())return 'cancelled';
     if(clock.sourceSha256.toLowerCase()!==boundSourceSha)return 'source-changed';
@@ -43,13 +44,18 @@ export async function cinemaWaitForPresentation(
     const delta=ptsUs-currentUs;
     if(delta<-120000)return 'late';
     if(clock.playing() && delta<=30000&&delta>=-120000)return 'ready';
-    // Pauses can last minutes or hours. Do not count paused wall time against
-    // the rendering synchronization deadline; wait for playback to resume.
+    // Paused wall time is not an HDR timing miss. Keep the work bounded,
+    // and reset the active-playback deadline after each pause.
     if(!clock.playing()) {
+      if(pausedAt===null)pausedAt=now();
       await pause(40);
       continue;
     }
-    if(now()-start>=2600)return 'expired';
+    if(pausedAt!==null) {
+      activeStart+=now()-pausedAt;
+      pausedAt=null;
+    }
+    if(now()-activeStart>=2600)return 'expired';
     await pause(delta>50000?16:8);
   }
   return 'expired';
