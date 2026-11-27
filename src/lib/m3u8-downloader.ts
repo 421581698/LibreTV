@@ -467,9 +467,12 @@ export async function runDownloadJob(opts: DownloadJobOptions): Promise<void> {
   report(current, total, 'downloading');
 
   const worker = async (): Promise<void> => {
-    while (cursor < total) {
+    while (true) {
       if (jobSignal.aborted) return;
       await pause.waitIfPaused();
+      // Check and claim in one synchronous turn: multiple workers must not
+      // increment the cursor beyond the end after an awaited pause.
+      if (jobSignal.aborted || cursor >= total) return;
       const index = ++cursor; // 1 基
       if (jobSignal.aborted) return;
       await pause.waitIfPaused();
