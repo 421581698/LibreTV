@@ -1,5 +1,6 @@
-import { historyIdFor } from '@/lib/history-id';
 'use client';
+
+import { historyIdFor } from '@/lib/history-id';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
 import { NativeCinemaFallback } from '@/components/native-cinema-fallback';
