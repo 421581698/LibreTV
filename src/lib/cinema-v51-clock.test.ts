@@ -11,7 +11,7 @@ describe('Cinema presentation clock and HDR10+ PTS synchronization',()=>{
     expect(await cinemaWaitForPresentation(1100000,clock(1.0))).toBe('late');
   });
   it('waits for actual media clock advance and refuses stale or detached source time',async()=>{
-    const current=1,now=0;
+    let current=1,now=0;
     const advance=async()=>{current+=.016;now+=16;};
     const status=await cinemaWaitForPresentation(1350000,{
       ...clock(1),currentMediaTimeSeconds:()=>current,
@@ -36,7 +36,7 @@ describe('Cinema presentation clock and HDR10+ PTS synchronization',()=>{
   it('does not expire only because playback stays paused briefly',async()=>{
     let now=0;
     let playing=false;
-    let current=1;
+    const current=1;
     let waits=0;
     const result=await cinemaWaitForPresentation(1275000,{
       ...clock(1),playing:()=>playing,currentMediaTimeSeconds:()=>current,
