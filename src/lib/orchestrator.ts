@@ -10,11 +10,9 @@ import { unregisterInflight } from '@/lib/infra/inflight';
 import { getEnv } from '@/lib/infra/env';
 
 function safeAbortSignalAny(signals: AbortSignal[]): AbortSignal {
-  const ctrl = new AbortController();
-  for (const s of signals) if (s.aborted) { ctrl.abort(s.reason); return ctrl.signal; }
-  const onAbort = (e: Event) => ctrl.abort((e.target as AbortSignal).reason);
-  for (const s of signals) s.addEventListener('abort', onAbort, { once: true });
-  return ctrl.signal;
+  // Native composition manages listener cleanup. The previous helper retained
+  // abort listeners on long-lived signals after each successful LLM request.
+  return AbortSignal.any(signals);
 }
 
 class OrchestratorException extends Error {
