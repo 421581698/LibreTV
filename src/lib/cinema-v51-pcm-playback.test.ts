@@ -15,7 +15,7 @@ class Node {
   playbackRate=new Param();buffer:unknown=null;onended:(()=>void)|null=null;
   type='';panningModel='';distanceModel='';refDistance=1;rolloffFactor=0;coneOuterGain=1;
   connect(target:unknown,..._ports:number[]){return target;}
-  disconnect(){}
+  disconnect=vi.fn();
   setPosition(_x:number,_y:number,_z:number){}
   start(_when:number){}
   stop(){this.onended?.();}
@@ -33,7 +33,8 @@ class Context extends EventTarget {
   createBuffer(_n:number,_frames:number,_rate:number){
     return {copyToChannel:(_samples:Float32Array,_channel:number)=>{}};
   }
-  createBufferSource(){return new Node();}
+  sources:Node[]=[];
+  createBufferSource(){const node=new Node();this.sources.push(node);return node;}
   async resume(){this.state='running';}
   async close(){this.closed=true;this.state='closed';}
 }
@@ -107,9 +108,18 @@ describe('authorized independent PCM audio output',()=>{
     expect(video.muted).toBe(true);
     expect(session!.state().output).toBe('decoded-pcm');
     expect(states.at(-1)?.audio).toBe(true);
+    const nodes=Context.last!.sources;
+    expect(nodes.length).toBe(3);
+    nodes[0].onended?.();
+    expect(nodes[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(nodes[0].onended).toBeNull();
     video.dispatchEvent(new Event('seeking'));
     expect(video.muted).toBe(false);
     expect(Context.last?.closed).toBe(true);
+    for(const node of nodes){
+      expect(node.disconnect).toHaveBeenCalledTimes(1);
+      expect(node.onended).toBeNull();
+    }
     expect(states.at(-1)?.output).toBe('native');
   });
   it('falls back on first-packet WebCodecs failure without muting native audio prematurely',async()=>{
