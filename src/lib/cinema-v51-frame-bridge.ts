@@ -111,7 +111,12 @@ export function startCinemaV51FrameBridge(
     fallback(e instanceof Error?e.message:'HDR video-frame provider unavailable');
   }
   return {
-    stop(){if(stopped)return;stopped=true;active=false;provider.stop();renderer.stop();},
+    stop(){
+      if(stopped)return;
+      stopped=true;active=false;
+      try {provider.stop();} catch {/* always release remaining resources */}
+      try {renderer.stop();} catch {/* best-effort cleanup */}
+    },
     get active(){return active&&!stopped;},
   };
 }
