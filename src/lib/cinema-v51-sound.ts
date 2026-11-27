@@ -125,8 +125,13 @@ export async function createCinemaSoundSession(
   // auth/variant selection is controlled by the original media loader.
   const parsed=(()=>{try{return new URL(url,window.location.href);}catch{return null;}})();
   const isPrivateHost=Boolean(parsed && (parsed.hostname==='localhost' || parsed.hostname==='127.0.0.1' || parsed.hostname==='::1' || parsed.hostname==='[::1]' || /^(?:10|127|192\.168|169\.254|172\.(?:1[6-9]|2[0-9]|3[01]))\.[0-9]+\.[0-9]+(?:\.[0-9]+)?$/.test(parsed.hostname)));
+  // Safari does not expose captureStream() for many native HLS streams. A
+  // disposable <audio> may decode a clear, seekable HLS rendition and expose
+  // real PCM through Web Audio. CORS still governs each playlist/segment;
+  // denied audio remains silent in the analyser and MUST NOT mute the video.
+  // MPEG-DASH is not a natively supported Safari mirror input.
   const useElement=!stream && Boolean(parsed && parsed.protocol==='https:' && !isPrivateHost &&
-    !/\.(?:m3u8|mpd)$/i.test(parsed.pathname) && !video.mediaKeys &&
+    !/\.mpd$/i.test(parsed.pathname) && !video.mediaKeys &&
     video.seekable.length>0 && video.duration>0 && Number.isFinite(video.duration));
   const mirror=useElement?document.createElement('audio'):null;
   if(!stream&&!mirror) {
