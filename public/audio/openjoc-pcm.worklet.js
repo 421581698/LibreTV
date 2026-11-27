@@ -76,7 +76,8 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       this.port.postMessage({ type: 'clock-discontinuity', driftSamples: drift });
       return true;
     }
-    this.expectedPtsSamples += Math.max(-120, Math.min(120, drift * 0.1));
+    // Small correction is quantized to complete PCM samples.
+    this.expectedPtsSamples += Math.round(Math.max(-120, Math.min(120, drift * 0.1)));
 
     let written = 0;
     let rendered = 0;
