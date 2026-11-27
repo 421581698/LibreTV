@@ -426,6 +426,8 @@ export function PlayerShell({
       if (state.output === 'native' && cinemaSoundSessionRef.current) {
         // An interrupted capture session has already restored native audio.
         // Release its stopped reference so the existing card can retry later.
+        cinemaSoundDiscoveryAbortRef.current?.abort();
+        cinemaSoundDiscoveryAbortRef.current=null;
         cinemaSoundSessionRef.current.stop();
         cinemaSoundSessionRef.current = null;
         cinemaSoundRequestedRef.current = {url,audio:false,spatial:false};
@@ -480,7 +482,9 @@ export function PlayerShell({
           if(requestId===cinemaSoundRequestRef.current)
             setDolbyCardStatus('此 HLS 没有可核验的清晰 AAC 时间线，尝试安全音轨捕获；原声保持不变。');
         } finally {
-          if(cinemaSoundDiscoveryAbortRef.current===controller)
+          // Keep the controller alive throughout the PCM stream so a later
+          // seek/source switch can cancel in-flight audio segment downloads.
+          if(!readyContext&&cinemaSoundDiscoveryAbortRef.current===controller)
             cinemaSoundDiscoveryAbortRef.current=null;
         }
       }
