@@ -9,6 +9,8 @@ import type {CinemaDemuxedDecoder} from './cinema-v51-decoder-adapter';
 export interface CinemaCompressedSample {
   sourceSha256:string;
   ptsUs:number;
+  /** Composition timestamp may move backwards for HEVC B pictures. */
+  dtsUs?:number;
   durationUs:number;
   key:boolean;
   data:Uint8Array;
@@ -94,11 +96,13 @@ export function createCinemaLiveVideoDecoder(
           },
         });
         instance.configure(config);
-        let lastPts=-1,seenKey=false,count=0;
+        let lastDts=-1,seenKey=false,count=0;
         for await(const packet of track.packets) {
           if(stopped)return;
           if(packet.sourceSha256!==track.sourceSha256||
-            !Number.isSafeInteger(packet.ptsUs)||packet.ptsUs<0||packet.ptsUs<=lastPts||
+            !Number.isSafeInteger(packet.ptsUs)||packet.ptsUs<0||
+            !Number.isSafeInteger(packet.dtsUs??packet.ptsUs)||(packet.dtsUs??packet.ptsUs)<0||
+            (packet.dtsUs??packet.ptsUs)<=lastDts||
             !Number.isSafeInteger(packet.durationUs)||packet.durationUs<=0||
             !(packet.data instanceof Uint8Array)||packet.data.byteLength===0||
             packet.data.byteLength>8*1024*1024) {
@@ -106,7 +110,7 @@ export function createCinemaLiveVideoDecoder(
           }
           if(!seenKey&&!packet.key)throw new Error('HLS segment starts without decoder keyframe');
           if(packet.key)seenKey=true;
-          lastPts=packet.ptsUs;
+          lastDts=packet.dtsUs??packet.ptsUs;
           count++;
           if(count>2_000_000)throw new Error('Encoded frame count exceeds bound');
           // Avoid unlimited decoder queue memory and abort on source replacement.
