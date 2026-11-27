@@ -28,7 +28,13 @@ export function sanitizeDownloadFilename(filename: string): string {
 
   const extension = safe.match(/(\.[a-z0-9]{1,8})$/i)?.[1] ?? '';
   const stem = extension ? safe.slice(0, -extension.length) : safe;
-  safe = stem.slice(0, Math.max(1, 180 - extension.length)).replace(/[. ]+$/, '') + extension;
+  const limit = Math.max(1, 180 - extension.length);
+  let truncated = stem.slice(0, limit);
+  // Never split a UTF-16 surrogate pair (emoji, historic scripts) at the cap.
+  if (truncated.length < stem.length && /[\uD800-\uDBFF]$/.test(truncated)) {
+    truncated = truncated.slice(0, -1);
+  }
+  safe = truncated.replace(/[. ]+$/, '') + extension;
   return safe || 'LibreTV-download';
 }
 
