@@ -37,6 +37,7 @@ import { observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-o
 import { createCinemaSoundSession, type CinemaSoundSession, type CinemaSoundMode } from '@/lib/cinema-v51-sound';
 import { createCinemaAuthorizedPcmSoundSession, type CinemaAuthorizedAacSource } from '@/lib/cinema-v51-pcm-playback';
 import { cinemaAuthorizedHlsAacSource, type CinemaVerifiedHlsAacTrack } from '@/lib/cinema-v51-hls-aac';
+import { cinemaDiscoverClearVodHlsAac } from '@/lib/cinema-v51-hls-clear-source';
 import { mountCinemaV51AuthorizedPlayback, type CinemaV51AuthorizedPlayback, type CinemaV51PlaybackMount } from '@/lib/cinema-v51-playback-mount';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -276,6 +277,7 @@ export function PlayerShell({
   const cinemaV51PlaybackRef = useRef<CinemaV51PlaybackMount | null>(null);
   const cinemaV51MountGenerationRef = useRef(0);
   const cinemaSoundRequestRef = useRef(0);
+  const cinemaSoundDiscoveryAbortRef = useRef<AbortController|null>(null);
   const cinemaSoundRequestedRef = useRef<{url:string;audio:boolean;spatial:boolean}>({
     url:'',audio:false,spatial:false,
   });
@@ -289,6 +291,8 @@ export function PlayerShell({
     cinemaHdrGpuRef.current?.stop();
     cinemaHdrNativeConfirmationRef.current?.();
     cinemaSoundRequestRef.current += 1;
+    cinemaSoundDiscoveryAbortRef.current?.abort();
+    cinemaSoundDiscoveryAbortRef.current=null;
     cinemaSoundSessionRef.current?.stop();
   }, []);
   // No experimental decoder is supplied by default. Native audio remains primary.
@@ -436,8 +440,55 @@ export function PlayerShell({
         return;
       }
     }
+    let readyContext:AudioContext|undefined;
+    // Safari native HLS's MediaElementAudioSourceNode can return silence.
+    // For explicitly clear, CORS-readable VOD with a separate AAC rendition
+    // and matching audio/video PROGRAM-DATE-TIME clocks, prefer parsing real
+    // ADTS + ID3 PTS into the PCM engine. Never infer an unverified offset.
+    const safariHls=cinemaMode&&!hlsRef.current&&
+      getMediaPlaybackKind(video.currentSrc||url,mediaType)==='hls'&&
+      /AppleWebKit\\/\\d/.test(navigator.userAgent)&&/Safari\\/\\d/.test(navigator.userAgent)&&
+      !/(?:Chrome|Chromium|CriOS|FxiOS|Edg|EdgiOS|OPR|OPiOS)\\//.test(navigator.userAgent);
+    if(!authorizedAudio&&safariHls){
+      const constructor=window.AudioContext||
+        (window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
+      if(constructor){
+        let warm:AudioContext|undefined;
+        const controller=new AbortController();
+        cinemaSoundDiscoveryAbortRef.current=controller;
+        try {
+          // Start resume while the user's tap gesture is still active;
+          // manifest fetching happens afterward and cannot grant autoplay.
+          warm=new constructor({latencyHint:'interactive'});
+          const resumed=warm.resume().then(()=>true,()=>false);
+          setDolbyCardStatus('正在验证 Safari HLS 的清晰 AAC 独立音轨与音画时间戳…');
+          const discovered=await cinemaDiscoverClearVodHlsAac(
+            video,video.currentSrc||url,controller.signal);
+          if(!await resumed)throw new Error('AudioContext could not resume');
+          if(requestId!==cinemaSoundRequestRef.current||!video.isConnected){
+            void warm.close().catch(()=>{});
+            return;
+          }
+          authorizedAudio=discovered;
+          readyContext=warm;
+        } catch {
+          if(warm)void warm.close().catch(()=>{});
+          // A failed verified HLS read must not mute the original player.
+          // The existing CORS checked mirror may still work on some engines.
+          if(requestId===cinemaSoundRequestRef.current)
+            setDolbyCardStatus('此 HLS 没有可核验的清晰 AAC 时间线，尝试安全音轨捕获；原声保持不变。');
+        } finally {
+          if(cinemaSoundDiscoveryAbortRef.current===controller)
+            cinemaSoundDiscoveryAbortRef.current=null;
+        }
+      }
+    }
+    if(requestId!==cinemaSoundRequestRef.current||!video.isConnected){
+      if(readyContext)void readyContext.close().catch(()=>{});
+      return;
+    }
     const session=authorizedAudio
-      ? await createCinemaAuthorizedPcmSoundSession(video,authorizedAudio,onCinemaAudioState)
+      ? await createCinemaAuthorizedPcmSoundSession(video,authorizedAudio,onCinemaAudioState,readyContext)
       : await createCinemaSoundSession(video,onCinemaAudioState);
     if(requestId!==cinemaSoundRequestRef.current||!video.isConnected) {
       session?.stop();
