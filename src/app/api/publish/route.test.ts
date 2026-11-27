@@ -49,6 +49,12 @@ describe('POST /api/publish', () => {
     expect(res.status).toBe(401);
   });
 
+  it('超出 512KB 的请求在读取与发布之前返回 413', async () => {
+    const res = await POST(makeRequest(' '.repeat(512 * 1024 + 1)));
+    expect(res.status).toBe(413);
+    expect(state.publishedText).toBeNull();
+  });
+
   it('请求体不是合法 JSON 时返回 400', async () => {
     const res = await POST(makeRequest('not json'));
     expect(res.status).toBe(400);
