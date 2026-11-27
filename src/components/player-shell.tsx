@@ -36,6 +36,7 @@ import { startCinemaSdrEnhancedGpu } from '@/lib/cinema-hdr-webgpu';
 import { observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { createCinemaSoundSession, type CinemaSoundSession, type CinemaSoundMode } from '@/lib/cinema-v51-sound';
 import { createCinemaAuthorizedPcmSoundSession, type CinemaAuthorizedAacSource } from '@/lib/cinema-v51-pcm-playback';
+import { cinemaAuthorizedHlsAacSource, type CinemaVerifiedHlsAacTrack } from '@/lib/cinema-v51-hls-aac';
 import { mountCinemaV51AuthorizedPlayback, type CinemaV51AuthorizedPlayback, type CinemaV51PlaybackMount } from '@/lib/cinema-v51-playback-mount';
 import { getVideoPrefetcher } from '@/lib/video-prefetcher';
 import { loadCacheSettings } from '@/lib/video-cache';
@@ -153,6 +154,8 @@ interface PlayerShellProps {
   cinemaV51AuthorizedSource?: CinemaV51AuthorizedPlayback;
   /** Optional externally authenticated DRM-free AAC/PCM track, never derived from CMS URLs. */
   cinemaV51AuthorizedAudioSource?: CinemaAuthorizedAacSource;
+  /** Explicitly verified HLS Packed-AAC rendition and independently checked A/V origin. */
+  cinemaV51VerifiedHlsAacTrack?: {track:CinemaVerifiedHlsAacTrack;presentationOffsetUs:number};
   cinemaPanel?: 'audio' | 'subtitles' | 'quality' | 'diagnostics' | null;
   onCloseCinemaPanel?: () => void;
   onCinemaPanelChange?: (panel: 'audio' | 'subtitles') => void;
@@ -224,6 +227,7 @@ export function PlayerShell({
   cinemaMode = false,
   cinemaV51AuthorizedSource,
   cinemaV51AuthorizedAudioSource,
+  cinemaV51VerifiedHlsAacTrack,
   cinemaPanel = null,
   onCloseCinemaPanel,
   onCinemaPanelChange,
@@ -421,8 +425,19 @@ export function PlayerShell({
         cinemaSoundRequestedRef.current = {url,audio:false,spatial:false};
       }
     };
-    const session=cinemaV51AuthorizedAudioSource
-      ? await createCinemaAuthorizedPcmSoundSession(video,cinemaV51AuthorizedAudioSource,onCinemaAudioState)
+    let authorizedAudio=cinemaV51AuthorizedAudioSource;
+    if(!authorizedAudio && cinemaV51VerifiedHlsAacTrack) {
+      try {
+        authorizedAudio=cinemaAuthorizedHlsAacSource(
+          cinemaV51VerifiedHlsAacTrack.track,cinemaV51VerifiedHlsAacTrack.presentationOffsetUs);
+      } catch {
+        setDolbyCardStatus('HLS 独立音轨缺少可信时间基准，已保留原生声音。');
+        cinemaSoundRequestedRef.current={url,audio:false,spatial:false};
+        return;
+      }
+    }
+    const session=authorizedAudio
+      ? await createCinemaAuthorizedPcmSoundSession(video,authorizedAudio,onCinemaAudioState)
       : await createCinemaSoundSession(video,onCinemaAudioState);
     if(requestId!==cinemaSoundRequestRef.current||!video.isConnected) {
       session?.stop();
