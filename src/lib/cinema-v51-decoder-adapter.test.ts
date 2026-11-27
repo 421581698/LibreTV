@@ -69,6 +69,20 @@ describe('WebCodecs authentic P010 adapter',()=>{
   expect(decoder.stop).toHaveBeenCalledOnce();
   expect(incorrect.close).toHaveBeenCalledOnce();
  });
+ it('fails closed when decoded presentation frames are repeated or out of order',async()=>{
+  let emit:(f:ReturnType<typeof rawFrame>)=>void=()=>{};
+  const decoder={start(cb:typeof emit){emit=cb;},stop:vi.fn()};
+  const provider=createCinemaWebCodecsDecodedProvider({
+    sourceSha256:'a'.repeat(64),decoder,expectedPrimaries:'bt2020',expectedTransfer:'smpte2084',
+  });
+  const frames:unknown[]=[],errors:string[]=[];
+  provider.start(frame=>frames.push(frame),reason=>errors.push(reason));
+  emit(rawFrame(1000000));emit(rawFrame(999999));
+  await pause();
+  expect(frames).toHaveLength(1);
+  expect(errors).toHaveLength(1);
+  expect(decoder.stop).toHaveBeenCalledOnce();
+ });
  it('refuses invalid plane offsets/strides or unknown format',async()=>{
   await expect(cinemaExtractP010VideoFrame({...rawFrame(),format:'I420'})).rejects.toThrow();
   await expect(cinemaExtractP010VideoFrame(rawFrame(0,1))).rejects.toThrow();
