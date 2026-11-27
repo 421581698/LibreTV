@@ -163,13 +163,14 @@ export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<vo
       timestamp: Date.now(),
     };
     await db.history.put(merged);
+    // Eviction must share the write transaction or concurrent inserts can
+    // exceed MAX_HISTORY and race to delete the wrong set of rows.
+    const count = await db.history.count();
+    if (count > MAX_HISTORY) {
+      const oldest = await db.history.orderBy('timestamp').limit(count - MAX_HISTORY).toArray();
+      await db.history.bulkDelete(oldest.map((o) => o.id));
+    }
   });
-  // 淘汰最旧记录
-  const count = await db.history.count();
-  if (count > MAX_HISTORY) {
-    const oldest = await db.history.orderBy('timestamp').limit(count - MAX_HISTORY).toArray();
-    await db.history.bulkDelete(oldest.map((o) => o.id));
-  }
 }
 
 export async function updateHistoryProgress(
