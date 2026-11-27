@@ -810,7 +810,26 @@ def _eligible_cms_binding_media_type(c: sqlite3.Connection, resource: sqlite3.Ro
            WHERE resource_id=? AND root_asset_id=? AND graph_id=? LIMIT 1""",
         (resource["id"], asset["asset_id"], asset["asset_id"]),
     ).fetchone()
-    return "hls" if graph else None
+    if not graph:
+        return None
+    # A root-only row is not a complete media graph. Require at least one
+    # reachable, same-resource immutable segment before accepting the mapping.
+    segment = c.execute(
+        """WITH RECURSIVE reachable(asset_id,depth) AS (
+             SELECT ?,0
+             UNION
+             SELECT edge.child_asset_id,reachable.depth+1
+             FROM registry_hls_asset_edges edge
+             JOIN reachable ON edge.parent_asset_id=reachable.asset_id
+             WHERE reachable.depth<16
+           )
+           SELECT 1 FROM registry_hls_asset_edges edge
+           JOIN reachable ON reachable.asset_id=edge.parent_asset_id
+           JOIN registry_media_assets child ON child.asset_id=edge.child_asset_id
+           WHERE edge.role='segment' AND child.resource_id=? LIMIT 1""",
+        (asset["asset_id"], resource["id"]),
+    ).fetchone()
+    return "hls" if segment else None
 
 
 @router.post("/v1/registry/cms-asset-bindings")

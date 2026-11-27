@@ -508,6 +508,17 @@ class RegistryQueueTests(unittest.TestCase):
                 "INSERT INTO registry_hls_asset_graphs(graph_id,resource_id,root_asset_id,created_at) VALUES(?,?,?,?)",
                 (root["asset_id"], resource["id"], root["asset_id"], 123),
             )
+        with patch.object(queue, "require_dv_ingestion_auth"), self.assertRaises(HTTPException) as empty_graph:
+            queue.api_register_cms_asset_binding(payload, x_dv_ingestion_token="operator")
+        self.assertEqual(empty_graph.exception.status_code, 409)
+        member = queue.register_dolby_vision_media_asset(
+            resource["id"], "3" * 64, 4096, "video/iso.segment")
+        with queue.connect() as c:
+            c.execute(
+                """INSERT INTO registry_hls_asset_edges
+                   (parent_asset_id,child_asset_id,relative_uri,role,ordinal) VALUES(?,?,?,?,?)""",
+                (root["asset_id"], member["asset_id"], "segment0.m4s", "segment", 0),
+            )
         with patch.object(queue, "require_dv_ingestion_auth"):
             result = queue.api_register_cms_asset_binding(payload, x_dv_ingestion_token="operator")
             self.assertEqual(result["status"], "bound")
