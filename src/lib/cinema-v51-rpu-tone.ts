@@ -34,7 +34,7 @@ export function cinemaValidateRpuL1Frame(frame: CinemaRpuL1Frame): void {
 /** LibreTV L1-driven dynamic tone mapping for a *real decoded* PQ/Rec2020 P010 frame.
  * Not the proprietary/official Dolby Vision rendering algorithm.
  */
-export function cinemaTransformRpuL1Pixel(rgb: CinemaRgb, options: CinemaPixelOptions, l1: CinemaRpuL1Frame): [number,number,number] {
+export function createCinemaRpuL1ToneMapper(options: CinemaPixelOptions, l1: CinemaRpuL1Frame): (rgb:CinemaRgb)=>[number,number,number] {
   cinemaValidateRpuL1Frame(l1);
   if (options.sourceTransfer !== 'pq' || options.sourcePrimaries !== 'rec2020')
     throw new Error('RPU mapping requires verified Rec.2020 PQ decoded input');
@@ -44,13 +44,20 @@ export function cinemaTransformRpuL1Pixel(rgb: CinemaRgb, options: CinemaPixelOp
       !Number.isFinite(options.targetPeakNits) || options.targetPeakNits <= 0)
     throw new Error('Invalid RPU dynamic luminance');
   const knee = cinemaClamp(.5 + .2*average/Math.max(1,sourcePeak),.5,.7);
-  const decoded = rgb.map(c=>cinemaDecodeLuminance(c,'pq')) as [number,number,number];
-  const max = Math.max(0,...decoded);
-  const peak = cinemaToneMapNits(max,Math.max(1,sourcePeak),options.targetPeakNits,knee);
-  const scale = max > 0 ? peak/max : 0;
-  const gamut = cinemaConvertGamut(
-    [decoded[0]*scale,decoded[1]*scale,decoded[2]*scale],
-    'rec2020',options.targetPrimaries);
-  return gamut.map(v=>cinemaEncodeLuminance(Math.max(0,v),options.targetTransfer,
-    options.targetWhiteNits,options.targetPeakNits)) as [number,number,number];
+  // Precalculate per-frame metadata once instead of reparsing RPU values for
+  // each of ~2 million pixels at 1080p.
+  return (rgb:CinemaRgb)=>{
+    const decoded = rgb.map(c=>cinemaDecodeLuminance(c,'pq')) as [number,number,number];
+    const max = Math.max(0,...decoded);
+    const peak = cinemaToneMapNits(max,Math.max(1,sourcePeak),options.targetPeakNits,knee);
+    const scale = max > 0 ? peak/max : 0;
+    const gamut = cinemaConvertGamut(
+      [decoded[0]*scale,decoded[1]*scale,decoded[2]*scale],
+      'rec2020',options.targetPrimaries);
+    return gamut.map(v=>cinemaEncodeLuminance(Math.max(0,v),options.targetTransfer,
+      options.targetWhiteNits,options.targetPeakNits)) as [number,number,number];
+  };
+}
+export function cinemaTransformRpuL1Pixel(rgb: CinemaRgb, options: CinemaPixelOptions, l1: CinemaRpuL1Frame): [number,number,number] {
+  return createCinemaRpuL1ToneMapper(options,l1)(rgb);
 }
