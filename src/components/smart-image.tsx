@@ -74,7 +74,9 @@ export function SmartImage({
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const useHdrSource = supportsHdr && hdrCandidates.length > 0 && !hdrFailed;
   const activeCandidates = useHdrSource ? hdrCandidates : candidates;
-  const src = fallback
+  const noCandidates = activeCandidates.length === 0;
+  const showingPlaceholder = fallback || noCandidates;
+  const src = showingPlaceholder
     ? (showDefaultFallback ? DEFAULT_POSTER_SRC : undefined)
     : activeCandidates[idx];
 
@@ -92,7 +94,7 @@ export function SmartImage({
     setHdrFailed(false);
     setFallback(false);
     if (measureNaturalSize) setNaturalSize(null);
-  }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy, measureNaturalSize, minimumWidth, expectedOrientation]);
+  }, [sourceUrl, fallbackUrl, hdrUrl, mode, customProxy, preferNativeImage, supportsHdr, measureNaturalSize, minimumWidth, expectedOrientation]);
 
   if (!src) return null;
   return (
@@ -103,25 +105,27 @@ export function SmartImage({
       className={className}
       loading={loading}
       decoding="async"
-      data-cinema-image-tier={fallback ? 'placeholder' : useHdrSource ? 'explicit-hdr-candidate' : 'source-unverified'}
+      data-cinema-image-tier={showingPlaceholder ? 'placeholder' : useHdrSource ? 'explicit-hdr-candidate' : 'source-unverified'}
       referrerPolicy="no-referrer"
       data-natural-width={measureNaturalSize ? naturalSize?.width : undefined}
       data-natural-height={measureNaturalSize ? naturalSize?.height : undefined}
       data-resolution-tier={measureNaturalSize ? (naturalSize ? (naturalSize.width >= (minimumWidth ?? 1200) ? 'meets-minimum-width' : 'below-minimum-width') : 'pending') : undefined}
       onLoad={measureNaturalSize || minimumWidth || expectedOrientation ? (event) => {
-        if (fallback) return;
+        if (showingPlaceholder) return;
         const image = event.currentTarget;
         if (measureNaturalSize) setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
         const widthIsInsufficient = Boolean(minimumWidth && !meetsMinimumImageWidth(image.naturalWidth, minimumWidth));
         const orientationIsWrong = Boolean(expectedOrientation && !matchesArtworkOrientation(image.naturalWidth, image.naturalHeight, expectedOrientation));
         if (widthIsInsufficient || orientationIsWrong) {
+          if (measureNaturalSize) setNaturalSize(null);
+          // Try the next candidate in the current tier before downgrading.
+          if (idx + 1 < activeCandidates.length) {
+            setIdx((current) => current + 1);
+            return;
+          }
           if (useHdrSource) {
             setHdrFailed(true);
             setIdx(0);
-            return;
-          }
-          if (idx < primaryCandidates.length && fallbackCandidates.length) {
-            setIdx(primaryCandidates.length);
             return;
           }
           setFallback(true);
@@ -130,7 +134,7 @@ export function SmartImage({
       } : undefined}
       onError={() => {
         if (measureNaturalSize) setNaturalSize(null);
-        if (fallback) return;
+        if (showingPlaceholder) return;
         if (idx + 1 < activeCandidates.length) {
           setIdx((current) => current + 1);
           return;
