@@ -451,8 +451,8 @@ export function PlayerShell({
     // ADTS + ID3 PTS into the PCM engine. Never infer an unverified offset.
     const safariHls=cinemaMode&&!hlsRef.current&&
       getMediaPlaybackKind(video.currentSrc||url,mediaType)==='hls'&&
-      /AppleWebKit\\/\\d/.test(navigator.userAgent)&&/Safari\\/\\d/.test(navigator.userAgent)&&
-      !/(?:Chrome|Chromium|CriOS|FxiOS|Edg|EdgiOS|OPR|OPiOS)\\//.test(navigator.userAgent);
+      /AppleWebKit\/\d/.test(navigator.userAgent)&&/Safari\/\d/.test(navigator.userAgent)&&
+      !/(?:Chrome|Chromium|CriOS|FxiOS|Edg|EdgiOS|OPR|OPiOS)\//.test(navigator.userAgent);
     if(!authorizedAudio&&safariHls){
       const constructor=window.AudioContext||
         (window as Window & {webkitAudioContext?:typeof AudioContext}).webkitAudioContext;
