@@ -33,6 +33,24 @@ describe('Cinema presentation clock and HDR10+ PTS synchronization',()=>{
     });
     expect(status).toBe('source-changed');
   });
+  it('does not expire only because playback stays paused briefly',async()=>{
+    let now=0;
+    let playing=false;
+    let current=1;
+    let waits=0;
+    const result=await cinemaWaitForPresentation(1275000,{
+      ...clock(1),playing:()=>playing,currentMediaTimeSeconds:()=>current,
+    },{
+      now:()=>now,
+      sleep:async()=>{
+        now+=40;
+        waits++;
+        if(waits===6)playing=true;
+      },
+    });
+    expect(result).toBe('ready');
+    expect(now).toBeGreaterThan(160);
+  });
   it('fails closed if playback never starts or the user seeks away',async()=>{
     let now=0;
     expect(await cinemaWaitForPresentation(2000000,clock(1,false),{
