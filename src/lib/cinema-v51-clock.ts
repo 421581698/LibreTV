@@ -18,8 +18,9 @@ export interface CinemaClockOptions {
 }
 const sleep=(ms:number)=>new Promise<void>(resolve=>setTimeout(resolve,ms));
 /**
- * A frame is ready in a ±30ms presentation window. Frames over 120ms late
- * are discarded via native fallback, not displayed at an incorrect time.
+ * A frame is ready when it is at most 30ms early or 120ms late.
+ * Frames more than 120ms late are discarded via native fallback, not
+ * displayed at an incorrect time.
  * The browser composition timestamp itself still needs real-device checks.
  */
 export async function cinemaWaitForPresentation(
