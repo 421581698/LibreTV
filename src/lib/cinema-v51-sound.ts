@@ -119,10 +119,16 @@ export async function createCinemaSoundSession(
     onState({audio:false,spatial:false,output:'native',reason:'请先恢复原生音轨和可听音量，再开启 DSP/空间化。'});
     return null;
   }
+  // Protected media must never enter either the capture or mirror graph.
+  if(video.mediaKeys){
+    if(prewarmedContext)void prewarmedContext.close().catch(()=>{});
+    onState({audio:false,spatial:false,output:'native',reason:'受保护音轨不进入 Cinema PCM 增强，保留原声。'});
+    return null;
+  }
   const stream=capturedAudioSource(video);
   // A disposable audio element can be routed through Web Audio without
   // permanently binding the reusable ArtPlayer video to an AudioContext.
-  const url=video.currentSrc;
+  const url=video.currentSrc||video.src;
   // Never fetch an untrusted internal/loopback resource or a playlist whose
   // auth/variant selection is controlled by the original media loader.
   const parsed=(()=>{try{return new URL(url,window.location.href);}catch{return null;}})();
