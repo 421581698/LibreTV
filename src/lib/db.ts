@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { favoriteIdFor } from './favorite-id';
+import { historyIdFor, progressIdFor } from './history-id';
 import type { SourceConfig } from './types';
 // 仅类型引入：store.ts 运行时会引用本模块，反向只取类型不会形成运行时循环
 import type { LiveProbeEntry } from './store';
@@ -141,7 +142,7 @@ export const MAX_HISTORY = 100;
 export const MAX_SEARCH_HISTORY = 10;
 
 export async function upsertHistory(entry: Omit<HistoryEntry, 'id'>): Promise<void> {
-  const id = `${entry.sourceKey}_${entry.vodId}`;
+  const id = historyIdFor(entry.sourceKey, entry.vodId);
   // Serialize the merge with progress updates so a stale read cannot overwrite
   // a newer playback position written while this history row is being refreshed.
   await db.transaction('rw', db.history, async () => {
@@ -180,7 +181,7 @@ export async function updateHistoryProgress(
   duration: number,
   expectedEpisodeIndex?: number
 ): Promise<void> {
-  const id = `${sourceKey}_${vodId}`;
+  const id = historyIdFor(sourceKey, vodId);
   // Keep the episode check and write in one read/write transaction. Otherwise an
   // outgoing episode's delayed progress update can race with upsertHistory for
   // the next episode and attach the old position to the new episodeIndex.
@@ -198,7 +199,7 @@ export async function updateHistoryProgress(
 }
 
 export async function removeHistory(sourceKey: string, vodId: string): Promise<void> {
-  await db.history.delete(`${sourceKey}_${vodId}`);
+  await db.history.delete(historyIdFor(sourceKey, vodId));
 }
 
 export async function clearAllHistory(): Promise<void> {
@@ -210,7 +211,7 @@ export async function clearAllHistory(): Promise<void> {
 }
 
 export function progressKeyOf(sourceKey: string, vodId: string, episodeIndex: number): string {
-  return `${sourceKey}_${vodId}_${episodeIndex}`;
+  return progressIdFor(sourceKey, vodId, episodeIndex);
 }
 
 export async function saveProgress(sourceKey: string, vodId: string, episodeIndex: number, position: number, duration: number): Promise<void> {
@@ -338,7 +339,7 @@ export async function importConfig(content: string): Promise<void> {
       const vodId = optional(item, 'vodId') || optional(item, 'vod_id') || '';
       if (!sourceKey || !vodId) return [];
       const entry: HistoryEntry = {
-        id: `${sourceKey}_${vodId}`,
+        id: historyIdFor(sourceKey, vodId),
         sourceKey, vodId,
         title: optional(item, 'title') || '未知视频',
         episodeIndex: Math.floor(finiteNonNegative(item.episodeIndex, 0)),
@@ -414,6 +415,45 @@ db.version(5).stores({
 // v6: independent movie/series favorites; existing history and live-channel favorites are untouched.
 db.version(6).stores({
   favorites: 'id, addedAt, sourceKey, title',
+});
+
+// v8: repair legacy history/progress IDs that used ambiguous underscores.
+// Migrate within Dexie's versionchange transaction; collisions already stored
+// under one old ID cannot be reconstructed and must not be fabricated.
+db.version(8).stores({
+  history: 'id, timestamp',
+  progress: 'key, updatedAt',
+}).upgrade(async (transaction) => {
+  const history = transaction.table('history');
+  const progress = transaction.table('progress');
+  const entries = await history.toArray() as HistoryEntry[];
+  await history.clear();
+  if (entries.length) {
+    await history.bulkPut(entries.map((item) => ({
+      ...item,
+      id: historyIdFor(item.sourceKey, item.vodId),
+    })));
+  }
+  // Old progress keys have no lossless inverse (source/vod can contain '_').
+  // Use the known history identities to translate unambiguous matches only.
+  const knownPairs = entries.map((entry) => ({
+    legacyPrefix: `${entry.sourceKey}_${entry.vodId}_`,
+    sourceKey: entry.sourceKey,
+    vodId: entry.vodId,
+  }));
+  const saved = await progress.toArray() as ProgressEntry[];
+  await progress.clear();
+  if (saved.length) {
+    await progress.bulkPut(saved.map((item) => {
+      const matches = knownPairs.flatMap((pair) => {
+        if (!item.key.startsWith(pair.legacyPrefix)) return [];
+        const episode = Number(item.key.slice(pair.legacyPrefix.length));
+        return Number.isSafeInteger(episode) && episode >= 0
+          ? [progressIdFor(pair.sourceKey, pair.vodId, episode)] : [];
+      });
+      return matches.length === 1 ? { ...item, key: matches[0] } : item;
+    }));
+  }
 });
 
 // v7: use an unambiguous composite identity and migrate existing v6 favorites.
