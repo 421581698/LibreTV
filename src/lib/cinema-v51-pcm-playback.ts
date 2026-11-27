@@ -94,6 +94,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
   let scheduledSamples=0;
   let scheduledThroughSeconds=-Infinity;
   let nativeMuteGuard=false;
+  let pendingNativeVolumeCheck=false;
   let earliestScheduledAt=Infinity;
   let lastDecodedAt=performance.now();
   let measuredRms=.10;
@@ -176,7 +177,16 @@ export async function createCinemaAuthorizedPcmSoundSession(
   const onVideoInterrupt=()=>fail('视频暂停、切源、进度跳转或倍速改变，已恢复原始音频。');
   const onVolume=()=>{
     if(stopped||!active)return;
-    if(!video.muted&&!nativeMuteGuard){fail('视频原声被重新打开，已停止独立 PCM 以避免双声道叠音。');return;}
+    if(!video.muted&&!nativeMuteGuard){
+      if(!pendingNativeVolumeCheck){
+        pendingNativeVolumeCheck=true;
+        queueMicrotask(()=>{
+          pendingNativeVolumeCheck=false;
+          if(!stopped&&active&&!video.muted)fail('视频原声被重新打开，已停止独立 PCM 以避免双声道叠音。');
+        });
+      }
+      return;
+    }
     if(graph)ramp(graph.master,video.volume*(audio?cinemaLoudnessGain(measuredRms):1));
   };
   const onContextState=()=>{if(active&&context.state!=='running')fail('音频引擎暂停，已恢复原声。');};
