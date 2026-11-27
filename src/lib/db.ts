@@ -451,6 +451,8 @@ db.version(8).stores({
   }
   // Old progress keys have no lossless inverse (source/vod can contain '_').
   // Use the known history identities to translate unambiguous matches only.
+  // Keep unmatched rows under their old keys for recovery; do not invent an
+  // ambiguous mapping when multiple history entries share a legacy prefix.
   const knownPairs = entries.map((entry) => ({
     legacyPrefix: `${entry.sourceKey}_${entry.vodId}_`,
     sourceKey: entry.sourceKey,
