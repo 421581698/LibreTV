@@ -43,10 +43,10 @@ export async function cinemaWaitForPresentation(
     if(!Number.isSafeInteger(currentUs))return 'expired';
     const delta=ptsUs-currentUs;
     if(delta<-120000)return 'late';
-    if(clock.playing() && delta<=30000&&delta>=-120000)return 'ready';
-    // Paused wall time is not an HDR timing miss. Keep the work bounded,
-    // and reset the active-playback deadline after each pause.
-    if(!clock.playing()) {
+    const playing=clock.playing();
+    if(playing && delta<=30000&&delta>=-120000)return 'ready';
+    // Paused wall time must not be counted as an HDR synchronization miss.
+    if(!playing) {
       if(pausedAt===null)pausedAt=now();
       await pause(40);
       continue;
