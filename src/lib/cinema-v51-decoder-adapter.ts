@@ -72,6 +72,7 @@ export function createCinemaWebCodecsDecodedProvider(
   let stopped=false;
   let queue:Promise<void>=Promise.resolve();
   let sequence=0;
+  let lastOutputPtsUs=-1;
   return {
     sourceSha256:input.sourceSha256,
     start(onFrame,onError) {
@@ -83,9 +84,11 @@ export function createCinemaWebCodecsDecodedProvider(
             if(stopped)return;
             if(frame.colorSpace?.primaries!==input.expectedPrimaries||
               frame.colorSpace?.transfer!==input.expectedTransfer||
-              !Number.isSafeInteger(frame.timestamp)||frame.timestamp<0)
+              !Number.isSafeInteger(frame.timestamp)||frame.timestamp<0||
+              frame.timestamp<=lastOutputPtsUs)
               throw new Error('Decoded video colour metadata or PTS is untrusted');
             const decodedP010=await cinemaExtractP010VideoFrame(frame);
+            lastOutputPtsUs=frame.timestamp;
             if(!stopped)onFrame({
               sourceSha256:input.sourceSha256,frameIndex,
               ptsUs:frame.timestamp,decodedP010,
