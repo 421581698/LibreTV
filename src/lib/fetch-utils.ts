@@ -10,6 +10,17 @@ export interface FetchOptions extends RequestInit {
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const MAX_REDIRECT_HOPS = 5;
 
+/** The Workers entrypoints enable global_fetch_strictly_public in Wrangler.
+ * Other runtimes must use the Node socket-level DNS guard or fail closed.
+ */
+async function fetchValidatedConnection(url:string,init:RequestInit):Promise<Response> {
+  if(typeof (globalThis as {WebSocketPair?:unknown}).WebSocketPair==='function'){
+    return fetch(url,init);
+  }
+  const {fetchWithValidatedNodeSocket}=await import('./node-guarded-fetch');
+  return fetchWithValidatedNodeSocket(url,init);
+}
+
 export interface FetchResult {
   res: Response;
   /** 跟随重定向后的最终 URL（manual 模式下 res.url 不可靠，须自行跟踪）。
@@ -70,7 +81,7 @@ async function fetchWithPolicy(
         : null;
       let res: Response;
       try {
-        res = await fetch(current, {
+        res = await fetchValidatedConnection(current, {
           ...init,
           headers,
           method,
