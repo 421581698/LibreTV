@@ -11,6 +11,7 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
     this.underrunSent = false;
     this.clockPtsSamples = null;
     this.expectedPtsSamples = null;
+    this.pendingClockReanchor = false;
     this.maxQueueFrames = 48000;
     this.port.onmessage = event => {
       const data = event.data;
@@ -27,6 +28,7 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
         this.queue = [];
         this.queuedFrames = 0;
         this.expectedPtsSamples = this.clockPtsSamples;
+        this.pendingClockReanchor = true;
         this.started = false;
         this.underrunQuanta = 0;
         this.underrunSent = false;
@@ -35,7 +37,10 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       }
       if (data.type === 'clock' && Number.isFinite(data.ptsSamples)) {
         this.clockPtsSamples = data.ptsSamples;
-        if (this.expectedPtsSamples === null) this.expectedPtsSamples = data.ptsSamples;
+        if (this.expectedPtsSamples === null || this.pendingClockReanchor) {
+          this.expectedPtsSamples = data.ptsSamples;
+          this.pendingClockReanchor = false;
+        }
         return;
       }
       if (data.type !== 'pcm' || !(data.samples instanceof Float32Array)) return;
@@ -62,11 +67,16 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
     right.fill(0);
     if (!this.playing || this.clockPtsSamples === null || this.expectedPtsSamples === null) return true;
 
-    // Follow the video media clock gently. A large seek/discontinuity reanchors
-    // the queue; small drift is corrected gradually to avoid audible jumps.
+    // Correct small clock drift without discarding the packet timeline.
+    // Large discontinuities stop the software lane and restore native audio;
+    // silently reanchoring queued samples would skip or replay old content.
     const drift = this.clockPtsSamples - this.expectedPtsSamples;
-    if (Math.abs(drift) > 2400) this.expectedPtsSamples = this.clockPtsSamples;
-    else this.expectedPtsSamples += Math.max(-120, Math.min(120, drift * 0.1));
+    if (Math.abs(drift) > 2400) {
+      this.playing = false;
+      this.port.postMessage({ type: 'clock-discontinuity', driftSamples: drift });
+      return true;
+    }
+    this.expectedPtsSamples += Math.max(-120, Math.min(120, drift * 0.1));
 
     let written = 0;
     let rendered = 0;
