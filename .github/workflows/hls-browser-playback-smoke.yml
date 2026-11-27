@@ -73,4 +73,4 @@ jobs:
       - name: Verify Cinema V5.1 real PCM DSP and virtual HRTF
         run: node scripts/cinema-v51-browser-audio-smoke.mjs
       - name: Verify Safari HLS PCM mirror, authenticated Packed AAC and A/V clock recovery
-        run: npx vitest run src/lib/cinema-v51-safari-hls-audio.test.ts src/lib/cinema-v51-hls-aac.test.ts src/lib/cinema-v51-pcm-playback.test.ts
+        run: npx vitest run src/lib/cinema-v51-safari-hls-audio.test.ts src/lib/cinema-v51-hls-aac.test.ts src/lib/cinema-v51-safari-adts-decoder.test.ts src/lib/cinema-v51-pcm-playback.test.ts
