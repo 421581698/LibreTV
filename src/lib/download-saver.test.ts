@@ -115,6 +115,27 @@ describe('pickSaveTarget file-output lifecycle', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:download-test');
   });
 
+  it('preserves only Uint8Array subview bytes in memory downloads', async () => {
+    vi.useFakeTimers();
+    let saved: Blob | undefined;
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      saved = blob as Blob;
+      return 'blob:subview';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('document', {
+      createElement: () => ({ href: '', download: '', click: vi.fn(), remove: vi.fn() }),
+      body: { appendChild: vi.fn() },
+    });
+    const target = await pickSaveTarget('subview.ts');
+    await target.write(new Uint8Array([99, 10, 11, 12, 88]).subarray(1, 4));
+    await target.close();
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(Array.from(new Uint8Array(await saved!.arrayBuffer()))).toEqual([10, 11, 12]);
+    vi.runOnlyPendingTimers();
+  });
+
   it('discards buffered bytes on abort instead of creating a partial file', async () => {
     vi.useFakeTimers();
     const anchor = { href: '', download: '', click: vi.fn(), remove: vi.fn() };
