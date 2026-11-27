@@ -417,6 +417,21 @@ db.version(6).stores({
   favorites: 'id, addedAt, sourceKey, title',
 });
 
+// v7: use an unambiguous composite identity and migrate existing v6 favorites.
+db.version(7).stores({
+  favorites: 'id, addedAt, sourceKey, title',
+}).upgrade(async (transaction) => {
+  const favorites = transaction.table('favorites');
+  const existing = await favorites.toArray();
+  await favorites.clear();
+  if (existing.length > 0) {
+    await favorites.bulkPut(existing.map((item: FavoriteEntry) => ({
+      ...item,
+      id: favoriteIdFor(item.sourceKey, item.vodId),
+    })));
+  }
+});
+
 // v8: repair legacy history/progress IDs that used ambiguous underscores.
 // Migrate within Dexie's versionchange transaction; collisions already stored
 // under one old ID cannot be reconstructed and must not be fabricated.
@@ -453,21 +468,6 @@ db.version(8).stores({
       });
       return matches.length === 1 ? { ...item, key: matches[0] } : item;
     }));
-  }
-});
-
-// v7: use an unambiguous composite identity and migrate existing v6 favorites.
-db.version(7).stores({
-  favorites: 'id, addedAt, sourceKey, title',
-}).upgrade(async (transaction) => {
-  const favorites = transaction.table('favorites');
-  const existing = await favorites.toArray();
-  await favorites.clear();
-  if (existing.length > 0) {
-    await favorites.bulkPut(existing.map((item: FavoriteEntry) => ({
-      ...item,
-      id: favoriteIdFor(item.sourceKey, item.vodId),
-    })));
   }
 });
 
