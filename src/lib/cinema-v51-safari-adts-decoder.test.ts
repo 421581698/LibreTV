@@ -66,6 +66,39 @@ describe('Safari AAC decodeAudioData fallback for verified HLS Packed AAC',()=>{
     await expect(malformed.push({...packet(),data:new Uint8Array([1,2,3,4])}))
       .rejects.toThrow('Invalid verified AAC');
   });
+  it('rejects both gaps and overlaps between independently decoded AAC packets',async()=>{
+    const delivered:CinemaPcmFrame[]=[];
+    const failed:string[]=[];
+    const decoder=createCinemaSafariAdtsDecoder(SHA,{
+      decodeAudioData:async()=>buffer(3072),
+    } as never,frame=>delivered.push(frame),message=>failed.push(message));
+    await decoder.push(packet(3,1_000_000));
+    const end=1_000_000+Math.round(3*1024*1e6/44100);
+    await expect(decoder.push(packet(3,end+20_000)))
+      .rejects.toThrow('Discontinuous AAC segment timestamps');
+    expect(decoder.active).toBe(false);
+    expect(delivered).toHaveLength(1);
+    expect(failed).toHaveLength(1);
+    const overlap=createCinemaSafariAdtsDecoder(SHA,{
+      decodeAudioData:async()=>buffer(3072),
+    } as never,()=>{},message=>failed.push(message));
+    await overlap.push(packet(3,1_000_000));
+    await expect(overlap.push(packet(3,end-20_000)))
+      .rejects.toThrow('Discontinuous AAC segment timestamps');
+    expect(overlap.active).toBe(false);
+  });
+  it('accepts sample-clock microsecond rounding at an AAC packet boundary',async()=>{
+    const delivered:CinemaPcmFrame[]=[];
+    const decoder=createCinemaSafariAdtsDecoder(SHA,{
+      decodeAudioData:async()=>buffer(3072),
+    } as never,frame=>delivered.push(frame),()=>{});
+    await decoder.push(packet(3,1_000_000));
+    const end=1_000_000+Math.round(3*1024*1e6/44100);
+    await decoder.push(packet(3,end+1));
+    expect(delivered).toHaveLength(2);
+    expect(delivered[1].ptsUs).toBe(end+1);
+    decoder.stop();
+  });
   it('does not output stale PCM after the session is stopped while decoding',async()=>{
     let finish:(b:AudioBuffer)=>void=()=>{};
     const delivered:CinemaPcmFrame[]=[];
