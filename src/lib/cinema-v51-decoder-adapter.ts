@@ -96,7 +96,7 @@ export function createCinemaWebCodecsDecodedProvider(
           }catch(error){
             if(!stopped){
               stopped=true;
-              input.decoder.stop();
+              try {input.decoder.stop();} catch {/* retain original failure */}
               onError(error instanceof Error?error.message:'VideoFrame P010 extraction failed');
             }
           }finally{frame.close();}
