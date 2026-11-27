@@ -70,6 +70,18 @@ export async function fetchDolbyVisionRegistryAsset(
   });
 }
 
+/** Read graph through the fixed server-only collector identity; ignore browser overrides. */
+export async function fetchDolbyVisionHlsGraph(resourceId: string): Promise<Response | null> {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(resourceId)) return null;
+  const base = trustedServerRegistryBase();
+  const token = process.env.SCRAPLING_API_TOKEN?.trim();
+  if (!base || !token) return null;
+  return fetch(`${base}/v1/registry/resources/${encodeURIComponent(resourceId)}/hls-graph`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store', redirect: 'manual', signal: AbortSignal.timeout(5000),
+  });
+}
+
 /** Server-only HLS parser-input fetch. It always uses trusted server credentials, never browser overrides. */
 export async function fetchDolbyVisionHlsAssembly(
   resourceId: string,

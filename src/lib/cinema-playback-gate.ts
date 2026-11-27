@@ -79,9 +79,15 @@ export function isCinemaPlaybackTransitionPending({
  */
 export function resolveCinemaBoundPlaybackUrl(
   originalUrl: string,
-  binding: { assetId: string; mediaType: 'mp4' | 'hls' } | null,
+  binding: { assetId: string; mediaType: 'mp4' | 'hls'; resourceId?: string } | null,
 ): string {
-  if (!binding || binding.mediaType !== 'mp4' ||
-      !/^[A-Za-z0-9:_-]{1,200}$/.test(binding.assetId)) return originalUrl;
+  if (!binding || !/^[A-Za-z0-9:_-]{1,200}$/.test(binding.assetId)) return originalUrl;
+  if (binding.mediaType === 'hls') {
+    // Operator opt-in: standard CMS HLS remains unchanged until the controlled
+    // graph gateway has been accepted with real clear-VOD assets.
+    if (process.env.NEXT_PUBLIC_CINEMA_VERIFIED_HLS_GATEWAY !== '1' ||
+        !binding.resourceId || !/^[A-Za-z0-9_-]{1,80}$/.test(binding.resourceId)) return originalUrl;
+    return `/api/dolby-vision/resources/${encodeURIComponent(binding.resourceId)}/verified-hls/${encodeURIComponent(binding.assetId)}/${encodeURIComponent(binding.assetId)}`;
+  }
   return `/api/dolby-vision/assets/${encodeURIComponent(binding.assetId)}/content`;
 }

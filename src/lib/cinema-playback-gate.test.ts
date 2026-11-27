@@ -187,3 +187,20 @@ describe('exact CMS playback URL selection', () => {
     expect(resolveCinemaBoundPlaybackUrl(hls, null)).toBe(hls);
   });
 });
+
+it('offers graph-authenticated HLS byte playback only with explicit operator enablement', () => {
+  const original = 'https://origin.example/master.m3u8';
+  const binding = { mediaType: 'hls' as const, assetId: 'root_1', resourceId: 'resource_1' };
+  const before = process.env.NEXT_PUBLIC_CINEMA_VERIFIED_HLS_GATEWAY;
+  try {
+    delete process.env.NEXT_PUBLIC_CINEMA_VERIFIED_HLS_GATEWAY;
+    expect(resolveCinemaBoundPlaybackUrl(original,binding)).toBe(original);
+    process.env.NEXT_PUBLIC_CINEMA_VERIFIED_HLS_GATEWAY='1';
+    expect(resolveCinemaBoundPlaybackUrl(original,binding)).toBe(
+      '/api/dolby-vision/resources/resource_1/verified-hls/root_1/root_1');
+    expect(resolveCinemaBoundPlaybackUrl(original,{...binding,resourceId:'../bad'})).toBe(original);
+  } finally {
+    if (before === undefined) delete process.env.NEXT_PUBLIC_CINEMA_VERIFIED_HLS_GATEWAY;
+    else process.env.NEXT_PUBLIC_CINEMA_VERIFIED_HLS_GATEWAY=before;
+  }
+});
