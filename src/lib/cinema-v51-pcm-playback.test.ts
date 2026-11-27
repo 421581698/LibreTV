@@ -112,6 +112,77 @@ describe('authorized independent PCM audio output',()=>{
     expect(Context.last?.closed).toBe(true);
     expect(states.at(-1)?.output).toBe('native');
   });
+  it('falls back on first-packet WebCodecs failure without muting native audio prematurely',async()=>{
+    const video=new Video(),states:CinemaSoundState[]=[];
+    let nativeDecoderClosed=false,decodeCalls=0;
+    vi.stubGlobal('AudioDecoder',class {
+      static async isConfigSupported(){return {supported:true};}
+      decodeQueueSize=0;state='configured';
+      private error:(error:Error)=>void;
+      constructor(init:{error:(error:Error)=>void}){this.error=init.error;}
+      configure(){}
+      decode(){decodeCalls++;this.error(new Error('WebCodecs AAC failed'));}
+      async flush(){}
+      close(){nativeDecoderClosed=true;}
+    });
+    const prewarmed=new Context({});
+    let safariDecodeCalls=0;
+    (prewarmed as Context & {decodeAudioData:(data:ArrayBuffer)=>Promise<AudioBuffer>}).decodeAudioData=async data=>{
+      safariDecodeCalls++;
+      expect(data.byteLength).toBe(packet.byteLength);
+      return {sampleRate:44100,length:3072,numberOfChannels:2,
+        getChannelData:()=>new Float32Array(3072).fill(.1)} as unknown as AudioBuffer;
+    };
+    const session=await createCinemaAuthorizedPcmSoundSession(video as never,{
+      sourceSha256:SHA,expectedSourceSha256:SHA,presentationOffsetUs:0,
+      packets:(async function*(){yield {sourceSha256:SHA,ptsUs:1_000_000,data:packet};})(),
+    },state=>states.push(state),prewarmed as never);
+    expect(session).not.toBeNull();
+    session!.enable('audio',true);
+    for(let i=0;i<30;i++)await Promise.resolve();
+    expect(decodeCalls).toBeGreaterThan(0);
+    expect(nativeDecoderClosed).toBe(true);
+    expect(safariDecodeCalls).toBe(1);
+    expect(video.muted).toBe(false);
+    frame();
+    expect(video.muted).toBe(true);
+    expect(states.at(-1)?.output).toBe('decoded-pcm');
+    video.dispatchEvent(new Event('seeking'));
+    expect(video.muted).toBe(false);
+    expect(prewarmed.closed).toBe(true);
+  });
+  it('ignores a retired decoder failure callback after Safari fallback takes ownership',async()=>{
+    const video=new Video(),states:CinemaSoundState[]=[];
+    let staleError:((error:Error)=>void)|null=null;
+    vi.stubGlobal('AudioDecoder',class {
+      static async isConfigSupported(){return {supported:true};}
+      decodeQueueSize=0;state='configured';
+      constructor(init:{error:(error:Error)=>void}){staleError=init.error;}
+      configure(){}
+      decode(){throw new Error('first AAC packet rejected');}
+      async flush(){}
+      close(){}
+    });
+    const prewarmed=new Context({});
+    (prewarmed as Context & {decodeAudioData:(data:ArrayBuffer)=>Promise<AudioBuffer>}).decodeAudioData=async()=>({
+      sampleRate:44100,length:3072,numberOfChannels:2,
+      getChannelData:()=>new Float32Array(3072).fill(.12),
+    }) as unknown as AudioBuffer;
+    const session=await createCinemaAuthorizedPcmSoundSession(video as never,{
+      sourceSha256:SHA,expectedSourceSha256:SHA,presentationOffsetUs:0,
+      packets:(async function*(){yield {sourceSha256:SHA,ptsUs:1_000_000,data:packet};})(),
+    },state=>states.push(state),prewarmed as never);
+    expect(session).not.toBeNull();
+    session!.enable('audio',true);
+    for(let i=0;i<30;i++)await Promise.resolve();
+    expect(staleError).not.toBeNull();
+    (staleError as unknown as (error:Error)=>void)(new Error('late primary decoder error'));
+    frame();
+    expect(session!.state().output).toBe('decoded-pcm');
+    expect(states.some(s=>s.reason.includes('late primary decoder error'))).toBe(false);
+    session!.stop();
+    expect(video.muted).toBe(false);
+  });
   it('never mutes source on a zero-only decoded PCM stream',async()=>{
     const video=new Video();
     vi.stubGlobal('AudioDecoder',class {
