@@ -55,6 +55,7 @@ export class JocSoftwareDecoderClient {
   private clockRaf = 0;
   private readonly outputEnabled: boolean;
   private gainNode: GainNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
   private activationInFlight = false;
   private readonly listeners = new Set<(status: JocDecoderStatus) => void>();
   private readonly pcmListeners = new Set<(frame: JocDecoderPcmFrame) => void>();
@@ -96,7 +97,16 @@ export class JocSoftwareDecoderClient {
         context.addEventListener('statechange', client.onContextStateChange);
         client.node.port.addEventListener('message', client.onWorkletMessage);
         client.node.port.start();
-        client.node.connect(client.gainNode);
+        // Conservative peak protection for reconstructed stereo PCM. This is
+        // a safety compressor, not an Atmos renderer or a true-peak limiter.
+        client.limiter = context.createDynamicsCompressor();
+        client.limiter.threshold.value = -3;
+        client.limiter.knee.value = 0;
+        client.limiter.ratio.value = 20;
+        client.limiter.attack.value = 0.003;
+        client.limiter.release.value = 0.1;
+        client.node.connect(client.limiter);
+        client.limiter.connect(client.gainNode);
         client.gainNode.connect(context.destination);
       }
       await client.waitFor('ready', () => {
@@ -344,6 +354,8 @@ export class JocSoftwareDecoderClient {
       this.node.disconnect();
       this.node = null;
     }
+    this.limiter?.disconnect();
+    this.limiter = null;
     this.gainNode?.disconnect();
     this.gainNode = null;
     this.listeners.clear();
