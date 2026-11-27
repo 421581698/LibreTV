@@ -1,3 +1,4 @@
+import { historyIdFor } from '@/lib/history-id';
 'use client';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
@@ -849,7 +850,7 @@ function WatchContent() {
     );
     if (entry && Number.isFinite(entry.position) && entry.position > 5) return entry.position;
     // 兼容旧版或进度表缺失：从本机观看历史恢复最后一次有效位置。
-    const history = await db.history.get(`${sourceKey}_${progressId}`);
+    const history = await db.history.get(historyIdFor(sourceKey, progressId));
     // History stores only one last-played episode position for the whole title.
     // It is safe to restore only when that record belongs to this same episode.
     return history && history.episodeIndex === currentIndex &&
