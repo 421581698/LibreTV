@@ -92,6 +92,8 @@ export class JocSoftwareDecoderClient {
           channelCountMode: 'explicit',
         });
         client.gainNode = context.createGain();
+        client.gainNode.gain.value = 0;
+        context.addEventListener('statechange', client.onContextStateChange);
         client.node.port.addEventListener('message', client.onWorkletMessage);
         client.node.port.start();
         client.node.connect(client.gainNode);
@@ -201,6 +203,7 @@ export class JocSoftwareDecoderClient {
 
   async reset(): Promise<void> {
     this.assertActive();
+    this.fallbackToMediaAudio();
     this.generation += 1;
     this.ready = false;
     for (const entries of this.pending.values()) {
@@ -257,7 +260,7 @@ export class JocSoftwareDecoderClient {
       };
       updateClock();
       await this.waitFor('output-started', () => this.node?.port.postMessage({ type: 'start' }));
-      if (this.disposed || video.paused || video.ended || context.state !== 'running') {
+      if (this.disposed || this.activeVideo !== video || video.paused || video.ended || context.state !== 'running') {
         this.fallbackToMediaAudio();
         return false;
       }
@@ -304,6 +307,10 @@ export class JocSoftwareDecoderClient {
   }
 
   fallbackToMediaAudio(): void {
+    if (this.gainNode && this.context) {
+      this.gainNode.gain.cancelScheduledValues(this.context.currentTime);
+      this.gainNode.gain.setValueAtTime(0, this.context.currentTime);
+    }
     const pendingStart = this.pending.get('output-started');
     if (pendingStart) {
       this.pending.delete('output-started');
@@ -343,7 +350,10 @@ export class JocSoftwareDecoderClient {
     this.pcmListeners.clear();
     this.errorListeners.clear();
     this.pending.clear();
-    if (this.context) void this.context.close();
+    if (this.context) {
+      this.context.removeEventListener('statechange', this.onContextStateChange);
+      void this.context.close();
+    }
   }
 
   private waitFor(type: string, send: () => void): Promise<void> {
@@ -429,6 +439,12 @@ export class JocSoftwareDecoderClient {
     this.queuedFrames = Math.max(0, Math.min(MAX_QUEUED_FRAMES, event.data.frames));
     this.emitStatus();
     if (this.queuedFrames < MAX_QUEUED_FRAMES / 2) this.settle('capacity');
+  };
+
+  private onContextStateChange = (): void => {
+    if (this.context?.state !== 'running' && (this.activeVideo || this.activationInFlight)) {
+      this.fallbackToMediaAudio();
+    }
   };
 
   private onWorkerError = (event: ErrorEvent): void => this.fail(new Error(event.message || 'OpenJOC Worker failed.'));
