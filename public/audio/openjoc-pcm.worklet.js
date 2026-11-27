@@ -112,6 +112,9 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       if (chunk.offset >= chunkFrames) this.queue.shift();
     }
 
+    // The audio clock advances through every silent quantum as well as PCM.
+    // Otherwise underruns and future-PTS gaps compound timing errors.
+    this.expectedPtsSamples += left.length - written;
     if (rendered > 0) {
       this.underrunQuanta = 0;
       this.underrunSent = false;
