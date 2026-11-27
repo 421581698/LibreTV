@@ -386,6 +386,8 @@ export function PlayerShell({
 
   const stopCinemaSound = () => {
     cinemaSoundRequestRef.current += 1;
+    cinemaSoundDiscoveryAbortRef.current?.abort();
+    cinemaSoundDiscoveryAbortRef.current=null;
     cinemaSoundSessionRef.current?.stop();
     cinemaSoundSessionRef.current = null;
     cinemaSoundRequestedRef.current = {url:'',audio:false,spatial:false};
