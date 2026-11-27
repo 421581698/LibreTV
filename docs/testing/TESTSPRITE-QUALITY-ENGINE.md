@@ -1,0 +1,314 @@
+# LibreTV Quality Engine：自主质量验收标准
+
+> 状态：独立分支试点中  
+> 决策日期：2026-11-21  
+> 默认原则：核心质量验收由 Vitest、Playwright、API/集成测试、浏览器诊断与证据报告组成；不依赖 TestSprite。TestSprite 仅为显式启用的可选云端增强，真实 iPhone/iPad Safari 仍是独立验收层。
+
+## 1. 目标
+
+建立一套可持续积累测试用例、自动发现回归问题、保留失败证据并阻止不合格变更进入生产的统一质量体系，命名为 **LibreTV Quality Engine**。
+
+质量引擎需要覆盖：
+- PR 与独立 Preview 的自动化验收；
+- 关键用户路径的端到端交互测试；
+- 播放器、搜索、导航、资源与 Friday 等模块的回归；
+- 测试失败时收集步骤、截图、日志、错误信息和可复现线索；
+- 将失败诊断交给开发 Agent 辅助修复，再由原测试及回归套件重新验证；
+- 将自动化结果与真实设备验收分开记录，避免把模拟器或云端浏览器结果误报为真机通过。
+
+## 2. 工具职责与组合
+
+| 工具 | 主要职责 | 不负责的事项 |
+|---|---|---|
+| **TestSprite CLI（可选）** | 显式启用时提供额外 AI 辅助测试计划、云端 E2E 执行与诊断 | 不属于核心质量引擎；不作为必需门禁；不替代 Playwright、单元/集成测试或真机验收 |
+| **Playwright** | 可重复、确定性的浏览器自动化；关键流程、断言、截图、trace 与回归脚本 | 不承担所有 AI 需求分析工作 |
+| **Vitest / 现有单元测试** | 纯函数、状态机、组件逻辑、API/业务规则和边界条件 | 不替代完整用户旅程测试 |
+| **集成/API 测试** | 服务接口、数据流、媒体资源、任务与模块间契约 | 不证明真实浏览器的音视频体验 |
+| **真实 iPhone/iPad Safari** | WebKit、触控、安全区域、系统音视频解码、权限、前后台和设备特有行为 | 不由云端 Chromium 或桌面模拟结果代替 |
+
+**组合原则：** Vitest + Playwright + API/集成测试 + 浏览器诊断/证据 + 真机 Safari。TestSprite 仅在明确选择时作为额外增强，不是核心依赖。
+
+## 3. 统一测试架构
+
+```text
+PR / Feature Branch / Preview
+            |
+            v
+   LibreTV Quality Engine
+            |
+   +--------+---------+----------------+
+   |                  |                |
+   v                  v                v
+Optional TestSprite  Playwright     Unit / Integration
+supplement only      deterministic  Vitest / API / media
+   |                     |                |
+   +---------------------+----------------+
+                      |
+                      v
+             Real-device acceptance
+                 iPhone / iPad
+                      |
+                      v
+              Unified quality report
+   steps / assertions / screenshots / logs / traces
+            root-cause hints / regression status
+```
+
+统一报告至少记录：提交 SHA、分支、Preview URL、测试工具及版本、浏览器/设备环境、测试用例、每步结果、失败截图/trace/日志、缺陷等级、复现步骤、修复提交和复测结果。
+
+## 4. LibreTV 测试覆盖范围
+
+### 4.1 Cinema / 播放器
+- 页面与播放器挂载、视频元素和媒体源加载；
+- 播放、暂停、继续、进度拖动、快进/快退；
+- 控制栏显示/隐藏、点击区域、触控命中与状态同步；
+- fMP4、HLS、MSE、编解码能力和首帧；
+- 缓冲、卡顿、超时、切源、错误恢复和播放权交接；
+- 字幕选择、加载、显示、同步及持久化（按功能实际启用情况）；
+- 横竖屏、全屏、画中画及安全区域（按平台支持情况）。
+
+### 4.2 iPhone / iPad 双线路
+- 将 iPhone 线路和 iPad 线路作为独立验收目标，不假定两者 UI 或交互相同；
+- 导航栏显示、布局断点、滚动、弹层、搜索、返回和手势；
+- 播放界面按钮、控制栏、进度条、音量/亮度手势及触控反馈；
+- iOS Safari 的自动播放限制、用户手势、权限、前后台切换；
+- iPad 横屏/竖屏与多尺寸适配；
+- 自动化测试可覆盖通用交互，设备独有行为必须安排真实设备验收。
+
+### 4.3 搜索与内容
+- 搜索输入、键盘提交、清空、取消、结果加载和错误状态；
+- 推荐内容、海报、详情、播放源切换；
+- 空态、加载态、弱网、超时和异常数据处理。
+
+### 4.4 Friday 与语音
+- 入口可见性、点击、打开/关闭、状态切换；
+- IDLE / LISTENING / THINKING / SPEAKING 状态展示；
+- ASR 开始/停止、权限拒绝、连续对话、打断和清理；
+- TTS 播放、停止、语言选择与播放中断；
+- 任务运行、事件记录、失败恢复及结果展示。
+- 语音权限、WebKit 行为和真实麦克风/扬声器链路需真机验收。
+
+### 4.5 液态玻璃与其他界面
+- 组件可交互性、点击穿透、滚动、弹层层级；
+- 明暗主题、响应式布局、性能退化和 reduced-motion；
+- 管理台、资源采集等用户可见操作流程。
+
+## 5. 标准工作流
+
+1. **需求整理：** 明确用户路径、前置条件、预期结果、设备差异和风险等级。
+2. **测试计划：** 优先使用仓库内确定性基线计划与变更影响分析；只有显式启用可选 TestSprite 时，才使用其生成/更新 AI 测试计划，并人工检查关键断言。
+3. **确定性用例：** 将稳定、重复执行的关键路径沉淀为 Playwright 脚本；业务规则继续保留单元/集成测试。
+4. **独立 Preview：** 仅对 Feature Branch / PR Preview 执行端到端测试，测试数据与环境必须隔离。
+5. **自动执行：** 核心默认运行单元/集成、Playwright 与浏览器诊断，保存日志、截图、trace 和报告；TestSprite 仅在单独 opt-in 后额外运行。
+6. **失败诊断：** 区分产品缺陷、测试脚本缺陷、环境/网络问题、第三方资源问题；不把环境失败误报为产品通过。
+7. **修复与复测：** Agent 可以提出或实施经授权的修复；必须重新运行失败用例、相关回归套件和必要的全量检查。
+8. **真机验收：** 对 iPhone 与 iPad 分别执行设备清单，记录设备型号、iOS/iPadOS、Safari 版本、网络、操作步骤和证据。
+9. **发布门禁：** CI 通过、Preview 验收通过、必要真机验收通过后，才进入人工批准的合并/发布流程。
+
+## 6. CI 与 PR 门禁
+
+建议 CI 检查分层：
+- **Gate A — 静态与单元：** lint、typecheck、unit tests；
+- **Gate B — 集成：** API、媒体管线、任务/数据契约测试；
+- **Gate C — 浏览器确定性回归：** Playwright；
+- **Optional — AI 云端增强：** TestSprite CLI，仅显式启用时运行且不阻断核心 CI；
+- **Gate E — 设备验收：** iPhone/iPad Safari，按变更风险要求执行并单独签署结果。
+
+阻断规则：
+- 必需 Gate 失败则 PR 不得视为通过；
+- 可选 TestSprite 生成的测试必须经过审阅，避免不稳定或错误断言成为阻断条件；
+- 外部服务不可用时标记为 blocked/environment failure，不得伪装成 success；
+- 真机未执行时明确标注“未验收”，不可用桌面模拟或云端浏览器替代；
+- 不允许自动批准 PR、自动合并或自动部署生产。
+
+## 7. 可选 TestSprite CLI 增强与操作
+
+本节仅供主动选择 TestSprite 云端增强时参考。核心质量引擎不需要安装 CLI、创建项目、配置 Preview 环境或提供 API Key。只有在明确 opt-in 后，才在独立 Feature Branch / Preview 中试点。以下命令按官方 CLI 0.17 文档校准；升级 CLI 后先运行 `testsprite --version` 与 `testsprite doctor`，不要混用 0.16 子命令。
+
+开发环境安装（官方 CLI 当前要求 Node.js 20.19+、22.13+ 或 24+）：
+
+```bash
+npm install -g @testsprite/testsprite-cli
+testsprite --version
+testsprite setup
+testsprite doctor
+testsprite auth status
+```
+
+首次建立 LibreTV 前端项目（只在尚无对应项目时执行）：
+
+```bash
+testsprite project create --type frontend --name "LibreTV" \\
+  --instruction "$(cat testsprite/PROJECT-INSTRUCTIONS.md)"
+# 将返回的项目 ID 保存为 TESTSPRITE_PROJECT_ID
+testsprite project env create "$TESTSPRITE_PROJECT_ID" --name default --url "https://<verified-preview-or-staging-url>"
+```
+
+当前 CLI 0.17 的计划、审阅、保存和执行流程：
+
+```bash
+# 创建 LibreTV 项目（若尚不存在）；返回项目 ID
+testsprite project create --type frontend --name "LibreTV"
+export TESTSPRITE_PROJECT_ID="<project-id>"
+
+# 创建可访问的 Preview 环境；第一个环境成为默认环境
+testsprite project env create "$TESTSPRITE_PROJECT_ID" \
+  --name default --url "https://<verified-preview-url>"
+
+# 附上本仓库覆盖说明与当前 PR diff，让 TestSprite 提出测试计划
+testsprite plan "Create a durable, reviewed LibreTV frontend regression suite covering homepage, search, navigation, and playback entry. Treat external media providers as flaky dependencies; never assert live catalog contents." \
+  --project "$TESTSPRITE_PROJECT_ID" \
+  --file testsprite/libretv-coverage-brief.md \
+  --diff --steps
+
+# 人工审阅提议与断言；只有确认正确后才保存
+testsprite apply --output json
+
+# 列出已保存用例并执行整个项目套件
+testsprite test list --project "$TESTSPRITE_PROJECT_ID"
+testsprite run --project "$TESTSPRITE_PROJECT_ID" --wait --output json
+
+# 读取单个失败结果及其截图、页面快照和视频
+testsprite result get "<result-id>" --out ".testsprite/results/<result-id>"
+```
+
+CLI 0.17 变更提醒：计划仍使用根命令 `testsprite plan` / `testsprite apply`；项目套件执行使用根命令 `testsprite run --project ... --wait`；失败详情使用 `testsprite result get`。不要再使用旧版 `testsprite test plan generate/accept`、`testsprite test run` 或 `testsprite test failure get` 命令。
+
+显式启用可选云端增强时，可使用官方 CLI 命令（先确认 PR Preview URL 可达）。该命令不是核心 CI 的必要步骤：
+
+```bash
+testsprite ci run \
+  --project "$TESTSPRITE_PROJECT_ID" \
+  --target-url "$PREVIEW_URL" \
+  --fail-on-skipped \
+  --summary-file testsprite-summary.json
+```
+
+仓库变量与密钥：
+- Repository variable `TESTSPRITE_PROJECT_ID`：TestSprite 项目 ID；
+- Repository variable `TESTSPRITE_PREVIEW_URL_TEMPLATE`：PR Preview URL 模板，使用 `{pr}`、`{pr-number}`、`{branch-slug}`、`{sha}` 或 `{short-sha}` 占位符；
+- Repository secret `TESTSPRITE_API_KEY`：TestSprite API Key，只能放在 GitHub Secrets。
+
+当前 GitHub Actions 工作流默认不启动 TestSprite。只有仓库变量 `TESTSPRITE_ENABLED=true` 且项目 ID、Preview URL 模板和 Secret 均已配置时，才尝试运行可选云端增强；该任务为 non-blocking，不会阻断核心 Quality Engine。未启用、跳过、凭据错误或执行失败都必须如实标注，绝不计为 TestSprite 通过。
+
+凭据要求：
+- API Key 只存储在本地安全环境或 GitHub Actions Secrets；
+- 不写入仓库、日志、测试报告或截图；
+- CI 仅授予完成测试所需的最小权限；
+- 不在生产环境执行破坏性测试或使用真实用户数据；
+- 在接入前确认 TestSprite 当前套餐、用量、数据处理和隐私条款符合项目要求。
+
+## 8. 分阶段落地
+
+### Phase 0 — 兼容性审计
+核对项目运行时、包管理器、Playwright/Vitest、GitHub Actions、Preview 注入、测试数据和证据保留策略。核心质量引擎不依赖 TestSprite；云端 TestSprite 是否配置不影响 Phase 0/核心验收。
+
+### Phase 1 — 质量平台核心底座（当前实施）
+建立领域类型、任务生命周期、事件存储契约、变更影响分析、失败分类、证据约束质量门禁和核心单元测试。当前实现使用内存适配器验证事件契约，不宣称已具备持久化能力。
+
+### Phase 2 — AI 规划与测试生成
+实现 Discovery、Planner、Generator Agent，产出可审阅、可版本化的测试计划和用例，并将生成质量纳入测试。
+
+### Phase 3 — 执行、观察与诊断
+接入浏览器/API/媒体执行器，统一收集截图、Trace、Console、网络和报告；增加根因分析与安全修复/回归闭环。
+
+### Phase 4 — 独立设备验收
+建立 iPhone Safari 与 iPad Safari 分开的测试矩阵、设备会话和证据签署流程。
+
+### Phase 5 — 长期质量运营
+增加持久化存储、历史趋势、缺陷知识库、多项目支持和自动回归调度。
+
+## 9. 安全与项目边界
+
+- 默认所有改动在独立 Feature Branch 和 Preview 中进行；
+- **main 与生产环境保持不变**，除非用户明确授权；
+- 不自动合并 PR、不自动批准、不自动发布生产；
+- 不将密钥、个人数据、真实账号或敏感媒体地址发送给未经批准的外部测试服务；
+- 测试环境使用合成数据、专用账号和最小权限；
+- 对第三方媒体源的测试遵守访问限制、速率限制和服务条款；
+- 保留现有可重复测试，不因引入 TestSprite 而删除 Playwright、Vitest 或真机验收。
+
+## 10. 默认执行政策（后续测试）
+
+LibreTV 后续测试默认遵循：
+1. 新增/修改用户可见功能时，优先补充 Vitest、API/集成与 Playwright 确定性回归；
+2. 使用浏览器诊断收集路由、控件、错误、网络和截图等证据，再由质量引擎进行归类与报告；
+3. TestSprite 不是默认工具，不要求用户创建或更新 API Key；只有用户明确选择启用时，才作为可选云端增强；
+4. 业务逻辑与状态机继续使用单元/集成测试；
+5. 涉及 iOS/iPadOS、媒体解码、触控、语音权限等设备行为时，单独安排真实 iPhone/iPad Safari 验收；
+6. 报告必须区分自动化通过、真机通过、未执行和环境阻塞；
+7. 不因任何测试工具接入而改变 main/生产发布授权边界。
+
+## 11. 官方资源
+
+- GitHub：<https://github.com/TestSprite/testsprite-cli>
+- 官方网站：<https://www.testsprite.com/>
+- CLI 文档：<https://github.com/TestSprite/testsprite-cli/blob/main/DOCUMENTATION.md>
+
+> 本文是 LibreTV 的测试策略与落地规范，不代表 TestSprite 已经安装、已接入 CI 或已完成真机验收。上述状态必须以实际试点结果为准。
+
+## 12. 当前仓库接入状态（2026-11-21）
+
+本分支已增加以下基础设施：
+- `.github/workflows/quality-engine.yml`：PR 质量工作流，执行 lint、typecheck、Vitest、生产构建和 Chromium 浏览器 smoke，并上传证据；
+- `scripts/quality-engine-smoke.mjs`：桌面 Chromium 与 iPhone/iPad 尺寸视口模拟测试，覆盖首页加载、搜索空值校验、搜索提交与结果路由，并记录页面错误、HTTP 状态和截图；
+- `testsprite/libretv-coverage-brief.md`：TestSprite AI E2E 用例覆盖说明；
+- `testsprite/PROJECT-INSTRUCTIONS.md`：TestSprite 项目级测试约束与验收边界；
+- `quality-engine/device-registry.json`：真实设备兼容性登记表，初始为空，等待人工真机验收记录；
+- `npm run quality:verify` 与 `npm run quality:smoke`：统一入口；
+- `.gitignore`：忽略本地 TestSprite 与质量测试产物。
+
+**明确的验收边界：** Chromium 移动视口只属于响应式模拟测试，不代表 iPhone/iPad Safari 真机通过。真实设备登记表只有在人工提供设备型号、系统/浏览器版本、提交 SHA、Preview 地址、测试步骤和证据后才可增加通过记录。TestSprite 默认关闭，不要求用户配置变量或 API Key；只有用户主动 opt-in 时才运行可选云端增强。
+
+**当前状态不是最终验收通过：** 核心 CI 与独立 Preview 验证必须按当前提交的实际证据确认；本会话无法代替物理 iPhone/iPad 操作。TestSprite 凭据不是核心验收前提。
+
+
+## 13. Quality Engine core foundation (Phase 1 implementation)
+
+The first implementation slice adds framework-independent core contracts under `quality-engine/core/`:
+
+- `types.ts`: versionable domain contracts for plans, cases, runs, events, evidence, and defects.
+- `task-runtime.ts`: deterministic run creation and guarded lifecycle transitions. Terminal states cannot be reopened.
+- `event-store.ts` and `jsonl-event-store.ts`: append-only event-store contract, in-memory test adapter, and durable JSONL adapter for single-writer Node runners/CI. The JSONL adapter is not a distributed store and is not wired as Cloudflare production persistence.
+- `change-impact.ts`: conservative path-to-feature impact mapping. Unknown paths remain explicitly unknown; player/media/mobile-sensitive changes request separate physical iPhone and iPad acceptance.
+- `failure-classifier.ts`: evidence-driven initial failure classification. Ambiguous failures remain `unknown`; classification is not treated as an authoritative root-cause diagnosis.
+- `quality-gates.ts`: strict gate evaluation. A required failed, blocked, not-run, or evidence-free check prevents readiness; optional not-run checks remain visible.
+- `test-planner.ts`: deterministic change-impact-based baseline plan generation and plan validation; this is a safe baseline, not a claim of autonomous AI discovery.
+- `agent-contracts.ts` and `orchestrator.ts`: provider-neutral Discovery/Planner/Generator contracts and a guarded orchestration pipeline. Generated paths are restricted to approved test directories and plans must match the current commit.
+- `quality-report.ts`: unified report construction; verifies evidence belongs to the current run and prevents release eligibility when required physical device evidence or blocker/critical defects remain.
+
+The core is deliberately independent of Next.js, Cloudflare Workers, GitHub Actions, and any single AI provider. Persistence, agent orchestration, and remote execution are later adapters, not hidden assumptions in these domain functions.
+
+Verification entry points:
+- `npm run quality:core`: focused Quality Engine core, persistence, planning, report, and orchestration tests.
+- `npm run quality:verify`: existing lint, TypeScript, and full Vitest suite; the new core tests are included by the current Vitest configuration.
+
+Phase 1 implementation includes a durable single-writer JSONL event adapter for Node runners, deterministic baseline planning, provider-neutral agent contracts, guarded planning orchestration, evidence-backed reports, and strict quality gates. It does not claim distributed persistence, a connected LLM provider, autonomous live-site discovery, automatic product-code self-healing, remote browser fleet execution, or completed physical-device acceptance. Those remain explicit later milestones.
+
+## 14. PR Preview runtime configuration and API smoke
+
+The Netlify deploy-preview context must be configured separately from production. The public homepage can return HTTP 200 while protected data APIs remain unavailable; a successful deploy alone is not a functional Preview pass.
+
+For this repository's intentionally public, synthetic-data PR previews, set the Netlify site environment variable `AUTH_DISABLED=true` with context `deploy-preview` only. Do not apply this setting to `production` or `all` contexts. This context applies to every PR Deploy Preview on the Netlify site, so never place production credentials or real user data in those previews. The Collector's private-feature guard remains separately enforced and is not bypassed by this setting.
+
+After changing Preview runtime configuration, trigger a new Deploy Preview build; existing deploys do not retroactively receive changed runtime variables. Verify at minimum:
+- `GET /` and `GET /api/status` return successful responses;
+- `GET /api/douban?type=movie&tag=热门&pageStart=0&pageSize=10` returns a valid `items` array or a clearly classified upstream-provider failure;
+- `GET /api/hot-list?id=douban_movie_weekly` returns a valid `items` array or a clearly classified upstream-provider failure;
+- a `503` from `guardRequest` must be distinguished from an upstream `502`, a Worker/runtime failure, and a rate-limit response;
+- save request IDs, response status, response body classification, and deploy commit SHA as evidence.
+
+A Preview with API guard failures or repeated upstream failures is not functionally accepted, even if Netlify reports the deployment as `ready`. The mobile Lighthouse score is advisory and is not a substitute for Playwright interaction tests or physical iPhone/iPad Safari acceptance.
+
+## 15. Phase 2A — read-only browser discovery runner
+
+A first deterministic Discovery runner is now included at `scripts/quality-engine-discovery.mjs` and exposed as `npm run quality:discover`.
+
+It uses the CI-installed Playwright Chromium browser to:
+- Visit the homepage and a small set of safe entry routes, then discover additional same-origin navigation links up to a bounded route count;
+- Record route HTTP status, document title, headings, page landmarks, visible control metadata, link counts, browser console errors, failed requests and HTTP 5xx observations;
+- Emit `artifacts/quality-engine/quality-engine-discovery.json` for later Planner/Generator input;
+- Run in read-only mode: it does not click controls, submit forms, change settings, or send user input;
+- Explicitly record that Chromium is not physical Safari and that no LLM provider is connected.
+
+The Quality Engine CI now runs this discovery pass after the existing deterministic smoke and uploads the resulting JSON with the other evidence. The report is an observation artifact, not an AI-generated test plan and not a release pass by itself. The next increment is to normalize discovery evidence into the `DiscoveryResult` contract, add deterministic planner consumption, and then add an approved provider adapter behind strict schema validation and secret handling.

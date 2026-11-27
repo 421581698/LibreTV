@@ -1,0 +1,21 @@
+name = "libretv-quality-engine"
+main = "./worker.ts"
+compatibility_date = "2026-11-22"
+compatibility_flags = ["nodejs_compat"]
+
+# Replace the database_id after creating the dedicated D1 database.
+[[d1_databases]]
+binding = "QUALITY_DB"
+database_name = "libretv-quality-engine"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "./migrations"
+
+# Create a dedicated bucket; never reuse LibreTV production media storage.
+[[r2_buckets]]
+binding = "QUALITY_ARTIFACTS"
+bucket_name = "libretv-quality-artifacts"
+preview_bucket_name = "libretv-quality-artifacts-preview"
+
+[vars]
+# Store only the SHA-256 digest of a high-entropy bearer token here as a secret:
+# wrangler secret put QUALITY_API_TOKEN_SHA256 --config quality-engine/cloud/wrangler.quality.toml

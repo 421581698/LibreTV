@@ -46,7 +46,7 @@ describe('guardMovieItems', () => {
     const r = guardMovieItems([
       { id: '1', title: '正常', poster: '/p.jpg', path: '/movie/1' },
       { id: '2', title: '坏', poster: '/p.jpg', path: '//evil.com' },
-      { id: '3', title: 'x', poster: '/p.jpg', path: '/movie/3' },
+      { id: '3', title: '<script>alert(1)</script>', poster: '/p.jpg', path: '/movie/3' },
     ]);
     expect(r.items.map(i => i.id)).toEqual(['1']);
     expect(r.dropped).toBe(2);

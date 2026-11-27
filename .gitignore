@@ -12,3 +12,9 @@ vitest-results.json
 .zcode/
 .codebuddy/
 generated-images/
+# Quality Engine and TestSprite local evidence
+.testsprite/
+artifacts/quality-engine/
+playwright-report/
+test-results/
+testsprite-summary.json

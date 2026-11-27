@@ -1,0 +1,232 @@
+name: LibreTV Quality Engine
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-engine-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-and-browser:
+    name: Core checks + browser smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build for isolated Preview-like smoke
+        env:
+          PASSWORD: ci-test-password
+          AUTH_DISABLED: 'true'
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+      - name: Install isolated Playwright runner
+        run: npm install --no-save --package-lock=false playwright@1.55.0
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local production server
+        env:
+          PASSWORD: ci-test-password
+          AUTH_DISABLED: 'true'
+          PORT: 8080
+        run: |
+          npm run start > /tmp/libretv-quality-server.log 2>&1 &
+          echo $! > /tmp/libretv-quality-server.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+              echo "LibreTV local production server is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/libretv-quality-server.log
+          exit 1
+
+      - name: Run desktop and responsive viewport smoke
+        env:
+          QUALITY_BASE_URL: http://127.0.0.1:8080
+        run: npm run quality:smoke
+
+      - name: Run read-only browser discovery
+        env:
+          QUALITY_BASE_URL: http://127.0.0.1:8080
+          QUALITY_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          QUALITY_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: npm run quality:discover
+
+      - name: Upload Quality Engine evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-engine-evidence-${{ github.run_id }}
+          path: |
+            artifacts/quality-engine/
+            /tmp/libretv-quality-server.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Report TestSprite configuration status
+        if: always()
+        env:
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
+          TESTSPRITE_PREVIEW_URL_TEMPLATE: ${{ vars.TESTSPRITE_PREVIEW_URL_TEMPLATE }}
+          TESTSPRITE_ENABLED: ${{ vars.TESTSPRITE_ENABLED }}
+        run: |
+          if [ "$TESTSPRITE_ENABLED" = "true" ] && [ -n "$TESTSPRITE_PROJECT_ID" ] && [ -n "$TESTSPRITE_PREVIEW_URL_TEMPLATE" ]; then
+            echo "TestSprite supplemental cloud E2E is explicitly enabled. It remains optional and cannot block the core Quality Engine." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "TestSprite supplemental cloud E2E is disabled by default. Core Quality Engine runs independently; no TestSprite account, Project ID, Preview URL template or API key is required. Disabled / not run is not counted as a TestSprite pass." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  testsprite:
+    name: TestSprite AI end-to-end gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    # Optional supplemental coverage only. A missing/invalid TestSprite credential
+    # must never block the core lint, typecheck, Vitest, build, or Playwright gates.
+    continue-on-error: true
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]' &&
+      vars.TESTSPRITE_ENABLED == 'true' &&
+      vars.TESTSPRITE_PROJECT_ID != '' &&
+      vars.TESTSPRITE_PREVIEW_URL_TEMPLATE != ''
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+      checks: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Install TestSprite CLI
+        run: npm install -g @testsprite/testsprite-cli
+
+      - name: Validate TestSprite credentials and CLI
+        id: validate_credentials
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+        run: |
+          if [ -z "$TESTSPRITE_API_KEY" ]; then
+            echo "::error::TESTSPRITE_API_KEY secret is missing."
+            exit 1
+          fi
+          testsprite --version
+          testsprite auth status
+
+      - name: Wait for the PR Preview to become reachable
+        id: preview
+        env:
+          TESTSPRITE_PREVIEW_URL_TEMPLATE: ${{ vars.TESTSPRITE_PREVIEW_URL_TEMPLATE }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PREVIEW_URL=$(node <<'NODE'
+          const template = process.env.TESTSPRITE_PREVIEW_URL_TEMPLATE;
+          const branch = process.env.PR_BRANCH.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const sha = process.env.PR_SHA;
+          const url = template
+            .replaceAll('{pr}', process.env.PR_NUMBER)
+            .replaceAll('{pr-number}', process.env.PR_NUMBER)
+            .replaceAll('{branch-slug}', branch)
+            .replaceAll('{sha}', sha)
+            .replaceAll('{short-sha}', sha.slice(0, 7));
+          if (/\{[^}]+\}/.test(url)) throw new Error('Unsupported/unresolved Preview URL template placeholder: ' + url);
+          console.log(url);
+          NODE
+          )
+          echo "Waiting for PR Preview: $PREVIEW_URL"
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 "$PREVIEW_URL" -o /dev/null; then
+              echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+              echo "PR Preview is reachable." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::PR Preview did not become reachable within 15 minutes."
+          exit 1
+
+      - name: Run TestSprite against the pull request Preview
+        id: testsprite_run
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TESTSPRITE_PROJECT_ID: ${{ vars.TESTSPRITE_PROJECT_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          testsprite ci run \
+            --project "$TESTSPRITE_PROJECT_ID" \
+            --env default \
+            --target-url "${{ steps.preview.outputs.preview_url }}" \
+            --fail-on-skipped \
+            --report junit \
+            --report-file testsprite-junit.xml \
+            --summary-file testsprite-summary.json
+
+      - name: Upload TestSprite summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testsprite-summary-${{ github.run_id }}
+          path: |
+            testsprite-summary.json
+            testsprite-junit.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Report optional TestSprite outcome
+        if: always()
+        env:
+          CREDENTIALS_OUTCOME: ${{ steps.validate_credentials.outcome }}
+          PREVIEW_OUTCOME: ${{ steps.preview.outcome }}
+          TESTSPRITE_OUTCOME: ${{ steps.testsprite_run.outcome }}
+        run: |
+          if [ "$TESTSPRITE_OUTCOME" = "success" ]; then
+            echo "Optional TestSprite cloud E2E: PASSED with an actual run." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$CREDENTIALS_OUTCOME" != "success" ]; then
+            echo "Optional TestSprite cloud E2E: NOT RUN — credentials/CLI validation failed. This does not block core Quality Engine and is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$PREVIEW_OUTCOME" != "success" ]; then
+            echo "Optional TestSprite cloud E2E: NOT RUN — PR Preview was not reachable. This does not block core Quality Engine and is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Optional TestSprite cloud E2E: DID NOT PASS. This does not block core Quality Engine and is not counted as a pass." >> "$GITHUB_STEP_SUMMARY"
+          fi
