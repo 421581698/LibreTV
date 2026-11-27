@@ -6,6 +6,7 @@ import {createCinemaP010VideoFrameRenderer} from './cinema-v51-frame-renderer';
 import {createCinemaExtendedWebGpuPresenter} from './cinema-v51-webgpu-presenter';
 import type {CinemaP010TransformOptions} from './cinema-v51-p010';
 import type {CinemaVerifiedHdrSample} from './cinema-v51-runtime';
+import {cinemaBuildVerifiedRpuL1Job,type RegisteredRpuL1Evidence,type RegisteredRpuMapping} from './cinema-v51-rpu-frame-binding';
 
 /**
  * Physically decoded/rendered Cinema HDR branch, opt-in only when a registered
@@ -20,6 +21,8 @@ export interface CinemaV51AuthorizedPlayback {
   presentationOffsetUs:number;
   /** The exact payload, frame ordinal and hash bound by the demuxer. */
   hdr10PlusByPtsUs?:ReadonlyMap<number,CinemaVerifiedHdrSample>;
+  /** Server-verified source-bound RPU metadata; never from arbitrary CMS text. */
+  verifiedRpuL1?:{mapping:RegisteredRpuMapping;l1:RegisteredRpuL1Evidence};
 }
 export interface CinemaV51PlaybackMount {
   stop():void;
@@ -34,7 +37,13 @@ export function cinemaCanMountAuthorizedPlayback(
     VALID_HASH.test(source.track.sourceSha256)&&
     Number.isSafeInteger(source.presentationOffsetUs)&&
     source.track.packets&&typeof source.track.packets[Symbol.asyncIterator]==='function'&&
-    source.transform.sourcePeakNits>0&&source.transform.targetPeakNits>0);
+    source.transform.sourcePeakNits>0&&source.transform.targetPeakNits>0&&
+    (!source.verifiedRpuL1||(
+      !source.hdr10PlusByPtsUs?.size&&
+      source.verifiedRpuL1.mapping.sourceMediaSha256===source.track.sourceSha256&&
+      source.verifiedRpuL1.l1.sourceMediaSha256===source.track.sourceSha256&&
+      source.verifiedRpuL1.mapping.mappingSha256===source.verifiedRpuL1.l1.mappingSha256&&
+      source.verifiedRpuL1.l1.frames.length===source.verifiedRpuL1.mapping.frameCount)));
 }
 /** Returns null without modifying the current native Safari player on any
  * capability failure. No card/setting/UI change is made by this function.
@@ -123,14 +132,19 @@ export async function mountCinemaV51AuthorizedPlayback(
     decoder,
   });
   bridge=startCinemaV51FrameBridge(
-    provider,adapter,frame=>({
-      decodedP010:frame.decodedP010,
-      transform:source.transform,
-      metadata:source.hdr10PlusByPtsUs?.get(frame.ptsUs),
-    }),event=>{
+    provider,adapter,frame=>source.verifiedRpuL1
+      ?cinemaBuildVerifiedRpuL1Job(frame,source.transform,
+        source.verifiedRpuL1.mapping,source.verifiedRpuL1.l1)
+      :({
+        decodedP010:frame.decodedP010,
+        transform:source.transform,
+        metadata:source.hdr10PlusByPtsUs?.get(frame.ptsUs),
+      }),event=>{
       if(event.state==='native-fallback')fallback(event.reason);
       else onReport('processed',event.dynamicMetadataApplied
-        ?'已按真实 PTS 处理并提交已验证 HDR10+ P010 帧；实际屏幕 HDR 输出仍待真机测量。'
+        ?(source.verifiedRpuL1
+          ?'已按注册的逐帧 RPU L1/PTS 映射处理并提交 P010；实际设备 HDR 输出仍待测量。'
+          :'已按真实 PTS 处理并提交已验证 HDR10+ P010 帧；实际屏幕 HDR 输出仍待真机测量。')
         :'已按真实 PTS 提交 10-bit P010 帧；实际屏幕 HDR 输出仍待真机测量。');
     },{
       sourceSha256:source.track.sourceSha256,
