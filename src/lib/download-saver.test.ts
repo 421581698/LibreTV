@@ -99,6 +99,15 @@ describe('pickSaveTarget file-output lifecycle', () => {
       .rejects.toThrow('安全内存保存上限');
   });
 
+  it('rejects a streamed file once cumulative bytes exceed the budget', async () => {
+    vi.stubGlobal('window', {});
+    const target = await pickSaveTarget('large.mp4');
+    await target.write(new Uint8Array(1024));
+    await expect(target.write(new Uint8Array(MAX_MEMORY_DOWNLOAD_BYTES)))
+      .rejects.toThrow('浏览器内存保存容量不足');
+    await target.abort();
+  });
+
   it('rejects a streaming chunk that exceeds the in-memory budget', async () => {
     vi.stubGlobal('window', {});
     const target = await pickSaveTarget('large.mp4');
