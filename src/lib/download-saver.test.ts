@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { pickSaveTarget, sanitizeDownloadFilename, suggestDownloadFilename, UserCancelledError } from './download-saver';
+import { pickSaveTarget, sanitizeDownloadFilename, suggestDownloadFilename, UserCancelledError, MAX_MEMORY_DOWNLOAD_BYTES } from './download-saver';
 
 describe('download filename safety', () => {
   it('removes path separators and reserved filename characters', () => {
@@ -91,6 +91,20 @@ describe('pickSaveTarget file-output lifecycle', () => {
       showSaveFilePicker: vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError')),
     });
     await expect(pickSaveTarget('episode.mp4')).rejects.toBeInstanceOf(UserCancelledError);
+  });
+
+  it('rejects a known oversized memory download before allocating a Blob', async () => {
+    vi.stubGlobal('window', {});
+    await expect(pickSaveTarget('big.mp4', MAX_MEMORY_DOWNLOAD_BYTES + 1))
+      .rejects.toThrow('安全内存保存上限');
+  });
+
+  it('rejects a streaming chunk that exceeds the in-memory budget', async () => {
+    vi.stubGlobal('window', {});
+    const target = await pickSaveTarget('large.mp4');
+    await expect(target.write(new Uint8Array(MAX_MEMORY_DOWNLOAD_BYTES + 1)))
+      .rejects.toThrow('浏览器内存保存容量不足');
+    await target.abort();
   });
 
   it('flushes the memory fallback as a browser download on close', async () => {
