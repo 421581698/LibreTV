@@ -165,6 +165,8 @@ export function observeNativeVideoPlayback(
   let video: HTMLVideoElement | null = null;
   let observation = emptyNativePlaybackObservation();
   let closed = false;
+  let frameCallbackId: number | null = null;
+  let callbackPresentedFrames: number | null = null;
   const publish = (next: NativePlaybackObservation) => {
     if (next === observation) return;
     observation = next;
@@ -174,7 +176,9 @@ export function observeNativeVideoPlayback(
   const invalidate = () => publish(advanceNativePlaybackObservation(observation, 'invalidate'));
   const sample = () => {
     if (!video) return;
-    publish(advanceNativePlaybackObservation(observation, 'sample', readNativeVideoSample(video)));
+    const current = readNativeVideoSample(video);
+    if (current.presentedVideoFrames == null) current.presentedVideoFrames = callbackPresentedFrames;
+    publish(advanceNativePlaybackObservation(observation, 'sample', current));
   };
   const error = () => {
     publish(advanceNativePlaybackObservation(
@@ -183,6 +187,9 @@ export function observeNativeVideoPlayback(
   };
   const detach = () => {
     if (!video) return;
+    if (frameCallbackId !== null) video.cancelVideoFrameCallback?.(frameCallbackId);
+    frameCallbackId = null;
+    callbackPresentedFrames = null;
     video.removeEventListener('timeupdate', sample);
     video.removeEventListener('playing', sample);
     video.removeEventListener('pause', invalidate);
@@ -204,6 +211,16 @@ export function observeNativeVideoPlayback(
     reset();
     if (!next) return;
     video = next;
+    const boundVideo = next;
+    if (typeof boundVideo.requestVideoFrameCallback === 'function') {
+      const onFrame: VideoFrameRequestCallback = (_now, metadata) => {
+        if (closed || video !== boundVideo) return;
+        callbackPresentedFrames = Number.isSafeInteger(metadata.presentedFrames) && metadata.presentedFrames >= 0
+          ? metadata.presentedFrames : null;
+        frameCallbackId = boundVideo.requestVideoFrameCallback(onFrame);
+      };
+      frameCallbackId = boundVideo.requestVideoFrameCallback(onFrame);
+    }
     video.addEventListener('timeupdate', sample);
     video.addEventListener('playing', sample);
     video.addEventListener('pause', invalidate);
