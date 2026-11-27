@@ -107,6 +107,8 @@ function parseAesConf(line: string): AesConf | undefined {
 export interface ParseOptions {
   /** 剔除广告段（URL 特征的中插段 + 片头无特征插入段）；缺省 true */
   stripLeadAd?: boolean;
+  /** Carry cancellation through master → variant resolution and body reads. */
+  signal?: AbortSignal;
 }
 
 /** 解析播放列表：master 递归选档，media 输出分片清单。fetch 失败 / 超限直接抛错由调用方降级 */
@@ -121,7 +123,7 @@ export async function parseM3u8Playlist(
   // 否则 new URL(相对分片, 相对基址) 抛错，segments[].url 就停留在相对形式，
   // 与 hls.js 按绝对清单地址解析出的同一个分片不再是同一个缓存 key
   const base = makeAbsolute(url, documentBaseURI());
-  const res = await fetch(base, { headers: { Accept: '*/*' } });
+  const res = await fetch(base, { headers: { Accept: '*/*' }, signal: opts?.signal });
   if (!res.ok) throw new Error(`m3u8 拉取失败：HTTP ${res.status}`);
   // 剔除片头广告段要在统计时长/分片之前做，下载产物才不会带上广告
   const text = opts?.stripLeadAd === false ? await res.text() : stripAdGroups(await res.text());
