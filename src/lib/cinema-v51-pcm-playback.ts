@@ -88,13 +88,11 @@ export async function createCinemaAuthorizedPcmSoundSession(
   let stopped=false,active=false,audio=false,spatial=false;
   let mutedNative=false;
   const originallyMuted=video.muted;
-  const originallyVolume=video.volume;
   let graph:AudioGraph|null=null;
   let formatChannels=0;
   let raf=0;
   let scheduledSamples=0;
   let scheduledThroughSeconds=-Infinity;
-  let lastStartSeconds=-Infinity;
   let nativeMuteGuard=false;
   let earliestScheduledAt=Infinity;
   let lastDecodedAt=performance.now();
@@ -212,13 +210,17 @@ export async function createCinemaAuthorizedPcmSoundSession(
       fail('未收到可用的独立 PCM 解码数据。');return;
     }
     for(let i=0;i<12;i++){
+      const upcoming=queue.peek();
+      if(!upcoming)break;
+      // Do not consume a future PTS before its Web Audio scheduling window.
+      const nextDelta=(upcoming.ptsUs-source.presentationOffsetUs-Math.round(video.currentTime*1e6))/1e6;
+      if(nextDelta>.12)break;
       let frame;
       try{frame=queue.dequeue(clock);}
       catch{fail('PCM 时间戳或来源身份已失效，已恢复原声。');return;}
       if(!frame)break;
       const delta=(frame.ptsUs-source.presentationOffsetUs-Math.round(video.currentTime*1e6))/1e6;
       if(delta<-.035){if(++misses>8)fail('PCM 连续错过视频时间戳，已恢复原声。');continue;}
-      if(delta>.14)break;
       if(!graph)break;
       try {
         const buffer=context.createBuffer(frame.channels,frame.frames,frame.sampleRate);
@@ -235,7 +237,6 @@ export async function createCinemaAuthorizedPcmSoundSession(
         const durationSeconds=frame.frames/frame.sampleRate;
         scheduledThroughSeconds=Math.max(scheduledThroughSeconds,
           (frame.ptsUs-source.presentationOffsetUs)/1e6+durationSeconds);
-        lastStartSeconds=(frame.ptsUs-source.presentationOffsetUs)/1e6;
         earliestScheduledAt=Math.min(earliestScheduledAt,when);
       }catch{fail('PCM 音频缓冲创建或排程失败。');return;}
     }
