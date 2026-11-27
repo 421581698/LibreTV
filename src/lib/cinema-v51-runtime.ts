@@ -1,4 +1,5 @@
 import {cinemaParseHdr10PlusT35} from './cinema-v51-hdr10plus';
+import {cinemaValidateRpuL1Frame,type CinemaRpuL1Frame} from './cinema-v51-rpu-tone';
 import {
   cinemaResolveDynamicFrame,cinemaValidateMetadata,
   type CinemaDynamicToneFrame,type CinemaMasteringMetadata,
@@ -27,6 +28,7 @@ export interface CinemaV51FrameJob {
   decodedP010:CinemaP010Frame;
   transform:CinemaP010TransformOptions;
   metadata?:CinemaVerifiedHdrSample;
+  rpuL1?:CinemaRpuL1Frame;
 }
 export interface CinemaV51FrameResult {
   frame:CinemaP010Frame;
@@ -82,6 +84,8 @@ export async function cinemaVerifyHdr10PlusSample(
 }
 export async function cinemaProcessV51Frame(job:CinemaV51FrameJob):Promise<CinemaV51FrameResult> {
   let dynamic:CinemaDynamicToneFrame|null=null;
+  if(job.rpuL1 && job.metadata)throw new Error('Cannot mix Dolby RPU and HDR10+ frame paths');
+  if(job.rpuL1)cinemaValidateRpuL1Frame(job.rpuL1);
   const mastering: CinemaMasteringMetadata | undefined=job.transform.mastering;
   if(job.metadata){
     if(!mastering)throw new Error('HDR10+ metadata requires mastering reference');
@@ -96,11 +100,14 @@ export async function cinemaProcessV51Frame(job:CinemaV51FrameJob):Promise<Cinem
   const frame=cinemaTransformP010Frame(job.decodedP010,{
     ...job.transform,
     dynamicFrame:dynamic,
+    rpuL1Frame:job.rpuL1??null,
   });
   return {
-    frame,colorConversion:'software-p010-10bit',dynamicMetadataApplied:dynamic!==null,
+    frame,colorConversion:'software-p010-10bit',dynamicMetadataApplied:dynamic!==null||Boolean(job.rpuL1),
     displayHdrOutput:'unverified',
-    reason:dynamic
+    reason:job.rpuL1
+      ? 'Cinema 自研逐帧 RPU L1 动态色调映射已应用于授权 PQ/P010 样本；不是杜比认证渲染，最终 HDR 输出未证明。'
+      : dynamic
       ? '已对已校验的 P010 帧应用 HDR10+ 动态数据和 10-bit 色彩变换；最终显示输出尚未证明。'
       : '已对已解码 P010 帧应用 10-bit 色彩变换；无动态元数据，未假定 HDR10+。',
   };
