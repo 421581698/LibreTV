@@ -75,7 +75,11 @@ function memoryTarget(filename: string, confirmOverBytes = 500 * 1024 * 1024): S
   const flush = () => {
     if (done) return;
     done = true;
-    const blob = new Blob(chunks.map((c) => c.buffer as ArrayBuffer));
+    // Preserve the byteOffset/byteLength of views into larger buffers.
+    const blob = new Blob(chunks.map((chunk) =>
+      chunk.byteOffset === 0 && chunk.byteLength === chunk.buffer.byteLength
+        ? chunk.buffer as ArrayBuffer
+        : chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer));
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
