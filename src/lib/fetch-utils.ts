@@ -39,6 +39,9 @@ async function fetchWithPolicy(
 ): Promise<FetchResult> {
   const { headerTimeoutMs } = options;
   let current = url;
+  let headers = new Headers(init.headers);
+  let method = (init.method ?? 'GET').toUpperCase();
+  let body = init.body;
   const controller = new AbortController();
   const externalSignal = init.signal;
   const abortFromExternal = () => controller.abort(externalSignal?.reason);
@@ -72,6 +75,9 @@ async function fetchWithPolicy(
       try {
         res = await fetch(current, {
           ...init,
+          headers,
+          method,
+          body,
           signal: controller.signal,
           redirect: 'manual',
         });
@@ -92,7 +98,27 @@ async function fetchWithPolicy(
         // 重定向 body 取消失败不改变目标地址校验结果。
       }
 
-      current = new URL(location, current).href;
+      const nextUrl = new URL(location, current);
+      if (new URL(current).origin !== nextUrl.origin) {
+        // Never forward caller-supplied credentials or arbitrary secret headers
+        // to a different origin, even when both hosts pass SSRF checks.
+        const safeHeaders = new Headers();
+        for (const name of ['accept', 'accept-language', 'content-type', 'range', 'user-agent']) {
+          const value = headers.get(name);
+          if (value !== null) safeHeaders.set(name, value);
+        }
+        headers = safeHeaders;
+      }
+      // Per Fetch redirect semantics: 303 turns non-HEAD requests into GET,
+      // and 301/302 turn POST into GET; 307/308 retain method and body.
+      if ((res.status === 303 && method !== 'HEAD') ||
+          ((res.status === 301 || res.status === 302) && method === 'POST')) {
+        method = 'GET';
+        body = undefined;
+        headers.delete('content-type');
+        headers.delete('content-length');
+      }
+      current = nextUrl.href;
     }
     throw new Error('重定向次数过多');
   } finally {
