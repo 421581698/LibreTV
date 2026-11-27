@@ -39,6 +39,7 @@ describe('HLS concurrent segment scheduling', () => {
     };
     await expect(runDownloadJob({
       taskId: 'one-segment-concurrency',
+      title: 'Single segment regression',
       url: 'https://cdn.example.test/playlist.m3u8',
       format: 'TS',
       signal: new AbortController().signal,
