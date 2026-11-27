@@ -75,9 +75,18 @@ class OpenJocPcmProcessor extends AudioWorkletProcessor {
       const chunkPts = chunk.ptsSamples + chunk.offset;
       const delta = chunkPts - this.expectedPtsSamples;
 
-      // Do not play future audio early. Drop late audio only beyond the 20 ms tolerance.
-      if (delta > 960) break;
-      if (delta < -960) {
+      // Keep the actual PCM sample positions aligned with the media clock.
+      // Earlier tolerance logic emitted slightly future audio early and never
+      // inserted silence for positive gaps; both can accumulate audible drift.
+      // A future chunk must wait, with silence filling only the gap.
+      if (delta > 0) {
+        const silence = Math.min(left.length - written, Math.ceil(delta));
+        written += silence;
+        this.expectedPtsSamples += silence;
+        if (written === left.length) break;
+      }
+      // Drop already-expired samples rather than playing them late.
+      if (delta < 0) {
         const skip = Math.min(chunkFrames - chunk.offset, Math.ceil(-delta));
         chunk.offset += skip;
         this.queuedFrames -= skip;
