@@ -2,7 +2,7 @@
  * 下载文件的保存目标：
  * - Chromium（Edge/Chrome）：showSaveFilePicker 边下边写盘（FS Access API），
  *   必须在**用户手势内**调用（点击处理器的同步栈中）；
- * - 其余环境：内存聚合为 Blob 后触发浏览器下载（>500MB 时让用户确认）。
+ * - 其余环境：保守的有上限内存聚合；超限拒绝而不是崩溃。
  *
  * 有意不做 StreamSaver（mitm.html + SW 中转）：云平台域名下 SW 注册受限，
  * 复杂度高、收益边际——大文件场景建议直接使用 FS Access 浏览器。
@@ -73,7 +73,11 @@ export class UserCancelledError extends Error {
   }
 }
 
-function memoryTarget(filename: string, confirmOverBytes = 500 * 1024 * 1024): SaveTarget {
+// Blob aggregation is not safe for arbitrarily large files on mobile Safari.
+// Keep a conservative per-download ceiling until a verified disk-backed writer exists.
+export const MAX_MEMORY_DOWNLOAD_BYTES = 256 * 1024 * 1024;
+
+function memoryTarget(filename: string, confirmOverBytes = MAX_MEMORY_DOWNLOAD_BYTES): SaveTarget {
   const safeFilename = sanitizeDownloadFilename(filename);
   const chunks: Uint8Array[] = [];
   let bytes = 0;
@@ -99,12 +103,10 @@ function memoryTarget(filename: string, confirmOverBytes = 500 * 1024 * 1024): S
     kind: 'memory',
     async write(data) {
       if (done) return;
-      bytes += data.byteLength;
-      if (bytes > confirmOverBytes && bytes - data.byteLength <= confirmOverBytes) {
-        if (!window.confirm(`下载体积已超过 ${Math.round(confirmOverBytes / 1024 / 1024)}MB，继续将暂存在内存中，可能导致页面卡顿。是否继续？`)) {
-          throw new Error('用户取消了下载（内存超限）');
-        }
+      if (data.byteLength > confirmOverBytes - bytes) {
+        throw new Error('浏览器内存保存容量不足：请改用支持磁盘直写的浏览器或下载较小文件');
       }
+      bytes += data.byteLength;
       chunks.push(data);
     },
     async close() {
@@ -158,10 +160,10 @@ export async function pickSaveTarget(filename: string, estimatedBytes?: number):
       // 文件选择失败（权限/环境）→ 落到内存聚合
     }
   }
-  if (estimatedBytes && estimatedBytes > 500 * 1024 * 1024) {
-    if (!window.confirm('该视频体积较大（未提供磁盘直写能力的环境），将暂存在内存中，可能导致页面卡顿。是否继续？')) {
-      throw new UserCancelledError();
-    }
+  // Refuse known oversize files BEFORE downloading instead of prompting for
+  // an unsafe allocation that might crash Safari or trigger OS tab eviction.
+  if (estimatedBytes !== undefined && estimatedBytes > MAX_MEMORY_DOWNLOAD_BYTES) {
+    throw new Error('该文件超出浏览器安全内存保存上限；请使用支持磁盘直写的环境');
   }
   return memoryTarget(safeFilename);
 }
