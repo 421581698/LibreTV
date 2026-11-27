@@ -22,14 +22,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '无效的源地址' }, { status: 400 });
   }
 
-  const verdict = await checkUpstreamAllowed(url);
+  // URLSearchParams preserves existing query parameters and replaces only CMS probe keys.
+  const probeUrl = new URL(url);
+  probeUrl.searchParams.set('ac', 'videolist');
+  probeUrl.searchParams.set('wd', 'test');
+  const verdict = await checkUpstreamAllowed(probeUrl.toString());
   if (!verdict.ok) {
     return NextResponse.json({ ok: false, ms: 0, error: verdict.reason });
   }
 
   const start = Date.now();
   try {
-    const res = await fetchUpstream(`${url}?ac=videolist&wd=test`, {
+    const res = await fetchUpstream(probeUrl.toString(), {
       timeoutMs: 6000,
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36', Accept: 'application/json' },
     });
