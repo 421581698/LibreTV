@@ -46,6 +46,7 @@ import { executeFridayPlayerCommand, parseFridayPlayerCommand } from '@/lib/frid
 import { prefersTouchPointer } from '@/lib/touch-pointer';
 import { requestNativeFullscreenWithFallback, type NativeFullscreenVideo } from '@/lib/player-fullscreen';
 import { bindPlaybackUiEvents } from '@/lib/player-playback-ui';
+import { registerPlaybackControlOwner, claimPlaybackControlOwner, isPlaybackControlOwner } from '@/lib/player-control-ownership';
 import { seekWatchPlayback } from '@/lib/watch-playback-state';
 import {
   findActiveSegment,
@@ -269,6 +270,7 @@ export function PlayerShell({
   const artRef = useRef<any>(null);
   const nativeFullscreenCleanupRef = useRef<(() => void) | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const playbackControlOwnerRef = useRef(Symbol('libretv-player-shell'));
   const cinemaHdrVariantsRef = useRef<{ url: string; variants: CinemaHdrVariant[] } | null>(null);
   const cinemaHdrGpuRef = useRef<CinemaGpuSession | null>(null);
   const cinemaHdrGpuRequestRef = useRef(0);
@@ -705,7 +707,7 @@ export function PlayerShell({
   useEffect(() => {
     const handleFridayPlayerCommand = (event: Event) => {
       const command = parseFridayPlayerCommand((event as CustomEvent<unknown>).detail);
-      if (!command) return;
+      if (!command || !isPlaybackControlOwner(playbackControlOwnerRef.current)) return;
       const art = artRef.current;
       const video = art?.video;
       const target = art ? {
@@ -1828,7 +1830,11 @@ export function PlayerShell({
     // Native media events are the source of truth. Bridge them into ArtPlayer's
     // public play/pause event bus so its center and bottom controls stay in sync,
     // including pauses initiated by iOS media controls or external callers.
-    const cleanupPlaybackUi = bindPlaybackUiEvents(art.video, (event) => art.emit(event));
+    const unregisterPlaybackControlOwner=registerPlaybackControlOwner(playbackControlOwnerRef.current);
+    const cleanupPlaybackUi = bindPlaybackUiEvents(art.video, (event) => {
+      if(event==='play')claimPlaybackControlOwner(playbackControlOwnerRef.current);
+      art.emit(event);
+    });
     window.dispatchEvent(new CustomEvent('friday-player-state', { detail: { active: true } }));
 
     // 进度条区间可视化：初始渲染一次，换集 duration 变化时重绘
@@ -2347,6 +2353,7 @@ export function PlayerShell({
       nativeFullscreenCleanupRef.current?.();
       nativeFullscreenCleanupRef.current = null;
       cleanupPlaybackUi();
+      unregisterPlaybackControlOwner();
       if (playbackConfirmationTimerRef.current) clearTimeout(playbackConfirmationTimerRef.current);
       clearMetadataWatchdog();
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
