@@ -297,7 +297,11 @@ export function DownloadManager({ isOpen, onClose }: { isOpen: boolean; onClose:
         await updateEntry(entry.id, { status: 'queued', errorMessage: undefined });
         scheduleNext();
       } catch (err) {
-        if (err instanceof Error && err.message.includes('取消')) toast('已取消', 'info');
+        if (err instanceof Error && err.message.includes('取消')) {
+          toast('已取消', 'info');
+        } else {
+          toast('无法恢复下载：' + (err instanceof Error ? err.message : String(err)), 'error');
+        }
       }
       return;
     }
