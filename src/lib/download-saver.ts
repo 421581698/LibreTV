@@ -226,10 +226,13 @@ export async function pickSaveTarget(filename: string, estimatedBytes?: number):
   }
   // Refuse known oversize files BEFORE downloading instead of prompting for
   // an unsafe allocation that might crash Safari or trigger OS tab eviction.
+  // Unknown-size streams can also exceed the memory budget. Prefer disk
+  // staging from the first byte when the browser exposes OPFS.
+  if ((estimatedBytes === undefined || estimatedBytes > MAX_MEMORY_DOWNLOAD_BYTES) &&
+      typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function') {
+    return opfsTarget(safeFilename, estimatedBytes ?? 0);
+  }
   if (estimatedBytes !== undefined && estimatedBytes > MAX_MEMORY_DOWNLOAD_BYTES) {
-    if (typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function') {
-      return opfsTarget(safeFilename, estimatedBytes);
-    }
     throw new Error('该文件超出浏览器安全内存保存上限；请使用支持磁盘直写的环境');
   }
   return memoryTarget(safeFilename);
