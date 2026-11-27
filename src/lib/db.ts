@@ -459,9 +459,9 @@ db.version(8).stores({
     vodId: entry.vodId,
   }));
   const saved = await progress.toArray() as ProgressEntry[];
-  await progress.clear();
+  // Transform first; never clear and rewrite rows that cannot be mapped.
   if (saved.length) {
-    await progress.bulkPut(saved.map((item) => {
+    const moved = saved.map((item) => {
       const matches = knownPairs.flatMap((pair) => {
         if (!item.key.startsWith(pair.legacyPrefix)) return [];
         const episode = Number(item.key.slice(pair.legacyPrefix.length));
@@ -469,7 +469,9 @@ db.version(8).stores({
           ? [progressIdFor(pair.sourceKey, pair.vodId, episode)] : [];
       });
       return matches.length === 1 ? { ...item, key: matches[0] } : item;
-    }));
+    });
+    await progress.clear();
+    await progress.bulkPut(moved);
   }
 });
 
