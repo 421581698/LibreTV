@@ -46,6 +46,12 @@ describe('Cinema V5.1 WebCodecs compressed packet decoder',()=>{
   runtime.stop();
   expect(t.created.closed).toBe(true);
  });
+ it('releases WebCodecs resources when a finite packet stream naturally ends',async()=>{
+  const t=harness([packet(1000000,true)]);
+  const runtime=createCinemaLiveVideoDecoder(t.track,t.host as never);
+  await runtime.start(()=>{},()=>{});
+  expect(t.created.closed).toBe(true);
+ });
  it('fails closed for nonkey first frame, cross-source packet, or repeated timestamp',async()=>{
   for(const chunks of [
     [packet(1000000,false)],
