@@ -103,4 +103,12 @@ describe('LibreTV iPad Edition foundation', () => {
     expect(IPAD_EDITION_TOKENS.focusScale).toBe(1.06);
     expect(IPAD_EDITION_TOKENS.glassBlurPx).toBe(24);
   });
+  it('uses the app resolved theme rather than an independent glass theme setting', async () => {
+    const { resolvedIpadAppearance } = await import('./environment-engine');
+    const root = { classList: { contains: (name: string) => name === 'dark' } } as unknown as HTMLElement;
+    expect(resolvedIpadAppearance(root)).toBe('dark');
+    const lightRoot = { classList: { contains: () => false } } as unknown as HTMLElement;
+    expect(resolvedIpadAppearance(lightRoot)).toBe('light');
+  });
+
 });
