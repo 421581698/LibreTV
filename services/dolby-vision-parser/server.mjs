@@ -374,6 +374,34 @@ async function analyzeUpload(request, response, env) {
         report.frameMappingEvidence={version:1,timeBase,frames,mappingSha256:hash.digest('hex')};
       } else { console.warn('HEVC frame mapping unavailable: RPU digest multiset mismatch'); }
     }
+    // Bind dovi_tool's actual L1 brightness export to independent, decoded
+    // presentation-frame PTS using the RPU NAL digest, never ordinal position:
+    // compressed packet order and presentation order may be different.
+    const exportedL1 = report.rpuL1FrameStats;
+    delete report.rpuL1FrameStats;
+    if (analyzedCodec === 'hevc' && report.profiles?.length === 1 && report.profiles[0] === 8 &&
+        exportedL1?.version === 1 && report.frameMappingEvidence &&
+        exportedL1.frames?.length === report.frameCount &&
+        report.rpuUnitEvidence?.unitSha256s?.length === report.frameCount) {
+      const byRpu = new Map();
+      let valid = true;
+      for (let i = 0; i < report.frameCount; i++) {
+        const key = report.rpuUnitEvidence.unitSha256s[i];
+        const stats = exportedL1.frames[i];
+        if (!stats || stats.frameOrdinal !== i) { valid = false; break; }
+        const previous = byRpu.get(key);
+        if (previous && (previous.minPq !== stats.minPq || previous.avgPq !== stats.avgPq ||
+            previous.maxPq !== stats.maxPq)) { valid = false; break; }
+        byRpu.set(key, stats);
+      }
+      if (valid) {
+        const frames = report.frameMappingEvidence.frames.map((frame) => {
+          const stats = byRpu.get(frame.rpuSha256);
+          return stats ? { ...frame, minPq: stats.minPq, avgPq: stats.avgPq, maxPq: stats.maxPq } : null;
+        });
+        if (frames.every(Boolean)) report.rpuL1Evidence = { version: 1, frames };
+      }
+    }
     if (sourceContentType === 'video/mp4' && report.frameMappingEvidence) {
       try {
         const { stdout: timing, stderr } = await execFileAsync(env.FFPROBE_BIN || 'ffprobe', [
