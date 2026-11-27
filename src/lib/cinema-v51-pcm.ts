@@ -219,7 +219,14 @@ export function createCinemaAacDecoder(
         for(const frame of frames) {
           if(!active)return;
           if(frame.ptsUs<=lastPts)throw new Error('Out-of-order AAC PTS');
-          if(decoder.decodeQueueSize>8)throw new Error('AudioDecoder queue backpressure');
+          // HLS Packed AAC yields multiple chunks per segment. Let the
+          // asynchronous native decoder drain instead of failing the first
+          // long rendition whenever nine frames are briefly in flight.
+          for(let waits=0;decoder.decodeQueueSize>6;waits++){
+            if(!active)return;
+            if(waits>=80)throw new Error('AudioDecoder queue backpressure');
+            await new Promise<void>(resolve=>setTimeout(resolve,5));
+          }
           lastPts=frame.ptsUs;
           const exact=frame.data.slice();
           decoder.decode(new host.EncodedAudioChunk({type:'key',timestamp:frame.ptsUs,
