@@ -213,6 +213,19 @@ export async function POST(
       expiresAt: verified.expiresAt,
       sourceHashBinding: verified.sourceHashBinding,
       evidence: verified.evidence,
+      // Signed HEVC sample-to-RPU PTS mapping for the registered immutable
+      // rendition, not evidence of Safari consuming or presenting these RPU.
+      registeredFrameMapping: verified.report.inputKind === 'hevc' && verified.report.frameMappingEvidence
+        ? {
+            sourceMediaSha256: assembledSha256,
+            mappingSha256: verified.report.frameMappingEvidence.mappingSha256,
+            timeBase: verified.report.frameMappingEvidence.timeBase,
+            frameCount: verified.report.frameMappingEvidence.frames.length,
+            frames: verified.report.frameMappingEvidence.frames,
+            independentSampleDurations: Boolean(verified.report.presentationDurationEvidence),
+            playerRpuApplication: 'not-verified',
+          }
+        : null,
       temporalContinuity: 'contiguous',
       crossSegmentRpuContinuity: 'not-verified',
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });

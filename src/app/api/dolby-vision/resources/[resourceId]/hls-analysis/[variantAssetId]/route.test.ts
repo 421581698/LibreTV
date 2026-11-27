@@ -126,6 +126,7 @@ describe('POST /api/dolby-vision/resources/[resourceId]/hls-analysis/[variantAss
       graph: context,
       temporalContinuity: 'contiguous',
       crossSegmentRpuContinuity: 'not-verified',
+      registeredFrameMapping: null,
       evidence: { source: 'dovi_tool', rpuPresent: true, profile: 8 },
     });
     expect(fetchDolbyVisionHlsAssembly).toHaveBeenCalledWith(resourceId, variantAssetId, 16 * 60 * 1000);

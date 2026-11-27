@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import type { DolbyVisionFormatReport } from '@/lib/dolby-vision/format-inspector';
 import { emptyNativePlaybackObservation, observeNativeVideoPlayback } from '@/lib/dolby-vision/native-playback-observation';
 import { probeNativeDolbyVisionCapabilities, type DolbyVisionNativeCapabilityReport } from '@/lib/dolby-vision/native-playback-capability';
@@ -68,6 +68,8 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
     frameCount: number;
     metadataLevels: number[];
     graphSha256: string;
+    registeredFrameMappingSha256: string | null;
+    mappedFrameCount: number | null;
   } | null>(null);
   const [hlsSegmentAnalysisState, setHlsSegmentAnalysisState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [hlsSegmentAnalysisError, setHlsSegmentAnalysisError] = useState('');
@@ -83,6 +85,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
     verifiedMetadataLevelFrameCounts: Record<string, number>;
     orderedRpuEvidenceSha256: string;
   } | null>(null);
+  const autoHlsRpuAttemptRef = useRef<string | null>(null);
   const hlsGraphRequestRef = useRef<AbortController | null>(null);
   const hlsAnalysisRequestRef = useRef<AbortController | null>(null);
   const hlsSegmentAnalysisRequestRef = useRef<AbortController | null>(null);
@@ -186,7 +189,7 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
     };
   }, [sourceKind, sourceIdentity, report?.container]);
 
-  async function analyzeHlsVariant(variantAssetId: string) {
+  const analyzeHlsVariant = useCallback(async (variantAssetId: string) => {
     if (!sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity) ||
         !/^[A-Za-z0-9:_-]{1,200}$/.test(variantAssetId) ||
         hlsAnalysisState === 'loading' || hlsSegmentAnalysisState === 'loading') return;
@@ -224,6 +227,15 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
           !evidence.metadataLevels.every((level) => Number.isSafeInteger(level))) {
         throw new Error('HLS 签名证据与当前资产图不匹配');
       }
+      const rawMapping = data.registeredFrameMapping;
+      const mapping = rawMapping && typeof rawMapping === 'object' && !Array.isArray(rawMapping)
+        ? rawMapping as Record<string, unknown> : null;
+      // The server authenticated the parser signature. The UI independently
+      // guards the displayed asset identity; no render-success flag follows.
+      const mapped = mapping?.sourceMediaSha256 === data.assembledSha256 &&
+        typeof mapping.mappingSha256 === 'string' && /^[a-f0-9]{64}$/.test(mapping.mappingSha256) &&
+        mapping.playerRpuApplication === 'not-verified' &&
+        mapping.frameCount === evidence.frameCount;
       if (!controller.signal.aborted) {
         setHlsEvidence({
           resourceId: sourceIdentity,
@@ -232,6 +244,8 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
           frameCount: Number(evidence.frameCount),
           metadataLevels: evidence.metadataLevels as number[],
           graphSha256: graph.graphSha256,
+          registeredFrameMappingSha256: mapped ? String(mapping.mappingSha256) : null,
+          mappedFrameCount: mapped ? Number(mapping.frameCount) : null,
         });
         setHlsAnalysisState('idle');
       }
@@ -240,7 +254,25 @@ export default function DolbyVisionDiagnosticsPanel({ report, playerContainerRef
       setHlsAnalysisError(error instanceof Error ? error.message : 'HLS RPU 分析暂不可用');
       setHlsAnalysisState('error');
     }
-  }
+  }, [sourceIdentity, hlsAnalysisState, hlsSegmentAnalysisState]);
+
+  // One bounded automatic attempt only for a single unambiguous, operator-
+  // registered HLS variant. Multi-variant HLS needs an explicit selection:
+  // Safari does not reveal the actual selected rendition to web JavaScript.
+  useEffect(() => {
+    if (!cinemaExpanded || sourceKind !== 'registry' || report?.container !== 'hls' ||
+        !sourceIdentity || hlsGraph?.resourceId !== sourceIdentity ||
+        hlsGraph.variantAssetIds.length !== 1 || hlsGraphState !== 'idle' ||
+        hlsAnalysisState !== 'idle' || hlsSegmentAnalysisState !== 'idle' ||
+        currentHlsEvidence) return;
+    const variantId = hlsGraph.variantAssetIds[0];
+    const key = `${sourceIdentity}:${hlsGraph.resourceId}:${variantId}`;
+    if (autoHlsRpuAttemptRef.current === key) return;
+    autoHlsRpuAttemptRef.current = key;
+    void analyzeHlsVariant(variantId);
+  }, [cinemaExpanded, sourceKind, report?.container, sourceIdentity, hlsGraph,
+      hlsGraphState, hlsAnalysisState, hlsSegmentAnalysisState, currentHlsEvidence,
+      analyzeHlsVariant]);
 
   async function analyzeHlsSegments(variantAssetId: string) {
     if (!sourceIdentity || !/^[a-z0-9_-]{1,80}$/i.test(sourceIdentity) ||

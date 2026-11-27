@@ -349,6 +349,12 @@ export async function POST(
       verifiedParserVersion: verified.verifiedParserVersion,
       verifiedMetadataLevelFrameCounts: verified.verifiedMetadataLevelFrameCounts,
       orderedRpuEvidenceSha256: verified.orderedRpuEvidenceSha256,
+      // Each fragment mapping is independently signed; aggregate continuity
+      // must be verified separately, not inferred from equal frame counts.
+      orderedFrameMappingSha256: verified.orderedFrameMappingSha256,
+      framePresentationOrder: verified.framePresentationOrder,
+      fixedPresentationCadence: verified.fixedPresentationCadence,
+      variablePresentationCadence: verified.variablePresentationCadence,
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch {
     if (remainingMs() === 0) {

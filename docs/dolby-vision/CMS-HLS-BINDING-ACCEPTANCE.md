@@ -21,3 +21,9 @@
 5. Real iPadOS Safari playback with device, OS, asset hash, selected variant and independent output measurements before passing the 3.1–3.6 gates.
 
 Keep PR #99 Draft and do not merge, change main or deploy production without explicit authorization.
+
+## Automatic HEVC evidence inspection
+
+When Cinema diagnostics encounters one verified HLS rendition under an exact registered source, it requests the existing server-only parser exactly once per mounted identity. Multiple possible variants **never auto-select**: the operator/user must choose the intended graph rendition. The server authenticates graph and assembled-media hashes, verifies the parser's Ed25519 signature, and now returns the optional signed sample-PTS ↔ RPU mapping digest and per-frame entries (only when the parser established them).
+
+The UI distinguishes `registeredFrameMapping` from actual RPU consumption. This does **not** activate a Dolby Vision compositor or establish HDR output. The segment-set endpoint separately exposes frame-presentation/cadence verification, still without claiming that Safari selected or displayed those frames.
