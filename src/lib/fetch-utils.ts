@@ -43,26 +43,23 @@ async function fetchWithPolicy(
   let method = (init.method ?? 'GET').toUpperCase();
   let body = init.body;
   const controller = new AbortController();
-  const externalSignal = init.signal;
-  const abortFromExternal = () => controller.abort(externalSignal?.reason);
+  // Native composition preserves cancellation during response body reads,
+  // including after this function returns the response headers.
+  const signal = init.signal
+    ? AbortSignal.any([init.signal, controller.signal])
+    : controller.signal;
 
-  if (externalSignal?.aborted) {
-    controller.abort(externalSignal.reason);
-  } else {
-    externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
-  }
-
-  try {
+  {
     for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
-      if (controller.signal.aborted) {
-        throw controller.signal.reason ?? new DOMException('请求已取消', 'AbortError');
+      if (signal.aborted) {
+        throw signal.reason ?? new DOMException('请求已取消', 'AbortError');
       }
 
       const verdict = allowPrivate
         ? await checkLiveUrlAllowed(current)
         : await checkUpstreamAllowed(current);
-      if (controller.signal.aborted) {
-        throw controller.signal.reason ?? new DOMException('请求已取消', 'AbortError');
+      if (signal.aborted) {
+        throw signal.reason ?? new DOMException('请求已取消', 'AbortError');
       }
       if (!verdict.ok) {
         throw new Error(`跳转目标被拒绝: ${verdict.reason}`);
@@ -78,7 +75,7 @@ async function fetchWithPolicy(
           headers,
           method,
           body,
-          signal: controller.signal,
+          signal,
           redirect: 'manual',
         });
       } finally {
@@ -121,8 +118,6 @@ async function fetchWithPolicy(
       current = nextUrl.href;
     }
     throw new Error('重定向次数过多');
-  } finally {
-    externalSignal?.removeEventListener('abort', abortFromExternal);
   }
 }
 
