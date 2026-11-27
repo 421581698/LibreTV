@@ -19,7 +19,6 @@ import type {CinemaAuthorizedAacSource} from './cinema-v51-pcm-playback';
 interface MediaSegment {url:string;seconds:number;startsAt:number}
 interface Playlist {segments:MediaSegment[];startDateMs:number;duration:number}
 const MAX_MANIFEST=131072,MAX_SEGMENT=524288,MAX_SEGMENTS=1500;
-const HLS_MIME='application/vnd.apple.mpegurl';
 function checkedUri(input:string,base?:string):string {
   const uri=new URL(input,base);
   if(uri.protocol!=='https:'||uri.username||uri.password)throw new Error('Unsafe HLS URL');
