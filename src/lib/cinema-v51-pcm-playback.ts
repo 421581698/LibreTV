@@ -87,13 +87,20 @@ export async function createCinemaAuthorizedPcmSoundSession(
   if(context.state!=='running'){void context.close().catch(()=>{});return null;}
   let stopped=false,active=false,audio=false,spatial=false;
   let mutedNative=false;
+  const originallyMuted=video.muted;
+  const originallyVolume=video.volume;
   let graph:AudioGraph|null=null;
   let formatChannels=0;
   let raf=0;
   let scheduledSamples=0;
+  let scheduledThroughSeconds=-Infinity;
+  let lastStartSeconds=-Infinity;
+  let nativeMuteGuard=false;
   let earliestScheduledAt=Infinity;
   let lastDecodedAt=performance.now();
   let measuredRms=.10;
+  let lastAudiblePcmAt=-Infinity;
+  let lastClockMedia=video.currentTime;
   let lastLoudnessAt=0;
   let misses=0;
   const scheduled=new Set<AudioBufferSourceNode>();
@@ -126,7 +133,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
     const volume=video.volume*(audio?cinemaLoudnessGain(measuredRms):1);
     ramp(graph.master,active?volume:0);
     if(active && (audio||spatial)) {
-      if(!mutedNative){video.muted=true;mutedNative=true;}
+      if(!mutedNative){nativeMuteGuard=true;video.muted=true;nativeMuteGuard=false;mutedNative=true;}
       onState(snapshot());
     }
   };
@@ -152,8 +159,10 @@ export async function createCinemaAuthorizedPcmSoundSession(
         }
       }
       const rms=count>0?Math.sqrt(sum/count):0;
-      if(rms<.0025)return;
-      measuredRms=rms;
+      // Silence is valid timeline data: dropping frames shifts all later PCM.
+      // Do not accept silence as proof that independent audio is audible.
+      if(rms>=.0025){measuredRms=rms;lastAudiblePcmAt=performance.now();}
+
       queue.enqueue(frame);
       lastDecodedAt=performance.now();
     }catch(error){fail(error instanceof Error?error.message:'Invalid decoded PCM');}
@@ -169,7 +178,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
   const onVideoInterrupt=()=>fail('视频暂停、切源、进度跳转或倍速改变，已恢复原始音频。');
   const onVolume=()=>{
     if(stopped||!active)return;
-    if(!video.muted){fail('视频原声被重新打开，已停止独立 PCM 以避免双声道叠音。');return;}
+    if(!video.muted&&!nativeMuteGuard){fail('视频原声被重新打开，已停止独立 PCM 以避免双声道叠音。');return;}
     if(graph)ramp(graph.master,video.volume*(audio?cinemaLoudnessGain(measuredRms):1));
   };
   const onContextState=()=>{if(active&&context.state!=='running')fail('音频引擎暂停，已恢复原声。');};
@@ -190,7 +199,13 @@ export async function createCinemaAuthorizedPcmSoundSession(
       ramp(graph.master,video.volume*(audio?cinemaLoudnessGain(measuredRms):1));
     }
     if(!audio&&!spatial)return;
-    if(performance.now()-lastDecodedAt>1800 && scheduledSamples>0){
+    const mediaSeconds=video.currentTime;
+    if(active&&(Math.abs(mediaSeconds-lastClockMedia)>0.4 ||
+        scheduledThroughSeconds<mediaSeconds-.09)){
+      fail('独立 PCM 时间线失配，已恢复原声。');return;
+    }
+    lastClockMedia=mediaSeconds;
+    if(active&&performance.now()-lastDecodedAt>1800 && scheduledThroughSeconds<video.currentTime+.12){
       fail('独立 PCM 音轨缓冲不足，已恢复原声。');return;
     }
     if(performance.now()-lastDecodedAt>10000){
@@ -203,6 +218,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
       if(!frame)break;
       const delta=(frame.ptsUs-source.presentationOffsetUs-Math.round(video.currentTime*1e6))/1e6;
       if(delta<-.035){if(++misses>8)fail('PCM 连续错过视频时间戳，已恢复原声。');continue;}
+      if(delta>.14)break;
       if(!graph)break;
       try {
         const buffer=context.createBuffer(frame.channels,frame.frames,frame.sampleRate);
@@ -216,10 +232,16 @@ export async function createCinemaAuthorizedPcmSoundSession(
         node.onended=()=>scheduled.delete(node);
         node.start(when);
         scheduledSamples+=frame.frames;
+        const durationSeconds=frame.frames/frame.sampleRate;
+        scheduledThroughSeconds=Math.max(scheduledThroughSeconds,
+          (frame.ptsUs-source.presentationOffsetUs)/1e6+durationSeconds);
+        lastStartSeconds=(frame.ptsUs-source.presentationOffsetUs)/1e6;
         earliestScheduledAt=Math.min(earliestScheduledAt,when);
       }catch{fail('PCM 音频缓冲创建或排程失败。');return;}
     }
-    if(!active&&scheduledSamples>=3072&&earliestScheduledAt<=context.currentTime+.025){
+    if(!active&&scheduledSamples>=3072&&earliestScheduledAt<=context.currentTime+.025&&
+       performance.now()-lastAudiblePcmAt<600&&
+       scheduledThroughSeconds>video.currentTime+.035){
       active=true;apply();
     }
   };
@@ -242,7 +264,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
       decoder.stop();queue.clear();
       for(const node of scheduled){try{node.stop();}catch{/* ended */}try{node.disconnect();}catch{/* closed */}}
       scheduled.clear();
-      if(mutedNative)video.muted=false;
+      if(mutedNative){nativeMuteGuard=true;video.muted=originallyMuted;nativeMuteGuard=false;}
       void context.close().catch(()=>{});
       if(!pendingStop){pendingStop=true;void Promise.resolve(stream.return?.()).catch(()=>{});}
     },
