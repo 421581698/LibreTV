@@ -44,7 +44,7 @@ function installFetch(){
     requests.push(input);
     const bytes=replies.get(input);
     if(!bytes)return new Response('Not Found',{status:404});
-    return new Response(bytes.slice(),{status:200,
+    return new Response(new Uint8Array(bytes).buffer,{status:200,
       headers:{'content-type':input.endsWith('.m3u8')?'application/vnd.apple.mpegurl':'audio/aac'}});
   }));
 }
