@@ -226,7 +226,7 @@ export class JocSoftwareDecoderClient {
   setMediaClock(ptsSamples: number): void {
     this.assertActive();
     if (!Number.isFinite(ptsSamples)) throw new Error('Media clock must be a finite 48 kHz sample timestamp.');
-    this.node?.port.postMessage({ type: 'clock', ptsSamples });
+    this.node?.port.postMessage({ type: 'clock', ptsSamples: Math.round(ptsSamples) });
   }
 
   /**
@@ -400,9 +400,9 @@ export class JocSoftwareDecoderClient {
         return;
       }
       this.queuedFrames = Math.min(MAX_QUEUED_FRAMES, this.queuedFrames + message.sampleFrames);
-      const observerSamples = samples.slice();
+      const observerSamples = this.pcmListeners.size > 0 ? samples.slice() : null;
       this.node.port.postMessage({ type: 'pcm', samples, sampleRate: 48000, channels: 2, ptsSamples: message.ptsSamples }, [samples.buffer]);
-      for (const listener of this.pcmListeners) listener({ samples: observerSamples, sampleFrames: message.sampleFrames, ptsSamples: message.ptsSamples });
+      if (observerSamples) for (const listener of this.pcmListeners) listener({ samples: observerSamples, sampleFrames: message.sampleFrames, ptsSamples: message.ptsSamples });
       this.emitStatus();
     } else if (message.type === 'need-input') {
       this.settle('need-input');
