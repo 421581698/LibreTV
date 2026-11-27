@@ -59,6 +59,32 @@ describe('Cinema V5.1 WebCodecs compressed packet decoder',()=>{
     expect(t.created.closed).toBe(true);
   }
  });
+ it('accepts HEVC B-frame composition reordering when decode DTS strictly increases',async()=>{
+  const reordered=[
+    {...packet(1000000,true),dtsUs:0},
+    {...packet(1066666,false),dtsUs:33333},
+    {...packet(1033333,false),dtsUs:66666},
+  ];
+  const t=harness(reordered),errors:string[]=[];
+  await createCinemaLiveVideoDecoder(t.track,t.host as never)
+    .start(()=>{},reason=>errors.push(reason));
+  expect(errors).toEqual([]);
+  expect(t.created.chunks).toHaveLength(3);
+  expect(t.created.chunks.map(c=>(c as {info:{timestamp:number}}).info.timestamp))
+    .toEqual([1000000,1066666,1033333]);
+ });
+ it('rejects duplicate or decreasing decode timestamps even when composition PTS differs',async()=>{
+  for(const dts of [33333,20000]){
+    const t=harness([
+      {...packet(1000000,true),dtsUs:33333},
+      {...packet(1033333,false),dtsUs:dts},
+    ]);
+    const errors:string[]=[];
+    await createCinemaLiveVideoDecoder(t.track,t.host as never)
+      .start(()=>{},reason=>errors.push(reason));
+    expect(errors).toHaveLength(1);
+  }
+ });
  it('does not fake support without a VideoDecoder API',async()=>{
   const t=harness();
   const errors:string[]=[];
