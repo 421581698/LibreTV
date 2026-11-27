@@ -1,3 +1,4 @@
+import { historyIdFor } from '@/lib/history-id';
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -112,7 +113,7 @@ export function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => 
           )}
           <ul className="space-y-2">
             {visible.map((item) => (
-              <HistoryItem key={`${item.sourceKey}_${item.vodId}`} item={item} />
+              <HistoryItem key={historyIdFor(item.sourceKey, item.vodId)} item={item} />
             ))}
           </ul>
         </>
