@@ -39,6 +39,8 @@ function IpadSearchContent() {
       return true;
     });
   }, [selectedKeys, customAPIs, envSources]);
+  const sourceSignature = sources.map((source) => source.key + ':' + source.url).join('|');
+  const lastSourceSignature = useRef<string | null>(null);
 
   const runSearch = async (term: string) => {
     const value = term.trim().slice(0, 50);
@@ -109,6 +111,20 @@ function IpadSearchContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
 
+  // Enabled sources can change without a route change. Re-run the visible
+  // query instead of continuing to show results from a stale source set.
+  useEffect(() => {
+    const signature = sourceSignature + ':' + yellowFilter;
+    if (lastSourceSignature.current === null) {
+      lastSourceSignature.current = signature;
+      return;
+    }
+    if (lastSourceSignature.current === signature) return;
+    lastSourceSignature.current = signature;
+    if (initial.trim() && hasSearched) void runSearch(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceSignature, yellowFilter]);
+
   useEffect(() => () => activeController.current?.abort(), []);
 
   // Poster selection is navigation-only. Resource details and playback must
@@ -144,7 +160,7 @@ function IpadSearchContent() {
             <path d="m15.8 15.8 4.2 4.2" />
           </svg>
         </span>
-        <input value={query} maxLength={50} onChange={(event) => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); setWarning(''); }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
+        <input value={query} maxLength={50} onChange={(event) => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(event.target.value); setHasSearched(false); setResults([]); setError(''); setWarning(''); if (!event.target.value.trim() && initial) { ownUrlUpdate.current = ''; router.replace('/ipad-edition/search', { scroll: false }); } }} placeholder="搜索片名、演员或关键词…" aria-label="搜索影视内容" />
         {query ? <button type="button" onClick={() => { activeController.current?.abort(); activeController.current = null; requestId.current += 1; setLoading(false); setQuery(''); setResults([]); setError(''); setWarning(''); setHasSearched(false); router.replace('/ipad-edition/search'); }}>清空</button> : null}
         <button type="submit" disabled={loading || !query.trim()}>{loading ? '搜索中…' : '搜索'}</button>
       </form>
