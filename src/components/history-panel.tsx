@@ -1,5 +1,6 @@
-import { historyIdFor } from '@/lib/history-id';
 'use client';
+
+import { historyIdFor } from '@/lib/history-id';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
