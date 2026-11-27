@@ -57,6 +57,48 @@ describe('fetchUpstream 安全跳转', () => {
     expect(await res.text()).toBe('ok');
   });
 
+  it('strips confidential headers when a redirect changes origin', async () => {
+    const spy = vi.fn()
+      .mockResolvedValueOnce(new Response(null, {
+        status: 302, headers: { location: 'https://93.184.216.35/b' },
+      }))
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', spy);
+
+    const result = await fetchWithSafeRedirects(PUBLIC_URL, {
+      headers: {
+        Authorization: 'Bearer secret',
+        Cookie: 'token=secret',
+        'X-Api-Key': 'secret-key',
+        Accept: 'application/json',
+      },
+    });
+    expect(result.res.status).toBe(200);
+    const redirectedHeaders = new Headers(spy.mock.calls[1][1].headers);
+    expect(redirectedHeaders.get('authorization')).toBeNull();
+    expect(redirectedHeaders.get('cookie')).toBeNull();
+    expect(redirectedHeaders.get('x-api-key')).toBeNull();
+    expect(redirectedHeaders.get('accept')).toBe('application/json');
+  });
+
+  it('switches a 303 POST redirect to GET without its request body', async () => {
+    const spy = vi.fn()
+      .mockResolvedValueOnce(new Response(null, {
+        status: 303, headers: { location: 'https://93.184.216.34/next' },
+      }))
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', spy);
+
+    await fetchWithSafeRedirects(PUBLIC_URL, {
+      method: 'POST', body: 'payload',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(spy.mock.calls[0][1].method).toBe('POST');
+    expect(spy.mock.calls[1][1].method).toBe('GET');
+    expect(spy.mock.calls[1][1].body).toBeUndefined();
+    expect(new Headers(spy.mock.calls[1][1].headers).has('Content-Type')).toBe(false);
+  });
+
   it('客户端中断请求时，将 abort 传递到正在进行的上游请求', async () => {
     const controller = new AbortController();
     let upstreamSignal: AbortSignal | undefined;
