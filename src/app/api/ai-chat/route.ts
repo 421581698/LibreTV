@@ -89,16 +89,17 @@ export async function POST(req: NextRequest) {
 
     const ctrl = new AbortController();
     if (!registerInflight(requestId, userId, ctrl)) throw new Error('重复的聊天请求标识');
-    req.signal.addEventListener('abort', () => ctrl.abort(), { once: true });
+    // Both client disconnects and explicit /api/chat/cancel requests must stop
+    // the same model stream without retaining a separate abort listener.
+    const combinedSignal = AbortSignal.any([req.signal, ctrl.signal]);
 
-    // 调用咱们写好的核心大脑！
     const stream = await runChat(
       userMessage,
       history,
       requestId,
       conversationId,
       userId,
-      ctrl.signal
+      combinedSignal
     );
 
     return new Response(stream, {
