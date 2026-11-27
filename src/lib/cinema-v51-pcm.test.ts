@@ -26,6 +26,15 @@ describe('Cinema authenticated AAC / PCM transport core',()=>{
     expect(out.frames.map(x=>x.ptsUs)).toEqual([1234000,1257220]);
     expect(Array.from(out.frames[0].data)).toEqual([1,2,3,4]);
   });
+  it('parses a clear ADTS frame with a CRC field without including it in the AAC payload',()=>{
+    const frame=adts();
+    const protectedFrame=new Uint8Array([...frame.slice(0,7),0x12,0x34,...frame.slice(7)]);
+    protectedFrame[1]&=0xfe;
+    protectedFrame[5]=(protectedFrame[5]&0x1f)|((protectedFrame.length&7)<<5);
+    expect(cinemaParseAdtsHeader(protectedFrame)).toMatchObject({headerBytes:9,frameBytes:13});
+    expect(Array.from(cinemaDemuxAdts({sourceSha256:SHA,ptsUs:0,data:protectedFrame}).frames[0].data)).toEqual([1,2,3,4]);
+    expect(()=>cinemaParseAdtsHeader(protectedFrame.slice(0,-1))).toThrow();
+  });
   it('refuses truncated, unsupported, untrusted or mixed-configuration samples',()=>{
     expect(()=>cinemaParseAdtsHeader(new Uint8Array([0xff,0xf1]))).toThrow();
     const invalid=adts();invalid[2]=invalid[2]&0x3f;
