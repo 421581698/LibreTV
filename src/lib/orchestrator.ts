@@ -27,6 +27,9 @@ export async function runChat(message: string, history: ChatHistoryMessage[], re
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   reqSignal.addEventListener('abort', onAbort, { once: true });
+  // A cancellation ticket may have arrived on another instance before
+  // the model stream installs its abort event listeners.
+  if(reqSignal.aborted)controller.abort(reqSignal.reason);
 
   const stream = new ReadableStream({
     async start(streamController) {
@@ -66,6 +69,12 @@ export async function runChat(message: string, history: ChatHistoryMessage[], re
 
       const onAbortInternal = () => { controller.abort(); terminateStream('CANCELLED', '用户主动中断', false); };
       reqSignal.addEventListener('abort', onAbortInternal);
+      if(controller.signal.aborted){
+        onAbortInternal();
+        reqSignal.removeEventListener('abort', onAbortInternal);
+        reqSignal.removeEventListener('abort', onAbort);
+        return;
+      }
 
       try {
         safeSend(makeMeta(requestId, conversationId, LLM_MODEL));
