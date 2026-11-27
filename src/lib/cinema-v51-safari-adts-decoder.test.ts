@@ -99,6 +99,51 @@ describe('Safari AAC decodeAudioData fallback for verified HLS Packed AAC',()=>{
     expect(delivered[1].ptsUs).toBe(end+1);
     decoder.stop();
   });
+  it('serializes concurrent Safari AAC decode calls and preserves PCM timestamp order',async()=>{
+    const received:CinemaPcmFrame[]=[];
+    const finishes:Array<(value:AudioBuffer)=>void>=[];
+    let started=0;
+    const decoder=createCinemaSafariAdtsDecoder(SHA,{
+      decodeAudioData:()=>{
+        started++;
+        return new Promise<AudioBuffer>(resolve=>{finishes.push(resolve);});
+      },
+    } as never,frame=>received.push(frame),()=>{});
+    const first=decoder.push(packet(3,1_000_000));
+    const secondPts=1_000_000+Math.round(3*1024*1e6/44100);
+    const second=decoder.push(packet(3,secondPts));
+    for(let n=0;n<4;n++)await Promise.resolve();
+    expect(started).toBe(1);
+    finishes[0](buffer(3072));
+    await first;
+    for(let n=0;n<4;n++)await Promise.resolve();
+    expect(started).toBe(2);
+    finishes[1](buffer(3072));
+    await second;
+    expect(received.map(frame=>frame.ptsUs)).toEqual([1_000_000,secondPts]);
+    decoder.stop();
+  });
+  it('refuses queued packets after the initial Safari AAC decode fails',async()=>{
+    const decoded:CinemaPcmFrame[]=[],failed:string[]=[];
+    let rejectInitial:(reason:Error)=>void=()=>{};
+    let calls=0;
+    const decoder=createCinemaSafariAdtsDecoder(SHA,{
+      decodeAudioData:()=>{
+        calls++;
+        return new Promise<AudioBuffer>((_,reject)=>{rejectInitial=reject;});
+      },
+    } as never,frame=>decoded.push(frame),reason=>failed.push(reason));
+    const first=decoder.push(packet());
+    const second=decoder.push(packet(3,1_000_000+Math.round(3*1024*1e6/44100)));
+    for(let n=0;n<4;n++)await Promise.resolve();
+    rejectInitial(new Error('Safari decoder failed'));
+    await expect(first).rejects.toThrow('Safari decoder failed');
+    await second;
+    expect(calls).toBe(1);
+    expect(decoded).toHaveLength(0);
+    expect(failed).toHaveLength(1);
+    expect(decoder.active).toBe(false);
+  });
   it('does not output stale PCM after the session is stopped while decoding',async()=>{
     let finish:(b:AudioBuffer)=>void=()=>{};
     const delivered:CinemaPcmFrame[]=[];
