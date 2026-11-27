@@ -235,3 +235,66 @@ export function createCinemaAacDecoder(
     get active(){return active;},
   };
 }
+
+/**
+ * Safari fallback for clear ADTS when WebCodecs AudioDecoder is absent.
+ * decodeAudioData still performs actual AAC decoding inside Web Audio.
+ * AAC priming/resampling and duration are checked; unverifiable output
+ * fails closed instead of estimating a new clock or muting native playback.
+ */
+export function createCinemaSafariAdtsDecoder(
+  sourceSha256:string,
+  context:Pick<AudioContext,'decodeAudioData'>,
+  onFrame:(frame:CinemaPcmFrame)=>void,
+  onFailure:(message:string)=>void,
+) {
+  if(!VALID_HASH.test(sourceSha256))throw new Error('Unverified Safari ADTS source');
+  let active=true;
+  let previousEndUs=-1;
+  let format:string|null=null;
+  const stop=()=>{active=false;};
+  const fail=(reason:string)=>{if(active){stop();onFailure(reason);}};
+  return {
+    async push(packet:CinemaPcmPacket):Promise<void> {
+      if(!active)throw new Error('Safari ADTS decoder stopped');
+      try {
+        if(packet.sourceSha256.toLowerCase()!==sourceSha256.toLowerCase())
+          throw new Error('AAC source identity mismatch');
+        const {header,frames}=cinemaDemuxAdts(packet);
+        const key=header.sampleRate+':'+header.channels;
+        if(format&&format!==key)throw new Error('AAC track format changed');
+        format=key;
+        if(previousEndUs>=0&&packet.ptsUs<previousEndUs-5000)
+          throw new Error('Overlapping AAC segment timestamps');
+        const encoded=packet.data.slice();
+        const decoded=await context.decodeAudioData(encoded.buffer);
+        if(!active)return;
+        if(decoded.numberOfChannels!==header.channels||
+           !Number.isSafeInteger(decoded.sampleRate)||decoded.sampleRate<8000||
+           decoded.sampleRate>192000||decoded.length<=0)
+          throw new Error('Invalid Safari AAC decoded format');
+        const expected=Math.round(frames.length*1024*decoded.sampleRate/header.sampleRate);
+        const primingTolerance=Math.ceil(1024*decoded.sampleRate/header.sampleRate);
+        if(Math.abs(decoded.length-expected)>primingTolerance)
+          throw new Error('Safari AAC decoded frame count mismatches ADTS timeline');
+        const channels=Array.from({length:decoded.numberOfChannels},(_,ch)=>decoded.getChannelData(ch));
+        for(let start=0;start<decoded.length;start+=8192){
+          if(!active)return;
+          const end=Math.min(start+8192,decoded.length);
+          const ptsUs=packet.ptsUs+Math.round(start*1e6/decoded.sampleRate);
+          if(!Number.isSafeInteger(ptsUs))throw new Error('AAC frame timestamp overflow');
+          onFrame({sourceSha256,ptsUs,sampleRate:decoded.sampleRate,
+            channels:decoded.numberOfChannels,frames:end-start,
+            planes:channels.map(plane=>new Float32Array(plane.slice(start,end)))});
+        }
+        previousEndUs=packet.ptsUs+Math.round(frames.length*1024*1e6/header.sampleRate);
+      } catch(error) {
+        fail(error instanceof Error?error.message:'Safari AAC decode failed');
+        throw error;
+      }
+    },
+    async flush():Promise<void>{},
+    stop,
+    get active(){return active;},
+  };
+}
