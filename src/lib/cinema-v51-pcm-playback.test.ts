@@ -193,6 +193,45 @@ describe('authorized independent PCM audio output',()=>{
     session!.stop();
     expect(video.muted).toBe(false);
   });
+  it('restores native sound without switching decoders after accepted PCM output',async()=>{
+    const video=new Video(),states:CinemaSoundState[]=[];
+    let failDecoder:(error:Error)=>void=()=>{};
+    let safariCalls=0;
+    vi.stubGlobal('AudioDecoder',class {
+      static async isConfigSupported(){return {supported:true};}
+      decodeQueueSize=0;state='configured';
+      private output:(frame:never)=>void;
+      constructor(init:{output:(frame:never)=>void;error:(error:Error)=>void}){
+        this.output=init.output;failDecoder=init.error;
+      }
+      configure(){}
+      decode(chunk:{timestamp:number}){
+        this.output({timestamp:chunk.timestamp,sampleRate:44100,numberOfChannels:2,
+          numberOfFrames:1024,copyTo:(data:Float32Array)=>data.fill(.11),close:()=>{}} as never);
+      }
+      async flush(){}
+      close(){}
+    });
+    const prewarmed=new Context({});
+    (prewarmed as Context & {decodeAudioData:(data:ArrayBuffer)=>Promise<AudioBuffer>}).decodeAudioData=async()=>{
+      safariCalls++;throw new Error('Unexpected decoder switch');
+    };
+    const session=await createCinemaAuthorizedPcmSoundSession(video as never,{
+      sourceSha256:SHA,expectedSourceSha256:SHA,presentationOffsetUs:0,
+      packets:(async function*(){yield {sourceSha256:SHA,ptsUs:1_000_000,data:packet};})(),
+    },state=>states.push(state),prewarmed as never);
+    expect(session).not.toBeNull();
+    session!.enable('audio',true);
+    for(let i=0;i<30;i++)await Promise.resolve();
+    frame();
+    expect(video.muted).toBe(true);
+    failDecoder(new Error('Decoder failed after PCM output'));
+    expect(video.muted).toBe(false);
+    expect(prewarmed.closed).toBe(true);
+    expect(safariCalls).toBe(0);
+    expect(states.at(-1)?.output).toBe('native');
+    expect(prewarmed.sources.every(node=>node.onended===null)).toBe(true);
+  });
   it('never mutes source on a zero-only decoded PCM stream',async()=>{
     const video=new Video();
     vi.stubGlobal('AudioDecoder',class {
