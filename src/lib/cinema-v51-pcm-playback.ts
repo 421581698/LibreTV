@@ -177,12 +177,39 @@ export async function createCinemaAuthorizedPcmSoundSession(
       lastDecodedAt=performance.now();
     }catch(error){fail(error instanceof Error?error.message:'Invalid decoded PCM');}
   };
-  const onDecoderFailure=(message:string)=>fail(message);
-  // iPad Safari may lack WebCodecs AudioDecoder. A bounded Web Audio AAC
-  // decoder uses the same authenticated ADTS packet bytes/PTS in that case.
-  const decoder=cinemaAudioWebCodecsAvailable()
-    ?createCinemaAacDecoder(source.sourceSha256,onDecodedFrame,onDecoderFailure)
-    :createCinemaSafariAdtsDecoder(source.sourceSha256,context,onDecodedFrame,onDecoderFailure);
+  // Only retry the first packet before any PCM has been emitted. Switching
+  // decoders after output would risk duplicate samples or a discontinuity.
+  let emittedPcm=false;
+  let usingWebCodecs=cinemaAudioWebCodecsAvailable();
+  let firstPacket=true;
+  let initialFailure:string|null=null;
+  const deliverFrame=(frame:CinemaPcmFrame)=>{
+    emittedPcm=true;
+    onDecodedFrame(frame);
+  };
+  const onDecoderFailure=(message:string)=>{
+    if(usingWebCodecs&&firstPacket&&!emittedPcm)initialFailure=message;
+    else fail(message);
+  };
+  const safariDecoder=()=>createCinemaSafariAdtsDecoder(
+    source.sourceSha256,context,deliverFrame,onDecoderFailure);
+  let decoder=usingWebCodecs
+    ?createCinemaAacDecoder(source.sourceSha256,deliverFrame,onDecoderFailure)
+    :safariDecoder();
+  const pushPacket=async(packet:CinemaPcmPacket)=>{
+    try{
+      await decoder.push(packet);
+      if(usingWebCodecs&&firstPacket)await decoder.flush();
+      if(initialFailure)throw new Error(initialFailure);
+    }catch(error){
+      if(stopped||!usingWebCodecs||!firstPacket||emittedPcm)throw error;
+      decoder.stop();
+      usingWebCodecs=false;
+      initialFailure=null;
+      decoder=safariDecoder();
+      await decoder.push(packet);
+    }finally{firstPacket=false;}
+  };
   let stream:AsyncIterator<CinemaPcmPacket>;
   try{stream=source.packets[Symbol.asyncIterator]();}
   catch{
@@ -310,7 +337,7 @@ export async function createCinemaAuthorizedPcmSoundSession(
           }
         }
         if(stopped)return;
-        await decoder.push(next.value);
+        await pushPacket(next.value);
       }
       if(!stopped)await decoder.flush();
     }catch(error){
