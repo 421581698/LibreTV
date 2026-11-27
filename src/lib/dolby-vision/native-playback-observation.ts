@@ -104,7 +104,16 @@ export function advanceNativePlaybackObservation(
   // A stalled timeupdate event or duplicate sample cannot establish ongoing
   // playback, even when an earlier sample crossed the progress threshold.
   if (previous.lastTime === time) {
-    if (previous.status === 'waiting') return previous;
+    if (previous.status === 'waiting') {
+      // Video frame callbacks can expose their first reliable counter while
+      // currentTime is unchanged. Capture only a baseline; this must NOT be
+      // treated as advancing playback until later time and frames progress.
+      if (previous.lastPresentedFrames === null && frameCount !== null) {
+        return { ...previous, baselinePresentedFrames: frameCount,
+          lastPresentedFrames: frameCount, presentedFrames: 0 };
+      }
+      return previous;
+    }
     return {
       ...previous, status: 'waiting', baselineTime: time, progressedSeconds: 0,
       baselinePresentedFrames: frameCount, lastPresentedFrames: frameCount,
