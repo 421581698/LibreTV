@@ -78,7 +78,8 @@ describe('active Friday /api/chat distributed cancellation lifecycle',()=>{
     expect(owner).toBe('libretv-authenticated-user');
     expect(controller.signal.aborted).toBe(false);
     expect(await response.text()).toContain('data: test');
-    expect(mocks.unregister).toHaveBeenCalledExactlyOnceWith('request_123');
+    expect(mocks.unregister).toHaveBeenCalledOnce();
+    expect(mocks.unregister).toHaveBeenCalledWith('request_123');
   });
 
   it('aborts both the registered task and stream on consumer cancellation',async()=>{
@@ -89,7 +90,8 @@ describe('active Friday /api/chat distributed cancellation lifecycle',()=>{
     expect(controller.signal.aborted).toBe(false);
     await response.body?.cancel('browser closed player/chat');
     expect(controller.signal.aborted).toBe(true);
-    expect(mocks.unregister).toHaveBeenCalledExactlyOnceWith('request_client_stop');
+    expect(mocks.unregister).toHaveBeenCalledOnce();
+    expect(mocks.unregister).toHaveBeenCalledWith('request_client_stop');
   });
 
   it('cleans up when cancellation originates from another instance',async()=>{
@@ -97,7 +99,8 @@ describe('active Friday /api/chat distributed cancellation lifecycle',()=>{
     const response=await POST(chatRequest('request_remote_stop'));
     const controller=mocks.register.mock.calls[0][2] as AbortController;
     controller.abort(new Error('CANCELLED_BY_CLIENT'));
-    expect(mocks.unregister).toHaveBeenCalledExactlyOnceWith('request_remote_stop');
+    expect(mocks.unregister).toHaveBeenCalledOnce();
+    expect(mocks.unregister).toHaveBeenCalledWith('request_remote_stop');
     await response.body?.cancel();
     expect(mocks.unregister).toHaveBeenCalledTimes(1);
   });
