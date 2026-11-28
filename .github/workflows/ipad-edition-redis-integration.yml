@@ -4,33 +4,9 @@ on:
   push:
     branches:
       - feature/libretv-ipad-edition-product
-    paths:
-      - 'scripts/ipad-edition-two-instance-cancel-smoke.mjs'
-      - 'src/lib/infra/distributed-cancellation.ts'
-      - 'src/app/api/chat/**'
-      - 'src/components/friday/useFridayChatSession.ts'
-      - '.github/workflows/ipad-edition-redis-integration.yml'
-      - '.github/workflows/ipad-edition-verify.yml'
-      - '.github/workflows/resource-playback-verification.yml'
-      - '.github/workflows/hls-browser-playback-smoke.yml'
-      - '.github/workflows/hls-external-smoke.yml'
-      - '.github/workflows/scrapling-collector.yml'
-      - '.github/workflows/deploy-ipad-edition-preview.yml'
   pull_request:
     branches:
       - feature/libretv-ipad-edition-foundation
-    paths:
-      - 'scripts/ipad-edition-two-instance-cancel-smoke.mjs'
-      - 'src/lib/infra/distributed-cancellation.ts'
-      - 'src/app/api/chat/**'
-      - 'src/components/friday/useFridayChatSession.ts'
-      - '.github/workflows/ipad-edition-redis-integration.yml'
-      - '.github/workflows/ipad-edition-verify.yml'
-      - '.github/workflows/resource-playback-verification.yml'
-      - '.github/workflows/hls-browser-playback-smoke.yml'
-      - '.github/workflows/hls-external-smoke.yml'
-      - '.github/workflows/scrapling-collector.yml'
-      - '.github/workflows/deploy-ipad-edition-preview.yml'
   workflow_dispatch:
 permissions:
   contents: read
