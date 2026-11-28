@@ -116,6 +116,28 @@ describe('Cinema V5.1 real decoded frame and PTS bridge',()=>{
     expect(t.renderer.stop).toHaveBeenCalled();
     expect(t.bridge.active).toBe(false);
   });
+  it('sustains 180 ordered authenticated HDR frames without spontaneous native fallback',async()=>{
+    // Simulated 30 fps P010 frames. This guards sequencing and queue lifecycle,
+    // not physical GPU throughput, power or panel HDR output.
+    const t=harness();
+    const total=180;
+    const started=performance.now();
+    for(let i=0;i<total;i++){
+      const ptsUs=1000000+i*33333;
+      t.push({...testFrame,frameIndex:i,ptsUs});
+      await flush();
+    }
+    expect(t.events.filter(e=>e.state==='native-fallback')).toHaveLength(0);
+    expect(t.renderer.render).toHaveBeenCalledTimes(total);
+    const points=t.events.filter((e):e is Extract<CinemaFrameBridgeEvent,{state:'processed'}>=>e.state==='processed').map(e=>e.ptsUs);
+    expect(points).toHaveLength(total);
+    for(let i=0;i<total;i++)expect(points[i]).toBe(1000000+i*33333);
+    expect(t.bridge.active).toBe(true);
+    expect(performance.now()-started).toBeLessThan(10_000);
+    t.bridge.stop();
+    expect(t.provider.stop).toHaveBeenCalledOnce();
+    expect(t.renderer.stop).toHaveBeenCalledOnce();
+  });
   it('fails closed when GPU presentation fails or audio/video source switches',async()=>{
     const t=harness();
     vi.mocked(t.renderer.render).mockResolvedValueOnce(false);

@@ -1,10 +1,16 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-const {lookup}=vi.hoisted(()=>({lookup:vi.fn()}));
+const {lookup,resolve4,resolve6}=vi.hoisted(()=>({lookup:vi.fn(),resolve4:vi.fn(),resolve6:vi.fn()}));
 vi.mock('node:dns',()=>({lookup}));
+vi.mock('node:dns/promises',()=>({resolve4,resolve6}));
 import {createServer} from 'node:http';
 import {fetchWithValidatedNodeSocket,guardedSocketLookup,validateSocketAddresses} from './node-guarded-fetch';
+import {checkUpstreamAllowed} from './ssrf';
 
-beforeEach(()=>vi.resetAllMocks());
+beforeEach(()=>{
+  vi.resetAllMocks();
+  resolve4.mockResolvedValue(['8.8.8.8']);
+  resolve6.mockRejectedValue(Object.assign(new Error('no AAAA records'),{code:'ENODATA'}));
+});
 afterEach(()=>vi.unstubAllGlobals());
 
 describe('actual DNS socket connection target guard',()=>{
@@ -36,6 +42,16 @@ describe('actual DNS socket connection target guard',()=>{
       server.closeAllConnections();
       await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));
     }
+  });
+  it('rejects a public-to-private DNS flip between preflight and socket lookup',async()=>{
+    await expect(checkUpstreamAllowed('https://rebinding.example/stream')).resolves.toEqual({ok:true});
+    expect(resolve4).toHaveBeenCalled();
+    lookup.mockImplementation((_host,_opts,cb)=>cb(null,[{address:'169.254.169.254',family:4}]));
+    const respond=vi.fn();
+    guardedSocketLookup('rebinding.example',{all:false},respond);
+    expect(respond).toHaveBeenCalledOnce();
+    expect(respond.mock.calls[0][0]).toBeInstanceOf(Error);
+    expect(respond.mock.calls[0][1]).toBeUndefined();
   });
   it('returns only checked public addresses to socket dialer',()=>{
     const respond=vi.fn();
