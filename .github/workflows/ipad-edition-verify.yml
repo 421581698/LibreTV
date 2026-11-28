@@ -190,6 +190,8 @@ jobs:
         run: npm run lint
       - name: Unit tests
         run: npm test -- --reporter=dot
+      - name: Two-instance isolated cancellation protocol integration smoke
+        run: node scripts/ipad-edition-two-instance-cancel-smoke.mjs
       - name: AV1 decoded-frame timing extractor regression
         run: node --test --test-name-pattern='matches decoded AV1 MP4 frame PTS' scripts/dolby-vision/extract-av1-rpu.test.mjs
       - name: Install FFmpeg for Dolby audio codec smoke
