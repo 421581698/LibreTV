@@ -34,3 +34,13 @@ describe('movie title matching', () => {
     expect(getMovieSearchTerms('蜘蛛侠：崭新之日')).toContain('Spider-Man: Brand New Day');
   });
 });
+
+import { matchesMovieTitle } from './movie-title-match';
+
+describe('playback identity', () => {
+  it('rejects unrelated short drama for Far From Home', () => {
+    expect(matchesMovieTitle('蜘蛛侠：英雄远征', '短剧')).toBe(false);
+    expect(matchesMovieTitle('蜘蛛侠：英雄远征', '蜘蛛侠：英雄远征（2019）')).toBe(true);
+    expect(matchesMovieTitle('蜘蛛侠：英雄远征', '')).toBe(false);
+  });
+});

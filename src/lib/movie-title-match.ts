@@ -57,3 +57,9 @@ export function findMovieMatch(
   const accepted = new Set(aliasesFor(title).map(normalizeTitle));
   return items.find((item) => accepted.has(normalizeTitle(item.name)));
 }
+
+/** Fail closed on unrelated playback metadata; do not use substring matches. */
+export function matchesMovieTitle(expected: string, actual: string): boolean {
+  const key = normalizeTitle(actual);
+  return Boolean(key) && aliasesFor(expected).some(title => normalizeTitle(title) === key);
+}

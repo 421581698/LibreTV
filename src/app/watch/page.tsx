@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesMovieTitle } from '@/lib/movie-title-match';
 import { historyIdFor } from '@/lib/history-id';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
@@ -195,6 +196,7 @@ function WatchContent() {
   const hasEpisodeNavigation = episodes.length > 1;
   const isReadableTitle = (value: string) => Boolean(value.trim()) && !/^[a-z0-9_-]+$/i.test(value.trim());
   const detailTitle = detailQuery.data?.videoInfo?.title?.trim() || '';
+  const identityMismatch = isIpadEditionPlayback && Boolean(vodId && titleParam.trim() && detailQuery.data && (!detailTitle || !matchesMovieTitle(titleParam, detailTitle)));
   const videoTitle = isReadableTitle(titleParam) ? titleParam.trim() : isReadableTitle(detailTitle) ? detailTitle : '未知视频';
   const displayedPosition = scrubbingPosition ?? watchClock.position;
   const hasFiniteDuration = Number.isFinite(watchClock.duration) && watchClock.duration > 0;
@@ -576,6 +578,7 @@ function WatchContent() {
 
   // 当前播放地址：优先取剧集列表中的当前集，其次直连 URL 参数
   const currentUrl = useMemo(() => {
+    if (identityMismatch || (isIpadEditionPlayback && vodId && titleParam.trim() && !detailQuery.data)) return '';
     if (episodes.length > 0) {
       const idx = Math.min(
         Math.max(indexParam, 0),
@@ -584,7 +587,7 @@ function WatchContent() {
       return episodes[idx] || directUrl;
     }
     return directUrl;
-  }, [episodes, indexParam, directUrl]);  // Keep the cinema transport synchronized with the currently mounted media element.
+  }, [episodes, indexParam, directUrl, identityMismatch, isIpadEditionPlayback, vodId, titleParam, detailQuery.data]);  // Keep the cinema transport synchronized with the currently mounted media element.
   // The helper owns native listeners and rebinds safely when PlayerShell replaces video.
   useEffect(() => {
     if (!frame) return;
@@ -1060,6 +1063,17 @@ function WatchContent() {
           <Link href="/" className="btn-primary">
             返回首页
           </Link>
+        </div>
+      </div>
+    );
+  }
+  if (identityMismatch) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-content font-medium mb-2">影片资源不匹配</h1>
+          <p className="text-sm text-muted mb-4">请求影片：{titleParam}；资源返回：{detailTitle || '未知'}。已停止播放，请重新选择正确资源。</p>
+          <Link href="/ipad-edition" className="btn-primary">返回首页</Link>
         </div>
       </div>
     );

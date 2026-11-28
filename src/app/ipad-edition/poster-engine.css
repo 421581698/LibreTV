@@ -20,3 +20,12 @@
 .ipad-edition[data-ipad-home="true"] :is(.poster-engine--poster,.poster-engine--anime,.poster-engine--continue) .poster-engine__image { position:absolute; inset:0; width:100%; height:100%; max-width:none; max-height:none; object-fit:cover; }
 @media (prefers-reduced-motion:reduce){.ipad-edition .poster-engine__image{transition:none!important}}
 @media (prefers-reduced-transparency:reduce){.ipad-edition .poster-engine{background:#20242b}}
+
+/* Full coverage of the artwork slot, without stretching or pixel filters. */
+.ipad-edition[data-ipad-home="true"] .poster-engine--poster { width:100%; aspect-ratio:2/3; height:auto; align-self:start; }
+.ipad-edition[data-ipad-home="true"] .poster-engine--continue { width:100%; aspect-ratio:16/9; height:auto; }
+.ipad-edition[data-ipad-home="true"] :is(.poster-engine--poster,.poster-engine--continue,.poster-engine--anime) > img.poster-engine__image { display:block; inset:0; width:100%; height:100%; object-fit:cover; opacity:1; filter:none; }
+@supports (dynamic-range-limit: no-limit) {
+  .ipad-edition .poster-engine { dynamic-range-limit:no-limit; }
+  .ipad-edition .poster-engine__image { dynamic-range-limit:no-limit; }
+}
