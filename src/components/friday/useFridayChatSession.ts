@@ -56,6 +56,7 @@ export function useFridayChatSession({
   const mountedRef = useRef(false);
   const processedSearchIds = useRef(new Set<string>());
   const activeWorkflowControllers = useRef(new Map<string, AbortController>());
+  const activeRemoteRequestIdRef = useRef<string | null>(null);
   const workflowContexts = useRef(new Map<string, { query: string; taskIdPrefix: string; adapters: MovieAgentAdapters; candidateIds: Set<string> }>());
   const [workflowBySearchId, setWorkflowBySearchId] = useState<Record<string, FridayWorkflowView>>({});
   const decodedPlaybackHeightsRef = useRef(new Map<string, number>());
@@ -268,6 +269,13 @@ export function useFridayChatSession({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
+        headers: () => {
+          // A new server-visible ID per stream is necessary to target the
+          // request even when /api/chat/cancel lands on a different instance.
+          const requestId = crypto.randomUUID();
+          activeRemoteRequestIdRef.current = requestId;
+          return { "x-libretv-request-id": requestId };
+        },
         body: { sources, filterAdult, language, assistantId, playerActive },
       }),
     [sources, filterAdult, language, assistantId, playerActive],
@@ -479,7 +487,23 @@ export function useFridayChatSession({
   const stopChat = useCallback(() => {
     for (const controller of activeWorkflowControllers.current.values()) controller.abort();
     activeWorkflowControllers.current.clear();
+    const requestId = activeRemoteRequestIdRef.current;
+    activeRemoteRequestIdRef.current = null;
+    // Local AI SDK abort remains immediate. The authenticated cancellation
+    // request also reaches remote workers when shared coordination is enabled.
     stopRequest();
+    if (requestId) {
+      void fetch("/api/chat/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        keepalive: true,
+        body: JSON.stringify({ requestId }),
+      }).catch(() => {
+        // Browser abort already happened; distributed availability is exposed
+        // by the cancellation endpoint and tested separately.
+      });
+    }
   }, [stopRequest]);
 
   useEffect(() => {

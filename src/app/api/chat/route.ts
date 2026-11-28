@@ -15,6 +15,7 @@ import { z } from "zod";
 import { searchSources, mergeSearchResults } from "@/lib/search";
 import type { SearchResultItem, SourceConfig, SourceSearchOutcome } from "@/lib/types";
 import { guardRequest } from "@/lib/api-guard";
+import { registerInflight, unregisterInflight } from "@/lib/infra/inflight";
 import { buildFridayAssistantSystemPrompt } from "@/lib/friday/assistant-profiles";
 import { resolveFridayModelConfig } from "@/lib/friday/model-provider";
 
@@ -29,6 +30,9 @@ const MAX_SOURCES = 50;
 const MAX_RESULTS_TO_CLIENT = 60;
 const MAX_RESULTS_TO_MODEL = 10;
 const MAX_TOOL_STEPS = 6;
+
+const CHAT_REQUEST_ID_RE = /^[A-Za-z0-9_:.-]{1,128}$/;
+const AUTHENTICATED_CHAT_OWNER = "libretv-authenticated-user";
 
 const MODEL_NAME = "glm-4-air";
 const MODEL_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
@@ -337,6 +341,32 @@ export async function POST(request: Request) {
     return jsonError("AI 服务配置不完整或无效，请检查服务器环境变量", 503);
   }
 
+  // The live Friday UI sends an unpredictable ID on every AI SDK request.
+  // Keep this optional for existing API clients, whose request.signal remains
+  // sufficient for local cancellation but cannot be targeted across instances.
+  const suppliedId = request.headers.get("x-libretv-request-id");
+  if (suppliedId !== null && !CHAT_REQUEST_ID_RE.test(suppliedId)) {
+    return jsonError("聊天请求标识不合法", 400);
+  }
+  const requestId = suppliedId ?? crypto.randomUUID();
+  const cancellationController = new AbortController();
+  if (!registerInflight(requestId, AUTHENTICATED_CHAT_OWNER, cancellationController)) {
+    return jsonError("聊天请求标识已被使用", 409);
+  }
+  const taskSignal = AbortSignal.any([request.signal, cancellationController.signal]);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    unregisterInflight(requestId);
+    taskSignal.removeEventListener("abort", release);
+  };
+  taskSignal.addEventListener("abort", release, { once: true });
+  if (taskSignal.aborted) {
+    release();
+    return jsonError("请求已取消", 499);
+  }
+
   const system = buildFridayAssistantSystemPrompt(
     payload.assistantId,
     payload.language,
@@ -353,7 +383,7 @@ export async function POST(request: Request) {
       volume: z.number().finite().min(0).max(1).optional(),
     }),
     execute: async ({ action, seconds, volume }) => {
-      if (request.signal.aborted) return { ok: false, summary: "播放器控制已取消。" };
+      if (taskSignal.aborted) return { ok: false, summary: "播放器控制已取消。" };
       if (!payload.playerActive) return { ok: false, summary: "当前没有打开的点播播放器，请先进入影片播放页面。" };
       if (action === "seek_to" && seconds === undefined) return { ok: false, summary: "请提供跳转时间。" };
       if (action === "set_volume" && volume === undefined) return { ok: false, summary: "请提供 0 到 1 之间的音量值。" };
@@ -376,7 +406,7 @@ export async function POST(request: Request) {
     }),
 
     execute: async ({ keyword }) => {
-      if (request.signal.aborted) {
+      if (taskSignal.aborted) {
         return {
           ok: false,
           summary: "搜索已取消。",
@@ -397,7 +427,7 @@ export async function POST(request: Request) {
           sources as SourceConfig[],
           {
             filterAdult: payload.filterAdult,
-            signal: request.signal,
+            signal: taskSignal,
           },
         );
 
@@ -471,7 +501,7 @@ export async function POST(request: Request) {
           ),
         };
       } catch (error) {
-        if (request.signal.aborted) {
+        if (taskSignal.aborted) {
           return {
             ok: false,
             summary: "搜索已取消。",
@@ -513,7 +543,7 @@ export async function POST(request: Request) {
         },
 
         stopWhen: stepCountIs(MAX_TOOL_STEPS),
-        abortSignal: request.signal,
+        abortSignal: taskSignal,
         temperature: 0.3,
         maxOutputTokens: 1400,
 
@@ -585,11 +615,45 @@ export async function POST(request: Request) {
     },
   });
 
-  return createUIMessageStreamResponse({
+  // Tie coordination to the *actual* streamed response lifecycle. A browser
+  // disconnect, abort, completed response or reader error all release Redis
+  // polling and in-process ownership, without buffering or transforming bytes.
+  const response = createUIMessageStreamResponse({
     stream,
     headers: {
       "Cache-Control": "no-cache, no-transform",
       "X-Accel-Buffering": "no",
     },
+  });
+  if (!response.body) {
+    release();
+    return response;
+  }
+  const upstreamReader = response.body.getReader();
+  const lifecycleBody = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await upstreamReader.read();
+        if (done) {
+          release();
+          controller.close();
+        } else {
+          controller.enqueue(value);
+        }
+      } catch (error) {
+        release();
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      cancellationController.abort(reason);
+      release();
+      await upstreamReader.cancel(reason);
+    },
+  });
+  return new Response(lifecycleBody, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
   });
 }
