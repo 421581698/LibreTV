@@ -12,7 +12,8 @@ import { selectCinemaTitleLogo } from '@/lib/ipad-edition/cinema-artwork-policy'
 import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
-import { findMovieMatch, getMovieSearchTerms, matchesMovieTitle } from '@/lib/movie-title-match';
+import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
+import { matchesIpadMovieIdentity } from '@/lib/ipad-edition/movie-identity';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
 
@@ -163,7 +164,16 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
           const detail = await api.detail(entry.item.vodId, source, controller.signal);
           if (controller.signal.aborted) return;
           const actual = detail.videoInfo?.title || '';
-          if (!matchesMovieTitle(primaryTitle, actual) || !detail.episodes?.length) continue;
+          if (!detail.episodes?.length || !matchesIpadMovieIdentity({
+            titles: [primaryTitle, originalTitle],
+            year: (movie?.release_date || movie?.first_air_date || '').slice(0, 4),
+            type,
+          }, {
+            title: actual,
+            originalTitle: detail.videoInfo?.originalTitle,
+            years: [detail.videoInfo?.year, entry.item.year],
+            typeNames: [detail.videoInfo?.typeName, entry.item.typeName],
+          })) continue;
           if (type === 'movie' && /短剧|短劇|short drama/i.test(detail.videoInfo?.typeName || '')) continue;
           match = entry;
           break;
@@ -177,7 +187,12 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
         sourceKey: match.source.key, vodId: match.item.vodId, index: 0, title: primaryTitle,
         sourceUrl: match.item.sourceUrl || match.source.url,
       }).replace('/watch?', '/ipad-edition/watch?');
-      if (!controller.signal.aborted) router.push(watchUrl);
+      const verifiedParams = new URLSearchParams(watchUrl.split('?')[1] || '');
+      const releaseYear = (movie?.release_date || movie?.first_air_date || '').slice(0, 4);
+      if (releaseYear) verifiedParams.set('identityYear', releaseYear);
+      verifiedParams.set('identityType', type);
+      if (originalTitle) verifiedParams.set('identityOriginalTitle', originalTitle);
+      if (!controller.signal.aborted) router.push('/ipad-edition/watch?' + verifiedParams.toString());
     } catch (error) {
       if (!controller.signal.aborted) setPlaybackStatus(error instanceof Error ? error.message : '播放资源查询失败，请稍后重试。');
     } finally {

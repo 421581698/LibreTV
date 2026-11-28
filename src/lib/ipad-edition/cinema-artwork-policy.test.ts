@@ -24,4 +24,10 @@ describe('Cinema artwork policy', () => {
     expect(preferOriginalCinemaImage([proxy], original, 'custom', true)).toEqual([proxy]);
     expect(preferOriginalCinemaImage([proxy], 'http://example.org/x', 'proxy', true)).toEqual([proxy]);
   });
+  it('keeps the original fallback image ahead of transcoding proxy URLs', () => {
+    const original = 'https://image.tmdb.org/t/p/original/fallback.jpg';
+    const proxy = '/api/proxy?url=fallback';
+    expect(preferOriginalCinemaImage([proxy], original, 'proxy', true)).toEqual([original, proxy]);
+    expect(preferOriginalCinemaImage([proxy], original, 'proxy', false)).toEqual([proxy]);
+  });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/client-api';
 import type { SourceConfig, SearchResultItem } from '@/lib/types';
 import { buildWatchUrl, cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ import { useFocusTrap } from './use-focus-trap';
 import { QualityBadge } from './quality-badge';
 import { useQualityProbe } from './use-quality-probe';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
+import { findMovieMatch } from '@/lib/movie-title-match';
+import { matchesIpadMovieIdentity } from '@/lib/ipad-edition/movie-identity';
 
 /**
  * 换源面板：跨源按标题搜索 → 匹配同名/同前缀资源 → 并发测速（详情接口耗时）→ 按速度排序展示。
@@ -55,6 +57,22 @@ export function SwitchSourceModal({
   const store = useAppStore();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isIpadCinema = pathname === '/ipad-edition/watch';
+  const expectedOriginalTitle = isIpadCinema ? searchParams.get('identityOriginalTitle') || '' : '';
+  const expectedYear = isIpadCinema ? searchParams.get('identityYear') || '' : '';
+  const typeValue = isIpadCinema ? searchParams.get('identityType') : null;
+  const expectedType = typeValue === 'movie' || typeValue === 'tv' ? typeValue : undefined;
+  const candidateMatchesIdentity = (
+    candidate: Candidate, detail: Awaited<ReturnType<typeof api.detailSpeed>>['detail'],
+  ) => !isIpadCinema || Boolean(detail && matchesIpadMovieIdentity({
+    titles: [currentTitle, expectedOriginalTitle], year: expectedYear, type: expectedType,
+  }, {
+    title: detail.videoInfo?.title || '',
+    originalTitle: detail.videoInfo?.originalTitle,
+    years: [detail.videoInfo?.year, candidate.result.year],
+    typeNames: [detail.videoInfo?.typeName, candidate.result.typeName],
+  }));
   const { toast } = useToast();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [phase, setPhase] = useState<'searching' | 'testing' | 'done'>('searching');
@@ -122,9 +140,11 @@ export function SwitchSourceModal({
         const matched: Candidate[] = [];
         for (const s of sources) {
           const hits = list.filter((r) => r.sourceKey === s.key);
-          const exact =
-            hits.find((r) => (r.name || '').trim() === title) ??
-            hits.find((r) => (r.name || '').trim().startsWith(title));
+          const exact = isIpadCinema
+            ? hits.find((r) => [title, expectedOriginalTitle].some((expected) =>
+              Boolean(expected && findMovieMatch(expected, [r]))))
+            : hits.find((r) => (r.name || '').trim() === title) ??
+              hits.find((r) => (r.name || '').trim().startsWith(title));
           if (exact) matched.push({ source: s, result: exact });
         }
 
@@ -134,10 +154,11 @@ export function SwitchSourceModal({
           matched.map(async (c) => {
             const r = await api.detailSpeed(c.result.vodId, c.source, controller.signal);
             if (cancelled) return;
-            c.ok = r.ok;
+            const trusted = r.ok && candidateMatchesIdentity(c, r.detail);
+            c.ok = trusted;
             c.ms = r.ms;
-            c.episodes = r.detail?.episodes.length ?? 0;
-            c.error = r.ok ? undefined : r.error;
+            c.episodes = trusted ? (r.detail?.episodes.length ?? 0) : 0;
+            c.error = trusted ? undefined : r.ok ? '影片身份或年份不匹配' : r.error;
           })
         );
         if (cancelled) return;
@@ -251,15 +272,17 @@ export function SwitchSourceModal({
     try {
       const r = await api.detailSpeed(c.result.vodId, c.source, controller.signal);
       if (controller.signal.aborted) return;
+      const trusted = r.ok && candidateMatchesIdentity(c, r.detail);
       setCandidates((prev) =>
         prev.map((x) =>
           candidateKey(x) === key
-            ? { ...x, ok: r.ok, ms: r.ms, episodes: r.detail?.episodes.length ?? 0, error: r.ok ? undefined : r.error }
+            ? { ...x, ok: trusted, ms: r.ms, episodes: trusted ? (r.detail?.episodes.length ?? 0) : 0,
+                error: trusted ? undefined : r.ok ? '影片身份或年份不匹配' : r.error }
             : x
         )
       );
       // 重测成功说明源只是刚才抖了一下：强制补一次画质，否则会撞上失败冷却（2 分钟内不再探）
-      if (r.ok) retry([c.result]);
+      if (trusted) retry([c.result]);
     } finally {
       if (retestAbortRef.current === controller) {
         retestAbortRef.current = null;
@@ -275,14 +298,21 @@ export function SwitchSourceModal({
     }
     const targetIndex = currentIndex < c.episodes ? currentIndex : 0;
     onClose(); // 先关闭面板，避免路由参数变化后弹窗残留旧数据
-    const watchUrl = buildWatchUrl({
+    let watchUrl = buildWatchUrl({
       sourceKey: c.source.key,
       vodId: c.result.vodId,
       index: targetIndex,
-      title: c.result.name || currentTitle,
+      title: isIpadCinema ? currentTitle : c.result.name || currentTitle,
       sourceUrl: c.source.url,
       detail: c.source.detail,
     });
+    if (isIpadCinema) {
+      const metadata = new URLSearchParams();
+      if (expectedYear) metadata.set('identityYear', expectedYear);
+      if (expectedType) metadata.set('identityType', expectedType);
+      if (expectedOriginalTitle) metadata.set('identityOriginalTitle', expectedOriginalTitle);
+      if (metadata.toString()) watchUrl += '&' + metadata.toString();
+    }
     // Preserve time only when the same episode index survives the source switch.
     // If the target source has fewer episodes and we fall back to episode 1,
     // carrying episode N's position would start the wrong episode mid-stream.

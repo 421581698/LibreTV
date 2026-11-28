@@ -63,7 +63,7 @@ export function SmartImage({
 }: SmartImageProps) {
   const sourceUrl = asset?.originalUrl ?? url;
   const primaryCandidates = preferOriginalCinemaImage(buildImageCandidates(sourceUrl, mode, customProxy), sourceUrl, mode, preferNativeImage);
-  const fallbackCandidates = [...new Set(buildImageCandidates(fallbackUrl, mode, customProxy))]
+  const fallbackCandidates = [...new Set(preferOriginalCinemaImage(buildImageCandidates(fallbackUrl, mode, customProxy), fallbackUrl, mode, preferNativeImage))]
     .filter((candidate) => !primaryCandidates.includes(candidate));
   const candidates = [...primaryCandidates, ...fallbackCandidates];
   const hdrCandidates = preferOriginalCinemaImage(buildImageCandidates(hdrUrl, mode, customProxy), hdrUrl, mode, preferNativeImage);

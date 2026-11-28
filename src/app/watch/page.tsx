@@ -1,6 +1,6 @@
 'use client';
 
-import { matchesMovieTitle } from '@/lib/movie-title-match';
+import { matchesIpadMovieIdentity } from '@/lib/ipad-edition/movie-identity';
 import { historyIdFor } from '@/lib/history-id';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
@@ -196,7 +196,18 @@ function WatchContent() {
   const hasEpisodeNavigation = episodes.length > 1;
   const isReadableTitle = (value: string) => Boolean(value.trim()) && !/^[a-z0-9_-]+$/i.test(value.trim());
   const detailTitle = detailQuery.data?.videoInfo?.title?.trim() || '';
-  const identityMismatch = isIpadEditionPlayback && Boolean(vodId && titleParam.trim() && detailQuery.data && (!detailTitle || !matchesMovieTitle(titleParam, detailTitle)));
+  const expectedMediaType = searchParams.get('identityType');
+  const identityMismatch = isIpadEditionPlayback && Boolean(vodId && titleParam.trim() && detailQuery.data &&
+    !matchesIpadMovieIdentity({
+      titles: [titleParam, searchParams.get('identityOriginalTitle') || ''],
+      year: searchParams.get('identityYear') || '',
+      type: expectedMediaType === 'movie' || expectedMediaType === 'tv' ? expectedMediaType : undefined,
+    }, {
+      title: detailTitle,
+      originalTitle: detailQuery.data.videoInfo?.originalTitle,
+      years: [detailQuery.data.videoInfo?.year],
+      typeNames: [detailQuery.data.videoInfo?.typeName],
+    }));
   const videoTitle = isReadableTitle(titleParam) ? titleParam.trim() : isReadableTitle(detailTitle) ? detailTitle : '未知视频';
   const displayedPosition = scrubbingPosition ?? watchClock.position;
   const hasFiniteDuration = Number.isFinite(watchClock.duration) && watchClock.duration > 0;
