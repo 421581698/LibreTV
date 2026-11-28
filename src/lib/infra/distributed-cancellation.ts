@@ -75,6 +75,13 @@ export function watchDistributedCancellation(
     }finally{checking=false;}
   };
   const interval=setInterval(()=>{void check();},POLL_MS);
-  void check();
-  return ()=>{stopped=true;clearInterval(interval);};
+  const stop=()=>{
+    stopped=true;
+    clearInterval(interval);
+    controller.signal.removeEventListener('abort',stop);
+  };
+  controller.signal.addEventListener('abort',stop,{once:true});
+  if(controller.signal.aborted)stop();
+  else void check();
+  return stop;
 }
