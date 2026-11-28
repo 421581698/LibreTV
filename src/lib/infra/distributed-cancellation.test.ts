@@ -42,6 +42,21 @@ describe('shared cancellation protocol',()=>{
   expect(send).toHaveBeenCalled();
   expect(controller.signal.reason).toBeInstanceOf(Error);
  });
+ it('releases polling immediately when a stream aborts before unregister',async()=>{
+  vi.useFakeTimers();
+  const send=vi.fn(async()=>new Response(JSON.stringify({result:null}),{status:200}));
+  vi.stubGlobal('fetch',send);
+  const controller=new AbortController();
+  const stop=watchDistributedCancellation('req_abort_cleanup','user-a',controller);
+  try {
+    await vi.advanceTimersByTimeAsync(500);
+    controller.abort();
+    expect(vi.getTimerCount()).toBe(0);
+    const count=send.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(send).toHaveBeenCalledTimes(count);
+  } finally {stop();}
+ });
  it('ignores cancellation owned by a different user even with an identical request id',async()=>{
   const send=vi.fn().mockResolvedValue(new Response(JSON.stringify({result:'user-b'}),{status:200}));
   vi.stubGlobal('fetch',send);
