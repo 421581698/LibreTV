@@ -1244,3 +1244,6 @@ body:has(.ipad-edition[data-ipad-home="true"]) {
   margin-inline: 0 !important;
   border-radius: 0;
 }
+
+/* Keep the artwork visible to the lower edge; confine the transition to the edge. */
+.ipad-edition[data-ipad-home="true"] .ipad-edition__cinema-hero::before { height:clamp(24px,5vh,56px); }

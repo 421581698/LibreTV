@@ -21,6 +21,8 @@ const SPIDER_MAN_BRAND_NEW_DAY_ALIASES = [
 
 function aliasesFor(title: string): string[] {
   const normalized = normalizeTitle(title);
+  const farFromHome = ['蜘蛛侠：英雄远征', '蜘蛛人：离家日', '蜘蛛人：離家日', 'Spider-Man: Far From Home'];
+  if (farFromHome.some(alias => normalizeTitle(alias) === normalized)) return farFromHome;
   if (
     normalized === normalizeTitle('蜘蛛侠：崭新之日') ||
     normalized === normalizeTitle('Spider-Man: Brand New Day') ||
@@ -35,11 +37,11 @@ function aliasesFor(title: string): string[] {
 /** Search using known localized/original titles, without broad fuzzy matches that can open the wrong film. */
 export function getMovieSearchTerms(title: string): string[] {
   const aliases = aliasesFor(title);
-  const spiderMan = aliases.length > 1;
+  const spiderMan = aliases.includes('Spider-Man: Brand New Day');
   // Keep fallback bounded: a title click should not fan out into seven sequential CMS searches.
   const candidates = spiderMan
     ? [title, 'Spider-Man: Brand New Day', '蜘蛛侠4']
-    : [title];
+    : [title, ...aliases];
   const seen = new Set<string>();
   return candidates.filter((term) => {
     const key = normalizeTitle(term);

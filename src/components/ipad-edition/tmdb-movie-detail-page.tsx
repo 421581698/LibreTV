@@ -12,7 +12,7 @@ import { selectCinemaTitleLogo } from '@/lib/ipad-edition/cinema-artwork-policy'
 import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
-import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
+import { findMovieMatch, getMovieSearchTerms, matchesMovieTitle } from '@/lib/movie-title-match';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
 import type { SearchResultItem, SourceConfig } from '@/lib/types';
 
@@ -142,7 +142,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
           seen.add(key);
           matches.push({ item, source });
         }
-        if (matches.length) break;
+        // Search all bounded title aliases before ranking verified resources.
       }
       if (!matches.length) {
         setPlaybackStatus(failures.size
@@ -153,9 +153,25 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       const ranked = rankMovieCandidatesByQuality(
         matches.map(({ item }) => item), qualityMap, playbackHealth, Date.now(), playbackResourceHealth,
       );
-      const best = ranked[0];
-      const match = matches.find(({ item }) => item.sourceKey === best.sourceKey && item.vodId === best.vodId);
-      if (!match) throw new Error('无法确定可用播放线路，请重试。');
+      let match: (typeof matches)[number] | undefined;
+      for (const candidate of ranked) {
+        const entry = matches.find(({ item }) => item.sourceKey === candidate.sourceKey && item.vodId === candidate.vodId);
+        if (!entry) continue;
+        try {
+          const source = { ...entry.source, url: entry.item.sourceUrl || entry.source.url };
+          if (!validateSourceUrl(source.url)) continue;
+          const detail = await api.detail(entry.item.vodId, source, controller.signal);
+          if (controller.signal.aborted) return;
+          const actual = detail.videoInfo?.title || '';
+          if (!matchesMovieTitle(primaryTitle, actual) || !detail.episodes?.length) continue;
+          if (type === 'movie' && /短剧|短劇|short drama/i.test(detail.videoInfo?.typeName || '')) continue;
+          match = entry;
+          break;
+        } catch {
+          if (controller.signal.aborted) return;
+        }
+      }
+      if (!match) throw new Error('候选资源详情与影片身份不一致或没有可播放剧集，请更换点播源。');
       setPlaybackStatus(`已比较 ${matches.length} 条候选线路，按历史播放稳定性优先排序；无历史记录的线路保留为后备。`);
       const watchUrl = buildWatchUrl({
         sourceKey: match.source.key, vodId: match.item.vodId, index: 0, title: primaryTitle,

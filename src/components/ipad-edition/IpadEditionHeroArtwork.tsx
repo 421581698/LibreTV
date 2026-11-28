@@ -44,6 +44,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
             frameClassName="ipad-edition__cinema-hero-atmosphere"
             asset={posterAsset}
             url={item.cover}
+            hdrUrl={item.coverHdr}
             mode={imageProxyMode} customProxy={customImageProxy}
             alt=""
             loading="eager"
@@ -53,6 +54,7 @@ export function IpadEditionHeroArtwork({ item }: IpadEditionHeroArtworkProps) {
             frameClassName="ipad-edition__cinema-hero-fallback-poster"
             asset={posterAsset}
             url={item.cover}
+            hdrUrl={item.coverHdr}
             mode={imageProxyMode} customProxy={customImageProxy}
             alt={item.title + ' 海报'}
             loading="eager"
