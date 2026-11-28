@@ -23,7 +23,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ipad-edition-redis-integration
+  group: ipad-edition-redis-integration-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   two-process-real-redis:
