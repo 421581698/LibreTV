@@ -33,4 +33,24 @@ describe('buildContinueWatchingUrl', () => {
     expect(url.pathname).toBe('/ipad-edition/watch');
     expect(url.searchParams.has('position')).toBe(false);
   });
+  it('preserves film identity hints while routing directly to the existing player', () => {
+    const url = new URL(buildContinueWatchingUrl({
+      sourceKey: 'cms', vodId: '123', title: '蜘蛛侠：崭新之日',
+      year: '2026年', typeName: '科幻电影', episodeIndex: 0, playbackPosition: 140,
+    }), 'https://libretv.example');
+    expect(url.pathname).toBe('/ipad-edition/watch');
+    expect(url.searchParams.get('identityYear')).toBe('2026');
+    expect(url.searchParams.get('identityType')).toBe('movie');
+    expect(url.searchParams.get('position')).toBe('140');
+  });
+
+  it('preserves TV episode index and its series type', () => {
+    const url = new URL(buildContinueWatchingUrl({
+      sourceKey: 'cms', vodId: 'series', title: '测试剧集',
+      typeName: '电视剧', episodeIndex: 4, playbackPosition: 88,
+    }), 'https://libretv.example');
+    expect(url.pathname).toBe('/ipad-edition/watch');
+    expect(url.searchParams.get('identityType')).toBe('tv');
+    expect(url.searchParams.get('index')).toBe('4');
+  });
 });

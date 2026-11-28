@@ -760,6 +760,17 @@ export function PlayerShell({
     onPrevEpisode, onNextEpisode, hasPrevEpisode, hasNextEpisode,
   };
 
+  // iPad-only: startup failures also request silent source recovery.
+  // Playback URLs are never included in the callback or persisted diagnostics.
+  const reportedCinemaErrorRef = useRef('');
+  useEffect(() => {
+    if (!cinemaMode || !error) return;
+    const key = (resourceKey || url) + ':' + error;
+    if (reportedCinemaErrorRef.current === key) return;
+    reportedCinemaErrorRef.current = key;
+    propsRef.current.onRequestSwitchSource?.('ipad-fatal-playback-error');
+  }, [cinemaMode, error, resourceKey, url]);
+
   /** 上报实测画质：多次上报取大值由调用方决定，这里只管把拿到的高度传出去 */
   const reportQuality = (height: number) => {
     if (height > 0) propsRef.current.onQuality?.(height);

@@ -1,6 +1,7 @@
 'use client';
 
 import { matchesIpadMovieIdentity } from '@/lib/ipad-edition/movie-identity';
+import { useAutomaticIpadPlaybackRecovery } from '@/lib/ipad-edition/useAutomaticPlaybackRecovery';
 import { historyIdFor } from '@/lib/history-id';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
@@ -93,6 +94,9 @@ function WatchContent() {
   const directUrl = searchParams.get('url') || '';
   const titleParam = searchParams.get('title') || '';
   const indexParam = parseInt(searchParams.get('index') || '0', 10) || 0;
+  const [runtimeRecovery, setRuntimeRecovery] = useState({ episodeKey: '', attempt: 0, position: 0 });
+  const recoveryEpisodeKey = sourceKey + ':' + vodId + ':' + indexParam;
+  const runtimeRecoveryRequested = runtimeRecovery.episodeKey === recoveryEpisodeKey && runtimeRecovery.attempt > 0;
   const [reversed, setReversed] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'episodes' | 'sources' | 'details'>('episodes');
   const [watchClock, setWatchClock] = useState({ position: 0, duration: 0 });
@@ -197,17 +201,30 @@ function WatchContent() {
   const isReadableTitle = (value: string) => Boolean(value.trim()) && !/^[a-z0-9_-]+$/i.test(value.trim());
   const detailTitle = detailQuery.data?.videoInfo?.title?.trim() || '';
   const expectedMediaType = searchParams.get('identityType');
+  const identityOriginalTitle = searchParams.get('identityOriginalTitle') || '';
+  const identityYear = searchParams.get('identityYear') || '';
+  const identityType = expectedMediaType === 'movie' || expectedMediaType === 'tv' ? expectedMediaType : undefined;
   const identityMismatch = isIpadEditionPlayback && Boolean(vodId && titleParam.trim() && detailQuery.data &&
     !matchesIpadMovieIdentity({
-      titles: [titleParam, searchParams.get('identityOriginalTitle') || ''],
-      year: searchParams.get('identityYear') || '',
-      type: expectedMediaType === 'movie' || expectedMediaType === 'tv' ? expectedMediaType : undefined,
+      titles: [titleParam, identityOriginalTitle], year: identityYear, type: identityType,
     }, {
       title: detailTitle,
       originalTitle: detailQuery.data.videoInfo?.originalTitle,
-      years: [detailQuery.data.videoInfo?.year],
+      years: [detailQuery.data.videoInfo?.year, searchParams.get('identitySearchYear') || undefined],
       typeNames: [detailQuery.data.videoInfo?.typeName],
     }));
+  // No new intermediate UI: on mismatch, silently verify other enabled providers
+  // before showing the existing fail-closed playback error.
+  const requiresAutomaticRecovery = isIpadEditionPlayback && Boolean(vodId && titleParam.trim() && (
+    identityMismatch || runtimeRecoveryRequested || (verified && (!source || detailQuery.isError || (detailQuery.data && episodes.length === 0)))
+  ));
+  const identityRecoveryPending = useAutomaticIpadPlaybackRecovery({
+    enabled: Boolean(verified && requiresAutomaticRecovery),
+    expected: { titles: [titleParam, identityOriginalTitle], year: identityYear, type: identityType },
+    sourceKey, vodId, index: indexParam, query: searchParams.toString(), router,
+    requestKey: runtimeRecoveryRequested ? String(runtimeRecovery.attempt) : 'initial',
+    resumePosition: runtimeRecoveryRequested ? runtimeRecovery.position : undefined,
+  });
   const videoTitle = isReadableTitle(titleParam) ? titleParam.trim() : isReadableTitle(detailTitle) ? detailTitle : '未知视频';
   const displayedPosition = scrubbingPosition ?? watchClock.position;
   const hasFiniteDuration = Number.isFinite(watchClock.duration) && watchClock.duration > 0;
@@ -1061,6 +1078,9 @@ function WatchContent() {
       </div>
     );
   }
+  if (requiresAutomaticRecovery && identityRecoveryPending && !runtimeRecoveryRequested) {
+    return <div className="min-h-screen flex items-center justify-center" role="status" aria-label="正在核验备用播放资源"><Spinner size="lg" /></div>;
+  }
   if (!source) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -1199,8 +1219,19 @@ function WatchContent() {
                   onRequestFullscreen={requestWatchFullscreen}
                   onRequestSwitchSource={() => {
                     const video = playerFrameRef.current?.querySelector('video');
+                    const position = video && Number.isFinite(video.currentTime) ? video.currentTime : watchClockRef.current.position;
                     if (video && Number.isFinite(video.currentTime)) {
                       setWatchClock((current) => ({ ...current, position: video.currentTime }));
+                    }
+                    if (isIpadEditionPlayback) {
+                      // Background source recovery only, bounded to two requests
+                      // for the same film/episode. Never open a new selection UI.
+                      setRuntimeRecovery((previous) => ({
+                        episodeKey: recoveryEpisodeKey,
+                        attempt: previous.episodeKey === recoveryEpisodeKey ? Math.min(2, previous.attempt + 1) : 1,
+                        position,
+                      }));
+                      return;
                     }
                     setSwitchOpen(true);
                   }}

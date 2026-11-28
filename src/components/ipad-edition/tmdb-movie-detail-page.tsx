@@ -12,10 +12,9 @@ import { selectCinemaTitleLogo } from '@/lib/ipad-edition/cinema-artwork-policy'
 import { IpadCinemaCastRow } from '@/components/ipad-edition/IpadCinemaCastRow';
 import { resolveSource, useAppStore, isInDisabledSubscription, isSourceDisabled } from '@/lib/store';
 import { buildWatchUrl, validateSourceUrl } from '@/lib/utils';
-import { findMovieMatch, getMovieSearchTerms } from '@/lib/movie-title-match';
-import { matchesIpadMovieIdentity } from '@/lib/ipad-edition/movie-identity';
+import { findVerifiedIpadResource } from '@/lib/ipad-edition/playback-coordinator';
 import { rankMovieCandidatesByQuality } from '@/lib/playback-telemetry';
-import type { SearchResultItem, SourceConfig } from '@/lib/types';
+import type { SourceConfig } from '@/lib/types';
 
 type TmdbPerson = { id: number; name: string; character?: string; profile_path?: string | null; job?: string };
 type TmdbTitle = {
@@ -123,66 +122,19 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
     try {
       const primaryTitle = movie?.title || movie?.name || titleFallback;
       const originalTitle = movie?.original_title || movie?.original_name || '';
-      const terms = [...new Set([
-        ...getMovieSearchTerms(primaryTitle),
-        ...(originalTitle ? getMovieSearchTerms(originalTitle) : []),
-      ])];
-      const matches: Array<{ item: SearchResultItem; source: SourceConfig }> = [];
-      const seen = new Set<string>();
-      const failures = new Set<string>();
-      for (const term of terms) {
-        const response = await api.search(term, sources, yellowFilter, { signal: controller.signal });
-        if (controller.signal.aborted) return;
-        response.failures.forEach((failure) => failures.add(failure.sourceKey));
-        for (const item of response.list) {
-          if (!findMovieMatch(primaryTitle, [item]) && !findMovieMatch(term, [item])) continue;
-          const source = sources.find((candidate) => candidate.key === item.sourceKey);
-          if (!source) continue;
-          const key = `${item.sourceKey}:${item.vodId}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          matches.push({ item, source });
-        }
-        // Search all bounded title aliases before ranking verified resources.
-      }
-      if (!matches.length) {
-        setPlaybackStatus(failures.size
-          ? `没有匹配到影片资源；另有 ${failures.size} 个点播源请求失败，请检查源状态后重试。`
-          : '暂未找到匹配的播放资源。影片资料仍可继续浏览，请稍后重试或检查点播源。');
-        return;
-      }
-      const ranked = rankMovieCandidatesByQuality(
-        matches.map(({ item }) => item), qualityMap, playbackHealth, Date.now(), playbackResourceHealth,
-      );
-      let match: (typeof matches)[number] | undefined;
-      for (const candidate of ranked) {
-        const entry = matches.find(({ item }) => item.sourceKey === candidate.sourceKey && item.vodId === candidate.vodId);
-        if (!entry) continue;
-        try {
-          const source = { ...entry.source, url: entry.item.sourceUrl || entry.source.url };
-          if (!validateSourceUrl(source.url)) continue;
-          const detail = await api.detail(entry.item.vodId, source, controller.signal);
-          if (controller.signal.aborted) return;
-          const actual = detail.videoInfo?.title || '';
-          if (!detail.episodes?.length || !matchesIpadMovieIdentity({
-            titles: [primaryTitle, originalTitle],
-            year: (movie?.release_date || movie?.first_air_date || '').slice(0, 4),
-            type,
-          }, {
-            title: actual,
-            originalTitle: detail.videoInfo?.originalTitle,
-            years: [detail.videoInfo?.year, entry.item.year],
-            typeNames: [detail.videoInfo?.typeName, entry.item.typeName],
-          })) continue;
-          if (type === 'movie' && /短剧|短劇|short drama/i.test(detail.videoInfo?.typeName || '')) continue;
-          match = entry;
-          break;
-        } catch {
-          if (controller.signal.aborted) return;
-        }
-      }
-      if (!match) throw new Error('候选资源详情与影片身份不一致或没有可播放剧集，请更换点播源。');
-      setPlaybackStatus(`已比较 ${matches.length} 条候选线路，按历史播放稳定性优先排序；无历史记录的线路保留为后备。`);
+      const match = await findVerifiedIpadResource({
+        expected: {
+          titles: [primaryTitle, originalTitle],
+          year: (movie?.release_date || movie?.first_air_date || '').slice(0, 4),
+          type,
+        },
+        sources, yellowFilter, signal: controller.signal,
+        rank: (items) => rankMovieCandidatesByQuality(items, qualityMap, playbackHealth,
+          Date.now(), playbackResourceHealth),
+      });
+      if (controller.signal.aborted) return;
+      if (!match) throw new Error('没有通过身份核验的播放资源；已自动排查可用来源。');
+      setPlaybackStatus('已自动核验影片并选择可播放资源。');
       const watchUrl = buildWatchUrl({
         sourceKey: match.source.key, vodId: match.item.vodId, index: 0, title: primaryTitle,
         sourceUrl: match.item.sourceUrl || match.source.url,
@@ -190,6 +142,7 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       const verifiedParams = new URLSearchParams(watchUrl.split('?')[1] || '');
       const releaseYear = (movie?.release_date || movie?.first_air_date || '').slice(0, 4);
       if (releaseYear) verifiedParams.set('identityYear', releaseYear);
+      if (match.item.year) verifiedParams.set('identitySearchYear', match.item.year);
       verifiedParams.set('identityType', type);
       if (originalTitle) verifiedParams.set('identityOriginalTitle', originalTitle);
       if (!controller.signal.aborted) router.push('/ipad-edition/watch?' + verifiedParams.toString());
