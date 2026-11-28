@@ -115,6 +115,8 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
       return;
     }
     const controller = new AbortController();
+    let timedOut = false;
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 20_000);
     playbackRequest.current?.abort();
     playbackRequest.current = controller;
     setStartingPlayback(true);
@@ -149,7 +151,13 @@ export function TmdbMovieDetailPage({ id, type, titleFallback, posterFallback, b
     } catch (error) {
       if (!controller.signal.aborted) setPlaybackStatus(error instanceof Error ? error.message : '播放资源查询失败，请稍后重试。');
     } finally {
-      if (!controller.signal.aborted) setStartingPlayback(false);
+      window.clearTimeout(timeout);
+      if (timedOut && playbackRequest.current === controller) {
+        setPlaybackStatus('自动资源核验超时；请稍后重新点击播放。');
+        setStartingPlayback(false);
+      } else if (!controller.signal.aborted) {
+        setStartingPlayback(false);
+      }
     }
   };
 
