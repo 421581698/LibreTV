@@ -23,14 +23,13 @@ function aliasesFor(title: string): string[] {
   const normalized = normalizeTitle(title);
   const farFromHome = ['蜘蛛侠：英雄远征', '蜘蛛人：离家日', '蜘蛛人：離家日', 'Spider-Man: Far From Home'];
   if (farFromHome.some(alias => normalizeTitle(alias) === normalized)) return farFromHome;
-  if (
-    normalized === normalizeTitle('蜘蛛侠：崭新之日') ||
-    normalized === normalizeTitle('Spider-Man: Brand New Day') ||
-    normalized === normalizeTitle('Spider-Man 4') ||
-    normalized === normalizeTitle('蜘蛛侠4')
-  ) {
+  if (SPIDER_MAN_BRAND_NEW_DAY_ALIASES.some(alias => normalizeTitle(alias) === normalized)) {
     return [...SPIDER_MAN_BRAND_NEW_DAY_ALIASES];
   }
+  const homecoming = ['蜘蛛侠：英雄归来', '蜘蛛人：返校日', 'Spider-Man: Homecoming'];
+  if (homecoming.some(alias => normalizeTitle(alias) === normalized)) return homecoming;
+  const noWayHome = ['蜘蛛侠：英雄无归', '蜘蛛人：無家日', 'Spider-Man: No Way Home'];
+  if (noWayHome.some(alias => normalizeTitle(alias) === normalized)) return noWayHome;
   return [title];
 }
 

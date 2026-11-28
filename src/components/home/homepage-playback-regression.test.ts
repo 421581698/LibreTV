@@ -815,7 +815,8 @@ describe('poster → metadata detail → explicit playback flow', () => {
     const metadataSection = tmdbDetail.slice(0, startIndex);
     const playbackSection = tmdbDetail.slice(startIndex);
     expect(metadataSection).not.toContain('api.search(');
-    expect(playbackSection).toContain('api.search(term, sources, yellowFilter, { signal: controller.signal })');
+    expect(playbackSection).toContain('findVerifiedIpadResource({');
+    expect(source('src/lib/ipad-edition/playback-coordinator.ts')).toContain('api.search(term, usableSources, yellowFilter, { signal })');
     expect(tmdbDetail).toContain('onClick={() => void startPlayback()}');
     expect(tmdbDetail).toContain('▶ 开始播放');
     expect(playbackSection).toContain(".replace('/watch?', '/ipad-edition/watch?')");

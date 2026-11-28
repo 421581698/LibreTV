@@ -58,7 +58,8 @@ describe('iPad Edition poster navigation and explicit playback', () => {
   it('both TMDB and Bangumi detail pages search only after the Start Playback button is tapped', () => {
     const tmdbStart = tmdbDetail.indexOf('const startPlayback = async () => {');
     expect(tmdbDetail.slice(0, tmdbStart)).not.toContain('api.search(');
-    expect(tmdbDetail.slice(tmdbStart)).toContain('api.search(term, sources, yellowFilter, { signal: controller.signal })');
+    expect(tmdbDetail.slice(tmdbStart)).toContain('findVerifiedIpadResource({');
+    expect(read('src/lib/ipad-edition/playback-coordinator.ts')).toContain('api.search(term, usableSources, yellowFilter, { signal })');
     expect(tmdbDetail).toContain('▶ 开始播放');
     expect(bangumiDetail).toContain('▶ 开始播放');
     expect(hero).toContain('查看详情');

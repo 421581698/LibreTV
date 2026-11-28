@@ -14,7 +14,8 @@ describe('iPad film identity / Spider-Man regressions', () => {
   it('flags wrong detail year as uncertain', () => expect(assessIpadMovieIdentity(far, actual({ years: ['2026'] })).status).toBe('uncertain'));
   it('accepts detail year despite stale search-list year', () => expect(assessIpadMovieIdentity(far, actual({ years: ['2019', '2026'] })).status).toBe('verified'));
   it('does not trust a conflicting original title without a year', () => expect(assessIpadMovieIdentity({ ...far, year: '' }, actual({ originalTitle: 'Spider-Man: Brand New Day' })).status).toBe('uncertain'));
-  it('allows a CMS original-title conflict corroborated by detail year', () => expect(assessIpadMovieIdentity(far, actual({ originalTitle: 'Spider-Man: Brand New Day' })).status).toBe('verified'));
+  it('rejects a known conflicting Spider-Man original title even when year is misleading', () => expect(assessIpadMovieIdentity(far, actual({ originalTitle: 'Spider-Man: Brand New Day' })).status).toBe('rejected'));
+  it('allows a noncanonical noisy original title corroborated by detail year', () => expect(assessIpadMovieIdentity(far, actual({ originalTitle: '蜘蛛侠英雄远征全集' })).status).toBe('verified'));
   it('rejects TV series', () => expect(matchesIpadMovieIdentity(far, actual({ typeNames: ['电视剧'] }))).toBe(false));
   it('rejects short drama', () => expect(matchesIpadMovieIdentity(far, actual({ typeNames: ['短剧'] }))).toBe(false));
   it('accepts missing optional fields if the primary title matches', () => expect(matchesIpadMovieIdentity(far, actual({ years: [], typeNames: [] }))).toBe(true));
@@ -32,4 +33,6 @@ describe('iPad film identity / Spider-Man regressions', () => {
     expect(assessIpadMovieIdentity(brand, {
       title: '蜘蛛侠：崭新之日', originalTitle: 'Unrelated film', years: ['2019'],
     }).status).toBe('uncertain'));
+  it('recognizes the Homecoming localized original title as a different movie', () =>
+    expect(assessIpadMovieIdentity(far, actual({ originalTitle: '蜘蛛侠：英雄归来' })).status).toBe('rejected'));
 });

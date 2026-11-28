@@ -69,6 +69,18 @@ export function assessIpadMovieIdentity(
   if (expectedYear && detailsYear === expectedYear && searchYear && searchYear !== expectedYear) {
     reasons.push('conflicting-year-metadata');
   }
+  if (originalConflicts && actual.originalTitle) {
+    // A known, different Spider-Man feature is a concrete series collision.
+    // Never override this with a favorable year supplied by the same CMS.
+    const distinctFilms = [
+      'Spider-Man: Far From Home', 'Spider-Man: Brand New Day',
+      'Spider-Man: Homecoming', 'Spider-Man: No Way Home',
+    ];
+    if (distinctFilms.some((film) => matchesMovieTitle(film, actual.originalTitle!) &&
+      !titles.some((title) => matchesMovieTitle(title, film)))) {
+      return { status: 'rejected', reasons: ['different-original-title'] };
+    }
+  }
   if (originalConflicts) {
     // CMS "original title" is often a subtitle, file name or a stale field.
     // Require a corroborating release year before accepting the main exact title.

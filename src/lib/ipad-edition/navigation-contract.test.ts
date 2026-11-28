@@ -230,7 +230,9 @@ describe('iPad Edition end-to-end cinema navigation contracts', () => {
     expect(detailRoute).toContain('<TmdbMovieDetailPage');
     expect(detailRoute).toContain('<BangumiSubjectDetailPage');
     expect(tmdbDetail).toContain('const startPlayback = async () => {');
-    expect(tmdbDetail).toContain('api.search(term, sources, yellowFilter, { signal: controller.signal })');
+    expect(tmdbDetail).toContain('findVerifiedIpadResource({');
+    const coordinator = readFileSync(resolve(process.cwd(), 'src/lib/ipad-edition/playback-coordinator.ts'), 'utf8');
+    expect(coordinator).toContain('api.search(term, usableSources, yellowFilter, { signal })');
     expect(tmdbDetail).toContain('▶ 开始播放');
     expect(bangumiDetail).toContain('const startPlayback = async () => {');
     expect(bangumiDetail).toContain('api.search(title, sources, yellowFilter, { signal: controller.signal })');
