@@ -22,7 +22,32 @@ async function realRedisCommand(parts){
   const socket=connect({host:'127.0.0.1',port:redisPort});
   return new Promise((resolve,reject)=>{
     const payload='*'+parts.length+'\r\n'+parts.map(value=>
-      '
+      '$'+Buffer.byteLength(value)+'\r\n'+value+'\r\n').join('');
+    let buffer=Buffer.alloc(0),done=false;
+    const timer=setTimeout(()=>finish(new Error('Test Redis timed out')),4000);
+    function finish(error,value){
+      if(done)return;
+      done=true;clearTimeout(timer);socket.destroy();
+      if(error)reject(error);else resolve(value);
+    }
+    socket.once('connect',()=>socket.write(payload));
+    socket.on('error',finish);
+    socket.on('data',part=>{
+      buffer=Buffer.concat([buffer,part]);
+      const pos=buffer.indexOf('\r\n');
+      if(pos<0)return;
+      const header=buffer.toString('utf8',0,pos);
+      if(header.startsWith('+'))finish(null,header.slice(1));
+      else if(header.startsWith('-'))finish(new Error('Redis test failed'));
+      else if(header.startsWith('$')){
+        const n=Number(header.slice(1));
+        if(n===-1)finish(null,null);
+        else if(Number.isSafeInteger(n)&&n>=0&&buffer.length>=pos+2+n+2)
+          finish(null,buffer.toString('utf8',pos+2,pos+2+n));
+      }else finish(new Error('Invalid Redis test reply'));
+    });
+  });
+}
 let lookupCount=0;
 const server=createServer(async(req,res)=>{
   try{
