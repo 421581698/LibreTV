@@ -1,0 +1,54 @@
+name: LibreTV iPad Edition Real Redis Two-Process Cancellation
+
+on:
+  push:
+    branches:
+      - feature/libretv-ipad-edition-product
+    paths:
+      - 'scripts/ipad-edition-two-instance-cancel-smoke.mjs'
+      - 'src/lib/infra/distributed-cancellation.ts'
+      - 'src/app/api/chat/**'
+      - 'src/components/friday/useFridayChatSession.ts'
+      - '.github/workflows/ipad-edition-redis-integration.yml'
+  pull_request:
+    branches:
+      - feature/libretv-ipad-edition-foundation
+    paths:
+      - 'scripts/ipad-edition-two-instance-cancel-smoke.mjs'
+      - 'src/lib/infra/distributed-cancellation.ts'
+      - 'src/app/api/chat/**'
+      - 'src/components/friday/useFridayChatSession.ts'
+      - '.github/workflows/ipad-edition-redis-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ipad-edition-redis-integration
+  cancel-in-progress: true
+jobs:
+  two-process-real-redis:
+    name: Two OS processes with disposable real Redis
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test two independent Node processes with real Redis storage
+        env:
+          INTEGRATION_REDIS_PORT: '6379'
+        run: node scripts/ipad-edition-two-instance-cancel-smoke.mjs
