@@ -13,6 +13,8 @@ on:
       - ".github/workflows/scrapling-collector.yml"
       - ".github/workflows/resource-playback-verification.yml"
       - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/ipad-edition-redis-integration.yml"
+      - "scripts/ipad-edition-two-instance-cancel-smoke.mjs"
       - 'src/lib/dolby/**'
       - 'src/lib/dolby-vision/**'
       - 'scripts/dolby-vision/**'
@@ -31,6 +33,8 @@ on:
       - ".github/workflows/scrapling-collector.yml"
       - ".github/workflows/resource-playback-verification.yml"
       - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/ipad-edition-redis-integration.yml"
+      - "scripts/ipad-edition-two-instance-cancel-smoke.mjs"
       - 'src/lib/dolby/**'
       - 'src/lib/dolby-vision/**'
       - 'scripts/dolby-vision/**'

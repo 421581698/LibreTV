@@ -3,7 +3,7 @@ name: Deploy LibreTV iPad Edition Preview (Ubuntu 24.04)
 # Poster proxy verification follows the iPad homepage image reliability fix.
 # Rendered PNG poster pixels are now a required gate; unreadable slots fail closed.
 # [deploy-ipad-edition-preview] Verify glass material, touch gestures and rendered poster pixels across iPad viewports.
-# PR #99 branch pushes may deploy only after all five exact-SHA PR checks succeed. Manual confirmation remains available.
+# PR #99 branch pushes may deploy only after all six exact-SHA PR checks succeed. Manual confirmation remains available.
 # Layout diagnostics are passed explicitly into the browser evaluation context for report serialization.
 
 on:
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
-      - name: Require all five successful PR checks for this exact commit
+      - name: Require all six successful PR checks for this exact commit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPOSITORY: ${{ github.repository }}
@@ -58,6 +58,7 @@ jobs:
             "HLS Browser Playback Smoke",
             "HLS External Stream Smoke",
             "Scrapling Collector",
+            "LibreTV iPad Edition Real Redis Two-Process Cancellation",
           ];
           const url = new URL(`https://api.github.com/repos/${process.env.GH_REPOSITORY}/actions/runs`);
           url.searchParams.set("branch", process.env.GH_BRANCH);
@@ -94,7 +95,7 @@ jobs:
             }
             if (attempt < 144) await new Promise(resolve => setTimeout(resolve, 15000));
           }
-          throw new Error("Timed out waiting for all five exact-SHA PR checks; Preview deployment blocked.");
+          throw new Error("Timed out waiting for all six exact-SHA PR checks; Preview deployment blocked.");
           NODE
       - uses: actions/setup-node@v4
         with:

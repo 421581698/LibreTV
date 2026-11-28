@@ -21,3 +21,7 @@ Record exact iPad model, iPadOS/Safari build, display and external-display hardw
 - Browser automation or a successful WebGPU `rgba16float` GPU queue submission cannot independently certify Dolby Vision or HDR physical display output.
 - Cloudflare Workers Builds remains a separate gate; a previous account read indicated build-minute quota exhaustion. Refresh and verify rather than guessing that current code caused failure.
 - An overall five-gate PASS requires all external and real-device evidence. Until then keep PR Draft and do not merge or deploy production.
+
+## Same-SHA six-suite Preview gate
+
+The independent Preview CI gate now requires the original five workflow suites plus real disposable Redis two-process integration on the exact same PR head SHA. Missing runs never count as PASS. This only strengthens Preview checks; production and Friday liquid-glass rendering remain untouched.

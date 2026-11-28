@@ -10,6 +10,12 @@ on:
       - 'src/app/api/chat/**'
       - 'src/components/friday/useFridayChatSession.ts'
       - '.github/workflows/ipad-edition-redis-integration.yml'
+      - '.github/workflows/ipad-edition-verify.yml'
+      - '.github/workflows/resource-playback-verification.yml'
+      - '.github/workflows/hls-browser-playback-smoke.yml'
+      - '.github/workflows/hls-external-smoke.yml'
+      - '.github/workflows/scrapling-collector.yml'
+      - '.github/workflows/deploy-ipad-edition-preview.yml'
   pull_request:
     branches:
       - feature/libretv-ipad-edition-foundation
@@ -19,6 +25,12 @@ on:
       - 'src/app/api/chat/**'
       - 'src/components/friday/useFridayChatSession.ts'
       - '.github/workflows/ipad-edition-redis-integration.yml'
+      - '.github/workflows/ipad-edition-verify.yml'
+      - '.github/workflows/resource-playback-verification.yml'
+      - '.github/workflows/hls-browser-playback-smoke.yml'
+      - '.github/workflows/hls-external-smoke.yml'
+      - '.github/workflows/scrapling-collector.yml'
+      - '.github/workflows/deploy-ipad-edition-preview.yml'
   workflow_dispatch:
 permissions:
   contents: read

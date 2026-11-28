@@ -13,6 +13,8 @@ on:
       - ".github/workflows/scrapling-collector.yml"
       - ".github/workflows/resource-playback-verification.yml"
       - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/ipad-edition-redis-integration.yml"
+      - "scripts/ipad-edition-two-instance-cancel-smoke.mjs"
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
       - "src/components/ipad-edition/poster-detail-playback.test.ts"
@@ -74,6 +76,8 @@ on:
       - "src/lib/watch-playback-state.test.ts"
       - "src/app/layout.tsx"
       - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/ipad-edition-redis-integration.yml"
+      - "scripts/ipad-edition-two-instance-cancel-smoke.mjs"
       - ".github/workflows/hls-browser-playback-smoke.yml"
       - ".github/workflows/deploy-ipad-edition-preview.yml"
   pull_request:
@@ -88,6 +92,8 @@ on:
       - ".github/workflows/scrapling-collector.yml"
       - ".github/workflows/resource-playback-verification.yml"
       - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/ipad-edition-redis-integration.yml"
+      - "scripts/ipad-edition-two-instance-cancel-smoke.mjs"
       - "src/app/ipad-edition/**"
       - "src/components/ipad-edition/**"
       - "src/lib/ipad-edition/**"
@@ -118,6 +124,8 @@ on:
       - "src/app/pr84-watch-mobile-fix.css"
       - "src/app/layout.tsx"
       - ".github/workflows/ipad-edition-verify.yml"
+      - ".github/workflows/ipad-edition-redis-integration.yml"
+      - "scripts/ipad-edition-two-instance-cancel-smoke.mjs"
       - ".github/workflows/deploy-ipad-edition-preview.yml"
   workflow_dispatch:
 
